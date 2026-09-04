@@ -27,7 +27,8 @@ const STORAGE_KEY = "koriepay_theme";
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 function getInitialTheme(): Theme {
-  if (typeof window === "undefined") return "dark";
+  // Light-first: the platform defaults to Day / Light mode.
+  if (typeof window === "undefined") return "light";
   try {
     const stored = window.localStorage.getItem(STORAGE_KEY);
     if (stored === "light" || stored === "dark") return stored;
@@ -35,17 +36,17 @@ function getInitialTheme(): Theme {
     /* ignore */
   }
   try {
-    if (window.matchMedia?.("(prefers-color-scheme: light)").matches) {
-      return "light";
+    if (window.matchMedia?.("(prefers-color-scheme: dark)").matches) {
+      return "dark";
     }
   } catch {
     /* ignore */
   }
-  return "dark";
+  return "light";
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("dark");
+  const [theme, setThemeState] = useState<Theme>("light");
 
   // Hydrate the stored / preferred theme on mount.
   useEffect(() => {

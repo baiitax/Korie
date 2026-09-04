@@ -91,7 +91,7 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
   ];
 
   return (
-    <div className="min-h-screen bg-[#050811] text-slate-100 flex flex-col antialiased selection:bg-amber-500 selection:text-slate-950">
+    <div className="min-h-screen bg-[var(--surface)] text-slate-100 flex flex-col antialiased selection:bg-amber-500 selection:text-slate-950">
       {/* Offline Warning Banner */}
       {isOffline && (
         <div className="bg-rose-600 text-white text-xs font-semibold px-4 py-2 flex items-center justify-center gap-2 sticky top-0 z-50">
@@ -102,7 +102,7 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
 
       <div className="flex flex-1">
         {/* Desktop Sidebar */}
-        <aside className="hidden lg:flex flex-col justify-between w-64 bg-[#070b16] border-r border-white/10 sticky top-0 h-screen overflow-y-auto z-40 shrink-0">
+        <aside className="hidden lg:flex flex-col justify-between w-64 bg-[var(--surface)] border-r border-white/10 sticky top-0 h-screen overflow-y-auto z-40 shrink-0">
           <div>
             {/* Header Brand */}
             <div className="p-4 border-b border-white/10 flex items-center justify-between">
@@ -115,7 +115,7 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
             </div>
 
             {/* Quick Liquidity Summary */}
-            <div className="p-3 mx-3 my-3 rounded-2xl bg-[#0c1426] border border-white/5 space-y-1">
+            <div className="p-3 mx-3 my-3 rounded-2xl bg-[var(--surface-2)] border border-white/5 space-y-1">
               <div className="text-[10px] font-mono text-slate-400 uppercase">
                 {t("common.availableLiquidity")}
               </div>
@@ -162,7 +162,7 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
           </div>
 
           {/* Sidebar Terminal Footer */}
-          <div className="p-3 border-t border-white/10 bg-[#050811]">
+          <div className="p-3 border-t border-white/10 bg-[var(--surface)]">
             <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900 border border-white/5 text-xs">
               <div>
                 <div className="font-bold text-white truncate max-w-[130px]">{agent.agentName}</div>
@@ -176,7 +176,7 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
         {/* Center Main Column */}
         <div className="flex-1 flex flex-col min-w-0 pb-20 lg:pb-8">
           {/* Top Sticky Header */}
-          <header className="sticky top-0 z-30 bg-[#070b16]/90 backdrop-blur-xl border-b border-white/10 px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+          <header className="sticky top-0 z-30 bg-[var(--nav-bg)] backdrop-blur-xl border-b border-white/10 px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <Link href="/agent" className="lg:hidden flex items-center">
                 <KorieLogo variant="compact" theme="dark" height={26} />
@@ -256,7 +256,7 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
       </div>
 
       {/* Mobile Fixed Bottom Navigation (48px+ touch targets) */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#070b16]/95 backdrop-blur-2xl border-t border-white/10 px-2 py-1.5 flex items-center justify-around safe-area-bottom shadow-2xl">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[var(--nav-bg)] backdrop-blur-2xl border-t border-white/10 px-2 py-1.5 flex items-center justify-around safe-area-bottom shadow-2xl">
         {mobileBottomNavItems.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;

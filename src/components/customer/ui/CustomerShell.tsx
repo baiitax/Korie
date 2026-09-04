@@ -60,7 +60,7 @@ export const CustomerShell: React.FC<{ children: React.ReactNode }> = ({ childre
   ];
 
   return (
-    <div className="min-h-screen bg-[#060a14] text-slate-100 flex flex-col antialiased selection:bg-emerald-500 selection:text-slate-950">
+    <div className="min-h-screen bg-[var(--surface)] text-slate-100 flex flex-col antialiased selection:bg-emerald-500 selection:text-slate-950">
       {/* Offline Status Warning Bar */}
       {isOffline && (
         <div className="bg-rose-600 text-white text-xs font-semibold px-4 py-2 flex items-center justify-center gap-2 sticky top-0 z-50">
@@ -72,7 +72,7 @@ export const CustomerShell: React.FC<{ children: React.ReactNode }> = ({ childre
       {/* Main App Layout */}
       <div className="flex flex-1">
         {/* Desktop Left Sidebar */}
-        <aside className="hidden lg:flex flex-col justify-between w-64 bg-[#070b16] border-r border-white/10 sticky top-0 h-screen overflow-y-auto z-40 shrink-0">
+        <aside className="hidden lg:flex flex-col justify-between w-64 bg-[var(--surface)] border-r border-white/10 sticky top-0 h-screen overflow-y-auto z-40 shrink-0">
           <div>
             {/* Logo */}
             <div className="p-5 border-b border-white/10 flex items-center justify-between">
@@ -85,7 +85,7 @@ export const CustomerShell: React.FC<{ children: React.ReactNode }> = ({ childre
             </div>
 
             {/* Quick Balance Preview Card */}
-            <div className="p-3 mx-3 my-3 rounded-2xl bg-[#0d162a] border border-white/10 space-y-1">
+            <div className="p-3 mx-3 my-3 rounded-2xl bg-[var(--surface-2)] border border-white/10 space-y-1">
               <div className="text-[10px] font-mono text-slate-400 uppercase">
                 {t("dashboard.availableBalance")}
               </div>
@@ -124,7 +124,7 @@ export const CustomerShell: React.FC<{ children: React.ReactNode }> = ({ childre
           </div>
 
           {/* Desktop User Footer */}
-          <div className="p-3 border-t border-white/10 bg-[#060912]">
+          <div className="p-3 border-t border-white/10 bg-[var(--surface-2)]">
             <Link
               href="/customer/profile"
               className="flex items-center justify-between p-2 rounded-xl bg-slate-900 border border-white/5 hover:border-white/15 transition-all"
@@ -147,7 +147,7 @@ export const CustomerShell: React.FC<{ children: React.ReactNode }> = ({ childre
         {/* Center Content Column */}
         <div className="flex-1 flex flex-col min-w-0 pb-20 lg:pb-8">
           {/* Top Sticky Header */}
-          <header className="sticky top-0 z-30 bg-[#070c18]/90 backdrop-blur-xl border-b border-white/10 px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+          <header className="sticky top-0 z-30 bg-[var(--nav-bg)] backdrop-blur-xl border-b border-white/10 px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
             {/* Mobile Brand / Greeting */}
             <div className="flex items-center gap-3">
               <Link href="/customer" className="lg:hidden flex items-center">
@@ -208,7 +208,7 @@ export const CustomerShell: React.FC<{ children: React.ReactNode }> = ({ childre
       </div>
 
       {/* Mobile Fixed Bottom Navigation Bar (48px+ touch targets, icon + label) */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#070b16]/95 backdrop-blur-2xl border-t border-white/10 px-2 py-2 flex items-center justify-around safe-area-bottom shadow-2xl">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[var(--nav-bg)] backdrop-blur-2xl border-t border-white/10 px-2 py-2 flex items-center justify-around safe-area-bottom shadow-2xl">
         {mobileBottomNavItems.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;

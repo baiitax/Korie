@@ -5,11 +5,18 @@ import { CountryProvider } from "@/components/ui/CountryContext";
 import { AuthProvider } from "@/components/auth/AuthContext";
 import { ThemeProvider } from "@/components/ui/ThemeContext";
 import { LanguageProvider } from "@/components/ui/LanguageContext";
+import dynamic from "next/dynamic";
 import { RouteProgress } from "@/components/ui/RouteProgress";
 import PublicChrome from "@/components/navigation/PublicChrome";
 import Preloader from "@/components/brand/Preloader";
-import Modal from "@/components/ui/Modal";
-import QuickSearch from "@/components/navigation/QuickSearch";
+
+// These are full-screen overlay/chrome primitives that only appear on user
+// interaction. Lazy-load them so their dependency subtree stays out of the
+// initial bundle for every route.
+const Modal = dynamic(() => import("@/components/ui/Modal"), { ssr: false });
+const QuickSearch = dynamic(() => import("@/components/navigation/QuickSearch"), {
+  ssr: false,
+});
 
 /**
  * Professional typography:
@@ -63,7 +70,7 @@ export const metadata: Metadata = {
 };
 
 // Inline script to set the persisted theme before hydration -> no flash.
-const themeInitScript = `(function(){try{var t=localStorage.getItem("koriepay_theme");if(t!=="light"&&t!=="dark"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";}document.documentElement.classList.remove("light","dark");document.documentElement.classList.add(t);}catch(e){}})();`;
+const themeInitScript = `(function(){try{var t=localStorage.getItem("koriepay_theme");if(t==="dark"){document.documentElement.classList.remove("light","dark");document.documentElement.classList.add("dark");}else{document.documentElement.classList.remove("light","dark");document.documentElement.classList.add("light");}}catch(e){}})();`;
 
 export default function RootLayout({
   children,
@@ -73,7 +80,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`dark ${publicSans.variable} ${sourceSerif.variable}`}
+      className={`light ${publicSans.variable} ${sourceSerif.variable}`}
       suppressHydrationWarning
     >
       <head>

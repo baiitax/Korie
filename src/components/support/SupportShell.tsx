@@ -106,9 +106,9 @@ export const SupportShell: React.FC<{ children: React.ReactNode }> = ({ children
   ];
 
   return (
-    <div className="min-h-screen bg-[#060913] text-slate-100 flex flex-col font-sans antialiased selection:bg-emerald-500/30 selection:text-emerald-200">
+    <div className="min-h-screen bg-[var(--surface)] text-slate-100 flex flex-col font-sans antialiased selection:bg-emerald-500/30 selection:text-emerald-200">
       {/* Top Header Navigation */}
-      <header className="sticky top-0 z-40 bg-[#0A101D]/90 backdrop-blur-md border-b border-slate-800/80 px-4 lg:px-8 py-2.5 flex items-center justify-between shadow-lg">
+      <header className="sticky top-0 z-40 bg-[var(--nav-bg)] backdrop-blur-md border-b border-slate-800/80 px-4 lg:px-8 py-2.5 flex items-center justify-between shadow-lg">
         <div className="flex items-center gap-4">
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -256,8 +256,8 @@ export const SupportShell: React.FC<{ children: React.ReactNode }> = ({ children
         {/* Left Sidebar */}
         <aside
           className={`${
-            mobileMenuOpen ? 'fixed inset-0 z-50 bg-[#060913]/95' : 'hidden'
-          } lg:block lg:static w-72 flex-shrink-0 bg-[#0A0F1D]/60 border-r border-slate-800/80 overflow-y-auto`}
+            mobileMenuOpen ? 'fixed inset-0 z-50 bg-[var(--nav-bg)]' : 'hidden'
+          } lg:block lg:static w-72 flex-shrink-0 bg-[var(--nav-bg)] border-r border-slate-800/80 overflow-y-auto`}
         >
           {mobileMenuOpen && (
             <div className="p-4 flex items-center justify-between border-b border-slate-800 lg:hidden">
@@ -338,7 +338,7 @@ export const SupportShell: React.FC<{ children: React.ReactNode }> = ({ children
         </aside>
 
         {/* Center Main Stage */}
-        <main className="flex-1 overflow-y-auto bg-gradient-to-b from-[#080D1A] to-[#04060C] p-4 lg:p-8 space-y-6">
+        <main className="flex-1 overflow-y-auto bg-[var(--background)] p-4 lg:p-8 space-y-6">
           {children}
         </main>
           <PortalFooter portal="support" />

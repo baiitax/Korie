@@ -2,70 +2,123 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ------------------------------------------------------------------ */
-/*  KoriePay Theme Tokens (Day / Night = Light / Dark)                 */
-/*  The default (unset) theme is the dark brand look. A `.light` class */
-/*  on <html> swaps the palette for the day (light) look.              */
-/* ------------------------------------------------------------------ */
+/* ------------------------------------------------------------------------- */
+/*  KORIEPAY LIGHT-FIRST DESIGN TOKENS                                        */
+/*  Light mode is the DEFAULT. Night (`.dark`) remains fully supported.       */
+/* ------------------------------------------------------------------------- */
 
 :root,
-.dark {
-  /* The brand content canvas stays dark so the marketing / dashboard
-     content remains fully readable in both themes. */
-  --background: #070b17;
-  --foreground: #eef2f7;
-
-  --surface: #0d1527;
-  --surface-2: #111c31;
-  --surface-3: #16223a;
-  --border: rgba(255, 255, 255, 0.1);
-  --border-strong: rgba(255, 255, 255, 0.18);
-  --muted: #94a3b8;
-  --nav-bg: rgba(7, 11, 23, 0.82);
-  --nav-fg: #eef2f7;
-  --nav-muted: #9aa8bd;
-  --card-bg: rgba(15, 23, 42, 0.65);
-  --card-border: rgba(255, 255, 255, 0.08);
-  --input-bg: rgba(15, 23, 42, 0.75);
-  --accent-border: rgba(16, 185, 129, 0.4);
-  --footer-bg: #050914;
-  --footer-surface: #0b1222;
-  --footer-fg: #cbd5e1;
-  --footer-muted: #94a3b8;
-  --scroll-track: #0a101d;
-  --scroll-thumb: #1e293b;
-  --scroll-thumb-hover: #334155;
-  --grid-line: rgba(255, 255, 255, 0.03);
-  --dot: rgba(255, 255, 255, 0.08);
-  --hero-glow: 0.15;
-}
-
 .light {
-  /* Day (light) chrome: nav + footer surfaces and their text swap,
-     while the dark content canvas above is untouched. */
+  /* Surfaces */
+  --background: #f4f7fb;
   --surface: #ffffff;
-  --surface-2: #f1f5f9;
-  --surface-3: #e8eef6;
-  --border: rgba(16, 24, 40, 0.1);
-  --border-strong: rgba(16, 24, 40, 0.18);
-  --muted: #667085;
-  --nav-bg: rgba(255, 255, 255, 0.88);
-  --nav-fg: #101828;
-  --nav-muted: #5b6b81;
+  --surface-2: #eef3f9;
+  --surface-3: #e4ecf6;
+  --surface-elevated: #ffffff;
   --card-bg: rgba(255, 255, 255, 0.85);
   --card-border: rgba(16, 24, 40, 0.08);
-  --input-bg: rgba(255, 255, 255, 0.95);
-  --accent-border: rgba(16, 185, 129, 0.45);
-  --footer-bg: #eef2f8;
+
+  /* Text */
+  --foreground: #0f1a2b;
+  --foreground-muted: #55657c;
+  --muted: #667085;
+
+  /* Borders */
+  --border: rgba(16, 24, 40, 0.1);
+  --border-strong: rgba(16, 24, 40, 0.2);
+
+  /* Brand */
+  --brand-primary: #0d9488; /* teal-600 */
+  --brand-primary-hover: #0f766e;
+  --brand-secondary: #d97706; /* amber-600 */
+  --brand-soft: rgba(13, 148, 136, 0.08);
+  --brand-soft-strong: rgba(13, 148, 136, 0.14);
+  --brand-border: rgba(13, 148, 136, 0.35);
+
+  /* Semantic */
+  --success: #16a34a;
+  --success-soft: rgba(22, 163, 74, 0.12);
+  --warning: #d97706;
+  --warning-soft: rgba(217, 119, 6, 0.14);
+  --danger: #dc2626;
+  --danger-soft: rgba(220, 38, 38, 0.12);
+  --info: #2563eb;
+  --info-soft: rgba(37, 99, 235, 0.12);
+
+  /* Chrome */
+  --nav-bg: rgba(255, 255, 255, 0.86);
+  --nav-fg: #0f1a2b;
+  --nav-muted: #55657c;
+  --footer-bg: #f4f7fb;
   --footer-surface: #ffffff;
   --footer-fg: #1f2937;
-  --footer-muted: #5b6b81;
+  --footer-muted: #55657c;
+  --input-bg: rgba(255, 255, 255, 0.95);
+  --accent-border: rgba(13, 148, 136, 0.45);
+
+  /* Effects */
   --scroll-track: #eef2f7;
   --scroll-thumb: #cbd5e1;
   --scroll-thumb-hover: #94a3b8;
   --grid-line: rgba(16, 24, 40, 0.05);
   --dot: rgba(16, 24, 40, 0.14);
   --hero-glow: 0.1;
+  --shadow-soft: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
+  --shadow-card: 0 2px 8px rgba(16, 24, 40, 0.06), 0 1px 2px rgba(16, 24, 40, 0.04);
+  --shadow-panel: 0 8px 30px rgba(16, 24, 40, 0.1);
+}
+
+.dark {
+  --background: #070b17;
+  --surface: #0d1527;
+  --surface-2: #111c31;
+  --surface-3: #16223a;
+  --surface-elevated: #16223a;
+  --card-bg: rgba(15, 23, 42, 0.65);
+  --card-border: rgba(255, 255, 255, 0.08);
+
+  --foreground: #eef2f7;
+  --foreground-muted: #b6c2d4;
+  --muted: #94a3b8;
+
+  --border: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.18);
+
+  --brand-primary: #14b8a6;
+  --brand-primary-hover: #2dd4bf;
+  --brand-secondary: #f59e0b;
+  --brand-soft: rgba(20, 184, 166, 0.12);
+  --brand-soft-strong: rgba(20, 184, 166, 0.18);
+  --brand-border: rgba(20, 184, 166, 0.4);
+
+  --success: #4ade80;
+  --success-soft: rgba(74, 222, 128, 0.14);
+  --warning: #fbbf24;
+  --warning-soft: rgba(251, 191, 36, 0.16);
+  --danger: #f87171;
+  --danger-soft: rgba(248, 113, 113, 0.16);
+  --info: #60a5fa;
+  --info-soft: rgba(96, 165, 250, 0.16);
+
+  --nav-bg: rgba(7, 11, 23, 0.82);
+  --nav-fg: #eef2f7;
+  --nav-muted: #9aa8bd;
+  --footer-bg: #050914;
+  --footer-surface: #0b1222;
+  --footer-fg: #cbd5e1;
+  --footer-muted: #94a3b8;
+  --input-bg: rgba(15, 23, 42, 0.75);
+  --accent-border: rgba(16, 185, 129, 0.4);
+
+  --scroll-track: #0a101d;
+  --scroll-thumb: #1e293b;
+  --scroll-thumb-hover: #334155;
+  --grid-line: rgba(255, 255, 255, 0.03);
+  --dot: rgba(255, 255, 255, 0.08);
+  --hero-glow: 0.15;
+  --shadow-soft: 0 2px 10px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  --shadow-card: 0 8px 30px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  --shadow-panel: 0 20px 50px rgba(0, 0, 0, 0.25);
 }
 
 @layer base {
@@ -74,10 +127,10 @@
   }
   html {
     scroll-behavior: smooth;
-    color-scheme: dark;
-  }
-  html.light {
     color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
   }
   body {
     color: var(--foreground);
@@ -86,7 +139,6 @@
     overflow-x: hidden;
     transition: background-color 0.3s ease, color 0.3s ease;
   }
-  /* Institutional serif for brand headings (Times-inspired) */
   h1,
   h2,
   h3 {
@@ -95,7 +147,203 @@
   }
 }
 
-/* Custom Scrollbar (theme aware) */
+/* ------------------------------------------------------------------------- */
+/*  LIGHT REMAP LAYER                                                         */
+/*  Converts the historical hard-coded dark surfaces/text so the whole        */
+/*  ecosystem reads as light-first. Scoped to `.light` so Night is untouched. */
+/*  Higher specificity (ancestor selector) so it wins without !important.     */
+/* ------------------------------------------------------------------------- */
+
+/* 1. Dark arbitrary hex backgrounds -> light surface tiers */
+.light .bg-\[\#040711\] { background-color: var(--background); }
+.light .bg-\[\#050811\] { background-color: var(--background); }
+.light .bg-\[\#050812\] { background-color: var(--background); }
+.light .bg-\[\#050914\] { background-color: var(--background); }
+.light .bg-\[\#060912\] { background-color: var(--background); }
+.light .bg-\[\#060913\] { background-color: var(--background); }
+.light .bg-\[\#060a14\] { background-color: var(--background); }
+.light .bg-\[\#060a15\] { background-color: var(--background); }
+.light .bg-\[\#060a16\] { background-color: var(--background); }
+.light .bg-\[\#070C18\] { background-color: var(--background); }
+.light .bg-\[\#070b16\] { background-color: var(--background); }
+.light .bg-\[\#070b17\] { background-color: var(--background); }
+.light .bg-\[\#070c18\] { background-color: var(--background); }
+.light .bg-\[\#070d18\] { background-color: var(--background); }
+.light .bg-\[\#080D1A\] { background-color: var(--background); }
+.light .bg-\[\#080d1a\] { background-color: var(--background); }
+.light .bg-\[\#080e1d\] { background-color: var(--background); }
+.light .bg-\[\#090E1A\] { background-color: var(--background); }
+.light .bg-\[\#090f1d\] { background-color: var(--background); }
+.light .bg-\[\#090f1e\] { background-color: var(--background); }
+.light .bg-\[\#090f1f\] { background-color: var(--background); }
+.light .bg-\[\#091020\] { background-color: var(--background); }
+.light .bg-\[\#091122\] { background-color: var(--background); }
+.light .bg-\[\#0A0F1D\] { background-color: var(--background); }
+.light .bg-\[\#0A101D\] { background-color: var(--background); }
+.light .bg-\[\#0a0f1d\] { background-color: var(--background); }
+.light .bg-\[\#0a1122\] { background-color: var(--background); }
+.light .bg-\[\#0b1220\] { background-color: var(--background); }
+.light .bg-\[\#0b1222\] { background-color: var(--background); }
+.light .bg-\[\#0b1324\] { background-color: var(--background); }
+.light .bg-\[\#0b1325\] { background-color: var(--background); }
+.light .bg-\[\#0b1428\] { background-color: var(--background); }
+.light .bg-\[\#0b172e\] { background-color: var(--background); }
+.light .bg-\[\#0b1b16\] { background-color: var(--background); }
+.light .bg-\[\#0c1324\] { background-color: var(--background); }
+.light .bg-\[\#0c1426\] { background-color: var(--background); }
+.light .bg-\[\#0c162c\] { background-color: var(--background); }
+.light .bg-\[\#0d1527\] { background-color: var(--background); }
+.light .bg-\[\#0d162a\] { background-color: var(--background); }
+.light .bg-\[\#0e172c\] { background-color: var(--background); }
+.light .bg-\[\#0f1d38\] { background-color: var(--background); }
+.light from-\[\#080D1A\] { --tw-gradient-from: var(--background) !important; }
+.light from-\[\#0B1528\] { --tw-gradient-from: var(--background) !important; }
+.light from-\[\#0C1527\] { --tw-gradient-from: var(--background) !important; }
+.light from-\[\#0a1329\] { --tw-gradient-from: var(--background) !important; }
+.light from-\[\#0a1829\] { --tw-gradient-from: var(--background) !important; }
+.light from-\[\#0b1329\] { --tw-gradient-from: var(--background) !important; }
+.light from-\[\#0c1527\] { --tw-gradient-from: var(--background) !important; }
+.light from-\[\#0c162b\] { --tw-gradient-from: var(--background) !important; }
+.light from-\[\#0c162c\] { --tw-gradient-from: var(--background) !important; }
+.light from-\[\#0d162a\] { --tw-gradient-from: var(--background) !important; }
+.light from-\[\#0e172e\] { --tw-gradient-from: var(--background) !important; }
+.light from-\[\#0e1933\] { --tw-gradient-from: var(--background) !important; }
+.light from-\[\#131f3b\] { --tw-gradient-from: var(--background) !important; }
+.light to-\[\#04060C\] { --tw-gradient-to: var(--background) !important; }
+.light to-\[\#040812\] { --tw-gradient-to: var(--background) !important; }
+.light to-\[\#050914\] { --tw-gradient-to: var(--background) !important; }
+.light to-\[\#050A16\] { --tw-gradient-to: var(--background) !important; }
+.light to-\[\#060B18\] { --tw-gradient-to: var(--background) !important; }
+.light to-\[\#060a15\] { --tw-gradient-to: var(--background) !important; }
+.light to-\[\#060b17\] { --tw-gradient-to: var(--background) !important; }
+.light to-\[\#060e1a\] { --tw-gradient-to: var(--background) !important; }
+.light to-\[\#070d1a\] { --tw-gradient-to: var(--background) !important; }
+.light to-\[\#070d1c\] { --tw-gradient-to: var(--background) !important; }
+.light to-\[\#070d1d\] { --tw-gradient-to: var(--background) !important; }
+.light to-\[\#070e1b\] { --tw-gradient-to: var(--background) !important; }
+.light to-\[\#080d1a\] { --tw-gradient-to: var(--background) !important; }
+.light to-\[\#090f1e\] { --tw-gradient-to: var(--background) !important; }
+.light to-\[\#0a1226\] { --tw-gradient-to: var(--background) !important; }
+.light to-\[\#0d162a\] { --tw-gradient-to: var(--background) !important; }
+.light to-\[\#142848\] { --tw-gradient-to: var(--surface) !important; }
+.light via-\[\#080d1a\] { background-image: none !important; }
+.light via-\[\#081224\] { background-image: none !important; }
+.light via-\[\#09101f\] { background-image: none !important; }
+.light via-\[\#091122\] { background-image: none !important; }
+.light via-\[\#091524\] { background-image: none !important; }
+.light via-\[\#0b162c\] { background-image: none !important; }
+.light via-\[\#0b162f\] { background-image: none !important; }
+.light via-\[\#0c1830\] { background-image: none !important; }
+.light .bg-\[\#050812\]\/50 { background-color: var(--nav-bg) !important; }
+.light .bg-\[\#080D1A\]\/80 { background-color: var(--nav-bg) !important; }
+.light .bg-\[\#080D1A\]\/90 { background-color: var(--nav-bg) !important; }
+.light .bg-\[\#080d1a\]\/95 { background-color: var(--nav-bg) !important; }
+.light .bg-\[\#0b1220\]\/80 { background-color: var(--nav-bg) !important; }
+.light .bg-\[\#0b1324\]\/80 { background-color: var(--nav-bg) !important; }
+.light .bg-\[\#0d162a\]\/80 { background-color: var(--nav-bg) !important; }
+/* 3. Dark slate surfaces -> light surface tiers */
+.light .bg-slate-950 { background-color: var(--surface) !important; }
+.light .bg-slate-900 { background-color: var(--surface-2) !important; }
+.light .bg-slate-850 { background-color: var(--surface-2) !important; }
+.light .bg-slate-800 { background-color: var(--surface-2) !important; }
+.light .bg-slate-700 { background-color: var(--surface-3) !important; }
+.light .bg-slate-900\/95 { background-color: var(--surface-2) !important; }
+.light .bg-slate-900\/90 { background-color: var(--surface-2) !important; }
+.light .bg-slate-900\/80 { background-color: rgba(238, 243, 249, 0.95) !important; }
+.light .bg-slate-900\/60 { background-color: rgba(238, 243, 249, 0.9) !important; }
+.light .bg-slate-800\/80 { background-color: rgba(238, 243, 249, 0.9) !important; }
+.light .bg-slate-800\/60 { background-color: rgba(238, 243, 249, 0.85) !important; }
+.light .bg-white\/5 { background-color: var(--surface-2) !important; }
+.light .bg-white\/10 { background-color: var(--surface-3) !important; }
+.light .bg-white\/\[0\.04\] { background-color: var(--surface-2) !important; }
+.light .bg-white\/\[0\.06\] { background-color: var(--surface-2) !important; }
+.light .bg-white\/\[0\.08\] { background-color: var(--surface-3) !important; }
+
+/* 4. Light-gray surface text -> dark text (Night is not affected) */
+.light .text-white,
+.light .text-slate-50,
+.light .text-slate-100,
+.light .text-slate-200,
+.light .text-slate-300 {
+  color: var(--foreground) !important;
+}
+.light .text-slate-400,
+.light .text-slate-500,
+.light .text-slate-600 {
+  color: var(--muted) !important;
+}
+.light .hover\:text-white:hover,
+.light .hover\:text-slate-100:hover,
+.light .hover\:text-slate-200:hover,
+.light .hover\:text-slate-300:hover,
+.light .hover\:text-white\/5:hover {
+  color: var(--foreground) !important;
+}
+.light .hover\:border-white\/10:hover,
+.light .hover\:border-white\/20:hover,
+.light .hover\:border-white\/30:hover {
+  border-color: var(--border-strong) !important;
+}
+
+/* 5. White/translucent borders -> light borders */
+.light .border-white\/5 { border-color: var(--border) !important; }
+.light .border-white\/10 { border-color: var(--border) !important; }
+.light .border-white\/15 { border-color: var(--border-strong) !important; }
+.light .border-white\/20 { border-color: var(--border-strong) !important; }
+.light .border-white\/30 { border-color: var(--border-strong) !important; }
+
+/* 6. Keep white text on solid brand / semantic buttons (same-element) */
+.light .bg-emerald-400.text-white, .light .bg-emerald-500.text-white, .light .bg-emerald-600.text-white, .light .bg-emerald-700.text-white,
+.light .bg-teal-400.text-white, .light .bg-teal-500.text-white, .light .bg-teal-600.text-white, .light .bg-teal-700.text-white,
+.light .bg-green-400.text-white, .light .bg-green-500.text-white, .light .bg-green-600.text-white,
+.light .bg-blue-400.text-white, .light .bg-blue-500.text-white, .light .bg-blue-600.text-white, .light .bg-blue-700.text-white,
+.light .bg-indigo-400.text-white, .light .bg-indigo-500.text-white, .light .bg-indigo-600.text-white,
+.light .bg-amber-400.text-white, .light .bg-amber-500.text-white, .light .bg-amber-600.text-white, .light .bg-amber-700.text-white,
+.light .bg-orange-400.text-white, .light .bg-orange-500.text-white, .light .bg-orange-600.text-white,
+.light .bg-red-400.text-white, .light .bg-red-500.text-white, .light .bg-red-600.text-white, .light .bg-red-700.text-white,
+.light .bg-purple-400.text-white, .light .bg-purple-500.text-white, .light .bg-purple-600.text-white,
+.light .bg-slate-950.text-white,
+.light .btn-korie-primary.text-white,
+.light .btn-korie-primary.text-slate-950 {
+  color: #ffffff !important;
+}
+.light .hover\:bg-emerald-500:hover.text-white { color: #ffffff !important; }
+
+/* 7. Light-mode readability remap for accent text.
+   300/400-level accents were designed for dark surfaces; on light surfaces
+   they are far below WCAG AA. Darken them (scoped to .light) so brand
+   accents and status badges remain readable on white. */
+.light .text-emerald-300, .light .text-emerald-400 { color: #047857 !important; }
+.light .text-teal-300, .light .text-teal-400 { color: #0f766e !important; }
+.light .text-amber-300, .light .text-amber-400 { color: #b45309 !important; }
+.light .text-orange-300, .light .text-orange-400 { color: #c2410c !important; }
+.light .text-rose-300, .light .text-rose-400 { color: #be123c !important; }
+.light .text-red-300, .light .text-red-400 { color: #b91c1c !important; }
+.light .text-blue-300, .light .text-blue-400 { color: #1d4ed8 !important; }
+.light .text-indigo-300, .light .text-indigo-400 { color: #4338ca !important; }
+.light .text-green-300, .light .text-green-400 { color: #15803d !important; }
+.light .text-purple-300, .light .text-purple-400 { color: #7e22ce !important; }
+.light .text-cyan-300, .light .text-cyan-400 { color: #0e7490 !important; }
+.light .text-sky-300, .light .text-sky-400 { color: #0369a1 !important; }
+.light .text-yellow-300, .light .text-yellow-400 { color: #a16207 !important; }
+.light .text-lime-300, .light .text-lime-400 { color: #4d7c0f !important; }
+.light .text-pink-300, .light .text-pink-400 { color: #be185d !important; }
+.light .text-slate-300, .light .text-slate-400 { color: var(--muted) !important; }
+.light .text-slate-500, .light .text-slate-600 { color: var(--muted) !important; }
+.light .text-slate-700, .light .text-slate-800, .light .text-slate-900 { color: var(--foreground) !important; }
+
+/* 8. Feedback is never colour-only: keep the glyphs legible on tinted badges. */
+.light .bg-success\/10, .light .bg-success\/15, .light .bg-success\/20 { background-color: var(--success-soft) !important; }
+.light .bg-warning\/10, .light .bg-warning\/15, .light .bg-warning\/20 { background-color: var(--warning-soft) !important; }
+.light .bg-danger\/10, .light .bg-danger\/15, .light .bg-danger\/20 { background-color: var(--danger-soft) !important; }
+.light .bg-info\/10, .light .bg-info\/15, .light .bg-info\/20 { background-color: var(--info-soft) !important; }
+.light .bg-brand\/10, .light .bg-brand\/15, .light .bg-brand\/20 { background-color: var(--brand-soft) !important; }
+
+/* ------------------------------------------------------------------------- */
+/*  Shared primitives (theme aware)                                          */
+/* ------------------------------------------------------------------------- */
+
+/* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -111,12 +359,13 @@
   background: var(--scroll-thumb-hover);
 }
 
-/* Glassmorphism primitives (theme aware) */
+/* Glassmorphism primitives */
 .glass-panel {
   background: var(--card-bg);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--card-border);
+  box-shadow: var(--shadow-card);
 }
 
 .glass-panel-interactive {
@@ -127,10 +376,10 @@
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .glass-panel-interactive:hover {
-  background: var(--surface-2);
+  background: var(--surface);
   border-color: var(--accent-border);
   transform: translateY(-2px);
-  box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.5), 0 0 25px -5px rgba(16, 185, 129, 0.15);
+  box-shadow: var(--shadow-panel);
 }
 
 .glass-nav {
@@ -147,19 +396,30 @@
   backdrop-filter: blur(10px);
 }
 .glass-input:focus {
-  border-color: #10b981;
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 2px var(--brand-soft-strong);
   outline: none;
 }
 
-/* Grid & Dots backgrounds (theme aware) */
+/* Light helper surfaces */
+.kp-surface {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-card);
+}
+.kp-badge-success { background: var(--success-soft); color: var(--success); }
+.kp-badge-warning { background: var(--warning-soft); color: var(--warning); }
+.kp-badge-danger { background: var(--danger-soft); color: var(--danger); }
+.kp-badge-info { background: var(--info-soft); color: var(--info); }
+.kp-badge-brand { background: var(--brand-soft); color: var(--brand-primary); }
+
+/* Grid & Dots backgrounds */
 .bg-grid-subtle {
   background-size: 40px 40px;
   background-image:
     linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
     linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
 }
-
 .bg-dots-subtle {
   background-image: radial-gradient(var(--dot) 1px, transparent 1px);
   background-size: 24px 24px;
@@ -167,67 +427,69 @@
 
 /* Gradient Text */
 .text-gradient-korie {
-  background: linear-gradient(135deg, #22c55e 0%, #14b8a6 30%, #f59e0b 70%, #f97316 100%);
+  background: linear-gradient(135deg, #0d9488 0%, #14b8a6 30%, #d97706 70%, #ea580c 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
-
 .text-gradient-green {
-  background: linear-gradient(135deg, #4ade80 0%, #14b8a6 100%);
+  background: linear-gradient(135deg, #16a34a 0%, #0d9488 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
-
 .text-gradient-gold {
-  background: linear-gradient(135deg, #fde047 0%, #f97316 100%);
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 /* Korie Brand Glow Button */
 .btn-korie-primary {
-  background: linear-gradient(135deg, #10b981 0%, #0d9488 50%, #d97706 100%);
+  background: linear-gradient(135deg, #0d9488 0%, #0f766e 50%, #d97706 100%);
   background-size: 200% 200%;
   transition: all 0.3s ease;
   color: #ffffff;
   font-weight: 600;
-  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.25);
+  box-shadow: 0 4px 14px rgba(13, 148, 136, 0.25);
 }
 .btn-korie-primary:hover {
   background-position: right center;
-  box-shadow: 0 6px 25px rgba(245, 158, 11, 0.35);
+  box-shadow: 0 6px 20px rgba(217, 119, 6, 0.3);
   transform: translateY(-1px);
 }
 
 .btn-korie-secondary {
-  background: var(--surface-2);
+  background: var(--surface);
   border: 1px solid var(--border-strong);
   color: var(--foreground);
   transition: all 0.2s ease;
 }
 .btn-korie-secondary:hover {
-  background: var(--surface-3);
+  background: var(--surface-2);
   border-color: var(--border-strong);
   color: var(--foreground);
 }
 
 /* Shimmer animation */
 .shimmer-text {
-  background: linear-gradient(90deg, var(--foreground) 0%, #a7f3d0 25%, #fde68a 50%, var(--foreground) 75%);
+  background: linear-gradient(90deg, var(--foreground) 0%, #99f6e4 25%, #fde68a 50%, var(--foreground) 75%);
   background-size: 200% auto;
   color: transparent;
   -webkit-background-clip: text;
   animation: shimmer 4s linear infinite;
 }
 
-/* Hero ambient glow strength based on theme */
 .hero-glow-orb {
   opacity: var(--hero-glow);
 }
 
-/* Small helper: smooth theme cross-fade for surfaces */
-.theme-surface {
-  background: var(--surface);
-  border-color: var(--border);
-  color: var(--foreground);
+/* Light skeleton shimmer */
+.kp-skeleton {
+  background: linear-gradient(90deg, var(--surface-2) 0%, var(--surface-3) 50%, var(--surface-2) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }

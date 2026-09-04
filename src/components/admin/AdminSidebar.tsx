@@ -214,7 +214,7 @@ export const AdminSidebar: React.FC = () => {
       </div>
 
       {/* Footer Profile & Live Uptime */}
-      <div className="p-3 border-t border-white/10 bg-[#060912]">
+      <div className="p-3 border-t border-white/10 bg-[var(--surface-2)]">
         <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900 border border-white/5">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-bold font-mono">

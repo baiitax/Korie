@@ -137,7 +137,7 @@ export const DeveloperShell: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   return (
-    <div className="min-h-screen bg-[#060a14] text-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-[var(--surface)] text-slate-100 flex flex-col font-sans">
       {/* Top Banner Alert if Incident Active */}
       {activeIncident && (
         <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 text-xs text-amber-300 flex items-center justify-between">
@@ -153,7 +153,7 @@ export const DeveloperShell: React.FC<{ children: React.ReactNode }> = ({ childr
       )}
 
       {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-40 bg-[#080d1a]/90 backdrop-blur-md border-b border-white/10">
+      <header className="sticky top-0 z-40 bg-[var(--nav-bg)] backdrop-blur-md border-b border-white/10">
         <div className="px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           {/* Logo & Portal Identity */}
           <div className="flex items-center gap-3 sm:gap-6">
@@ -179,7 +179,7 @@ export const DeveloperShell: React.FC<{ children: React.ReactNode }> = ({ childr
               </button>
 
               {appDropdownOpen && (
-                <div className="absolute left-0 mt-2 w-72 rounded-2xl bg-[#0d162a] border border-white/10 shadow-2xl p-2 z-50 animate-fadeIn">
+                <div className="absolute left-0 mt-2 w-72 rounded-2xl bg-[var(--surface-2)] border border-white/10 shadow-2xl p-2 z-50 animate-fadeIn">
                   <div className="text-[10px] font-mono text-slate-400 uppercase px-3 py-1">Select Application</div>
                   {applications.map(app => (
                     <button
@@ -298,9 +298,9 @@ export const DeveloperShell: React.FC<{ children: React.ReactNode }> = ({ childr
       {/* Main App Layout */}
       <div className="flex-1 flex max-w-[1600px] w-full mx-auto">
         {/* Desktop Sidebar Navigation */}
-        <aside className="hidden lg:block w-64 shrink-0 border-r border-white/10 bg-[#070b16] py-6 px-4 space-y-6 overflow-y-auto max-h-[calc(100vh-4rem)] sticky top-16 custom-scrollbar">
+        <aside className="hidden lg:block w-64 shrink-0 border-r border-white/10 bg-[var(--surface)] py-6 px-4 space-y-6 overflow-y-auto max-h-[calc(100vh-4rem)] sticky top-16 custom-scrollbar">
           {/* Organization Badge */}
-          <div className="p-3.5 rounded-2xl bg-[#0b1325] border border-white/10 space-y-1.5">
+          <div className="p-3.5 rounded-2xl bg-[var(--surface-2)] border border-white/10 space-y-1.5">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-mono font-bold uppercase text-slate-400">Workspace</span>
               <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 font-bold uppercase">
@@ -371,7 +371,7 @@ export const DeveloperShell: React.FC<{ children: React.ReactNode }> = ({ childr
         {/* Mobile Navigation Drawer */}
         {mobileMenuOpen && (
           <div className="lg:hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md">
-            <div className="w-4/5 max-w-sm h-full bg-[#070b16] border-r border-white/10 p-6 space-y-6 overflow-y-auto">
+            <div className="w-4/5 max-w-sm h-full bg-[var(--surface)] border-r border-white/10 p-6 space-y-6 overflow-y-auto">
               <div className="flex items-center justify-between pb-4 border-b border-white/10">
                 <span className="font-bold text-white text-sm">Developer Navigation</span>
                 <button
@@ -420,7 +420,7 @@ export const DeveloperShell: React.FC<{ children: React.ReactNode }> = ({ childr
       {/* Production Switch Warning Modal */}
       {envWarningModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
-          <div className="w-full max-w-md bg-[#0b1222] border border-amber-500/30 rounded-3xl p-6 shadow-2xl space-y-4">
+          <div className="w-full max-w-md bg-[var(--surface-2)] border border-amber-500/30 rounded-3xl p-6 shadow-2xl space-y-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
                 <AlertTriangle className="w-5 h-5" />
@@ -467,7 +467,7 @@ export const DeveloperShell: React.FC<{ children: React.ReactNode }> = ({ childr
           onClick={() => setIsSearchOpen(false)}
         >
           <div
-            className="w-full max-w-2xl bg-[#0b1222] border border-white/15 rounded-3xl p-4 shadow-2xl space-y-4"
+            className="w-full max-w-2xl bg-[var(--surface-2)] border border-white/15 rounded-3xl p-4 shadow-2xl space-y-4"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center gap-3 px-3 py-2 rounded-2xl bg-slate-900 border border-white/10">
