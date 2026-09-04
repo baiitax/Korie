@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS public.organizations (
     slug VARCHAR(255) NOT NULL UNIQUE,
     country VARCHAR(16) NOT NULL CHECK (country IN ('NG', 'NE', 'CROSS_BORDER')),
     jurisdiction VARCHAR(64) NOT NULL DEFAULT 'Bilateral WAEMU',
-    business_type VARCHAR(64) NOT NULL CHECK (business_type IN ('FINTECH', 'MERCHANT', 'AGGREGATOR', 'BANK', 'ENTERPRISE')),
+    business_type VARCHAR(64) NOT NULL DEFAULT 'FINTECH' CHECK (business_type IN ('FINTECH', 'MERCHANT', 'AGGREGATOR', 'BANK', 'ENTERPRISE')),
     tier VARCHAR(32) NOT NULL DEFAULT 'TIER_1' CHECK (tier IN ('TIER_1', 'TIER_2', 'TIER_3', 'ENTERPRISE')),
     verification_status VARCHAR(32) NOT NULL DEFAULT 'VERIFIED' CHECK (verification_status IN ('PENDING', 'TIER_1', 'VERIFIED', 'REJECTED')),
     default_currency VARCHAR(3) NOT NULL DEFAULT 'NGN' CHECK (default_currency IN ('NGN', 'XOF', 'USD')),
@@ -783,10 +783,10 @@ GROUP BY p.country_code, p.legal_entity_code, p.id, p.pool_code, p.currency, pos
 -- =============================================================================
 
 -- 8.1 Seed Organizations & Roles
-INSERT INTO public.organizations (id, name, slug, country, default_currency)
+INSERT INTO public.organizations (id, name, slug, country, business_type, default_currency)
 VALUES
-  ('10000000-0000-0000-0000-000000000001', 'KoriePay Nigeria HQ', 'koriepay-ng', 'NG', 'NGN'),
-  ('10000000-0000-0000-0000-000000000002', 'KoriePay Niger HQ', 'koriepay-ne', 'NE', 'XOF')
+  ('10000000-0000-0000-0000-000000000001', 'KoriePay Nigeria HQ', 'koriepay-ng', 'NG', 'FINTECH', 'NGN'),
+  ('10000000-0000-0000-0000-000000000002', 'KoriePay Niger HQ', 'koriepay-ne', 'NE', 'FINTECH', 'XOF')
 ON CONFLICT (slug) DO NOTHING;
 
 INSERT INTO public.roles (name, description, is_system_role)
@@ -854,7 +854,7 @@ VALUES
   ('70000000-0000-0000-0000-000000000006', '10000000-0000-0000-0000-000000000001', 'Tunde', 'Bakare', 'tunde.bakare@test.ng', '+2348030000006', 'NG', 'TIER_3'),
   ('70000000-0000-0000-0000-000000000007', '10000000-0000-0000-0000-000000000001', 'Ibrahim', 'Sani', 'ibrahim.sani@test.ng', '+2348030000007', 'NG', 'TIER_2'),
   ('70000000-0000-0000-0000-000000000008', '10000000-0000-0000-0000-000000000001', 'Blessing', 'Okon', 'blessing.okon@test.ng', '+2348030000008', 'NG', 'TIER_2'),
-  ('70000000-0000-0000-0000-000000000009', '10000000-0000-0000-0000-000000000009', 'Mustapha', 'Ali', 'mustapha.ali@test.ng', '+2348030000009', 'NG', 'TIER_2'),
+  ('70000000-0000-0000-0000-000000000009', '10000000-0000-0000-0000-000000000001', 'Mustapha', 'Ali', 'mustapha.ali@test.ng', '+2348030000009', 'NG', 'TIER_2'),
   ('70000000-0000-0000-0000-000000000010', '10000000-0000-0000-0000-000000000001', 'Kelechi', 'Nwosu', 'kelechi.nwosu@test.ng', '+2348030000010', 'NG', 'TIER_3'),
 
   -- 10 Nigerien Savers
