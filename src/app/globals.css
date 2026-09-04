@@ -471,6 +471,18 @@
 .light .bg-slate-700\/50, .light .bg-slate-600\/50 { background-color: rgba(237,243,250,0.5) !important; }
 .light .bg-slate-700\/40, .light .bg-slate-600\/40 { background-color: rgba(237,243,250,0.4) !important; }
 .light .bg-slate-700\/30, .light .bg-slate-600\/30 { background-color: rgba(237,243,250,0.3) !important; }
+/* Slate borders -> light border tiers (so residual dark card borders in the
+   compliance/portal surfaces read as hairline light borders in Light Mode). */
+.light .border-slate-950, .light .border-slate-900, .light .border-slate-850,
+.light .border-slate-800, .light .border-slate-700, .light .border-slate-600 {
+  border-color: var(--border) !important;
+}
+.light .border-slate-950\/90, .light .border-slate-900\/90, .light .border-slate-900\/80,
+.light .border-slate-900\/70, .light .border-slate-900\/60, .light .border-slate-800\/90,
+.light .border-slate-800\/80, .light .border-slate-800\/70, .light .border-slate-800\/60,
+.light .border-slate-950\/80, .light .border-slate-950\/70, .light .border-slate-950\/60 {
+  border-color: var(--border) !important;
+}
 
 
 /* 4. Light-gray surface text -> dark text (Night is not affected) */
@@ -576,6 +588,26 @@
 /* ------------------------------------------------------------------------- */
 /*  Shared primitives (theme aware)                                          */
 /* ------------------------------------------------------------------------- */
+
+/* Global keyboard focus — WCAG 2.2 AA. A visible, brand-tinted focus ring on
+   every interactive element, shown only for keyboard navigation (focus-visible).
+   We never remove the outline; we replace it with a stronger, accessible ring. */
+:where(a, button, input, select, textarea, [role="button"], [tabindex]):focus-visible {
+  outline: 2px solid var(--brand-primary-active);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+.light :where(a, button, input, select, textarea, [role="button"], [tabindex]):focus-visible {
+  outline-color: var(--brand-primary-active);
+  box-shadow: 0 0 0 4px var(--brand-soft-strong);
+}
+
+/* Financial figures should align in tables/lists where tabular numerals help. */
+.tabular,
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
@@ -721,7 +753,9 @@
 /* Refined primary button — a poised brand surface, not a screaming gradient.
    Typography + spacing carry emphasis; colour is confident but controlled. */
 .btn-korie-primary {
-  background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary-hover) 100%);
+  /* Deeper teal gradient (700 → 800) keeps the KoriePay identity but gives
+     white small-bold text >4.5:1 (approx 5.5:1), meeting WCAG 2.2 AA. */
+  background: linear-gradient(135deg, var(--brand-primary-hover) 0%, var(--brand-primary-active) 100%);
   color: #ffffff;
   font-weight: 600;
   border: 1px solid var(--brand-border);

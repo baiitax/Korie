@@ -95,7 +95,7 @@ export const Footer: React.FC = () => {
                 <button
                   type="submit"
                   disabled={subscribing}
-                  className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-500/20 shrink-0"
+                  className="px-5 py-2.5 rounded-xl btn-korie-primary text-xs font-bold flex items-center justify-center gap-1.5 shrink-0"
                 >
                   <span>Subscribe</span>
                   <Send className="w-3.5 h-3.5" />
