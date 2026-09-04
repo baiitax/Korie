@@ -79,13 +79,13 @@ export default function PartnersPage() {
       </section>
 
       {/* Partner Pillars */}
-      <section className="py-16 bg-[#060a14] relative">
+      <section className="py-16 kp-band-brand-tint relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {partnerTypes.map((p, idx) => (
               <div
                 key={idx}
-                className="p-6 sm:p-8 rounded-3xl bg-[#0b1324] border border-white/10 hover:border-amber-500/40 transition-all flex flex-col justify-between"
+                className="p-6 sm:p-8 rounded-3xl glass-02 border border-[var(--border-strong)] hover:border-amber-500/40 transition-all flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-center justify-between mb-4">

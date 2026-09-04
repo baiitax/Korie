@@ -38,7 +38,7 @@ export const TestimonialsStories: React.FC = () => {
   ];
 
   return (
-    <section className="py-20 lg:py-28 relative bg-[#070c18] text-white overflow-hidden">
+    <section className="py-20 lg:py-28 relative kp-band-cool text-white overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-16">
@@ -58,7 +58,7 @@ export const TestimonialsStories: React.FC = () => {
           {stories.map((s, idx) => (
             <div
               key={idx}
-              className="p-6 sm:p-8 rounded-3xl bg-[#0b1324] border border-white/10 shadow-xl flex flex-col justify-between hover:border-emerald-500/30 transition-all"
+              className="p-6 sm:p-8 rounded-3xl glass-02 border border-[var(--border-strong)] shadow-xl flex flex-col justify-between hover:border-emerald-500/30 transition-all"
             >
               <div>
                 <div className="flex items-center justify-between mb-4">

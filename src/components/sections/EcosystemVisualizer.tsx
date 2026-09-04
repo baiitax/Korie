@@ -106,7 +106,7 @@ export const EcosystemVisualizer: React.FC = () => {
   const current = nodes[activeNode];
 
   return (
-    <section className="py-20 lg:py-28 relative bg-[#060a15] overflow-hidden">
+    <section className="py-20 lg:py-28 relative kp-band-warm overflow-hidden">
       {/* Background visual accents */}
       <div className="absolute -top-40 left-1/3 w-[600px] h-[600px] bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute -bottom-40 right-1/4 w-[600px] h-[600px] bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
@@ -284,7 +284,7 @@ export const EcosystemVisualizer: React.FC = () => {
 
           {/* Right: Active Node Detail Card */}
           <div className="lg:col-span-5">
-            <div className="p-6 sm:p-8 rounded-3xl bg-[#0d162a] border border-white/10 shadow-2xl relative overflow-hidden">
+            <div className="p-6 sm:p-8 rounded-3xl glass-02 border border-[var(--border-strong)] shadow-2xl relative overflow-hidden">
               <div className="text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-1">
                 Ecosystem Component Detail
               </div>

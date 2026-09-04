@@ -33,7 +33,7 @@ export const FxRateSimulator: React.FC = () => {
   };
 
   return (
-    <div className="p-6 sm:p-8 rounded-3xl bg-[#0d162a] border border-white/10 shadow-2xl relative overflow-hidden">
+    <div className="p-6 sm:p-8 rounded-3xl glass-02 border border-[var(--border-strong)] shadow-2xl relative overflow-hidden">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-6 mb-6 border-b border-white/10">
         <div className="flex items-center gap-3">

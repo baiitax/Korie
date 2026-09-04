@@ -73,13 +73,13 @@ export default function SecurityPage() {
       </section>
 
       {/* Security Architecture Grid */}
-      <section className="py-16 bg-[#060a14] relative">
+      <section className="py-16 kp-band-brand-tint relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {securityLayers.map((layer, idx) => (
               <div
                 key={idx}
-                className="p-6 sm:p-8 rounded-3xl bg-[#0b1324] border border-white/10 hover:border-emerald-500/40 transition-all"
+                className="p-6 sm:p-8 rounded-3xl glass-02 border border-[var(--border-strong)] hover:border-emerald-500/40 transition-all"
               >
                 <div className="p-3 rounded-2xl bg-slate-900 border border-white/5 w-fit mb-4">
                   {layer.icon}
@@ -93,7 +93,7 @@ export default function SecurityPage() {
       </section>
 
       {/* Contact Compliance Box */}
-      <section className="py-8 bg-[#080d1a] relative">
+      <section className="py-8 kp-band-cool relative">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="p-8 rounded-3xl bg-[#0d162a] border border-white/15 flex flex-col md:flex-row items-center justify-between gap-6">
             <div>

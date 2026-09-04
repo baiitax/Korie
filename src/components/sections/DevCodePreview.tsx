@@ -258,7 +258,7 @@ def webhook():
   };
 
   return (
-    <section className="py-20 lg:py-28 bg-[#070b16] text-white relative overflow-hidden">
+    <section className="py-20 lg:py-28 kp-band-default text-white relative overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Header */}
         <div className="text-center max-w-3xl mx-auto mb-14">
@@ -275,7 +275,7 @@ def webhook():
         </div>
 
         {/* Code Explorer Container */}
-        <div className="max-w-5xl mx-auto rounded-3xl bg-[#0c1324] border border-white/15 shadow-2xl overflow-hidden">
+        <div className="max-w-5xl mx-auto rounded-3xl glass-02 border border-[var(--border-strong)] shadow-2xl overflow-hidden">
           {/* Top Bar: Endpoints & Languages */}
           <div className="p-4 bg-slate-900/90 border-b border-white/10 flex flex-wrap items-center justify-between gap-3">
             {/* Endpoints Selector */}
@@ -351,8 +351,8 @@ def webhook():
           </div>
 
           {/* Code Window */}
-          <div className="p-6 bg-[#080d1a] overflow-x-auto text-xs sm:text-sm font-mono text-emerald-400 leading-relaxed">
-            <pre className="text-slate-200">
+          <div className="p-6 bg-[var(--surface)] border-t border-[var(--border)] overflow-x-auto text-xs sm:text-sm font-mono text-[var(--brand-primary)] leading-relaxed">
+            <pre className="text-[var(--foreground-muted)]">
               <code>{currentCode}</code>
             </pre>
           </div>

@@ -8,6 +8,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import CTASection from "@/components/sections/CTASection";
+import KpayImageCard from "@/components/ui/KpayImageCard";
 
 export default function AboutPage() {
   const milestones = [
@@ -72,28 +73,60 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* Mission & Vision Grid */}
-      <section className="py-16 bg-[#060a14] relative">
+      {/* Mission & Vision Grid + Editorial Imagery */}
+      <section className="py-16 kp-band-brand-tint relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="p-8 rounded-3xl bg-[#0b1324] border border-white/10 shadow-xl space-y-4 relative overflow-hidden">
-              <div className="p-3 rounded-2xl bg-emerald-500/10 text-emerald-400 w-fit">
+            <div className="p-8 rounded-3xl glass-02 border border-[var(--border-strong)] shadow-xl space-y-4 relative overflow-hidden">
+              <div className="p-3 rounded-2xl bg-[var(--brand-whisper)] text-[var(--brand-primary)] w-fit">
                 <Target className="w-6 h-6" />
               </div>
-              <h2 className="text-xl sm:text-2xl font-bold text-white">Our Mission</h2>
-              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              <h2 className="text-xl sm:text-2xl font-bold text-[var(--foreground)]">Our Mission</h2>
+              <p className="text-xs sm:text-sm text-[var(--foreground-muted)] leading-relaxed">
                 To build accessible, secure, and scalable financial technology infrastructure that eliminates the barriers to cross-border commerce, empowers local agents at the last mile, and bridges liquidity for businesses across West Africa.
               </p>
             </div>
 
-            <div className="p-8 rounded-3xl bg-[#0b1324] border border-white/10 shadow-xl space-y-4 relative overflow-hidden">
-              <div className="p-3 rounded-2xl bg-amber-500/10 text-amber-400 w-fit">
+            <div className="p-8 rounded-3xl glass-02 border border-[var(--border-strong)] shadow-xl space-y-4 relative overflow-hidden">
+              <div className="p-3 rounded-2xl bg-[var(--brand-tint)] text-[var(--brand-secondary)] w-fit">
                 <Sparkles className="w-6 h-6" />
               </div>
-              <h2 className="text-xl sm:text-2xl font-bold text-white">Our Vision</h2>
-              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              <h2 className="text-xl sm:text-2xl font-bold text-[var(--foreground)]">Our Vision</h2>
+              <p className="text-xs sm:text-sm text-[var(--foreground-muted)] leading-relaxed">
                 To become the definitive digital financial foundation for West Africa—where money moves as seamlessly across national borders and languages as trade itself. Kudinka, Hannunka (Your Money, in Your Hands).
               </p>
+            </div>
+          </div>
+
+          <div className="mt-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+            <div className="lg:col-span-5">
+              <KpayImageCard
+                src="/images/visual/about-africa.webp"
+                alt="African entrepreneurs and businesses across Nigeria and Niger Republic connected through KoriePay financial inclusion"
+                aspect="4 / 3"
+                objectPosition="center"
+                className="shadow-xl"
+              />
+            </div>
+            <div className="lg:col-span-7 space-y-4">
+              <h2 className="text-2xl sm:text-3xl font-bold text-[var(--foreground)] tracking-tight">
+                Built for Africa. <span className="text-gradient-korie">Designed for the world.</span>
+              </h2>
+              <p className="text-sm text-[var(--foreground-muted)] leading-relaxed">
+                From bustling Kano grain markets to the regulatory corridors of Niamey, KoriePay connects real people and real businesses. Our visual identity reflects the vibrancy of West African commerce — modern, confident, and rooted in the communities we serve.
+              </p>
+              <div className="flex flex-wrap gap-x-8 gap-y-3">
+                {[
+                  ["50,000+", "Physical service points"],
+                  ["2", "Interconnected markets"],
+                  ["3", "Foundational pillars"],
+                ].map(([n, l]) => (
+                  <div key={l} className="space-y-0.5">
+                    <div className="text-2xl font-bold tabular text-[var(--brand-primary)]">{n}</div>
+                    <div className="text-xs text-[var(--muted)]">{l}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>

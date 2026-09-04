@@ -15,6 +15,7 @@ import {
   Cpu,
 } from "lucide-react";
 import { useCountry } from "../ui/CountryContext";
+import KpayImageCard from "@/components/ui/KpayImageCard";
 
 export const TrustMetrics: React.FC = () => {
   const { openModal } = useCountry();
@@ -53,23 +54,36 @@ export const TrustMetrics: React.FC = () => {
   ];
 
   return (
-    <section className="py-20 lg:py-28 relative bg-[#060a14] text-white overflow-hidden">
+    <section className="py-20 lg:py-28 relative kp-band-brand-tint text-white overflow-hidden">
       {/* Visual background lights */}
       <div className="absolute top-0 right-1/3 w-[500px] h-[500px] bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Section Header */}
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800/80 border border-white/10 text-xs font-mono text-emerald-400 mb-3">
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>SECURITY-FIRST ARCHITECTURE</span>
+        <div className="max-w-4xl mx-auto mb-16">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+            <div className="lg:col-span-6 text-center lg:text-left">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--brand-whisper)] border border-[var(--brand-border)]/40 text-xs font-mono text-[var(--brand-primary)] mb-3">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>SECURITY-FIRST ARCHITECTURE</span>
+              </div>
+              <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight leading-tight text-[var(--foreground)]">
+                Security &amp; Integrity Engineered Into Every Transaction
+              </h2>
+              <p className="mt-4 text-sm sm:text-base text-[var(--foreground-muted)] leading-relaxed">
+                Financial infrastructure demands uncompromised reliability. KoriePay is engineered from the ground up with defensive architecture, robust identity verification, and comprehensive auditability.
+              </p>
+            </div>
+            <div className="lg:col-span-6">
+              <KpayImageCard
+                src="/images/visual/trust-security.webp"
+                alt="Secure KoriePay digital banking — identity verification and fraud monitoring"
+                aspect="4 / 3"
+                objectPosition="center"
+                className="shadow-xl"
+              />
+            </div>
           </div>
-          <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight leading-tight">
-            Security & Integrity Engineered Into Every Transaction
-          </h2>
-          <p className="mt-4 text-sm sm:text-base text-slate-400 leading-relaxed">
-            Financial infrastructure demands uncompromised reliability. KoriePay is engineered from the ground up with defensive architecture, robust identity verification, and comprehensive auditability.
-          </p>
         </div>
 
         {/* 6 Security Cards Grid */}
@@ -91,7 +105,7 @@ export const TrustMetrics: React.FC = () => {
         </div>
 
         {/* Institutional Assurance Strip */}
-        <div className="p-6 sm:p-8 rounded-3xl bg-[#0b1324] border border-white/10 flex flex-col lg:flex-row items-center justify-between gap-6 shadow-2xl">
+        <div className="p-6 sm:p-8 rounded-3xl glass-02 border border-[var(--border-strong)] flex flex-col lg:flex-row items-center justify-between gap-6 shadow-2xl">
           <div className="space-y-1 text-center lg:text-left">
             <h4 className="text-base sm:text-lg font-bold text-white">
               Institutional Compliance & Integration Inquiries

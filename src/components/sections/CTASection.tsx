@@ -18,14 +18,14 @@ export const CTASection: React.FC = () => {
   const { openModal } = useCountry();
 
   return (
-    <section className="py-20 lg:py-28 relative bg-[#060a14] overflow-hidden">
+    <section className="py-20 lg:py-28 relative kp-band-brand-tint overflow-hidden">
       {/* Background radial glow */}
       <div className="absolute inset-0 bg-brand-mesh opacity-60 pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="p-8 sm:p-12 lg:p-16 rounded-3xl bg-gradient-to-b from-[#0e172e] to-[#080d1a] border border-white/15 shadow-2xl relative overflow-hidden text-center max-w-5xl mx-auto">
+        <div className="p-8 sm:p-12 lg:p-16 rounded-3xl kp-gradient-brand-card glass-02 border border-[var(--border-strong)] shadow-xl relative overflow-hidden text-center max-w-5xl mx-auto">
           {/* Subtle logo background watermark */}
-          <div className="absolute -top-16 -right-16 w-80 h-80 opacity-5 pointer-events-none">
+          <div className="absolute -top-16 -right-16 w-80 h-80 opacity-[0.04] pointer-events-none">
             <Image
               src="/brand/koriepay-icon-tight.png"
               alt="KoriePay"

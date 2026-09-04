@@ -51,7 +51,7 @@ export default function ResourcesPage() {
       </section>
 
       {/* Reports Grid */}
-      <section className="py-16 bg-[#060a14] relative">
+      <section className="py-16 kp-band-brand-tint relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-14">
             <h2 className="text-2xl sm:text-4xl font-extrabold text-white">
@@ -63,7 +63,7 @@ export default function ResourcesPage() {
             {reports.map((r, idx) => (
               <div
                 key={idx}
-                className="p-6 sm:p-8 rounded-3xl bg-[#0b1324] border border-white/10 hover:border-teal-500/40 transition-all flex flex-col justify-between"
+                className="p-6 sm:p-8 rounded-3xl glass-02 border border-[var(--border-strong)] hover:border-teal-500/40 transition-all flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-center justify-between mb-4">
@@ -94,7 +94,7 @@ export default function ResourcesPage() {
       </section>
 
       {/* Brand Assets Download Card */}
-      <section className="py-16 bg-[#080d1a] relative">
+      <section className="py-16 kp-band-cool relative">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="p-8 sm:p-10 rounded-3xl bg-[#0d162a] border border-white/15 flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">
             <div className="space-y-2 text-center md:text-left">

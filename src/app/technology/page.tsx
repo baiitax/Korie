@@ -69,13 +69,13 @@ export default function TechnologyPage() {
       </section>
 
       {/* Architecture Highlights */}
-      <section className="py-16 bg-[#060a14] relative">
+      <section className="py-16 kp-band-brand-tint relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {techPillars.map((p, idx) => (
               <div
                 key={idx}
-                className="p-6 rounded-3xl bg-[#0b1324] border border-white/10 hover:border-teal-500/40 transition-all"
+                className="p-6 rounded-3xl glass-02 border border-[var(--border-strong)] hover:border-teal-500/40 transition-all"
               >
                 <div className="p-3 rounded-2xl bg-slate-900 border border-white/5 w-fit mb-4">
                   {p.icon}

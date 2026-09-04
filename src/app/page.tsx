@@ -61,7 +61,7 @@ export default function HomePage() {
       <ThreePillarsSection />
 
       {/* 04: Interactive Agent Commission & Volume Calculator */}
-      <section className="py-16 bg-[#080d1a] relative">
+      <section className="py-16 kp-band-neutral relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AgentCalculator />
         </div>
@@ -71,7 +71,7 @@ export default function HomePage() {
       <CrossBorderCorridor />
 
       {/* 06: Institutional FX & Multi-Currency Rate Simulator */}
-      <section className="py-16 bg-[#080d1a] relative">
+      <section className="py-16 kp-band-neutral relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <FxRateSimulator />
         </div>

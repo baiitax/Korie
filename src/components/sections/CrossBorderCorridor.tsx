@@ -68,7 +68,7 @@ export const CrossBorderCorridor: React.FC = () => {
   const active = corridors[selectedCorridor];
 
   return (
-    <section className="py-20 lg:py-28 relative bg-[#090f1f] text-white overflow-hidden">
+    <section className="py-20 lg:py-28 relative kp-band-default text-white overflow-hidden">
       {/* Background radial gradient glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] bg-gradient-to-r from-emerald-500/10 via-amber-500/10 to-teal-500/10 rounded-full blur-[140px] pointer-events-none" />
 
@@ -127,7 +127,7 @@ export const CrossBorderCorridor: React.FC = () => {
 
           {/* Right: Corridor Map & Detail Display Card */}
           <div className="lg:col-span-7">
-            <div className="p-6 sm:p-8 rounded-3xl bg-[#0d162a] border border-white/10 shadow-2xl relative overflow-hidden">
+            <div className="p-6 sm:p-8 rounded-3xl glass-02 border border-[var(--border-strong)] shadow-2xl relative overflow-hidden">
               {/* Header Info */}
               <div className="flex flex-wrap items-center justify-between gap-2 pb-4 mb-6 border-b border-white/10">
                 <div>

@@ -82,7 +82,7 @@ export default function NigerRepublicPage() {
       </section>
 
       {/* Regional Hubs */}
-      <section className="py-20 bg-[#060a14] relative">
+      <section className="py-20 kp-band-brand-tint relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16">
             <h2 className="text-2xl sm:text-4xl font-extrabold text-white">
@@ -97,7 +97,7 @@ export default function NigerRepublicPage() {
             {nigerHubs.map((hub, idx) => (
               <div
                 key={idx}
-                className="p-6 sm:p-8 rounded-3xl bg-[#0b1324] border border-white/10 hover:border-amber-500/40 transition-all flex items-start gap-4"
+                className="p-6 sm:p-8 rounded-3xl glass-02 border border-[var(--border-strong)] hover:border-amber-500/40 transition-all flex items-start gap-4"
               >
                 <div className="p-3 rounded-2xl bg-slate-900 border border-white/5 shrink-0">
                   <MapPin className="w-6 h-6 text-amber-400" />

@@ -99,6 +99,33 @@
   --shadow-soft: var(--shadow-sm);
   --shadow-card: var(--shadow-sm);
   --shadow-panel: var(--shadow-md);
+
+  /* ------------------------------------------------------------------ */
+  /*  LIGHT SECTION BAND SYSTEM (V6.0)                                    */
+  /*  Subtle, layered tonal rhythm. Instead of one flat background,       */
+  /*  sections step through soft neutrals + a faint brand atmosphere.     */
+  /*  Depth without color blocks, per the 60/30/10 rule.                  */
+  /* ------------------------------------------------------------------ */
+  --band-default: #f5f8fc;      /* canvas */
+  --band-neutral: #f7fafd;      /* soft neutral (section) */
+  --band-cool: #eef4fa;         /* cool tonal shift */
+  --band-warm: #faf7f1;         /* warm tonal shift */
+  --band-brand-tint: #eef6f5;   /* very faint teal atmosphere */
+  --band-brand-whisper: #e3f1ef;/* gentle teal wash */
+
+  /* ------------------------------------------------------------------ */
+  /*  KORIEPAY TONAL BRAND LADDER (V6.0 §07)                              */
+  /*  Mature tonal range instead of only 100% brand.                      */
+  /* ------------------------------------------------------------------ */
+  --brand-deep: #115e59;        /* brand-800, deepest */
+  --brand-strong: #0f766e;      /* brand-700 */
+  --brand-80: #0f9488;          /* ~80% strength */
+  --brand-60: #14a59a;          /* ~60% */
+  --brand-40: #4fbfb4;          /* ~40% */
+  --brand-20: #90d5cf;          /* ~20% */
+  --brand-10: #c4e7e3;          /* ~10% */
+  --brand-tint: #e6f2f0;        /* 6% wash */
+  --brand-whisper: #f1f8f7;     /* 3% whisper */
 }
 
 .dark {
@@ -177,6 +204,25 @@
   --shadow-soft: var(--shadow-sm);
   --shadow-card: var(--shadow-md);
   --shadow-panel: var(--shadow-lg);
+
+  /* Section bands (Night) — darker tonal steps, same rhythm */
+  --band-default: #070b17;
+  --band-neutral: #0a101e;
+  --band-cool: #0c1322;
+  --band-warm: #0d1424;
+  --band-brand-tint: #0a1a20;
+  --band-brand-whisper: #0c2026;
+
+  /* Tonal brand ladder (Night) */
+  --brand-deep: #5eead4;
+  --brand-strong: #2dd4bf;
+  --brand-80: #14b8a6;
+  --brand-60: #38c5b2;
+  --brand-40: #69d6c4;
+  --brand-20: #9ee0d2;
+  --brand-10: #c9eeE5;
+  --brand-tint: rgba(20, 184, 166, 0.12);
+  --brand-whisper: rgba(20, 184, 166, 0.06);
 }
 
 @layer base {
@@ -475,6 +521,26 @@
 .light .bg-info\/10, .light .bg-info\/15, .light .bg-info\/20 { background-color: var(--info-soft) !important; }
 .light .bg-brand\/10, .light .bg-brand\/15, .light .bg-brand\/20 { background-color: var(--brand-soft) !important; }
 
+/* 9. Tame neon glow-shadows for the light environment (V6.0).
+   Saturated colour shadows were authored for dark surfaces and scream on light.
+   Replace them with a single soft, brand-tinted ambient shadow. */
+.light .shadow-emerald-500\/10, .light .shadow-emerald-500\/20, .light .shadow-emerald-500\/25,
+.light .shadow-teal-500\/10,   .light .shadow-teal-500\/25,
+.light .shadow-amber-500\/10,  .light .shadow-amber-500\/25,
+.light .shadow-blue-500\/10,   .light .shadow-blue-500\/25,
+.light .shadow-green-500\/10,  .light .shadow-green-500\/20,
+.light .shadow-orange-500\/20, .light .shadow-red-500\/20 {
+  box-shadow: 0 12px 30px -10px rgba(16, 24, 40, 0.16) !important;
+}
+
+/* 10. Soften the harsh dark-grid + bright-saturation gradient backgrounds that
+   public sections used on dark; keep only a quiet brand atmosphere. */
+.light .bg-grid-subtle {
+  background-image:
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+}
+
 /* ------------------------------------------------------------------------- */
 /*  Shared primitives (theme aware)                                          */
 /* ------------------------------------------------------------------------- */
@@ -556,6 +622,87 @@
 .kp-badge-info { background: var(--info-soft); color: var(--info); }
 .kp-badge-brand { background: var(--brand-soft); color: var(--brand-primary); }
 
+/* ------------------------------------------------------------------------- */
+/*  V6.0 — SECTION BANDS + IMAGE TREATMENT + GRADIENT & BUTTON GOVERNANCE     */
+/*  Light-first tonal rhythm. Sections step through these bands instead of    */
+/*  sitting on one flat background; the difference between them is subtle.    */
+/* ------------------------------------------------------------------------- */
+.kp-band-default  { background-color: var(--band-default); }
+.kp-band-neutral  { background-color: var(--band-neutral); }
+.kp-band-cool     { background-color: var(--band-cool); }
+.kp-band-warm     { background-color: var(--band-warm); }
+.kp-band-brand-tint    { background-color: var(--band-brand-tint); }
+.kp-band-brand-whisper { background-color: var(--band-brand-whisper); }
+
+/* Editorial image treatment (§17–21): consistent radius, soft ambient shadow,
+   fine glass border, subtle highlight. Framing belongs to the scene. */
+.kp-img {
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 var(--glass-highlight);
+  background: var(--surface-2);
+}
+.kp-img-lg { border-radius: 24px; }
+.kp-img-frame {
+  position: relative;
+  border-radius: 24px;
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-xl), inset 0 1px 0 var(--glass-highlight);
+  overflow: hidden;
+}
+.kp-img-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+  pointer-events: none;
+}
+/* Soft light-grading overlay so photography feels connected to the brand,
+   while keeping faces and key detail natural (§18, §34). */
+.kp-img-tint::before,
+.kp-img-frame::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0) 55%, rgba(13, 148, 136, 0.06) 100%),
+    radial-gradient(120% 80% at 50% 0%, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0) 55%);
+}
+.kp-img-tint::before { z-index: 1; }
+
+/* Gradient governance (§33): a restrained, low-saturation brand atmosphere.
+   Reserved for hero atmosphere / premium surfaces — never per-heading. */
+.kp-gradient-brand-soft {
+  background-image:
+    radial-gradient(60% 70% at 20% 10%, rgba(13, 148, 136, 0.08) 0%, transparent 60%),
+    radial-gradient(55% 65% at 85% 20%, rgba(217, 119, 6, 0.06) 0%, transparent 60%);
+}
+.kp-gradient-brand-card {
+  background-image:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.92) 0%, rgba(240, 247, 246, 0.9) 60%, rgba(250, 247, 240, 0.9) 100%);
+}
+
+/* Refined primary button — a poised brand surface, not a screaming gradient.
+   Typography + spacing carry emphasis; colour is confident but controlled. */
+.btn-korie-primary {
+  background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary-hover) 100%);
+  color: #ffffff;
+  font-weight: 600;
+  border: 1px solid var(--brand-border);
+  box-shadow: 0 6px 18px -6px rgba(13, 148, 136, 0.35);
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, filter 0.2s ease;
+}
+.btn-korie-primary:hover {
+  box-shadow: 0 10px 26px -8px rgba(13, 148, 136, 0.45);
+  filter: saturate(1.05);
+  transform: translateY(-1px);
+}
+.btn-korie-primary:active { transform: translateY(0); }
+
 /* Grid & Dots backgrounds */
 .bg-grid-subtle {
   background-size: 40px 40px;
@@ -568,11 +715,13 @@
   background-size: 24px 24px;
 }
 
-/* Gradient Text */
+/* Gradient Text — restrained brand atmosphere, controlled for light surfaces.
+   Lower saturation, teal-led (60/30/10): brand carries, amber whispers. */
 .text-gradient-korie {
-  background: linear-gradient(135deg, #0d9488 0%, #14b8a6 30%, #d97706 70%, #ea580c 100%);
+  background: linear-gradient(120deg, #0f766e 0%, #0d9488 42%, #b8860b 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 .text-gradient-green {
   background: linear-gradient(135deg, #16a34a 0%, #0d9488 100%);
@@ -583,21 +732,6 @@
   background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-}
-
-/* Korie Brand Glow Button */
-.btn-korie-primary {
-  background: linear-gradient(135deg, #0d9488 0%, #0f766e 50%, #d97706 100%);
-  background-size: 200% 200%;
-  transition: all 0.3s ease;
-  color: #ffffff;
-  font-weight: 600;
-  box-shadow: 0 4px 14px rgba(13, 148, 136, 0.25);
-}
-.btn-korie-primary:hover {
-  background-position: right center;
-  box-shadow: 0 6px 20px rgba(217, 119, 6, 0.3);
-  transform: translateY(-1px);
 }
 
 .btn-korie-secondary {

@@ -89,7 +89,7 @@ export const ThreePillarsSection: React.FC = () => {
   ];
 
   return (
-    <section className="py-20 lg:py-28 relative bg-[#070c18] overflow-hidden">
+    <section className="py-20 lg:py-28 relative kp-band-cool overflow-hidden">
       {/* Background glow lines */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Section Header */}
@@ -111,7 +111,7 @@ export const ThreePillarsSection: React.FC = () => {
           {pillars.map((p) => (
             <div
               key={p.num}
-              className={`p-6 sm:p-8 rounded-3xl bg-[#0b1325] border border-white/10 shadow-xl flex flex-col justify-between transition-all duration-300 relative group ${p.colorClass}`}
+              className={`p-6 sm:p-8 rounded-3xl glass-02 border border-[var(--border-strong)] shadow-xl flex flex-col justify-between transition-all duration-300 relative group ${p.colorClass}`}
             >
               {/* Top Accent Gradient Bar */}
               <div
