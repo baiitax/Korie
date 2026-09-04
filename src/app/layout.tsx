@@ -86,7 +86,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
-      <body className="bg-background text-foreground min-h-screen flex flex-col font-sans antialiased selection:bg-emerald-500 selection:text-slate-950">
+      <body className="bg-background text-foreground min-h-screen flex flex-col font-sans antialiased kp-ambient selection:bg-emerald-500 selection:text-slate-950">
         <ThemeProvider>
           <LanguageProvider>
             <AuthProvider>

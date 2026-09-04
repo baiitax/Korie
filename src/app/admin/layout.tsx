@@ -18,7 +18,7 @@ export default function AdminLayout({
 }) {
   return (
     <AdminProvider>
-      <div className="min-h-screen bg-[#050914] text-slate-100 flex flex-row font-sans selection:bg-emerald-500 selection:text-slate-950">
+      <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] flex flex-row font-sans selection:bg-emerald-500 selection:text-slate-950">
         {/* Left Collapsible Admin Sidebar */}
         <AdminSidebar />
 

@@ -91,7 +91,7 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
   ];
 
   return (
-    <div className="min-h-screen bg-[var(--surface)] text-slate-100 flex flex-col antialiased selection:bg-amber-500 selection:text-slate-950">
+    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] flex flex-col antialiased selection:bg-amber-500 selection:text-slate-950">
       {/* Offline Warning Banner */}
       {isOffline && (
         <div className="bg-rose-600 text-white text-xs font-semibold px-4 py-2 flex items-center justify-center gap-2 sticky top-0 z-50">
@@ -102,7 +102,7 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
 
       <div className="flex flex-1">
         {/* Desktop Sidebar */}
-        <aside className="hidden lg:flex flex-col justify-between w-64 bg-[var(--surface)] border-r border-white/10 sticky top-0 h-screen overflow-y-auto z-40 shrink-0">
+        <aside className="hidden lg:flex flex-col justify-between w-64 bg-[var(--surface)]/80 border-r border-[var(--border)] sticky top-0 shadow-[var(--shadow-sm)] h-screen overflow-y-auto z-40 shrink-0">
           <div>
             {/* Header Brand */}
             <div className="p-4 border-b border-white/10 flex items-center justify-between">
@@ -176,7 +176,7 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
         {/* Center Main Column */}
         <div className="flex-1 flex flex-col min-w-0 pb-20 lg:pb-8">
           {/* Top Sticky Header */}
-          <header className="sticky top-0 z-30 bg-[var(--nav-bg)] backdrop-blur-xl border-b border-white/10 px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+          <header className="sticky top-0 z-30 glass-nav px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <Link href="/agent" className="lg:hidden flex items-center">
                 <KorieLogo variant="compact" theme="dark" height={26} />

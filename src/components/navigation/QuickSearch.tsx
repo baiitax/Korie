@@ -179,9 +179,9 @@ export const QuickSearch: React.FC = () => {
   if (!isSearchOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 bg-black/75 backdrop-blur-md animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 bg-black/55 backdrop-blur-sm animate-fadeIn">
       <div
-        className="relative w-full max-w-2xl bg-[#0d1527] border border-white/15 rounded-2xl shadow-2xl overflow-hidden"
+        className="relative w-full max-w-2xl glass-modal rounded-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Search Input Bar */}

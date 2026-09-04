@@ -15,7 +15,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
 }) => {
   return (
     <div
-      className={`w-full ${maxWidth} rounded-3xl bg-[#0b1220]/80 border border-white/[0.12] p-6 sm:p-8 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.6)] space-y-5 relative overflow-hidden transition-all duration-300 hover:border-emerald-500/25 ${className}`}
+      className={`w-full ${maxWidth} rounded-3xl glass-modal p-6 sm:p-8 space-y-5 relative overflow-hidden transition-all duration-300 hover:border-[var(--accent-border)] ${className}`}
     >
       {/* Subtle Top Border Highlight */}
       <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent" />

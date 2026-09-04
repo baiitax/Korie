@@ -128,7 +128,7 @@ export const AdminSidebar: React.FC = () => {
   ];
 
   return (
-    <aside className="w-64 bg-[#070b16] border-r border-white/10 flex flex-col justify-between shrink-0 h-screen sticky top-0 overflow-y-auto z-30">
+    <aside className="w-64 bg-[var(--surface)]/85 border-r border-[var(--border)] flex flex-col justify-between shrink-0 h-screen sticky top-0 overflow-y-auto z-30 shadow-[var(--shadow-sm)]">
       <div>
         {/* Brand Header */}
         <div className="p-4 border-b border-white/10 flex items-center justify-between">

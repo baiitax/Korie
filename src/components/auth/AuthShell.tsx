@@ -25,7 +25,7 @@ export const AuthShell: React.FC<AuthShellProps> = ({
   const { theme } = useTheme();
 
   return (
-    <div className="min-h-screen bg-[#050811] text-slate-100 flex flex-col justify-between p-4 sm:p-6 lg:p-10 antialiased relative selection:bg-emerald-500 selection:text-slate-950 overflow-x-hidden font-sans">
+    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] flex flex-col justify-between p-4 sm:p-6 lg:p-10 antialiased relative kp-ambient selection:bg-emerald-500 selection:text-slate-950 overflow-x-hidden font-sans">
       {/* Premium Fintech Glow Background Gradients */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[700px] h-[500px] bg-emerald-500/10 rounded-full blur-[140px] pointer-events-none transform-gpu" />

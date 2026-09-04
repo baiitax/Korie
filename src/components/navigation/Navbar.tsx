@@ -65,7 +65,7 @@ export const Navbar: React.FC = () => {
       <header
         className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${
           isScrolled
-            ? "bg-[var(--nav-bg)] backdrop-blur-xl border-b border-[var(--border)] py-3 shadow-lg shadow-black/20"
+            ? "glass-nav py-3"
             : "bg-gradient-to-b from-[var(--nav-bg)] to-transparent py-4 sm:py-5"
         }`}
       >
@@ -106,7 +106,7 @@ export const Navbar: React.FC = () => {
 
                 {/* Dropdown panel */}
                 {activeDropdown === "solutions" && (
-                  <div className="absolute top-full left-0 w-[580px] p-4 bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-2xl backdrop-blur-2xl animate-fadeIn">
+                  <div className="absolute top-full left-0 w-[580px] p-4 glass-03 rounded-2xl animate-fadeIn">
                     <div className="grid grid-cols-2 gap-2">
                       <Link
                         href="/solutions/agency-banking"
@@ -263,7 +263,7 @@ export const Navbar: React.FC = () => {
                 </button>
 
                 {activeDropdown === "markets" && (
-                  <div className="absolute top-full left-0 w-[420px] p-3 bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-2xl backdrop-blur-2xl animate-fadeIn">
+                  <div className="absolute top-full left-0 w-[420px] p-3 glass-03 rounded-2xl animate-fadeIn">
                     <Link
                       href="/nigeria"
                       className="p-3 rounded-xl hover:bg-[var(--surface-2)] border border-transparent hover:border-emerald-500/20 transition-all flex items-start gap-3 group"
@@ -329,7 +329,7 @@ export const Navbar: React.FC = () => {
                 </button>
 
                 {activeDropdown === "tech" && (
-                  <div className="absolute top-full left-0 w-[420px] p-3 bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-2xl backdrop-blur-2xl animate-fadeIn">
+                  <div className="absolute top-full left-0 w-[420px] p-3 glass-03 rounded-2xl animate-fadeIn">
                     <Link
                       href="/technology"
                       className="p-3 rounded-xl hover:bg-[var(--surface-2)] border border-transparent hover:border-teal-500/20 transition-all flex items-start gap-3 group"
@@ -411,7 +411,7 @@ export const Navbar: React.FC = () => {
                 </button>
 
                 {activeDropdown === "company" && (
-                  <div className="absolute top-full right-0 w-[420px] p-3 bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-2xl backdrop-blur-2xl animate-fadeIn">
+                  <div className="absolute top-full right-0 w-[420px] p-3 glass-03 rounded-2xl animate-fadeIn">
                     <Link
                       href="/about"
                       className="p-3 rounded-xl hover:bg-[var(--surface-2)] border border-transparent hover:border-slate-500/20 transition-all flex items-start gap-3 group"
@@ -591,7 +591,7 @@ export const Navbar: React.FC = () => {
 
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-30 lg:hidden pt-20 pb-8 px-4 bg-[var(--nav-bg)] backdrop-blur-2xl overflow-y-auto animate-fadeIn">
+        <div className="fixed inset-0 z-30 lg:hidden pt-20 pb-8 px-4 glass-modal overflow-y-auto animate-fadeIn">
           <div className="max-w-md mx-auto space-y-6">
             {/* Country Selector in Mobile */}
             <div className="p-3 rounded-2xl bg-[var(--surface)] border border-[var(--border)]">

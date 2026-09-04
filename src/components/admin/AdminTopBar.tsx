@@ -40,7 +40,7 @@ export const AdminTopBar: React.FC = () => {
   };
 
   return (
-    <header className="h-16 bg-[#080d1a]/95 border-b border-white/10 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-20 backdrop-blur-xl">
+    <header className="h-16 glass-nav px-4 sm:px-6 flex items-center justify-between sticky top-0 z-20">
       {/* Left: Quick Search Trigger */}
       <div className="flex items-center gap-4 flex-1 max-w-md">
         <button
