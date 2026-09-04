@@ -1,28 +1,35 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Plus_Jakarta_Sans } from "next/font/google";
+import { Public_Sans, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
 import { CountryProvider } from "@/components/ui/CountryContext";
 import { AuthProvider } from "@/components/auth/AuthContext";
-import Navbar from "@/components/navigation/Navbar";
-import Footer from "@/components/navigation/Footer";
+import { ThemeProvider } from "@/components/ui/ThemeContext";
+import PublicChrome from "@/components/navigation/PublicChrome";
 import Preloader from "@/components/brand/Preloader";
 import Modal from "@/components/ui/Modal";
 import QuickSearch from "@/components/navigation/QuickSearch";
 
-const inter = Inter({
+/**
+ * Professional typography:
+ *  - Sans (body / UI): Public Sans — a clean, institutional humanist sans
+ *    with an Arial fallback.
+ *  - Serif (display / headings): Source Serif 4 — a modern, Times-inspired
+ *    editorial serif used for the brand headlines.
+ */
+const publicSans = Public_Sans({
   subsets: ["latin"],
   variable: "--font-sans",
   display: "swap",
 });
 
-const plusJakarta = Plus_Jakarta_Sans({
+const sourceSerif = Source_Serif_4({
   subsets: ["latin"],
   variable: "--font-display",
   display: "swap",
 });
 
 export const viewport: Viewport = {
-  themeColor: "#080d1a",
+  themeColor: "#070b17",
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
@@ -53,37 +60,42 @@ export const metadata: Metadata = {
   },
 };
 
+// Inline script to set the persisted theme before hydration -> no flash.
+const themeInitScript = `(function(){try{var t=localStorage.getItem("koriepay_theme");if(t!=="light"&&t!=="dark"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";}document.documentElement.classList.remove("light","dark");document.documentElement.classList.add(t);}catch(e){}})();`;
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${plusJakarta.variable}`}>
-      <body className="bg-[#080d1a] text-slate-100 min-h-screen flex flex-col font-sans antialiased selection:bg-emerald-500 selection:text-slate-950">
-        <AuthProvider>
-          <CountryProvider>
-            {/* Signature Brand Preloader */}
-            <Preloader />
+    <html
+      lang="en"
+      className={`dark ${publicSans.variable} ${sourceSerif.variable}`}
+      suppressHydrationWarning
+    >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
+      <body className="bg-background text-foreground min-h-screen flex flex-col font-sans antialiased selection:bg-emerald-500 selection:text-slate-950">
+        <ThemeProvider>
+          <AuthProvider>
+            <CountryProvider>
+              {/* Signature Brand Preloader */}
+              <Preloader />
 
-            {/* Institutional Top Navigation Header */}
-            <Navbar />
+              {/* Public marketing chrome (nav + footer) only on public pages */}
+              <PublicChrome>{children}</PublicChrome>
 
-            {/* Unified Command Palette Search */}
-            <QuickSearch />
+              {/* Unified Command Palette Search */}
+              <QuickSearch />
 
-            {/* Dynamic Interactive Modals (Agent, BDC, Merchant, Developer, Login, Contact) */}
-            <Modal />
-
-            {/* Page Content */}
-            <div className="flex-1">{children}</div>
-
-            {/* Institutional Footer */}
-            <Footer />
-          </CountryProvider>
-        </AuthProvider>
+              {/* Dynamic Interactive Modals (Agent, BDC, Merchant, Developer, Login, Contact) */}
+              <Modal />
+            </CountryProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
 }
-

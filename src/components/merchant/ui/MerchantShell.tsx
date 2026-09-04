@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMerchant } from "../MerchantContext";
 import KorieLogo from "@/components/brand/KorieLogo";
+import ShellAccount from "@/components/ui/ShellAccount";
 import ReceivePaymentModal from "./ReceivePaymentModal";
 import CreatePaymentLinkModal from "./CreatePaymentLinkModal";
 import CreateInvoiceModal from "./CreateInvoiceModal";
@@ -239,6 +240,9 @@ export const MerchantShell: React.FC<{ children: React.ReactNode }> = ({ childre
               >
                 M
               </Link>
+
+              {/* Day / Night + Sign out */}
+              <ShellAccount />
             </div>
           </header>
 

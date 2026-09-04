@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCustomer } from "../CustomerContext";
 import KorieLogo from "@/components/brand/KorieLogo";
+import ShellAccount from "@/components/ui/ShellAccount";
 import LanguageSelector from "./LanguageSelector";
 import TransactionReceiptModal from "./TransactionReceiptModal";
 import ReportDisputeModal from "./ReportDisputeModal";
@@ -191,6 +192,9 @@ export const CustomerShell: React.FC<{ children: React.ReactNode }> = ({ childre
               >
                 {customer.firstName[0]}
               </Link>
+
+              {/* Day / Night + Sign out */}
+              <ShellAccount />
             </div>
           </header>
 

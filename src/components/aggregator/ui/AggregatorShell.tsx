@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAggregator } from "../AggregatorContext";
 import KorieLogo from "@/components/brand/KorieLogo";
+import ShellAccount from "@/components/ui/ShellAccount";
 import LiquidityDistributionModal from "./LiquidityDistributionModal";
 import TransactionInvestigationDrawer from "./TransactionInvestigationDrawer";
 import {
@@ -319,6 +320,9 @@ export const AggregatorShell: React.FC<{ children: React.ReactNode }> = ({ child
               >
                 A
               </Link>
+
+              {/* Day / Night + Sign out */}
+              <ShellAccount />
             </div>
           </header>
 

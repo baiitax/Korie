@@ -38,6 +38,7 @@ import {
   Check,
 } from 'lucide-react';
 import KorieLogo from '@/components/brand/KorieLogo';
+import ShellAccount from '@/components/ui/ShellAccount';
 
 export const DeveloperShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
@@ -278,6 +279,9 @@ export const DeveloperShell: React.FC<{ children: React.ReactNode }> = ({ childr
                 <div className="text-[9px] font-mono text-emerald-400 font-semibold">{activeMember.role}</div>
               </div>
             </div>
+
+            {/* Day / Night + Sign out */}
+            <ShellAccount className="hidden sm:flex" />
 
             {/* Mobile Menu Trigger */}
             <button

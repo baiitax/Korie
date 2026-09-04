@@ -59,7 +59,7 @@ export const HeroSection: React.FC = () => {
   const activeData = segmentContent[activeSegment];
 
   return (
-    <section className="relative pt-32 pb-20 lg:pt-36 lg:pb-28 overflow-hidden bg-grid-subtle">
+    <section className="relative pt-32 pb-20 lg:pt-36 lg:pb-28 overflow-hidden bg-[#0a0f1d] bg-grid-subtle">
       {/* Background glow effects */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] sm:w-[900px] h-[450px] bg-gradient-to-tr from-brand-teal-500/15 via-brand-yellow-500/10 to-brand-orange-500/15 rounded-full blur-[140px] pointer-events-none -z-10" />
 

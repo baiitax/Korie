@@ -2,11 +2,70 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #080d1a;
-  --foreground: #f8fafc;
+/* ------------------------------------------------------------------ */
+/*  KoriePay Theme Tokens (Day / Night = Light / Dark)                 */
+/*  The default (unset) theme is the dark brand look. A `.light` class */
+/*  on <html> swaps the palette for the day (light) look.              */
+/* ------------------------------------------------------------------ */
+
+:root,
+.dark {
+  /* The brand content canvas stays dark so the marketing / dashboard
+     content remains fully readable in both themes. */
+  --background: #070b17;
+  --foreground: #eef2f7;
+
+  --surface: #0d1527;
+  --surface-2: #111c31;
+  --surface-3: #16223a;
+  --border: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --muted: #94a3b8;
+  --nav-bg: rgba(7, 11, 23, 0.82);
+  --nav-fg: #eef2f7;
+  --nav-muted: #9aa8bd;
   --card-bg: rgba(15, 23, 42, 0.65);
   --card-border: rgba(255, 255, 255, 0.08);
+  --input-bg: rgba(15, 23, 42, 0.75);
+  --accent-border: rgba(16, 185, 129, 0.4);
+  --footer-bg: #050914;
+  --footer-surface: #0b1222;
+  --footer-fg: #cbd5e1;
+  --footer-muted: #94a3b8;
+  --scroll-track: #0a101d;
+  --scroll-thumb: #1e293b;
+  --scroll-thumb-hover: #334155;
+  --grid-line: rgba(255, 255, 255, 0.03);
+  --dot: rgba(255, 255, 255, 0.08);
+  --hero-glow: 0.15;
+}
+
+.light {
+  /* Day (light) chrome: nav + footer surfaces and their text swap,
+     while the dark content canvas above is untouched. */
+  --surface: #ffffff;
+  --surface-2: #f1f5f9;
+  --surface-3: #e8eef6;
+  --border: rgba(16, 24, 40, 0.1);
+  --border-strong: rgba(16, 24, 40, 0.18);
+  --muted: #667085;
+  --nav-bg: rgba(255, 255, 255, 0.88);
+  --nav-fg: #101828;
+  --nav-muted: #5b6b81;
+  --card-bg: rgba(255, 255, 255, 0.85);
+  --card-border: rgba(16, 24, 40, 0.08);
+  --input-bg: rgba(255, 255, 255, 0.95);
+  --accent-border: rgba(16, 185, 129, 0.45);
+  --footer-bg: #eef2f8;
+  --footer-surface: #ffffff;
+  --footer-fg: #1f2937;
+  --footer-muted: #5b6b81;
+  --scroll-track: #eef2f7;
+  --scroll-thumb: #cbd5e1;
+  --scroll-thumb-hover: #94a3b8;
+  --grid-line: rgba(16, 24, 40, 0.05);
+  --dot: rgba(16, 24, 40, 0.14);
+  --hero-glow: 0.1;
 }
 
 @layer base {
@@ -17,63 +76,74 @@
     scroll-behavior: smooth;
     color-scheme: dark;
   }
+  html.light {
+    color-scheme: light;
+  }
   body {
     color: var(--foreground);
     background: var(--background);
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     overflow-x: hidden;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  /* Institutional serif for brand headings (Times-inspired) */
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display), Georgia, "Times New Roman", Times, serif;
+    letter-spacing: -0.01em;
   }
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbar (theme aware) */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #080d1a;
+  background: var(--scroll-track);
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: var(--scroll-thumb);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: var(--scroll-thumb-hover);
 }
 
-/* Glassmorphism primitives */
+/* Glassmorphism primitives (theme aware) */
 .glass-panel {
-  background: rgba(15, 23, 42, 0.7);
+  background: var(--card-bg);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--card-border);
 }
 
 .glass-panel-interactive {
-  background: rgba(15, 23, 42, 0.6);
+  background: var(--card-bg);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--card-border);
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .glass-panel-interactive:hover {
-  background: rgba(22, 34, 60, 0.75);
-  border-color: rgba(16, 185, 129, 0.3);
+  background: var(--surface-2);
+  border-color: var(--accent-border);
   transform: translateY(-2px);
   box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.5), 0 0 25px -5px rgba(16, 185, 129, 0.15);
 }
 
 .glass-nav {
-  background: rgba(8, 13, 26, 0.82);
+  background: var(--nav-bg);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  border-bottom: 1px solid var(--border);
 }
 
 .glass-input {
-  background: rgba(15, 23, 42, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #ffffff;
+  background: var(--input-bg);
+  border: 1px solid var(--border-strong);
+  color: var(--foreground);
   backdrop-filter: blur(10px);
 }
 .glass-input:focus {
@@ -82,16 +152,16 @@
   outline: none;
 }
 
-/* Grid & Dots backgrounds */
+/* Grid & Dots backgrounds (theme aware) */
 .bg-grid-subtle {
   background-size: 40px 40px;
-  background-image: 
-    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-image:
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
 }
 
 .bg-dots-subtle {
-  background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+  background-image: radial-gradient(var(--dot) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
@@ -130,22 +200,34 @@
 }
 
 .btn-korie-secondary {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: #f8fafc;
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  color: var(--foreground);
   transition: all 0.2s ease;
 }
 .btn-korie-secondary:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.3);
-  color: #ffffff;
+  background: var(--surface-3);
+  border-color: var(--border-strong);
+  color: var(--foreground);
 }
 
 /* Shimmer animation */
 .shimmer-text {
-  background: linear-gradient(90deg, #f8fafc 0%, #a7f3d0 25%, #fde68a 50%, #f8fafc 75%);
+  background: linear-gradient(90deg, var(--foreground) 0%, #a7f3d0 25%, #fde68a 50%, var(--foreground) 75%);
   background-size: 200% auto;
   color: transparent;
   -webkit-background-clip: text;
   animation: shimmer 4s linear infinite;
+}
+
+/* Hero ambient glow strength based on theme */
+.hero-glow-orb {
+  opacity: var(--hero-glow);
+}
+
+/* Small helper: smooth theme cross-fade for surfaces */
+.theme-surface {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--foreground);
 }

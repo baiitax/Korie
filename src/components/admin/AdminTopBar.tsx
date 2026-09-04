@@ -2,6 +2,8 @@
 
 import React, { useState } from "react";
 import { useAdmin } from "./AdminContext";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { useAuth } from "@/components/auth/AuthContext";
 import {
   Search,
   Globe2,
@@ -12,6 +14,7 @@ import {
   Layers,
   ChevronDown,
   RefreshCw,
+  LogOut,
 } from "lucide-react";
 
 export const AdminTopBar: React.FC = () => {
@@ -25,8 +28,16 @@ export const AdminTopBar: React.FC = () => {
     setIsSearchOpen,
     notificationsCount,
   } = useAdmin();
+  const { user, logout } = useAuth();
 
   const [showNotifications, setShowNotifications] = useState(false);
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch { /* noop */ }
+    await logout();
+  };
 
   return (
     <header className="h-16 bg-[#080d1a]/95 border-b border-white/10 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-20 backdrop-blur-xl">
@@ -141,6 +152,25 @@ export const AdminTopBar: React.FC = () => {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Day / Night Theme Toggle */}
+        <ThemeToggle className="items-center justify-center p-2 bg-slate-900 border border-white/10 text-slate-300 hover:text-white" />
+
+        {/* Signed-in operator + Logout */}
+        <div className="flex items-center gap-2">
+          <div className="hidden md:flex flex-col items-end leading-tight">
+            <span className="text-xs font-bold text-white">{user?.fullName || "Signed in"}</span>
+            <span className="text-[10px] font-mono text-emerald-400 capitalize">{user?.role || "ADMIN"}</span>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="inline-flex items-center gap-1.5 p-2 rounded-xl bg-slate-900 border border-white/10 text-slate-300 hover:text-red-400 hover:border-red-500/40 transition-colors"
+            title="Sign out"
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="hidden xl:inline text-xs font-semibold">Logout</span>
+          </button>
         </div>
       </div>
     </header>

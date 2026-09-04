@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAgent } from "../AgentContext";
 import KorieLogo from "@/components/brand/KorieLogo";
+import ShellAccount from "@/components/ui/ShellAccount";
 import AgentReceiptModal from "./AgentReceiptModal";
 import DailyReconciliationModal from "./DailyReconciliationModal";
 import {
@@ -242,6 +243,9 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
               >
                 AG
               </Link>
+
+              {/* Day / Night + Sign out */}
+              <ShellAccount />
             </div>
           </header>
 

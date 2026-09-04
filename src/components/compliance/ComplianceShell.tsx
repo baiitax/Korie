@@ -33,6 +33,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { ComplianceLocale } from '@/locales/compliance';
+import ShellAccount from '@/components/ui/ShellAccount';
 
 export const ComplianceShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
@@ -244,6 +245,9 @@ export const ComplianceShell: React.FC<{ children: React.ReactNode }> = ({ child
                 </div>
               </div>
             )}
+
+            {/* Day / Night + Sign out */}
+            <ShellAccount className="hidden md:flex" />
           </div>
         </div>
       </header>

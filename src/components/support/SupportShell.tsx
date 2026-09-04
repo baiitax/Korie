@@ -32,6 +32,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { SupportLocale } from '@/locales/support';
+import ShellAccount from '@/components/ui/ShellAccount';
 
 export const SupportShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
@@ -242,6 +243,9 @@ export const SupportShell: React.FC<{ children: React.ReactNode }> = ({ children
                 </div>
               </div>
             )}
+
+            {/* Day / Night + Sign out */}
+            <ShellAccount className="hidden md:flex" />
           </div>
         </div>
       </header>
