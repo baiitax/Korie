@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useCountry } from "../ui/CountryContext";
+import { useLanguage } from "../ui/LanguageContext";
 import {
   Building2,
   Repeat2,
@@ -18,85 +19,86 @@ import Image from "next/image";
 
 export const EcosystemVisualizer: React.FC = () => {
   const { openModal } = useCountry();
+  const { t } = useLanguage();
   const [activeNode, setActiveNode] = useState<"agency" | "bdc" | "customers" | "business" | "corridor">("agency");
 
   const nodes = {
     agency: {
-      title: "Agency Banking Network",
-      tagline: "Last-Mile Cash-In, Cash-Out & POS Terminals",
-      desc: "Physical service points operated by vetted local business owners. Enables unbanked and rural communities to perform deposits, withdrawals, bill payments, and interbank transfers with immediate commission settlement.",
+      title: t("public.home.ecosystem.agTitle"),
+      tagline: t("public.home.ecosystem.agTagline"),
+      desc: t("public.home.ecosystem.agDesc"),
       features: [
-        "Hardware-agnostic smart POS & Android app",
-        "Instant settlement into Agent Treasury Wallet",
-        "Automated commission ledger & float management",
-        "Offline SMS fallback mode for remote rural areas",
+        t("public.home.ecosystem.agF1"),
+        t("public.home.ecosystem.agF2"),
+        t("public.home.ecosystem.agF3"),
+        t("public.home.ecosystem.agF4"),
       ],
       route: "/solutions/agency-banking",
-      cta: "Become a KoriePay Agent",
+      cta: t("public.home.ecosystem.agCta"),
       action: () => openModal("agent"),
       color: "from-emerald-500 to-teal-500",
       accent: "text-emerald-400",
     },
     bdc: {
-      title: "BDC / FX Digital Treasury",
-      tagline: "Real-Time Multi-Currency Liquidity & Settlement",
-      desc: "Digital infrastructure for licensed Bureau De Change and currency operators. Connects treasury desks directly to cross-border commerce flows between Nigeria (NGN) and Niger Republic (XOF CFA).",
+      title: t("public.home.ecosystem.fxTitle"),
+      tagline: t("public.home.ecosystem.fxTagline"),
+      desc: t("public.home.ecosystem.fxDesc"),
       features: [
-        "Real-time interbank rate feeds & customizable spreads",
-        "Multi-currency virtual accounts (NGN / CFA / USD)",
-        "Same-day cross-border batch settlement rails",
-        "Automated AML transaction logs & compliance reporting",
+        t("public.home.ecosystem.fxF1"),
+        t("public.home.ecosystem.fxF2"),
+        t("public.home.ecosystem.fxF3"),
+        t("public.home.ecosystem.fxF4"),
       ],
       route: "/solutions/bdc-fx",
-      cta: "Partner as BDC Operator",
+      cta: t("public.home.ecosystem.fxCta"),
       action: () => openModal("bdc"),
       color: "from-amber-500 to-orange-500",
       accent: "text-amber-400",
     },
     customers: {
-      title: "Consumer Digital Wallet",
-      tagline: "Kudinka, Hannunka — Your Money in Your Hands",
-      desc: "An intuitive mobile and USSD wallet interface for everyday Africans. Send money instantly to any bank in Nigeria or Niger, pay utilities, generate merchant QR codes, and access financial stability.",
+      title: t("public.home.ecosystem.cuTitle"),
+      tagline: t("public.home.ecosystem.cuTagline"),
+      desc: t("public.home.ecosystem.cuDesc"),
       features: [
-        "Instant domestic & cross-border P2P transfers",
-        "Zero-fee utility & airtime bill settlement",
-        "Biometric fingerprint & facial authentication",
-        "Hausa, French & English multi-lingual support",
+        t("public.home.ecosystem.cuF1"),
+        t("public.home.ecosystem.cuF2"),
+        t("public.home.ecosystem.cuF3"),
+        t("public.home.ecosystem.cuF4"),
       ],
       route: "/solutions/customers",
-      cta: "Explore Consumer App",
+      cta: t("public.home.ecosystem.cuCta"),
       action: () => openModal("contact", "Customer App"),
       color: "from-teal-500 to-emerald-500",
       accent: "text-teal-400",
     },
     business: {
-      title: "Enterprise & SME Hub",
-      tagline: "Payment Acceptance, Collections & Payroll",
-      desc: "Full-stack payment infrastructure for modern African enterprises. Integrate checkout links, dynamic QR for retail shops, automated salary dispatches, and multi-signatory approval workflows.",
+      title: t("public.home.ecosystem.bzTitle"),
+      tagline: t("public.home.ecosystem.bzTagline"),
+      desc: t("public.home.ecosystem.bzDesc"),
       features: [
-        "Omnichannel checkout (Cards, Bank Transfer, QR, USSD)",
-        "Automated multi-tier payroll & tax remittances",
-        "Multi-branch accounting & cashier sub-accounts",
-        "Institutional developer REST APIs and webhooks",
+        t("public.home.ecosystem.bzF1"),
+        t("public.home.ecosystem.bzF2"),
+        t("public.home.ecosystem.bzF3"),
+        t("public.home.ecosystem.bzF4"),
       ],
       route: "/solutions/business",
-      cta: "Onboard Your Business",
+      cta: t("public.home.ecosystem.bzCta"),
       action: () => openModal("business"),
       color: "from-blue-500 to-indigo-500",
       accent: "text-blue-400",
     },
     corridor: {
-      title: "Nigeria ↔ Niger Cross-Border Rails",
-      tagline: "Connecting Kano, Maradi, Niamey & Lagos",
-      desc: "The premier financial bridge between Anglophone and Francophone West African economic corridors. Eliminates the friction of cross-border trade settlements through direct digital liquidity.",
+      title: t("public.home.ecosystem.coTitle"),
+      tagline: t("public.home.ecosystem.coTagline"),
+      desc: t("public.home.ecosystem.coDesc"),
       features: [
-        "Sub-second bilateral settlement engine",
-        "Direct NGN ₦ ↔ XOF CFA automated conversion",
-        "Support for major wholesale trading hubs",
-        "Regulated central banking compliance alignment",
+        t("public.home.ecosystem.coF1"),
+        t("public.home.ecosystem.coF2"),
+        t("public.home.ecosystem.coF3"),
+        t("public.home.ecosystem.coF4"),
       ],
       route: "/solutions/payments",
-      cta: "View Corridor Architecture",
+      cta: t("public.home.ecosystem.coCta"),
       action: () => openModal("contact", "Cross-Border Settlement"),
       color: "from-emerald-500 via-amber-500 to-orange-500",
       accent: "text-emerald-400",
@@ -115,13 +117,13 @@ export const EcosystemVisualizer: React.FC = () => {
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-16">
           <span className="px-3 py-1 rounded-full text-xs font-mono uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 inline-block mb-3">
-            Financial Architecture
+            {t("public.home.ecosystem.badge")}
           </span>
           <h2 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
-            An Interconnected Infrastructure for African Commerce
+            {t("public.home.ecosystem.heading")}
           </h2>
           <p className="mt-4 text-sm sm:text-base text-slate-400 leading-relaxed">
-            KoriePay is not an isolated payment app. It is a unifying layer that coordinates physical agents, foreign exchange operators, consumers, and institutional enterprises across borders.
+            {t("public.home.ecosystem.intro")}
           </p>
         </div>
 
@@ -143,8 +145,8 @@ export const EcosystemVisualizer: React.FC = () => {
                     />
                   </div>
                   <div className="ml-3 text-left">
-                    <div className="text-sm font-extrabold text-white tracking-wide">KORIEPAY ENGINE</div>
-                    <div className="text-[10px] font-mono text-emerald-400">Unified Transaction Core</div>
+                    <div className="text-sm font-extrabold text-white tracking-wide">{t("public.home.ecosystem.engineLabel")}</div>
+                    <div className="text-[10px] font-mono text-emerald-400">{t("public.home.ecosystem.engineSub")}</div>
                   </div>
                 </div>
 
@@ -172,10 +174,10 @@ export const EcosystemVisualizer: React.FC = () => {
                     )}
                   </div>
                   <div className="text-xs font-bold text-white group-hover:text-emerald-300">
-                    Agency Banking
+                    {t("public.home.ecosystem.n1")}
                   </div>
                   <div className="text-[10px] text-slate-400 mt-0.5">
-                    Physical service points & POS
+                    {t("public.home.ecosystem.n1sub")}
                   </div>
                 </button>
 
@@ -197,10 +199,10 @@ export const EcosystemVisualizer: React.FC = () => {
                     )}
                   </div>
                   <div className="text-xs font-bold text-white group-hover:text-amber-300">
-                    BDC & FX Operators
+                    {t("public.home.ecosystem.n2")}
                   </div>
                   <div className="text-[10px] text-slate-400 mt-0.5">
-                    Cross-border liquidity & treasury
+                    {t("public.home.ecosystem.n2sub")}
                   </div>
                 </button>
 
@@ -222,10 +224,10 @@ export const EcosystemVisualizer: React.FC = () => {
                     )}
                   </div>
                   <div className="text-xs font-bold text-white group-hover:text-teal-300">
-                    Customers & Wallets
+                    {t("public.home.ecosystem.n3")}
                   </div>
                   <div className="text-[10px] text-slate-400 mt-0.5">
-                    Everyday transfers & bill payments
+                    {t("public.home.ecosystem.n3sub")}
                   </div>
                 </button>
 
@@ -247,10 +249,10 @@ export const EcosystemVisualizer: React.FC = () => {
                     )}
                   </div>
                   <div className="text-xs font-bold text-white group-hover:text-blue-300">
-                    Business & Merchants
+                    {t("public.home.ecosystem.n4")}
                   </div>
                   <div className="text-[10px] text-slate-400 mt-0.5">
-                    Payroll, checkout & collections
+                    {t("public.home.ecosystem.n4sub")}
                   </div>
                 </button>
               </div>
@@ -270,10 +272,10 @@ export const EcosystemVisualizer: React.FC = () => {
                   </div>
                   <div>
                     <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                      <span>Nigeria 🇳🇬 ↔ Niger Republic 🇳🇪 Corridor</span>
+                      <span>{t("public.home.ecosystem.corridorNodeTitle")}</span>
                     </div>
                     <div className="text-[10px] text-slate-400">
-                      Seamless bilateral trade & currency settlement (NGN ⇄ XOF CFA)
+                      {t("public.home.ecosystem.corridorNodeDesc")}
                     </div>
                   </div>
                 </div>
@@ -286,7 +288,7 @@ export const EcosystemVisualizer: React.FC = () => {
           <div className="lg:col-span-5">
             <div className="p-6 sm:p-8 rounded-3xl glass-02 border border-[var(--border-strong)] shadow-2xl relative overflow-hidden">
               <div className="text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-1">
-                Ecosystem Component Detail
+                {t("public.home.ecosystem.detailLabel")}
               </div>
 
               <h3 className="text-xl sm:text-2xl font-bold text-white mb-1">
@@ -325,7 +327,7 @@ export const EcosystemVisualizer: React.FC = () => {
                   href={current.route}
                   className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold text-center border border-white/10 transition-colors"
                 >
-                  Learn More
+                  {t("public.home.ecosystem.learnMore")}
                 </a>
               </div>
             </div>

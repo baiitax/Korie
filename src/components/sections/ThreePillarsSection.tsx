@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { useCountry } from "../ui/CountryContext";
+import { useLanguage } from "../ui/LanguageContext";
 import {
   Building2,
   Repeat2,
@@ -18,71 +19,72 @@ import {
 
 export const ThreePillarsSection: React.FC = () => {
   const { openModal } = useCountry();
+  const { t } = useLanguage();
 
   const pillars = [
     {
       num: "01",
-      badge: "Last-Mile Distribution",
-      title: "Agency Banking",
-      subtitle: "Empowering the Last Mile of Financial Services",
-      desc: "KoriePay provides the robust technology and terminal hardware enabling local agents to deliver vital financial services directly to neighbourhood communities.",
+      badge: t("public.home.pillars.p1badge"),
+      title: t("public.home.pillars.p1title"),
+      subtitle: t("public.home.pillars.p1sub"),
+      desc: t("public.home.pillars.p1desc"),
       icon: <Building2 className="w-6 h-6 text-emerald-400" />,
       colorClass: "hover:border-emerald-500/50 hover:shadow-emerald-500/10",
       accentBadge: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
       gradientBar: "from-emerald-500 to-teal-400",
       capabilities: [
-        "Cash In & Instant Cash Out",
-        "Interbank Transfers (NIP & WAEMU)",
-        "Utility & Airtime Bill Payments",
-        "Agent Float & Liquidity Tracking",
-        "Transparent Commission Payouts",
-        "Android & Linux Smart POS Support",
+        t("public.home.pillars.p1c1"),
+        t("public.home.pillars.p1c2"),
+        t("public.home.pillars.p1c3"),
+        t("public.home.pillars.p1c4"),
+        t("public.home.pillars.p1c5"),
+        t("public.home.pillars.p1c6"),
       ],
-      ctaText: "Become a KoriePay Agent",
+      ctaText: t("public.home.pillars.p1cta"),
       action: () => openModal("agent"),
       learnHref: "/solutions/agency-banking",
     },
     {
       num: "02",
-      badge: "Institutional FX Rails",
-      title: "BDC & FX Digital",
-      subtitle: "Digital Infrastructure for Modern FX Businesses",
-      desc: "Comprehensive technology engineered to help Bureau De Change operators manage liquidity, rate transparency, multi-currency customer records, and cross-border settlements.",
+      badge: t("public.home.pillars.p2badge"),
+      title: t("public.home.pillars.p2title"),
+      subtitle: t("public.home.pillars.p2sub"),
+      desc: t("public.home.pillars.p2desc"),
       icon: <Repeat2 className="w-6 h-6 text-amber-400" />,
       colorClass: "hover:border-amber-500/50 hover:shadow-amber-500/10",
       accentBadge: "bg-amber-500/10 text-amber-400 border-amber-500/20",
       gradientBar: "from-amber-500 to-orange-400",
       capabilities: [
-        "Real-Time FX Rates Engine",
-        "Treasury Liquidity Visibility",
-        "Customer Transaction Ledgers",
-        "Bilateral Cross-Border Settlement",
-        "Regulatory AML Compliance Tools",
-        "Multi-Currency Virtual Accounts",
+        t("public.home.pillars.p2c1"),
+        t("public.home.pillars.p2c2"),
+        t("public.home.pillars.p2c3"),
+        t("public.home.pillars.p2c4"),
+        t("public.home.pillars.p2c5"),
+        t("public.home.pillars.p2c6"),
       ],
-      ctaText: "Explore BDC Solutions",
+      ctaText: t("public.home.pillars.p2cta"),
       action: () => openModal("bdc"),
       learnHref: "/solutions/bdc-fx",
     },
     {
       num: "03",
-      badge: "Everyday Finance",
-      title: "Customer Wallets",
-      subtitle: "Financial Services Built Around You",
-      desc: "An accessible, intelligent consumer wallet built for everyday African life. Transfer funds in seconds, pay merchants with QR codes, and maintain full visibility over your personal wealth.",
+      badge: t("public.home.pillars.p3badge"),
+      title: t("public.home.pillars.p3title"),
+      subtitle: t("public.home.pillars.p3sub"),
+      desc: t("public.home.pillars.p3desc"),
       icon: <Users className="w-6 h-6 text-teal-400" />,
       colorClass: "hover:border-teal-500/50 hover:shadow-teal-500/10",
       accentBadge: "bg-teal-500/10 text-teal-400 border-teal-500/20",
       gradientBar: "from-teal-500 to-emerald-400",
       capabilities: [
-        "Zero-Delay Bank Transfers",
-        "Dynamic Merchant QR Checkout",
-        "Scheduled Recurring Bill Pay",
-        "Biometric Security & Fast PIN",
-        "Hausa & French Language Support",
-        "Real-Time Spending Analytics",
+        t("public.home.pillars.p3c1"),
+        t("public.home.pillars.p3c2"),
+        t("public.home.pillars.p3c3"),
+        t("public.home.pillars.p3c4"),
+        t("public.home.pillars.p3c5"),
+        t("public.home.pillars.p3c6"),
       ],
-      ctaText: "Get Started as Customer",
+      ctaText: t("public.home.pillars.p3cta"),
       action: () => openModal("contact", "Customer Onboarding"),
       learnHref: "/solutions/customers",
     },
@@ -95,14 +97,14 @@ export const ThreePillarsSection: React.FC = () => {
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-16">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800/80 border border-white/10 text-xs font-mono text-emerald-400 mb-3">
-            <span>THE 3 FOUNDATIONAL PILLARS</span>
+            <span>{t("public.home.pillars.badge")}</span>
           </div>
           <h2 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
-            Built Around the People & Businesses <br className="hidden sm:inline" />
-            <span className="text-gradient-korie">That Power African Financial Access</span>
+            {t("public.home.pillars.h1")} <br className="hidden sm:inline" />
+            <span className="text-gradient-korie">{t("public.home.pillars.h2")}</span>
           </h2>
           <p className="mt-4 text-sm sm:text-base text-slate-400 leading-relaxed">
-            Our three core pillars work in unison to form a seamless financial continuum — bridging the last mile, foreign exchange markets, and individual consumers.
+            {t("public.home.pillars.intro")}
           </p>
         </div>
 
@@ -145,7 +147,7 @@ export const ThreePillarsSection: React.FC = () => {
                 {/* Capabilities List */}
                 <div className="space-y-2 mb-8 pt-4 border-t border-white/5">
                   <div className="text-[11px] font-mono text-slate-400 uppercase mb-2">
-                    Verified Capabilities:
+                    {t("public.home.pillars.vCap")}
                   </div>
                   {p.capabilities.map((cap, i) => (
                     <div key={i} className="flex items-center gap-2 text-xs text-slate-300">
@@ -170,7 +172,7 @@ export const ThreePillarsSection: React.FC = () => {
                   href={p.learnHref}
                   className="w-full sm:w-auto px-3 py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold text-center border border-white/5 transition-colors"
                 >
-                  Details
+                  {t("public.home.pillars.details")}
                 </Link>
               </div>
             </div>
