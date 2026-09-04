@@ -15,11 +15,13 @@ import {
 } from "lucide-react";
 import { useCountry } from "../ui/CountryContext";
 import { useTheme } from "../ui/ThemeContext";
+import { useLanguage } from "../ui/LanguageContext";
 import { ThemeToggle } from "../ui/ThemeToggle";
 
 export const Footer: React.FC = () => {
   const { openModal } = useCountry();
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const [newsletterEmail, setNewsletterEmail] = useState("");
   const [newsletterSubscribed, setNewsletterSubscribed] = useState(false);
   const [subscribing, setSubscribing] = useState(false);
@@ -61,15 +63,15 @@ export const Footer: React.FC = () => {
           <div className="max-w-xl">
             <div className="flex items-center gap-2 mb-2">
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                Institutional Briefings
+                {t("public.footer.site.newsletterStripBadge")}
               </span>
-              <span className="text-xs text-[var(--footer-muted)]">Nigeria ↔ Niger Republic</span>
+              <span className="text-xs text-[var(--footer-muted)]">{t("public.footer.site.newsletterStripCorridor")}</span>
             </div>
             <h3 className="text-lg sm:text-xl font-bold text-[var(--footer-fg)]">
-              Stay Informed on Cross-Border Fintech & Infrastructure
+              {t("public.footer.site.newsletterStripHeading")}
             </h3>
             <p className="text-xs sm:text-sm text-[var(--footer-muted)] mt-1">
-              Receive quarterly insights on agency banking expansion, BDC digitisation, and West African financial rails.
+              {t("public.footer.site.newsletterStripBody")}
             </p>
           </div>
 
@@ -77,7 +79,7 @@ export const Footer: React.FC = () => {
             {newsletterSubscribed ? (
               <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs flex items-center gap-2 font-medium">
                 <CheckCircle2 className="w-4 h-4 shrink-0" />
-                <span>Thank you. You have been added to our institutional briefing list.</span>
+                <span>{t("public.footer.site.subscribedThank")}</span>
               </div>
             ) : (
               <div className="flex flex-col sm:flex-row gap-2">
@@ -88,7 +90,7 @@ export const Footer: React.FC = () => {
                     required
                     value={newsletterEmail}
                     onChange={(e) => setNewsletterEmail(e.target.value)}
-                    placeholder="Enter official email address..."
+                    placeholder={t("public.footer.site.newsletterPlaceholder")}
                     className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border-strong)] text-xs text-[var(--footer-fg)] placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
                   />
                 </div>
@@ -97,7 +99,7 @@ export const Footer: React.FC = () => {
                   disabled={subscribing}
                   className="px-5 py-2.5 rounded-xl btn-korie-primary text-xs font-bold flex items-center justify-center gap-1.5 shrink-0"
                 >
-                  <span>Subscribe</span>
+                  <span>{t("public.footer.site.subscribe")}</span>
                   <Send className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -111,58 +113,61 @@ export const Footer: React.FC = () => {
           <div className="col-span-2 space-y-4">
             <KorieLogo variant="full" theme={theme === "light" ? "light" : "dark"} height={36} />
             <p className="text-xs text-[var(--footer-muted)] leading-relaxed max-w-sm">
-              Tier-1 financial technology infrastructure powering Agency Banking, BDC/FX operations, and digital commerce across the interconnected markets of Nigeria and Niger Republic.
+              {t("public.footer.site.tagline")}
             </p>
+
             <div className="pt-2 flex flex-col gap-2 text-xs">
               <div className="flex items-center gap-2 text-[var(--footer-muted)]">
                 <Building2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Nigeria HQ: Abuja & Lagos Commercial Centers</span>
+                <span>{t("public.footer.site.nigeriaHq")}</span>
               </div>
               <div className="flex items-center gap-2 text-[var(--footer-muted)]">
                 <Globe2 className="w-4 h-4 text-amber-400 shrink-0" />
-                <span>Niger Republic Operations: Niamey & Maradi Trade Corridors</span>
+                <span>{t("public.footer.site.nigerOps")}</span>
               </div>
             </div>
             {/* Live Uptime Status */}
             <div className="pt-2 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] text-[11px] font-mono text-[var(--footer-fg)]">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Network Status:</span>
-              <span className="text-emerald-400 font-bold">99.98% Operational</span>
+              <span>{t("public.footer.site.networkStatus")}</span>
+              <span className="text-emerald-400 font-bold">{t("public.footer.site.networkValue")}</span>
             </div>
           </div>
 
           {/* Solutions Column */}
           <div className="space-y-3">
-            <div className="text-xs font-bold uppercase tracking-wider text-[var(--footer-fg)]">Solutions</div>
+            <div className="text-xs font-bold uppercase tracking-wider text-[var(--footer-fg)]">
+              {t("public.footer.site.solutionsHeading")}
+            </div>
             <ul className="space-y-2 text-xs text-[var(--footer-muted)]">
               <li>
                 <Link href="/solutions/agency-banking" className="hover:text-emerald-400 transition-colors">
-                  Agency Banking
+                  {t("public.footer.site.solutionsAgency")}
                 </Link>
               </li>
               <li>
                 <Link href="/solutions/bdc-fx" className="hover:text-amber-400 transition-colors">
-                  BDC / FX Digital
+                  {t("public.footer.site.solutionsFx")}
                 </Link>
               </li>
               <li>
                 <Link href="/solutions/customers" className="hover:text-teal-400 transition-colors">
-                  Customer Wallet
+                  {t("public.footer.site.solutionsWallet")}
                 </Link>
               </li>
               <li>
                 <Link href="/solutions/business" className="hover:text-blue-400 transition-colors">
-                  Business Accounts
+                  {t("public.footer.site.solutionsBusiness")}
                 </Link>
               </li>
               <li>
                 <Link href="/solutions/merchant" className="hover:text-orange-400 transition-colors">
-                  Merchant POS & QR
+                  {t("public.footer.site.solutionsMerchant")}
                 </Link>
               </li>
               <li>
                 <Link href="/solutions/payments" className="hover:text-emerald-400 transition-colors">
-                  Cross-Border Rails
+                  {t("public.footer.site.solutionsRails")}
                 </Link>
               </li>
             </ul>
@@ -170,31 +175,33 @@ export const Footer: React.FC = () => {
 
           {/* Markets Column */}
           <div className="space-y-3">
-            <div className="text-xs font-bold uppercase tracking-wider text-[var(--footer-fg)]">Markets</div>
+            <div className="text-xs font-bold uppercase tracking-wider text-[var(--footer-fg)]">
+              {t("public.footer.site.marketsHeading")}
+            </div>
             <ul className="space-y-2 text-xs text-[var(--footer-muted)]">
               <li>
                 <Link href="/nigeria" className="hover:text-emerald-400 transition-colors flex items-center gap-1">
-                  <span>🇳🇬 Nigeria (NGN)</span>
+                  <span>{t("public.footer.site.marketNigeria")}</span>
                 </Link>
               </li>
               <li>
                 <Link href="/niger-republic" className="hover:text-amber-400 transition-colors flex items-center gap-1">
-                  <span>🇳🇪 Niger Rep. (XOF)</span>
+                  <span>{t("public.footer.site.marketNiger")}</span>
                 </Link>
               </li>
               <li>
                 <Link href="/solutions/payments" className="hover:text-[var(--footer-fg)] transition-colors">
-                  Kano ↔ Maradi Corridor
+                  {t("public.footer.site.corridorKanoMaradi")}
                 </Link>
               </li>
               <li>
                 <Link href="/solutions/payments" className="hover:text-[var(--footer-fg)] transition-colors">
-                  Lagos ↔ Niamey Corridor
+                  {t("public.footer.site.corridorLagosNiamey")}
                 </Link>
               </li>
               <li>
                 <Link href="/solutions/payments" className="hover:text-[var(--footer-fg)] transition-colors">
-                  Sokoto ↔ Birni Corridor
+                  {t("public.footer.site.corridorSokotoBirni")}
                 </Link>
               </li>
             </ul>
@@ -202,31 +209,33 @@ export const Footer: React.FC = () => {
 
           {/* Infrastructure Column */}
           <div className="space-y-3">
-            <div className="text-xs font-bold uppercase tracking-wider text-[var(--footer-fg)]">Infrastructure</div>
+            <div className="text-xs font-bold uppercase tracking-wider text-[var(--footer-fg)]">
+              {t("public.footer.site.infraHeading")}
+            </div>
             <ul className="space-y-2 text-xs text-[var(--footer-muted)]">
               <li>
                 <Link href="/technology" className="hover:text-teal-400 transition-colors">
-                  Technology Engine
+                  {t("public.footer.site.infraEngine")}
                 </Link>
               </li>
               <li>
                 <Link href="/security" className="hover:text-emerald-400 transition-colors">
-                  Security Architecture
+                  {t("public.footer.site.infraSecurity")}
                 </Link>
               </li>
               <li>
                 <Link href="/developers" className="hover:text-indigo-400 transition-colors">
-                  Developer APIs
+                  {t("public.footer.site.infraDev")}
                 </Link>
               </li>
               <li>
                 <Link href="/partners" className="hover:text-yellow-400 transition-colors">
-                  Banking Partners
+                  {t("public.footer.site.infraPartners")}
                 </Link>
               </li>
               <li>
                 <Link href="/resources" className="hover:text-[var(--footer-fg)] transition-colors">
-                  Documentation
+                  {t("public.footer.site.infraDocs")}
                 </Link>
               </li>
             </ul>
@@ -234,37 +243,39 @@ export const Footer: React.FC = () => {
 
           {/* Company & Legal Column */}
           <div className="space-y-3">
-            <div className="text-xs font-bold uppercase tracking-wider text-[var(--footer-fg)]">Company</div>
+            <div className="text-xs font-bold uppercase tracking-wider text-[var(--footer-fg)]">
+              {t("public.footer.site.companyHeading")}
+            </div>
             <ul className="space-y-2 text-xs text-[var(--footer-muted)]">
               <li>
                 <Link href="/about" className="hover:text-[var(--footer-fg)] transition-colors">
-                  About KoriePay
+                  {t("public.footer.site.companyAbout")}
                 </Link>
               </li>
               <li>
                 <Link href="/careers" className="hover:text-[var(--footer-fg)] transition-colors flex items-center gap-1">
-                  <span>Careers</span>
-                  <span className="text-[10px] font-mono bg-emerald-500/20 text-emerald-400 px-1 rounded">Hiring</span>
+                  <span>{t("public.footer.site.companyCareers")}</span>
+                  <span className="text-[10px] font-mono bg-emerald-500/20 text-emerald-400 px-1 rounded">{t("public.footer.site.hiring")}</span>
                 </Link>
               </li>
               <li>
                 <Link href="/faq" className="hover:text-[var(--footer-fg)] transition-colors">
-                  FAQ Desk
+                  {t("public.footer.site.companyFaq")}
                 </Link>
               </li>
               <li>
                 <Link href="/contact" className="hover:text-[var(--footer-fg)] transition-colors">
-                  Contact Us
+                  {t("public.footer.site.companyContact")}
                 </Link>
               </li>
               <li>
                 <Link href="/privacy" className="hover:text-[var(--footer-fg)] transition-colors">
-                  Privacy Policy
+                  {t("public.footer.site.companyPrivacy")}
                 </Link>
               </li>
               <li>
                 <Link href="/terms" className="hover:text-[var(--footer-fg)] transition-colors">
-                  Terms of Service
+                  {t("public.footer.site.companyTerms")}
                 </Link>
               </li>
             </ul>
@@ -274,17 +285,17 @@ export const Footer: React.FC = () => {
         {/* Regulatory & Institutional Notice */}
         <div className="py-6 border-b border-[var(--border)] text-[11px] text-[var(--footer-muted)] leading-relaxed space-y-2">
           <p>
-            <strong className="text-[var(--footer-fg)]">Regulatory & Institutional Notice:</strong> KoriePay is a financial technology infrastructure provider operating in partnership with licensed commercial banks, mobile money operators, and authorized Bureau De Change networks across the Federal Republic of Nigeria and the Republic of Niger. KoriePay technology facilitates transaction routing, terminal management, digital wallets, and automated settlements in strict compliance with applicable central banking frameworks and data privacy standards (NDPR / WAEMU).
+            <strong className="text-[var(--footer-fg)]">{t("public.footer.site.noticeLabel")}</strong> {t("public.footer.site.noticeBody")}
           </p>
           <p className="text-[var(--footer-muted)]">
-            Hausa: <span className="text-[var(--footer-fg)] italic">&ldquo;Kudinka, Hannunka&rdquo;</span> — Your Money, in Your Hands. Built for inclusive cross-border African commerce.
+            Hausa: <span dangerouslySetInnerHTML={{ __html: t("public.footer.site.hausaLine") }} />
           </p>
         </div>
 
         {/* Bottom Bar */}
         <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[var(--footer-muted)]">
           <div className="flex items-center gap-2">
-            <span>© {new Date().getFullYear()} KoriePay Technologies Limited. All rights reserved.</span>
+            <span>{t("public.footer.site.copyright", { year: new Date().getFullYear() })}</span>
           </div>
 
           <div className="flex items-center gap-4">
@@ -294,17 +305,17 @@ export const Footer: React.FC = () => {
               title="Replay Brand Experience"
             >
               <RefreshCw className="w-3 h-3" />
-              <span>Replay Intro</span>
+              <span>{t("public.footer.site.replayIntro")}</span>
             </button>
             <ThemeToggle className="items-center p-1.5 bg-[var(--surface-2)] border border-[var(--border)]" />
             <Link href="/privacy" className="hover:text-[var(--footer-fg)] transition-colors">
-              Privacy
+              {t("public.footer.site.privacy")}
             </Link>
             <Link href="/terms" className="hover:text-[var(--footer-fg)] transition-colors">
-              Terms
+              {t("public.footer.site.terms")}
             </Link>
             <Link href="/security" className="hover:text-[var(--footer-fg)] transition-colors">
-              Security
+              {t("public.footer.site.infraSecurity")}
             </Link>
           </div>
         </div>
