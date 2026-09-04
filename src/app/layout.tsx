@@ -45,29 +45,60 @@ export const viewport: Viewport = {
   maximumScale: 5,
 };
 
+const siteUrl = "https://koriepay.com";
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://koriepay.com"),
+  metadataBase: new URL(siteUrl),
   title: {
-    default: "KoriePay | Tier-1 Cross-Border Fintech Infrastructure for Nigeria & Niger Republic",
+    default:
+      "KoriePay | Secure Cross-Border Payments & Fintech Infrastructure for Nigeria & Niger Republic",
     template: "%s | KoriePay",
   },
   description:
-    "KoriePay powers Agency Banking, BDC / FX digital operations, Consumer Wallets, and Merchant Payments across Nigeria and Niger Republic. Kudinka, Hannunka.",
+    "KoriePay connects people, agency banking networks, BDC/FX operators and businesses with secure digital payments and cross-border financial infrastructure across Nigeria and Niger Republic. Money transfer, agency banking, merchant payments and digital wallets. Kudinka, Hannunka.",
   keywords: [
     "KoriePay",
-    "Agency Banking Nigeria",
-    "Agency Banking Niger",
-    "BDC Fintech",
-    "Cross-border payments",
-    "Nigeria Niger trade",
-    "Kudinka Hannunka",
-    "West Africa fintech infrastructure",
+    "cross-border payments Nigeria Niger",
+    "agency banking Nigeria",
+    "secure money transfer West Africa",
+    "African fintech infrastructure",
+    "digital banking Nigeria",
+    "merchant payments",
+    "BDC FX digital operations",
+    "Nigeria Niger financial connectivity",
   ],
+  alternates: { canonical: siteUrl },
+  robots: { index: true, follow: true },
+  openGraph: {
+    type: "website",
+    siteName: "KoriePay",
+    url: siteUrl,
+    title: "KoriePay | Secure Cross-Border Payments & Fintech Infrastructure",
+    description:
+      "Secure, scalable digital financial infrastructure connecting agency banking, BDC/FX operators, merchants and consumers across Nigeria and Niger Republic.",
+    locale: "en_NG",
+    images: [
+      {
+        url: "/images/visual/hero-ecosystem.webp",
+        width: 1536,
+        height: 1024,
+        alt: "KoriePay digital payment ecosystem connecting Nigeria and Niger Republic",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "KoriePay | Cross-Border Fintech Infrastructure",
+    description:
+      "Digital payments, agency banking, merchant payments and cross-border financial rails across Nigeria & Niger Republic.",
+    images: ["/images/visual/hero-ecosystem.webp"],
+  },
   icons: {
     icon: "/brand/koriepay-icon-tight.png",
     shortcut: "/brand/koriepay-icon-tight.png",
     apple: "/brand/icon-192.png",
   },
+  manifest: "/site.webmanifest",
 };
 
 // Inline script to set the persisted theme before hydration -> no flash.
@@ -86,6 +117,45 @@ export default function RootLayout({
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              name: "KoriePay",
+              url: siteUrl,
+              logo: `${siteUrl}/brand/koriepay-icon-tight.png`,
+              slogan: "Kudinka, Hannunka.",
+              description:
+                "Secure cross-border financial infrastructure connecting agency banking, BDC/FX operators, merchants and consumers across Nigeria and Niger Republic.",
+              areaServed: ["NG", "NE"],
+              knowsAbout: [
+                "Cross-border payments",
+                "Agency banking",
+                "BDC FX operations",
+                "Merchant payments",
+                "Digital wallets",
+              ],
+            }),
+          }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              name: "KoriePay",
+              url: siteUrl,
+              potentialAction: {
+                "@type": "SearchAction",
+                target: `${siteUrl}/?q={search_term_string}`,
+                "query-input": "required name=search_term_string",
+              },
+            }),
+          }}
+        />
       </head>
       <body className="bg-background text-foreground min-h-screen flex flex-col font-sans antialiased kp-ambient selection:bg-emerald-500 selection:text-slate-950">
         <ThemeProvider>

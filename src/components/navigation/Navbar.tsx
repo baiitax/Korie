@@ -548,8 +548,8 @@ export const Navbar: React.FC = () => {
                 </button>
               </div>
 
-              {/* Language Switcher (EN / HA / FR) */}
-              <LanguageSwitcher compact className="hidden xl:flex" />
+              {/* Language Switcher (EN / HA / FR) — persistent, instantly accessible */}
+              <LanguageSwitcher compact className="flex" />
 
               {/* Day / Night Theme Toggle */}
               <ThemeToggle className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 bg-[var(--surface)] border border-[var(--border)] text-[var(--nav-muted)] hover:text-[var(--nav-fg)] hover:border-[var(--border-strong)]" />

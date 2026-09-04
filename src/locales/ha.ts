@@ -43,7 +43,7 @@ export const ha = {
     showBalance: "Nuna Kuɗi",
   },
   loading: {
-    initial: "Ana shirya ƙwaren kuɗin ku na tsaro\u2026",
+    initial: "Ana haɗa ƙwaren kuɗin ku a ƙetare iyaka\u2026",
     tagline: "Kudinka, Hannunka.",
     public: "Ana ɗaukar KoriePay\u2026",
     customer: "Ana ɗaukar asusun ku\u2026",

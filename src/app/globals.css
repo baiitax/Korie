@@ -440,6 +440,38 @@
 .light .bg-white\/\[0\.04\] { background-color: var(--surface-2) !important; }
 .light .bg-white\/\[0\.06\] { background-color: var(--surface-2) !important; }
 .light .bg-white\/\[0\.08\] { background-color: var(--surface-3) !important; }
+/* 3b. Comprehensive slate surface remap — Light Mode is genuinely light.
+   No dark card survives: every bg-slate-* variant (incl. opacity) maps to a
+   light surface tier. Scoped to `.light` (higher specificity + last in source
+   order), Night is untouched. (V7.0 §41/§42) */
+.light .bg-slate-950, .light .bg-slate-900 { background-color: var(--surface) !important; }
+.light .bg-slate-850, .light .bg-slate-800 { background-color: var(--surface-2) !important; }
+.light .bg-slate-700, .light .bg-slate-600 { background-color: var(--surface-3) !important; }
+.light .bg-slate-950\/95, .light .bg-slate-900\/95 { background-color: rgba(255,255,255,0.95) !important; }
+.light .bg-slate-950\/90, .light .bg-slate-900\/90 { background-color: rgba(255,255,255,0.9) !important; }
+.light .bg-slate-950\/85, .light .bg-slate-900\/85 { background-color: rgba(255,255,255,0.85) !important; }
+.light .bg-slate-950\/80, .light .bg-slate-900\/80 { background-color: rgba(255,255,255,0.8) !important; }
+.light .bg-slate-950\/75, .light .bg-slate-900\/75 { background-color: rgba(255,255,255,0.75) !important; }
+.light .bg-slate-950\/70, .light .bg-slate-900\/70 { background-color: rgba(255,255,255,0.7) !important; }
+.light .bg-slate-950\/60, .light .bg-slate-900\/60 { background-color: rgba(255,255,255,0.6) !important; }
+.light .bg-slate-950\/50, .light .bg-slate-900\/50 { background-color: rgba(255,255,255,0.5) !important; }
+.light .bg-slate-950\/40, .light .bg-slate-900\/40 { background-color: rgba(255,255,255,0.4) !important; }
+.light .bg-slate-950\/30, .light .bg-slate-900\/30 { background-color: rgba(255,255,255,0.3) !important; }
+.light .bg-slate-850\/90, .light .bg-slate-800\/90 { background-color: rgba(246,249,253,0.9) !important; }
+.light .bg-slate-850\/80, .light .bg-slate-800\/80 { background-color: rgba(246,249,253,0.8) !important; }
+.light .bg-slate-850\/70, .light .bg-slate-800\/70 { background-color: rgba(246,249,253,0.7) !important; }
+.light .bg-slate-850\/60, .light .bg-slate-800\/60 { background-color: rgba(246,249,253,0.6) !important; }
+.light .bg-slate-850\/50, .light .bg-slate-800\/50 { background-color: rgba(246,249,253,0.5) !important; }
+.light .bg-slate-850\/40, .light .bg-slate-800\/40 { background-color: rgba(246,249,253,0.4) !important; }
+.light .bg-slate-850\/30, .light .bg-slate-800\/30 { background-color: rgba(246,249,253,0.3) !important; }
+.light .bg-slate-700\/90, .light .bg-slate-600\/90 { background-color: rgba(237,243,250,0.9) !important; }
+.light .bg-slate-700\/80, .light .bg-slate-600\/80 { background-color: rgba(237,243,250,0.8) !important; }
+.light .bg-slate-700\/70, .light .bg-slate-600\/70 { background-color: rgba(237,243,250,0.7) !important; }
+.light .bg-slate-700\/60, .light .bg-slate-600\/60 { background-color: rgba(237,243,250,0.6) !important; }
+.light .bg-slate-700\/50, .light .bg-slate-600\/50 { background-color: rgba(237,243,250,0.5) !important; }
+.light .bg-slate-700\/40, .light .bg-slate-600\/40 { background-color: rgba(237,243,250,0.4) !important; }
+.light .bg-slate-700\/30, .light .bg-slate-600\/30 { background-color: rgba(237,243,250,0.3) !important; }
+
 
 /* 4. Light-gray surface text -> dark text (Night is not affected) */
 .light .text-white,
@@ -805,6 +837,22 @@
 @keyframes kpSpin { to { transform: rotate(360deg); } }
 .kp-loader-ring { animation: kpSpin 1.05s cubic-bezier(0.6, 0, 0.2, 1) infinite; transform-origin: center; }
 
+/* Cross-border network pulses (V7.0) — a dot travels across the spine, fading.
+   animates transform + opacity only; frozen by prefers-reduced-motion. */
+.kp-net-pulse {
+  opacity: 0;
+  animation: kpNetTravel 2.6s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+.kp-net-pulse-1 { animation-duration: 2.4s; }
+.kp-net-pulse-2 { animation-duration: 3.0s; animation-delay: 0.7s; }
+.kp-net-pulse-3 { animation-duration: 2.1s; animation-delay: 1.4s; }
+@keyframes kpNetTravel {
+  0%   { transform: translateX(40px); opacity: 0; }
+  8%   { opacity: 0.95; }
+  90%  { opacity: 0.25; }
+  100% { transform: translateX(360px); opacity: 0; }
+}
+
 /* Soft glow pulse for the backdrop orb */
 @keyframes kpGlowPulse {
   0%, 100% { opacity: 0.35; transform: scale(1); }
@@ -862,7 +910,7 @@
 
 /* Reduced motion: freeze all loading animation, keep static high-contrast */
 @media (prefers-reduced-motion: reduce) {
-  .kp-anim-reveal, .kp-loader-breathe, .kp-loader-ring, .kp-glow-pulse,
+  .kp-anim-reveal, .kp-loader-breathe, .kp-loader-ring, .kp-glow-pulse, .kp-net-pulse,
   .kp-indeterminate-bar, .kp-skeleton, .kp-progress-fill, .shimmer-text,
   .animate-spin, .animate-pulse, .animate-pulse-slow, .animate-glow-pulse,
   .animate-float, .animate-in, .animate-out, .animate-fadeIn {

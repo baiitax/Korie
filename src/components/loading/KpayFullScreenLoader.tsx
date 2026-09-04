@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import type { FullScreenOptions } from "./LoadingContext";
 import KpayLoader from "./KpayLoader";
+import KpayCrossBorderNetwork from "./KpayCrossBorderNetwork";
 
 interface KpayFullScreenLoaderProps {
   open: boolean;
@@ -118,9 +119,14 @@ export const KpayFullScreenLoader: React.FC<KpayFullScreenLoaderProps> = ({
           tagline={tagline}
         />
 
+        {/* Abstract cross-border financial network (Nigeria ↔ Niger) */}
+        <div className="w-full max-w-[420px] -mt-1 opacity-90">
+          <KpayCrossBorderNetwork />
+        </div>
+
         {/* Thin indeterminate line for extra pacing — not fake progress */}
         {!bootstrap && (
-          <div className="w-full max-w-[200px]">
+          <div className="w-full max-w-[240px]">
             <div className="kp-indeterminate-track h-1 w-full">
               <div className="kp-indeterminate-bar h-full" />
             </div>

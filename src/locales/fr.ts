@@ -43,7 +43,7 @@ export const fr = {
     showBalance: "Afficher le Solde",
   },
   loading: {
-    initial: "Préparation de votre expérience financière sécurisée\u2026",
+    initial: "Connexion de votre expérience financière au-delà des frontières\u2026",
     tagline: "Kudinka, Hannunka.",
     public: "Chargement de KoriePay\u2026",
     customer: "Chargement de votre compte\u2026",

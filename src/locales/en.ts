@@ -43,7 +43,7 @@ export const en = {
     showBalance: "Show Balance",
   },
   loading: {
-    initial: "Preparing your secure financial experience\u2026",
+    initial: "Connecting your financial experience across borders\u2026",
     tagline: "Kudinka, Hannunka.",
     public: "Loading KoriePay\u2026",
     customer: "Loading your account\u2026",

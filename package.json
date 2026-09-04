@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "i18n:check": "node scripts/i18n-parity.mjs",
+    "prei18n:check": "node scripts/i18n-parity.mjs --json",
+    "check:i18n": "node scripts/i18n-parity.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.5",
