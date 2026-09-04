@@ -163,11 +163,11 @@ function TransactionRow({
   return (
     <div
       onClick={() => onOpen(tx)}
-      className="py-3.5 flex items-center justify-between gap-3 hover:bg-[var(--surface-2)] -mx-2 px-2 rounded-2xl cursor-pointer transition-colors"
+      className="py-3.5 flex items-center justify-between gap-3 hover:bg-[var(--surface-elevated)] -mx-2 px-2 rounded-2xl cursor-pointer transition-colors"
     >
       <div className="flex items-center gap-3 min-w-0">
         <div className={`flex h-10 w-10 items-center justify-center rounded-2xl shrink-0 ${
-          isInward ? "bg-[var(--success-soft)] text-[var(--success)]" : "bg-[var(--surface-3)] text-[var(--foreground)]"
+          isInward ? "bg-[var(--success-soft)] text-[var(--success)]" : "bg-[var(--surface)] text-[var(--foreground)]"
         }`}>
           <Icon className="h-4 w-4" />
         </div>
