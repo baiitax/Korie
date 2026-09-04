@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useCountry } from "../ui/CountryContext";
+import { useLanguage } from "../ui/LanguageContext";
 import {
   ArrowRight,
   ShieldCheck,
@@ -19,40 +20,41 @@ import KpayImageCard from "@/components/ui/KpayImageCard";
 
 export const HeroSection: React.FC = () => {
   const { openModal, country } = useCountry();
+  const { t } = useLanguage();
   const [activeSegment, setActiveSegment] = useState<"agents" | "bdc" | "customers" | "business">("agents");
 
   const segmentContent = {
     agents: {
-      badge: "Last-Mile Financial Infrastructure",
-      title: "Turn Any Store Into a Banking Service Point",
-      desc: "Transform your store or kiosk into a fully enabled agency banking point. Offer cash-in, cash-out, interbank transfers, and utility payments with reliable terminal hardware and instant commissions.",
-      cta: "Become a KoriePay Agent",
+      badge: t("public.hero.agentsBadge"),
+      title: t("public.hero.agentsTitle"),
+      desc: t("public.hero.agentsDesc"),
+      cta: t("public.hero.agentsCta"),
       action: () => openModal("agent"),
-      metric: "Commission on Every Transaction",
+      metric: t("public.hero.agentsMetric"),
     },
     bdc: {
-      badge: "Digital FX & Treasury Rails",
-      title: "Modern Liquidity for Licensed FX Operators",
-      desc: "Connect your Bureau De Change to institutional cross-border liquidity. Manage customer transactions, rate transparency, multi-currency balances, and automated settlement between Nigeria and Niger.",
-      cta: "Partner as BDC Operator",
+      badge: t("public.hero.fxBadge"),
+      title: t("public.hero.fxTitle"),
+      desc: t("public.hero.fxDesc"),
+      cta: t("public.hero.fxCta"),
       action: () => openModal("bdc"),
-      metric: "NGN ⇄ XOF Corridor Rails",
+      metric: t("public.hero.fxMetric"),
     },
     customers: {
-      badge: "Consumer Financial Freedom",
-      title: "Your Money, Connected Across Borders",
-      desc: "Send transfers, pay bills, and pay with a dynamic merchant QR — including cross-border remittances. As our Hausa slogan says: Kudinka, Hannunka — Your money, in your hands.",
-      cta: "Open an Account",
+      badge: t("public.hero.customersBadge"),
+      title: t("public.hero.customersTitle"),
+      desc: t("public.hero.customersDesc"),
+      cta: t("public.hero.customersCta"),
       action: () => openModal("contact", "Customer Wallet"),
-      metric: "Domestic & Regional Payment Rails",
+      metric: t("public.hero.customersMetric"),
     },
     business: {
-      badge: "Enterprise & SME Treasury",
-      title: "High-Throughput Payments for Scaled Commerce",
-      desc: "Empower your enterprise with multi-currency accounts, automated bulk payroll, merchant payment links, and institutional developer APIs designed for scale.",
-      cta: "Build With KoriePay",
+      badge: t("public.hero.businessBadge"),
+      title: t("public.hero.businessTitle"),
+      desc: t("public.hero.businessDesc"),
+      cta: t("public.hero.businessCta"),
       action: () => openModal("business"),
-      metric: "Enterprise-Grade Developer APIs",
+      metric: t("public.hero.businessMetric"),
     },
   };
 
@@ -76,7 +78,7 @@ export const HeroSection: React.FC = () => {
             <span className="text-[var(--brand-secondary)] font-bold font-mono">🇳🇪 NIGER REPUBLIC</span>
             <span className="text-[var(--border-strong)] hidden sm:inline">•</span>
             <span className="text-[var(--muted)] hidden sm:inline text-[11px]">
-              One Unified Financial Infrastructure
+              {t("public.hero.corridorLabel")}
             </span>
           </div>
         </div>
@@ -84,16 +86,11 @@ export const HeroSection: React.FC = () => {
         {/* Main Headline (LEFT) */}
         <div className="max-w-3xl mx-auto lg:mx-0 text-center lg:text-left mb-8">
           <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-[var(--foreground)] leading-[1.1]">
-            Powering the Financial Ecosystem Across{" "}
-            <span className="text-gradient-korie">Nigeria &amp; Niger Republic</span>
+            {t("public.hero.headingLead")}{" "}
+            <span className="text-gradient-korie">{t("public.hero.headingHighlight")}</span>
           </h1>
           <p className="mt-5 text-sm sm:text-lg text-[var(--foreground-muted)] leading-relaxed max-w-2xl mx-auto lg:mx-0">
-            KoriePay connects{" "}
-            <strong className="text-[var(--foreground)] font-semibold">customers</strong>,{" "}
-            <strong className="text-[var(--brand-primary)] font-semibold">agency banking networks</strong>,{" "}
-            <strong className="text-[var(--brand-secondary)] font-semibold">BDC/FX operators</strong>, and{" "}
-            <strong className="text-[var(--foreground)] font-semibold">businesses</strong> through secure,
-            scalable digital financial infrastructure built for the next generation of African commerce.
+            <span dangerouslySetInnerHTML={{ __html: t("public.hero.subcopy") }} />
           </p>
         </div>
 
@@ -112,7 +109,7 @@ export const HeroSection: React.FC = () => {
                 }`}
               >
                 <Building2 className="w-3.5 h-3.5" />
-                <span>For Agents</span>
+{t("public.hero.forAgents")}
               </button>
               <button
                 onClick={() => setActiveSegment("bdc")}
@@ -123,7 +120,7 @@ export const HeroSection: React.FC = () => {
                 }`}
               >
                 <Repeat2 className="w-3.5 h-3.5" />
-                <span>For BDCs / FX</span>
+{t("public.hero.forFx")}
               </button>
               <button
                 onClick={() => setActiveSegment("customers")}
@@ -134,7 +131,7 @@ export const HeroSection: React.FC = () => {
                 }`}
               >
                 <Users className="w-3.5 h-3.5" />
-                <span>For Customers</span>
+{t("public.hero.forCustomers")}
               </button>
               <button
                 onClick={() => setActiveSegment("business")}
@@ -145,8 +142,8 @@ export const HeroSection: React.FC = () => {
                 }`}
               >
                 <Briefcase className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">For Businesses</span>
-                <span className="sm:hidden">Business</span>
+{t("public.hero.forBusinesses")}
+{t("public.hero.forBusinessesShort")}
               </button>
             </div>
 
@@ -190,7 +187,7 @@ export const HeroSection: React.FC = () => {
                   }
                   className="px-4 py-2.5 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-2)] text-[var(--foreground)] text-xs font-semibold border border-[var(--border-strong)] transition-colors flex items-center gap-1.5"
                 >
-                  <span>Explore Architecture</span>
+                  <span>{t("public.hero.exploreCta")}</span>
                   <ArrowRight className="w-3.5 h-3.5 text-[var(--muted)]" />
                 </Link>
               </div>
@@ -214,22 +211,22 @@ export const HeroSection: React.FC = () => {
               <div className="flex items-center justify-between pb-2 border-b border-[var(--border)]">
                 <div className="flex items-center gap-2">
                   <div className="w-2.5 h-2.5 rounded-full bg-[var(--brand-primary)]" />
-                  <span className="text-[11px] font-mono text-[var(--foreground)]">Rails · NGN ⇄ XOF</span>
+                  <span className="text-[11px] font-mono text-[var(--foreground)]">{t("public.hero.panelRail")}</span>
                 </div>
-                <span className="text-[10px] font-mono text-[var(--brand-primary)]">Cross-Border</span>
+                <span className="text-[10px] font-mono text-[var(--brand-primary)]">{t("public.hero.panelTag")}</span>
               </div>
               <div className="pt-2 space-y-1.5 text-xs">
                 <div className="flex justify-between">
-                  <span className="text-[var(--muted)]">Corridor</span>
-                  <span className="text-[var(--brand-primary)] font-mono font-bold">Kano ↔ Maradi</span>
+                  <span className="text-[var(--muted)]">{t("public.hero.corridor")}</span>
+                  <span className="text-[var(--brand-primary)] font-mono font-bold">{t("public.hero.corridorVal")}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-[var(--muted)]">Settlement</span>
-                  <span className="text-[var(--foreground)] font-mono">NGN ⇄ XOF</span>
+                  <span className="text-[var(--muted)]">{t("public.hero.settlement")}</span>
+                  <span className="text-[var(--foreground)] font-mono">{t("public.hero.settlementVal")}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-[var(--muted)]">Formats</span>
-                  <span className="text-[var(--brand-secondary)] font-mono">Agent · BDC · Wallet</span>
+                  <span className="text-[var(--muted)]">{t("public.hero.formats")}</span>
+                  <span className="text-[var(--brand-secondary)] font-mono">{t("public.hero.formatsVal")}</span>
                 </div>
               </div>
             </div>
@@ -239,20 +236,20 @@ export const HeroSection: React.FC = () => {
         {/* Ecosystem At-a-Glance Strip — verifiable, non-fabricated */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl mx-auto">
           <div className="p-4 rounded-2xl glass-01 text-center">
-            <div className="text-xl sm:text-2xl font-bold text-[var(--brand-primary)] font-mono">2 Markets</div>
-            <div className="text-xs text-[var(--muted)] mt-1">Nigeria 🇳🇬 &amp; Niger Republic 🇳🇪</div>
+            <div className="text-xl sm:text-2xl font-bold text-[var(--brand-primary)] font-mono">{t("public.hero.m1val")}</div>
+            <div className="text-xs text-[var(--muted)] mt-1">{t("public.hero.m1sub")}</div>
           </div>
           <div className="p-4 rounded-2xl glass-01 text-center">
-            <div className="text-xl sm:text-2xl font-bold text-[var(--brand-secondary)] font-mono">3 Pillars</div>
-            <div className="text-xs text-[var(--muted)] mt-1">Agency, BDC/FX &amp; Customers</div>
+            <div className="text-xl sm:text-2xl font-bold text-[var(--brand-secondary)] font-mono">{t("public.hero.m2val")}</div>
+            <div className="text-xs text-[var(--muted)] mt-1">{t("public.hero.m2sub")}</div>
           </div>
           <div className="p-4 rounded-2xl glass-01 text-center">
-            <div className="text-xl sm:text-2xl font-bold text-[var(--brand-accent)] font-mono">NGN ⇄ XOF</div>
-            <div className="text-xs text-[var(--muted)] mt-1">Cross-Border Corridor</div>
+            <div className="text-xl sm:text-2xl font-bold text-[var(--brand-accent)] font-mono">{t("public.hero.m3val")}</div>
+            <div className="text-xs text-[var(--muted)] mt-1">{t("public.hero.m3sub")}</div>
           </div>
           <div className="p-4 rounded-2xl glass-01 text-center">
-            <div className="text-xl sm:text-2xl font-bold text-[var(--foreground)] font-mono">1 Platform</div>
-            <div className="text-xs text-[var(--muted)] mt-1">Unified Financial Infrastructure</div>
+            <div className="text-xl sm:text-2xl font-bold text-[var(--foreground)] font-mono">{t("public.hero.m4val")}</div>
+            <div className="text-xs text-[var(--muted)] mt-1">{t("public.hero.m4sub")}</div>
           </div>
         </div>
       </div>

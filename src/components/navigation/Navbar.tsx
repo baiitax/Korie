@@ -39,6 +39,7 @@ export const Navbar: React.FC = () => {
   const { theme } = useTheme();
   const { isAuthenticated, logout } = useAuth();
   const { language, setLanguage } = useLanguage();
+  const { t } = useLanguage();
   const LANG_OPTIONS: { code: "en" | "fr" | "ha"; label: string }[] = [
     { code: "en", label: "EN" },
     { code: "fr", label: "FR" },
@@ -105,7 +106,7 @@ export const Navbar: React.FC = () => {
                   aria-expanded={activeDropdown === "solutions"}
                   aria-current={pathname?.startsWith("/solutions") ? "page" : undefined}
                 >
-                  <span>Solutions</span>
+                  {t("public.nav.solutions")}
                   <ChevronDown
                     className={`w-3.5 h-3.5 transition-transform duration-200 ${
                       activeDropdown === "solutions" ? "rotate-180 text-[var(--brand-primary)]" : "text-[var(--nav-muted)]"
@@ -127,10 +128,10 @@ export const Navbar: React.FC = () => {
                           </div>
                           <div>
                             <span className="text-xs font-bold text-[var(--nav-fg)] group-hover:text-[var(--brand-primary-active)] transition-colors">
-                              Agency Banking
+                              {t("public.nav.menu.agencyTitle")}
                             </span>
                             <span className="block text-[10px] text-[var(--nav-muted)]">
-                              Cash-in/out, agent wallet, terminals
+                              {t("public.nav.menu.agencyDesc")}
                             </span>
                           </div>
                         </div>
@@ -146,10 +147,10 @@ export const Navbar: React.FC = () => {
                           </div>
                           <div>
                             <span className="text-xs font-bold text-[var(--nav-fg)] group-hover:text-amber-400 transition-colors">
-                              BDC / FX Digital
+                              {t("public.nav.menu.fxdTitle")}
                             </span>
                             <span className="block text-[10px] text-[var(--nav-muted)]">
-                              Treasury rails, rates & settlement
+                              {t("public.nav.menu.fxdDesc")}
                             </span>
                           </div>
                         </div>
@@ -165,10 +166,10 @@ export const Navbar: React.FC = () => {
                           </div>
                           <div>
                             <span className="text-xs font-bold text-[var(--nav-fg)] group-hover:text-teal-400 transition-colors">
-                              Customer Wallet
+                              {t("public.nav.menu.customersTitle")}
                             </span>
                             <span className="block text-[10px] text-[var(--nav-muted)]">
-                              Transfers, bills & lifestyle finance
+                              {t("public.nav.menu.customersDesc")}
                             </span>
                           </div>
                         </div>
@@ -184,10 +185,10 @@ export const Navbar: React.FC = () => {
                           </div>
                           <div>
                             <span className="text-xs font-bold text-[var(--nav-fg)] group-hover:text-blue-400 transition-colors">
-                              Business & Enterprise
+                              {t("public.nav.menu.businessTitle")}
                             </span>
                             <span className="block text-[10px] text-[var(--nav-muted)]">
-                              Corporate accounts & bulk payroll
+                              {t("public.nav.menu.businessDesc")}
                             </span>
                           </div>
                         </div>
@@ -203,10 +204,10 @@ export const Navbar: React.FC = () => {
                           </div>
                           <div>
                             <span className="text-xs font-bold text-[var(--nav-fg)] group-hover:text-orange-400 transition-colors">
-                              Merchant Acceptance
+                              {t("public.nav.menu.merchantTitle")}
                             </span>
                             <span className="block text-[10px] text-[var(--nav-muted)]">
-                              POS, dynamic QR & payment links
+                              {t("public.nav.menu.merchantDesc")}
                             </span>
                           </div>
                         </div>
@@ -222,10 +223,10 @@ export const Navbar: React.FC = () => {
                           </div>
                           <div>
                             <span className="text-xs font-bold text-[var(--nav-fg)] group-hover:text-[var(--brand-primary-active)] transition-colors">
-                              Cross-Border Rails
+                              {t("public.nav.menu.railsTitle")}
                             </span>
                             <span className="block text-[10px] text-[var(--nav-muted)]">
-                              NGN ₦ ↔ XOF CFA instant routing
+                              {t("public.nav.menu.railsDesc")}
                             </span>
                           </div>
                         </div>
@@ -236,14 +237,14 @@ export const Navbar: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <Sparkles className="w-4 h-4 text-amber-400" />
                         <span className="text-[11px] text-[var(--nav-fg)]">
-                          Looking for complete ecosystem connectivity?
+                          {t("public.nav.menu.connectivityQ")}
                         </span>
                       </div>
                       <Link
                         href="/solutions"
                         className="text-xs text-[var(--brand-primary)] hover:text-[var(--brand-primary-active)] font-semibold flex items-center gap-1"
                       >
-                        View All Solutions <ArrowRight className="w-3.5 h-3.5" />
+                        {t("public.nav.menu.viewAll")} <ArrowRight className="w-3.5 h-3.5" />
                       </Link>
                     </div>
                   </div>
@@ -266,7 +267,7 @@ export const Navbar: React.FC = () => {
                   aria-expanded={activeDropdown === "markets"}
                   aria-current={pathname === "/nigeria" || pathname === "/niger-republic" ? "page" : undefined}
                 >
-                  <span>Markets</span>
+                  {t("public.nav.markets")}
                   <ChevronDown
                     className={`w-3.5 h-3.5 transition-transform duration-200 ${
                       activeDropdown === "markets" ? "rotate-180 text-[var(--brand-primary)]" : "text-[var(--nav-muted)]"
@@ -284,14 +285,14 @@ export const Navbar: React.FC = () => {
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-bold text-[var(--nav-fg)] group-hover:text-[var(--brand-primary-active)]">
-                            Nigeria Ecosystem
+                            {t("public.nav.menu.nigeriaTitle")}
                           </span>
                           <span className="text-[10px] font-mono px-1.5 py-0.2 bg-emerald-500/10 text-emerald-400 rounded">
-                            36 States + FCT
+                            {t("public.nav.menu.nigeriaBadge")}
                           </span>
                         </div>
                         <p className="text-[11px] text-[var(--nav-muted)] mt-0.5">
-                          NIBSS/NIP integration, nationwide agent networks, Kano-Lagos commercial corridors.
+                          {t("public.nav.menu.nigeriaDesc")}
                         </p>
                       </div>
                     </Link>
@@ -304,14 +305,14 @@ export const Navbar: React.FC = () => {
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-bold text-[var(--nav-fg)] group-hover:text-amber-400">
-                            Niger Republic Ecosystem
+                            {t("public.nav.menu.nigerTitle")}
                           </span>
                           <span className="text-[10px] font-mono px-1.5 py-0.2 bg-amber-500/10 text-amber-400 rounded">
-                            WAEMU / XOF CFA
+                            {t("public.nav.menu.nigerBadge")}
                           </span>
                         </div>
                         <p className="text-[11px] text-[var(--nav-muted)] mt-0.5">
-                          Niamey, Maradi, Zinder trade nodes, cross-border settlement rails & agency points.
+                          {t("public.nav.menu.nigerDesc")}
                         </p>
                       </div>
                     </Link>
@@ -335,7 +336,7 @@ export const Navbar: React.FC = () => {
                   aria-expanded={activeDropdown === "tech"}
                   aria-current={pathname === "/technology" || pathname === "/security" || pathname === "/developers" ? "page" : undefined}
                 >
-                  <span>Technology</span>
+                  {t("public.nav.technology")}
                   <ChevronDown
                     className={`w-3.5 h-3.5 transition-transform duration-200 ${
                       activeDropdown === "tech" ? "rotate-180 text-[var(--brand-primary)]" : "text-[var(--nav-muted)]"
@@ -354,10 +355,10 @@ export const Navbar: React.FC = () => {
                       </div>
                       <div>
                         <span className="text-xs font-bold text-[var(--nav-fg)] group-hover:text-teal-400">
-                          Infrastructure Architecture
+                          {t("public.nav.menu.infraTitle")}
                         </span>
                         <p className="text-[11px] text-[var(--nav-muted)] mt-0.5">
-                          High-throughput transaction engine, real-time telemetry, 99.98% uptime.
+                          {t("public.nav.menu.infraDesc")}
                         </p>
                       </div>
                     </Link>
@@ -371,10 +372,10 @@ export const Navbar: React.FC = () => {
                       </div>
                       <div>
                         <span className="text-xs font-bold text-[var(--nav-fg)] group-hover:text-[var(--brand-primary-active)]">
-                          Security & Risk Controls
+                          {t("public.nav.menu.securityTitle")}
                         </span>
                         <p className="text-[11px] text-[var(--nav-muted)] mt-0.5">
-                          Security-first design, end-to-end encryption, fraud monitoring & NDPR readiness.
+                          {t("public.nav.menu.securityDesc")}
                         </p>
                       </div>
                     </Link>
@@ -388,10 +389,10 @@ export const Navbar: React.FC = () => {
                       </div>
                       <div>
                         <span className="text-xs font-bold text-[var(--nav-fg)] group-hover:text-indigo-400">
-                          Developer APIs & Sandbox
+                          {t("public.nav.menu.devTitle")}
                         </span>
                         <p className="text-[11px] text-[var(--nav-muted)] mt-0.5">
-                          REST endpoints, webhooks, Node / Python SDKs, and interactive testing console.
+                          {t("public.nav.menu.devDesc")}
                         </p>
                       </div>
                     </Link>
@@ -424,7 +425,7 @@ export const Navbar: React.FC = () => {
                       : undefined
                   }
                 >
-                  <span>Company</span>
+                  {t("public.nav.company")}
                   <ChevronDown
                     className={`w-3.5 h-3.5 transition-transform duration-200 ${
                       activeDropdown === "company" ? "rotate-180 text-[var(--brand-primary)]" : "text-[var(--nav-muted)]"
@@ -443,10 +444,10 @@ export const Navbar: React.FC = () => {
                       </div>
                       <div>
                         <span className="text-xs font-bold text-[var(--nav-fg)] group-hover:text-[var(--brand-primary-active)]">
-                          About KoriePay
+                          {t("public.nav.menu.aboutTitle")}
                         </span>
                         <p className="text-[11px] text-[var(--nav-muted)] mt-0.5">
-                          Our mission, cross-border vision, leadership, and pan-African financial narrative.
+                          {t("public.nav.menu.aboutDesc")}
                         </p>
                       </div>
                     </Link>
@@ -460,10 +461,10 @@ export const Navbar: React.FC = () => {
                       </div>
                       <div>
                         <span className="text-xs font-bold text-[var(--nav-fg)] group-hover:text-amber-400">
-                          Strategic Partners
+                          {t("public.nav.menu.partnersTitle")}
                         </span>
                         <p className="text-[11px] text-[var(--nav-muted)] mt-0.5">
-                          Commercial banks, BDC associations, aggregators, and fintech ecosystems.
+                          {t("public.nav.menu.partnersDesc")}
                         </p>
                       </div>
                     </Link>
@@ -477,10 +478,10 @@ export const Navbar: React.FC = () => {
                       </div>
                       <div>
                         <span className="text-xs font-bold text-[var(--nav-fg)] group-hover:text-teal-400">
-                          Resources & Insights
+                          {t("public.nav.menu.resourcesTitle")}
                         </span>
                         <p className="text-[11px] text-[var(--nav-muted)] mt-0.5">
-                          Cross-border commerce reports, case studies, and brand asset downloads.
+                          {t("public.nav.menu.resourcesDesc")}
                         </p>
                       </div>
                     </Link>
@@ -494,10 +495,10 @@ export const Navbar: React.FC = () => {
                       </div>
                       <div>
                         <span className="text-xs font-bold text-[var(--nav-fg)] group-hover:text-purple-400">
-                          Frequently Asked Questions
+                          {t("public.nav.menu.faqTitle")}
                         </span>
                         <p className="text-[11px] text-[var(--nav-muted)] mt-0.5">
-                          Clear answers on agency registration, BDC integration, fees & security.
+                          {t("public.nav.menu.faqDesc")}
                         </p>
                       </div>
                     </Link>
@@ -515,7 +516,7 @@ export const Navbar: React.FC = () => {
                     : "text-[var(--nav-fg)] hover:text-[var(--nav-fg)] hover:bg-[var(--surface-2)]"
                 }`}
               >
-                Contact
+                {t("public.nav.contact")}
               </Link>
             </nav>
 
@@ -567,7 +568,7 @@ export const Navbar: React.FC = () => {
                   }`}
                   title="Cross-border corridor overview"
                 >
-                  🌍 Both
+                  🌍 {t("public.nav.menu.bothShort")}
                 </button>
               </div>
 
@@ -585,7 +586,7 @@ export const Navbar: React.FC = () => {
                   onClick={() => openModal("login")}
                   className="hidden sm:inline-flex items-center px-3.5 py-1.5 text-xs font-semibold text-[var(--nav-fg)] hover:text-[var(--nav-fg)] hover:bg-[var(--surface-2)] rounded-xl border border-transparent hover:border-[var(--border)] transition-colors"
                 >
-                  Sign In
+                  {t("public.nav.login")}
                 </button>
               )}
 
@@ -595,7 +596,7 @@ export const Navbar: React.FC = () => {
                 data-open-agent
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl btn-korie-primary text-xs font-bold shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02]"
               >
-                <span>Get Started</span>
+                <span>{t("public.nav.getStarted")}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
 
@@ -620,7 +621,7 @@ export const Navbar: React.FC = () => {
             {/* Country Selector in Mobile */}
             <div className="p-3 rounded-2xl bg-[var(--surface)] border border-[var(--border)]">
               <div className="text-[11px] font-semibold text-[var(--nav-muted)] uppercase tracking-wider mb-2">
-                Active Market Corridor
+                {t("public.nav.menu.corridorHeading")}
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <button
@@ -631,7 +632,7 @@ export const Navbar: React.FC = () => {
                       : "bg-[var(--surface-2)] text-[var(--nav-muted)]"
                   }`}
                 >
-                  🇳🇬 Nigeria
+                  🇳🇬 {t("public.nav.menu.nigeriaShort")}
                 </button>
                 <button
                   onClick={() => setCountry("niger")}
@@ -641,7 +642,7 @@ export const Navbar: React.FC = () => {
                       : "bg-[var(--surface-2)] text-[var(--nav-muted)]"
                   }`}
                 >
-                  🇳🇪 Niger Rep.
+                  🇳🇪 {t("public.nav.menu.nigerShort")}
                 </button>
                 <button
                   onClick={() => setCountry("cross-border")}
@@ -651,7 +652,7 @@ export const Navbar: React.FC = () => {
                       : "bg-[var(--surface-2)] text-[var(--nav-muted)]"
                   }`}
                 >
-                  🌍 Both
+                  🌍 {t("public.nav.menu.bothShort")}
                 </button>
               </div>
             </div>
@@ -659,7 +660,7 @@ export const Navbar: React.FC = () => {
             {/* Language Selector (EN / FR / HA) — accessible on mobile/tablet */}
             <div className="p-3 rounded-2xl bg-[var(--surface)] border border-[var(--border)]">
               <div className="text-[11px] font-semibold text-[var(--nav-muted)] uppercase tracking-wider mb-2">
-                Language
+                {t("public.nav.menu.languageHeading")}
               </div>
               <div className="grid grid-cols-3 gap-2">
                 {LANG_OPTIONS.map((opt) => (
@@ -682,7 +683,7 @@ export const Navbar: React.FC = () => {
             {/* Solutions List */}
             <div className="space-y-1">
               <div className="text-[11px] font-semibold text-[var(--nav-muted)] uppercase tracking-wider px-3 mb-2">
-                Ecosystem Solutions
+                {t("public.nav.menu.solutionsHeading")}
               </div>
               <Link
                 href="/solutions/agency-banking"
@@ -691,8 +692,8 @@ export const Navbar: React.FC = () => {
               >
                 <Building2 className="w-5 h-5 text-emerald-400" />
                 <div>
-                  <div className="text-sm font-semibold text-[var(--nav-fg)]">Agency Banking</div>
-                  <div className="text-xs text-[var(--nav-muted)]">Cash-in, cash-out, agent wallet & POS</div>
+                  <div className="text-sm font-semibold text-[var(--nav-fg)]">{t("public.nav.menu.agencyTitle")}</div>
+                  {t("public.nav.menu.agencyDrawerDesc")}
                 </div>
               </Link>
               <Link
@@ -702,8 +703,8 @@ export const Navbar: React.FC = () => {
               >
                 <Repeat2 className="w-5 h-5 text-amber-400" />
                 <div>
-                  <div className="text-sm font-semibold text-[var(--nav-fg)]">BDC & FX Digital</div>
-                  <div className="text-xs text-[var(--nav-muted)]">Treasury rails, FX rates & settlements</div>
+                  {t("public.nav.menu.fxDrawerTitle")}
+                  {t("public.nav.menu.fxDrawerDesc")}
                 </div>
               </Link>
               <Link
@@ -713,8 +714,8 @@ export const Navbar: React.FC = () => {
               >
                 <Users className="w-5 h-5 text-teal-400" />
                 <div>
-                  <div className="text-sm font-semibold text-[var(--nav-fg)]">Customer Wallet</div>
-                  <div className="text-xs text-[var(--nav-muted)]">Personal payments, transfers & lifestyle</div>
+                  <div className="text-sm font-semibold text-[var(--nav-fg)]">{t("public.nav.menu.customersTitle")}</div>
+                  {t("public.nav.menu.customersDrawerDesc")}
                 </div>
               </Link>
               <Link
@@ -724,8 +725,8 @@ export const Navbar: React.FC = () => {
               >
                 <Briefcase className="w-5 h-5 text-blue-400" />
                 <div>
-                  <div className="text-sm font-semibold text-[var(--nav-fg)]">Business Accounts</div>
-                  <div className="text-xs text-[var(--nav-muted)]">Corporate treasury, payroll & multi-user</div>
+                  {t("public.nav.menu.businessDrawerTitle")}
+                  {t("public.nav.menu.businessDrawerDesc")}
                 </div>
               </Link>
               <Link
@@ -735,8 +736,8 @@ export const Navbar: React.FC = () => {
               >
                 <CreditCard className="w-4 h-4 text-orange-400" />
                 <div>
-                  <div className="text-sm font-semibold text-[var(--nav-fg)]">Merchant Acceptance</div>
-                  <div className="text-xs text-[var(--nav-muted)]">POS, QR codes & payment links</div>
+                  <div className="text-sm font-semibold text-[var(--nav-fg)]">{t("public.nav.menu.merchantTitle")}</div>
+                  {t("public.nav.menu.merchantDrawerDesc")}
                 </div>
               </Link>
               <Link
@@ -746,8 +747,8 @@ export const Navbar: React.FC = () => {
               >
                 <Globe2 className="w-4 h-4 text-emerald-400" />
                 <div>
-                  <div className="text-sm font-semibold text-[var(--nav-fg)]">Cross-Border Payments</div>
-                  <div className="text-xs text-[var(--nav-muted)]">NGN ₦ ↔ XOF CFA instant routing</div>
+                  {t("public.nav.menu.railsDrawerTitle")}
+                  <div className="text-xs text-[var(--nav-muted)]">{t("public.nav.menu.railsDesc")}</div>
                 </div>
               </Link>
             </div>
@@ -755,7 +756,7 @@ export const Navbar: React.FC = () => {
             {/* Markets & Infrastructure */}
             <div className="space-y-1">
               <div className="text-[11px] font-semibold text-[var(--nav-muted)] uppercase tracking-wider px-3 mb-2">
-                Markets & Infrastructure
+                {t("public.nav.menu.marketsHeading")}
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <Link
@@ -763,42 +764,42 @@ export const Navbar: React.FC = () => {
                   onClick={() => setMobileMenuOpen(false)}
                   className="p-3 rounded-xl bg-[var(--surface)] border border-[var(--border)] hover:border-emerald-500/30 text-xs font-semibold text-[var(--nav-fg)]"
                 >
-                  🇳🇬 Nigeria Market
+                  🇳🇬 {t("public.nav.menu.nigeriaDrawerLabel")}
                 </Link>
                 <Link
                   href="/niger-republic"
                   onClick={() => setMobileMenuOpen(false)}
                   className="p-3 rounded-xl bg-[var(--surface)] border border-[var(--border)] hover:border-amber-500/30 text-xs font-semibold text-[var(--nav-fg)]"
                 >
-                  🇳🇪 Niger Republic
+                  🇳🇪 {t("public.nav.menu.nigerDrawerLabel")}
                 </Link>
                 <Link
                   href="/technology"
                   onClick={() => setMobileMenuOpen(false)}
                   className="p-3 rounded-xl bg-[var(--surface)] border border-[var(--border)] hover:border-teal-500/30 text-xs font-semibold text-[var(--nav-fg)]"
                 >
-                  ⚙️ Technology
+                  ⚙️ {t("public.nav.menu.techDrawerLabel")}
                 </Link>
                 <Link
                   href="/security"
                   onClick={() => setMobileMenuOpen(false)}
                   className="p-3 rounded-xl bg-[var(--surface)] border border-[var(--border)] hover:border-emerald-500/30 text-xs font-semibold text-[var(--nav-fg)]"
                 >
-                  🔒 Security & Risk
+                  🔒 {t("public.nav.menu.securityDrawerLabel")}
                 </Link>
                 <Link
                   href="/developers"
                   onClick={() => setMobileMenuOpen(false)}
                   className="p-3 rounded-xl bg-[var(--surface)] border border-[var(--border)] hover:border-indigo-500/30 text-xs font-semibold text-[var(--nav-fg)]"
                 >
-                  💻 Developer APIs
+                  💻 {t("public.nav.menu.devDrawerLabel")}
                 </Link>
                 <Link
                   href="/about"
                   onClick={() => setMobileMenuOpen(false)}
                   className="p-3 rounded-xl bg-[var(--surface)] border border-[var(--border)] hover:border-slate-500/30 text-xs font-semibold text-[var(--nav-fg)]"
                 >
-                  🏢 About KoriePay
+                  🏢 {t("public.nav.menu.aboutTitle")}
                 </Link>
               </div>
             </div>
@@ -813,7 +814,7 @@ export const Navbar: React.FC = () => {
                 className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[var(--surface-2)] text-[var(--nav-fg)] font-semibold text-xs border border-[var(--border)]"
               >
                 <span>
-                  {isAuthenticated ? "Go to My Dashboard" : "Sign In to Portal"}
+                  {isAuthenticated ? t("public.nav.menu.dashboardLabel") : t("public.nav.menu.signInPortal")}
                 </span>
               </button>
               <button
@@ -823,7 +824,7 @@ export const Navbar: React.FC = () => {
                 }}
                 className="w-full py-3.5 rounded-xl btn-korie-primary text-slate-950 font-bold text-xs"
               >
-                Become a KoriePay Agent
+                {t("public.nav.menu.becomeAgent")}
               </button>
 
               {/* Day / Night + Logout */}
@@ -841,7 +842,7 @@ export const Navbar: React.FC = () => {
                     className="flex items-center justify-center gap-1.5 py-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 font-semibold text-xs"
                   >
                     <LogOut className="w-4 h-4" />
-                    Log Out
+                    {t("public.nav.menu.logOut")}
                   </button>
                 )}
               </div>

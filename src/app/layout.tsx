@@ -39,7 +39,9 @@ const sourceSerif = Source_Serif_4({
 });
 
 export const viewport: Viewport = {
-  themeColor: "#070b17",
+  // Light is canonical. The theme-init script below keeps the meta in sync
+  // with a persisted Night preference to avoid mismatched browser chrome.
+  themeColor: "#f6f9fd",
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
@@ -102,7 +104,7 @@ export const metadata: Metadata = {
 };
 
 // Inline script to set the persisted theme before hydration -> no flash.
-const themeInitScript = `(function(){try{var t=localStorage.getItem("koriepay_theme");if(t==="dark"){document.documentElement.classList.remove("light","dark");document.documentElement.classList.add("dark");}else{document.documentElement.classList.remove("light","dark");document.documentElement.classList.add("light");}}catch(e){}})();`;
+const themeInitScript = `(function(){try{var t=localStorage.getItem("koriepay_theme");var dark=t==="dark";document.documentElement.classList.remove("light","dark");document.documentElement.classList.add(dark?"dark":"light");var m=document.querySelector('meta[name="theme-color"]');if(m){m.setAttribute("content",dark?"#070b17":"#f6f9fd");}}catch(e){}})();`;
 
 export default function RootLayout({
   children,
