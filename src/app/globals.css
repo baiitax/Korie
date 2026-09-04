@@ -954,3 +954,30 @@
   .kp-indeterminate-bar { transform: translateX(0); width: 100%; }
   .kp-skeleton { background: var(--surface-3); }
 }
+
+/* ------------------------------------------------------------------------- */
+/*  CUSTOMER PORTAL — TOUCH & MOTION UTILITIES (V7.0 customer banking)       */
+/* ------------------------------------------------------------------------- */
+
+/* Safe-area inset for the floating mobile bottom navigation + phones with a */
+/* home indicator / Android gesture bar. Keeps controls above the system UI. */
+.safe-area-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom), 0.75rem);
+}
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+/* Soft live-status pulse used on currency/account cards (restrained). */
+@keyframes kpPulse {
+  0% { opacity: 0.55; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0.55; transform: scale(0.9); }
+}
+.kp-pulse {
+  animation: kpPulse 1.9s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .kp-pulse { animation: none; opacity: 1; }
+}
+

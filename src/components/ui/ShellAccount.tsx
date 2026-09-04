@@ -6,8 +6,11 @@ import { useAuth } from "@/components/auth/AuthContext";
 import { useTheme } from "./ThemeContext";
 
 /**
- * Compact account controls for the light-on-dark portal headers.
- * Renders a day/night toggle and a sign-out button.
+ * Compact account controls for portal headers (customer, agent, aggregator,
+ * merchant, developer, support, compliance).
+ *
+ * Token-driven so it renders correctly in both Light and Night modes: the
+ * semantic tokens (--surface, --border, --foreground) resolve per theme.
  */
 export const ShellAccount: React.FC<{ className?: string }> = ({
   className = "",
@@ -29,21 +32,21 @@ export const ShellAccount: React.FC<{ className?: string }> = ({
       {/* Day / Night toggle */}
       <button
         onClick={toggleTheme}
-        className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white transition-colors"
+        className="p-2 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-3)] border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors"
         title={theme === "dark" ? "Switch to Day (Light) mode" : "Switch to Night (Dark) mode"}
         aria-label="Toggle theme"
       >
         {theme === "dark" ? (
-          <Sun className="w-4 h-4 text-amber-400" />
+          <Sun className="w-4 h-4 text-[var(--brand-secondary)]" />
         ) : (
-          <Moon className="w-4 h-4 text-emerald-400" />
+          <Moon className="w-4 h-4 text-[var(--brand-primary)]" />
         )}
       </button>
 
       {/* Sign out */}
       <button
         onClick={handleLogout}
-        className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-red-400 hover:border-red-500/40 transition-colors"
+        className="p-2 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-3)] border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--danger)] hover:border-[var(--danger-soft)] transition-colors"
         title="Sign out"
         aria-label="Sign out"
       >
@@ -52,8 +55,8 @@ export const ShellAccount: React.FC<{ className?: string }> = ({
 
       {/* Operator identity */}
       <span className="hidden xl:flex flex-col items-end leading-tight">
-        <span className="text-[11px] font-bold text-white">{user?.firstName || "User"}</span>
-        <span className="text-[9px] font-mono text-slate-400 capitalize">{user?.role || "STAFF"}</span>
+        <span className="text-[11px] font-bold text-[var(--foreground)]">{user?.firstName || "User"}</span>
+        <span className="text-[9px] font-mono text-[var(--foreground-muted)] capitalize">{user?.role || "STAFF"}</span>
       </span>
     </div>
   );
