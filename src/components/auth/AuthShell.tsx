@@ -4,6 +4,8 @@ import React from "react";
 import Link from "next/link";
 import KorieLogo from "@/components/brand/KorieLogo";
 import { useAuth } from "./AuthContext";
+import { useTheme } from "@/components/ui/ThemeContext";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { ShieldCheck, HelpCircle, Globe2, Lock } from "lucide-react";
 
 interface AuthShellProps {
@@ -20,6 +22,7 @@ export const AuthShell: React.FC<AuthShellProps> = ({
   showJurisdictionSelector = true,
 }) => {
   const { language, setLanguage, jurisdiction, setJurisdiction } = useAuth();
+  const { theme } = useTheme();
 
   return (
     <div className="min-h-screen bg-[#050811] text-slate-100 flex flex-col justify-between p-4 sm:p-6 lg:p-10 antialiased relative selection:bg-emerald-500 selection:text-slate-950 overflow-x-hidden font-sans">
@@ -34,10 +37,13 @@ export const AuthShell: React.FC<AuthShellProps> = ({
       {/* Top Bar: Brand, Jurisdiction & Language Switcher */}
       <header className="flex items-center justify-between w-full max-w-5xl mx-auto relative z-10 py-2">
         <Link href="/" className="flex items-center group transition-transform duration-200 hover:scale-[1.01]" aria-label="KoriePay Home">
-          <KorieLogo variant="full" theme="dark" height={34} />
+          <KorieLogo variant="full" theme={theme === "light" ? "light" : "dark"} height={34} />
         </Link>
 
         <div className="flex items-center gap-2.5 sm:gap-4">
+          {/* Day / Night Theme Toggle */}
+          <ThemeToggle className="hidden sm:flex items-center justify-center p-2 bg-white/[0.04] border border-white/10 text-slate-300" />
+
           {/* Country Jurisdiction Selector */}
           {showJurisdictionSelector && (
             <div className="flex items-center bg-white/[0.04] backdrop-blur-md border border-white/10 rounded-xl p-1 text-xs">

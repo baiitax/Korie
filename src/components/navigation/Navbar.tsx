@@ -6,6 +6,8 @@ import { usePathname } from "next/navigation";
 import { useCountry } from "../ui/CountryContext";
 import { useTheme } from "../ui/ThemeContext";
 import { ThemeToggle } from "../ui/ThemeToggle";
+import { LanguageSwitcher } from "../ui/LanguageSwitcher";
+import { useLanguage } from "../ui/LanguageContext";
 import { UserMenu } from "../auth/UserMenu";
 import { useAuth } from "../auth/AuthContext";
 import KorieLogo from "../brand/KorieLogo";
@@ -33,7 +35,7 @@ import {
 
 export const Navbar: React.FC = () => {
   const pathname = usePathname();
-  const { country, setCountry, language, setLanguage, openModal, setIsSearchOpen } = useCountry();
+  const { country, setCountry, openModal, setIsSearchOpen } = useCountry();
   const { theme } = useTheme();
   const { isAuthenticated, logout } = useAuth();
   const [isScrolled, setIsScrolled] = useState(false);
@@ -546,16 +548,8 @@ export const Navbar: React.FC = () => {
                 </button>
               </div>
 
-              {/* Language Switcher */}
-              <button
-                onClick={() => setLanguage(language === "en" ? "fr" : "en")}
-                className="hidden xl:flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-mono font-medium text-[var(--nav-muted)] hover:text-[var(--nav-fg)] hover:bg-[var(--surface-2)] border border-[var(--border)] transition-colors"
-                title="Toggle English / Français"
-              >
-                <span className={language === "en" ? "text-emerald-400 font-bold" : "text-[var(--nav-muted)]"}>EN</span>
-                <span className="text-[var(--nav-muted)]">/</span>
-                <span className={language === "fr" ? "text-amber-400 font-bold" : "text-[var(--nav-muted)]"}>FR</span>
-              </button>
+              {/* Language Switcher (EN / HA / FR) */}
+              <LanguageSwitcher compact className="hidden xl:flex" />
 
               {/* Day / Night Theme Toggle */}
               <ThemeToggle className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 bg-[var(--surface)] border border-[var(--border)] text-[var(--nav-muted)] hover:text-[var(--nav-fg)] hover:border-[var(--border-strong)]" />

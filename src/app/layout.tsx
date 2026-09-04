@@ -4,6 +4,8 @@ import "./globals.css";
 import { CountryProvider } from "@/components/ui/CountryContext";
 import { AuthProvider } from "@/components/auth/AuthContext";
 import { ThemeProvider } from "@/components/ui/ThemeContext";
+import { LanguageProvider } from "@/components/ui/LanguageContext";
+import { RouteProgress } from "@/components/ui/RouteProgress";
 import PublicChrome from "@/components/navigation/PublicChrome";
 import Preloader from "@/components/brand/Preloader";
 import Modal from "@/components/ui/Modal";
@@ -79,21 +81,26 @@ export default function RootLayout({
       </head>
       <body className="bg-background text-foreground min-h-screen flex flex-col font-sans antialiased selection:bg-emerald-500 selection:text-slate-950">
         <ThemeProvider>
-          <AuthProvider>
-            <CountryProvider>
-              {/* Signature Brand Preloader */}
-              <Preloader />
+          <LanguageProvider>
+            <AuthProvider>
+              <CountryProvider>
+                {/* Thin, branded route progress indicator for navigation */}
+                <RouteProgress />
 
-              {/* Public marketing chrome (nav + footer) only on public pages */}
-              <PublicChrome>{children}</PublicChrome>
+                {/* Brief, non-blocking brand reveal (first visit only) */}
+                <Preloader />
 
-              {/* Unified Command Palette Search */}
-              <QuickSearch />
+                {/* Public marketing chrome (nav + footer) only on public pages */}
+                <PublicChrome>{children}</PublicChrome>
 
-              {/* Dynamic Interactive Modals (Agent, BDC, Merchant, Developer, Login, Contact) */}
-              <Modal />
-            </CountryProvider>
-          </AuthProvider>
+                {/* Unified Command Palette Search */}
+                <QuickSearch />
+
+                {/* Dynamic Interactive Modals (Agent, BDC, Merchant, Developer, Login, Contact) */}
+                <Modal />
+              </CountryProvider>
+            </AuthProvider>
+          </LanguageProvider>
         </ThemeProvider>
       </body>
     </html>

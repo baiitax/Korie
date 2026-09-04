@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useCustomer } from "../CustomerContext";
 import KorieLogo from "@/components/brand/KorieLogo";
 import ShellAccount from "@/components/ui/ShellAccount";
+import PortalFooter from "@/components/ui/PortalFooter";
 import LanguageSelector from "./LanguageSelector";
 import TransactionReceiptModal from "./TransactionReceiptModal";
 import ReportDisputeModal from "./ReportDisputeModal";
@@ -202,6 +203,7 @@ export const CustomerShell: React.FC<{ children: React.ReactNode }> = ({ childre
           <main className="flex-1 w-full max-w-7xl mx-auto">
             {children}
           </main>
+          <PortalFooter portal="customer" />
         </div>
       </div>
 

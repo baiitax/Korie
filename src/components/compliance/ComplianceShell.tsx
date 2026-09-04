@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { ComplianceLocale } from '@/locales/compliance';
 import ShellAccount from '@/components/ui/ShellAccount';
+import PortalFooter from '@/components/ui/PortalFooter';
 
 export const ComplianceShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
@@ -344,6 +345,7 @@ export const ComplianceShell: React.FC<{ children: React.ReactNode }> = ({ child
         <main className="flex-1 overflow-y-auto bg-gradient-to-b from-[#080D1A] to-[#04060C] p-4 lg:p-8 space-y-6">
           {children}
         </main>
+          <PortalFooter portal="compliance" />
       </div>
     </div>
   );

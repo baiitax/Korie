@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useMerchant } from "../MerchantContext";
 import KorieLogo from "@/components/brand/KorieLogo";
 import ShellAccount from "@/components/ui/ShellAccount";
+import PortalFooter from "@/components/ui/PortalFooter";
 import ReceivePaymentModal from "./ReceivePaymentModal";
 import CreatePaymentLinkModal from "./CreatePaymentLinkModal";
 import CreateInvoiceModal from "./CreateInvoiceModal";
@@ -247,6 +248,7 @@ export const MerchantShell: React.FC<{ children: React.ReactNode }> = ({ childre
           </header>
 
           <main className="flex-1 w-full max-w-6xl mx-auto">{children}</main>
+          <PortalFooter portal="merchant" />
         </div>
       </div>
 

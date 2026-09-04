@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useAgent } from "../AgentContext";
 import KorieLogo from "@/components/brand/KorieLogo";
 import ShellAccount from "@/components/ui/ShellAccount";
+import PortalFooter from "@/components/ui/PortalFooter";
 import AgentReceiptModal from "./AgentReceiptModal";
 import DailyReconciliationModal from "./DailyReconciliationModal";
 import {
@@ -250,6 +251,7 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
           </header>
 
           <main className="flex-1 w-full max-w-6xl mx-auto">{children}</main>
+          <PortalFooter portal="agency" />
         </div>
       </div>
 

@@ -38,6 +38,7 @@ import {
   Check,
 } from 'lucide-react';
 import KorieLogo from '@/components/brand/KorieLogo';
+import PortalFooter from '@/components/ui/PortalFooter';
 import ShellAccount from '@/components/ui/ShellAccount';
 
 export const DeveloperShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -413,6 +414,7 @@ export const DeveloperShell: React.FC<{ children: React.ReactNode }> = ({ childr
         <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8">
           {children}
         </main>
+          <PortalFooter portal="developer" />
       </div>
 
       {/* Production Switch Warning Modal */}
