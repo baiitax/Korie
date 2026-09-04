@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useCountry } from "../ui/CountryContext";
+import { useLanguage } from "../ui/LanguageContext";
 import {
   Repeat2,
   ArrowRightLeft,
@@ -15,6 +16,7 @@ import {
 
 export const FxRateSimulator: React.FC = () => {
   const { openModal } = useCountry();
+  const { t } = useLanguage();
   const [direction, setDirection] = useState<"NGN_TO_XOF" | "XOF_TO_NGN">("NGN_TO_XOF");
   const [amount, setAmount] = useState<number>(500000);
 
@@ -42,17 +44,17 @@ export const FxRateSimulator: React.FC = () => {
           </div>
           <div>
             <h3 className="text-lg sm:text-xl font-bold text-white">
-              Institutional FX & Cross-Border Rate Simulator
+              {t("public.home.fx.title")}
             </h3>
             <p className="text-xs text-slate-400">
-              Simulate bilateral clearing between Nigeria (NGN) and Niger Republic (XOF CFA)
+              {t("public.home.fx.subtitle")}
             </p>
           </div>
         </div>
 
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900 border border-white/10 text-xs text-slate-300 font-mono">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span>Real-Time Corridor Clearing</span>
+          <span>{t("public.home.fx.badge")}</span>
         </div>
       </div>
 
@@ -62,7 +64,7 @@ export const FxRateSimulator: React.FC = () => {
           {/* Sending Card */}
           <div className="p-4 rounded-2xl bg-slate-950/80 border border-white/10">
             <div className="flex justify-between items-center text-xs text-slate-400 mb-1">
-              <span>You Send</span>
+              <span>{t("public.home.fx.youSend")}</span>
               <span className="font-mono">
                 {direction === "NGN_TO_XOF" ? "🇳🇬 Nigeria" : "🇳🇪 Niger Republic"}
               </span>
@@ -94,7 +96,7 @@ export const FxRateSimulator: React.FC = () => {
           {/* Receiving Card */}
           <div className="p-4 rounded-2xl bg-slate-950/80 border border-white/10">
             <div className="flex justify-between items-center text-xs text-slate-400 mb-1">
-              <span>Recipient Receives (Estimated)</span>
+              <span>{t("public.home.fx.recipient")}</span>
               <span className="font-mono">
                 {direction === "NGN_TO_XOF" ? "🇳🇪 Niger Republic" : "🇳🇬 Nigeria"}
               </span>
@@ -111,7 +113,7 @@ export const FxRateSimulator: React.FC = () => {
 
           {/* Benchmark Rate Note */}
           <div className="flex items-center justify-between text-xs text-slate-400 px-2">
-            <span>Illustrative Corridor Benchmark:</span>
+            <span>{t("public.home.fx.benchmark")}</span>
             <span className="font-mono text-emerald-400 font-semibold">
               {direction === "NGN_TO_XOF" ? "1,000 NGN ≈ 408 CFA" : "1,000 CFA ≈ 2,450 NGN"}
             </span>
@@ -122,25 +124,25 @@ export const FxRateSimulator: React.FC = () => {
         <div className="lg:col-span-5">
           <div className="p-6 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-amber-950/20 border border-white/10 shadow-xl space-y-4">
             <div className="text-[10px] font-mono uppercase tracking-wider text-amber-400">
-              Settlement Protocol Specs
+              {t("public.home.fx.protocol")}
             </div>
 
             <div className="space-y-2.5 text-xs text-slate-300">
               <div className="flex justify-between pb-2 border-b border-white/5">
-                <span className="text-slate-400">Corridor Routing:</span>
-                <span className="text-white font-mono font-semibold">Direct Inter-Bank Bridge</span>
+                <span className="text-slate-400">{t("public.home.fx.routingL")}</span>
+                <span className="text-white font-mono font-semibold">{t("public.home.fx.routingV")}</span>
               </div>
               <div className="flex justify-between pb-2 border-b border-white/5">
-                <span className="text-slate-400">Execution Speed:</span>
-                <span className="text-emerald-400 font-mono font-semibold">&lt; 3 Seconds</span>
+                <span className="text-slate-400">{t("public.home.fx.speedL")}</span>
+                <span className="text-emerald-400 font-mono font-semibold">{t("public.home.fx.speedV")}</span>
               </div>
               <div className="flex justify-between pb-2 border-b border-white/5">
-                <span className="text-slate-400">Treasury Rebalancing:</span>
-                <span className="text-white font-mono font-semibold">Automated Daily T+0</span>
+                <span className="text-slate-400">{t("public.home.fx.treasuryL")}</span>
+                <span className="text-white font-mono font-semibold">{t("public.home.fx.treasuryV")}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Regulatory Model:</span>
-                <span className="text-slate-200 font-mono font-semibold">Bilateral Central Bank Aligned</span>
+                <span className="text-slate-400">{t("public.home.fx.regL")}</span>
+                <span className="text-slate-200 font-mono font-semibold">{t("public.home.fx.regV")}</span>
               </div>
             </div>
 
@@ -148,7 +150,7 @@ export const FxRateSimulator: React.FC = () => {
               onClick={() => openModal("bdc")}
               className="w-full py-3 rounded-xl btn-korie-primary text-xs font-bold flex items-center justify-center gap-2 shadow-lg"
             >
-              <span>Onboard BDC / Treasury Account</span>
+              <span>{t("public.home.fx.onboardCta")}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>

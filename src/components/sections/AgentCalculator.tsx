@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useCountry } from "../ui/CountryContext";
+import { useLanguage } from "../ui/LanguageContext";
 import {
   Calculator,
   Building2,
@@ -15,6 +16,7 @@ import {
 
 export const AgentCalculator: React.FC = () => {
   const { openModal, country } = useCountry();
+  const { t } = useLanguage();
   const [dailyTxCount, setDailyTxCount] = useState<number>(60);
   const [avgTicket, setAvgTicket] = useState<number>(15000);
   const [currencyMode, setCurrencyMode] = useState<"NGN" | "XOF">(
@@ -49,10 +51,10 @@ export const AgentCalculator: React.FC = () => {
           </div>
           <div>
             <h3 className="text-lg sm:text-xl font-bold text-white">
-              Agency Banking Revenue & Commission Simulator
+              {t("public.home.calc.title")}
             </h3>
             <p className="text-xs text-slate-400">
-              Estimate your monthly earnings as a verified KoriePay banking agent
+              {t("public.home.calc.subtitle")}
             </p>
           </div>
         </div>
@@ -89,7 +91,7 @@ export const AgentCalculator: React.FC = () => {
           <div>
             <div className="flex justify-between items-center mb-2">
               <label className="text-xs font-semibold text-slate-300">
-                Daily Customer Transactions
+                {t("public.home.calc.dailyLabel")}
               </label>
               <span className="px-2.5 py-1 rounded-lg bg-slate-900 font-mono text-sm font-bold text-emerald-400 border border-white/5">
                 {dailyTxCount} tx / day
@@ -105,9 +107,9 @@ export const AgentCalculator: React.FC = () => {
               className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
             />
             <div className="flex justify-between text-[10px] font-mono text-slate-500 mt-1">
-              <span>10 (Starter)</span>
-              <span>150 (Busy Market Store)</span>
-              <span>300 (Major Transport Hub)</span>
+              <span>{t("public.home.calc.lo1")}</span>
+              <span>{t("public.home.calc.mid1")}</span>
+              <span>{t("public.home.calc.hi1")}</span>
             </div>
           </div>
 
@@ -115,7 +117,7 @@ export const AgentCalculator: React.FC = () => {
           <div>
             <div className="flex justify-between items-center mb-2">
               <label className="text-xs font-semibold text-slate-300">
-                Average Transaction Ticket Size
+                {t("public.home.calc.ticketLabel")}
               </label>
               <span className="px-2.5 py-1 rounded-lg bg-slate-900 font-mono text-sm font-bold text-amber-400 border border-white/5">
                 {currencySymbol}
@@ -141,14 +143,14 @@ export const AgentCalculator: React.FC = () => {
           {/* Estimated monthly volume summary */}
           <div className="p-4 rounded-2xl bg-slate-950/80 border border-white/5 flex items-center justify-between">
             <div>
-              <div className="text-[11px] text-slate-400">Total Monthly Processed Volume</div>
+              <div className="text-[11px] text-slate-400">{t("public.home.calc.totalVol")}</div>
               <div className="text-sm sm:text-base font-bold font-mono text-white mt-0.5">
                 {currencySymbol}
                 {formatMoney(monthlyVolume)}
               </div>
             </div>
             <div className="text-right">
-              <div className="text-[11px] text-slate-400">Monthly Transactions</div>
+              <div className="text-[11px] text-slate-400">{t("public.home.calc.monthlyTx")}</div>
               <div className="text-sm font-bold font-mono text-emerald-400 mt-0.5">
                 {(dailyTxCount * 30).toLocaleString()} tx
               </div>
@@ -160,35 +162,30 @@ export const AgentCalculator: React.FC = () => {
         <div className="lg:col-span-5">
           <div className="p-6 rounded-2xl bg-gradient-to-br from-emerald-950/60 via-slate-900 to-amber-950/30 border border-emerald-500/30 shadow-2xl relative overflow-hidden">
             <div className="text-[10px] font-mono uppercase tracking-wider text-emerald-400 mb-1">
-              Projected Agent Net Return
+              {t("public.home.calc.netReturn")}
             </div>
 
-            <div className="text-xs text-slate-300">Estimated Monthly Earnings:</div>
+            <div className="text-xs text-slate-300">{t("public.home.calc.estEarnings")}</div>
             <div className="text-2xl sm:text-3xl font-extrabold font-mono text-white mt-1 mb-1 text-gradient-korie">
               {currencySymbol}
               {formatMoney(monthlyCommission)}
             </div>
             <div className="text-xs text-slate-400 mb-4">
-              Approx.{" "}
-              <span className="text-amber-400 font-mono font-bold">
-                {currencySymbol}
-                {formatMoney(annualCommission)}
-              </span>{" "}
-              projected per year
+              {t("public.home.calc.approxPerYear", { annual: `${currencySymbol}${formatMoney(annualCommission)}` })}
             </div>
 
             <div className="space-y-2 py-3 border-t border-white/10 text-xs text-slate-300">
               <div className="flex justify-between">
-                <span>Commission Settlement:</span>
-                <span className="text-emerald-400 font-mono font-semibold">Real-Time Instant</span>
+                <span>{t("public.home.calc.commSettlement")}</span>
+                <span className="text-emerald-400 font-mono font-semibold">{t("public.home.calc.commVal")}</span>
               </div>
               <div className="flex justify-between">
-                <span>POS Hardware Payback:</span>
-                <span className="text-white font-mono font-semibold">&lt; 14 Days</span>
+                <span>{t("public.home.calc.posPayback")}</span>
+                <span className="text-white font-mono font-semibold">{t("public.home.calc.posVal")}</span>
               </div>
               <div className="flex justify-between">
-                <span>Float Overdraft Support:</span>
-                <span className="text-amber-400 font-mono font-semibold">Eligible</span>
+                <span>{t("public.home.calc.floatOverdraft")}</span>
+                <span className="text-amber-400 font-mono font-semibold">{t("public.home.calc.floatVal")}</span>
               </div>
             </div>
 
@@ -196,7 +193,7 @@ export const AgentCalculator: React.FC = () => {
               onClick={() => openModal("agent")}
               className="w-full mt-4 py-3 rounded-xl btn-korie-primary text-xs font-bold flex items-center justify-center gap-2 shadow-lg"
             >
-              <span>Apply for KoriePay POS Terminal</span>
+              <span>{t("public.home.calc.applyCta")}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>

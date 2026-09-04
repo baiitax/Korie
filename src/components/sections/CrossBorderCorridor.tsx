@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useCountry } from "../ui/CountryContext";
+import { useLanguage } from "../ui/LanguageContext";
 import {
   Globe2,
   ArrowRightLeft,
@@ -16,52 +17,53 @@ import {
 
 export const CrossBorderCorridor: React.FC = () => {
   const { openModal } = useCountry();
+  const { t } = useLanguage();
   const [selectedCorridor, setSelectedCorridor] = useState<number>(0);
 
   const corridors = [
     {
       id: "kano-maradi",
       title: "Kano 🇳🇬 ⇄ Maradi 🇳🇪",
-      subtitle: "The Premier Sahel Grain & Wholesale Trade Axis",
+      subtitle: t("public.home.corridors.c1sub"),
       distance: "Approx. 240 km",
       settlementTime: "< 3 Seconds",
       currencies: "NGN ₦ ⇄ XOF CFA",
       description:
-        "The historic commerce pipeline connecting Dawanau Grain Market in Kano with the agricultural trading hubs of Maradi and Central Niger. KoriePay replaces dangerous physical cash haulage with instant digital merchant settlements.",
-      keyFlows: ["Agricultural Wholesale", "Manufactured Goods", "Cross-Border Livestock", "Merchant Deposits"],
+        t("public.home.corridors.c1desc"),
+      keyFlows: [t("public.home.corridors.c1f1"), t("public.home.corridors.c1f2"), t("public.home.corridors.c1f3"), t("public.home.corridors.c1f4")],
     },
     {
       id: "katsina-danissa",
       title: "Katsina 🇳🇬 ⇄ Dan-Issa / Maradi 🇳🇪",
-      subtitle: "High-Volume Border Commerce Corridor",
+      subtitle: t("public.home.corridors.c2sub"),
       distance: "Approx. 45 km",
       settlementTime: "< 2 Seconds",
       currencies: "NGN ₦ ⇄ XOF CFA",
       description:
-        "A critical trade gateway where thousands of daily cross-border traders, truck drivers, and exchange operators settle transactions. KoriePay POS terminals allow border merchants to accept both NGN and CFA instantly.",
-      keyFlows: ["Daily SME Border Trade", "Freight & Logistics Clearing", "Agency Cash Points", "Instant FX Swaps"],
+        t("public.home.corridors.c2desc"),
+      keyFlows: [t("public.home.corridors.c2f1"), t("public.home.corridors.c2f2"), t("public.home.corridors.c2f3"), t("public.home.corridors.c2f4")],
     },
     {
       id: "sokoto-birni",
       title: "Sokoto / Illela 🇳🇬 ⇄ Birni N'Konni 🇳🇪",
-      subtitle: "North-Western Economic & Energy Gateway",
+      subtitle: t("public.home.corridors.c3sub"),
       distance: "Approx. 95 km",
       settlementTime: "< 3 Seconds",
       currencies: "NGN ₦ ⇄ XOF CFA",
       description:
-        "Connecting Sokoto Caliphate commercial markets with Tahoua and Birni N'Konni in Niger. Facilitates seamless financial clearing for energy, livestock, textile imports, and cross-border family remittances.",
-      keyFlows: ["Textile Distribution", "Livestock Clearing", "P2P Remittances", "BDC Treasury Reserves"],
+        t("public.home.corridors.c3desc"),
+      keyFlows: [t("public.home.corridors.c3f1"), t("public.home.corridors.c3f2"), t("public.home.corridors.c3f3"), t("public.home.corridors.c3f4")],
     },
     {
       id: "lagos-niamey",
       title: "Lagos / Abuja 🇳🇬 ⇄ Niamey 🇳🇪",
-      subtitle: "Capital & Institutional Corporate Corridor",
+      subtitle: t("public.home.corridors.c4sub"),
       distance: "Commercial Air & Sea Rail",
       settlementTime: "Real-Time Gross Rail",
       currencies: "NGN ₦ ⇄ XOF CFA / USD",
       description:
-        "Institutional corporate corridor for multinational manufacturers, distributors, banks, and authorized BDC houses conducting high-value treasury allocations between Nigeria's commercial capital and Niger's national capital.",
-      keyFlows: ["Enterprise Invoicing", "Commercial Bank Settlements", "Multilateral FX Clearing", "Institutional APIs"],
+        t("public.home.corridors.c4desc"),
+      keyFlows: [t("public.home.corridors.c4f1"), t("public.home.corridors.c4f2"), t("public.home.corridors.c4f3"), t("public.home.corridors.c4f4")],
     },
   ];
 
@@ -77,14 +79,14 @@ export const CrossBorderCorridor: React.FC = () => {
         <div className="text-center max-w-3xl mx-auto mb-16">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800/80 border border-white/10 text-xs font-mono text-emerald-400 mb-3">
             <Globe2 className="w-3.5 h-3.5" />
-            <span>BILATERAL ECONOMIC RAILS</span>
+            <span>{t("public.home.corridors.badge")}</span>
           </div>
           <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight leading-tight">
-            One Financial Technology Platform. <br className="hidden sm:inline" />
-            <span className="text-gradient-korie">Two Interconnected Markets.</span>
+            {t("public.home.corridors.h1")} <br className="hidden sm:inline" />
+            <span className="text-gradient-korie">{t("public.home.corridors.h2")}</span>
           </h2>
           <p className="mt-4 text-sm sm:text-base text-slate-300 leading-relaxed">
-            Nigeria and Niger Republic share more than 1,500 kilometers of contiguous border, deep cultural heritage, and billions of dollars in bilateral annual commerce. KoriePay provides the unified digital financial bridge.
+            {t("public.home.corridors.intro")}
           </p>
         </div>
 
@@ -93,7 +95,7 @@ export const CrossBorderCorridor: React.FC = () => {
           {/* Left: Corridor Selectors */}
           <div className="lg:col-span-5 space-y-3">
             <div className="text-xs font-mono uppercase tracking-wider text-slate-400 px-1 mb-2">
-              Select Strategic Commercial Axis:
+              {t("public.home.corridors.axisLabel")}
             </div>
             {corridors.map((c, index) => (
               <button
@@ -110,7 +112,7 @@ export const CrossBorderCorridor: React.FC = () => {
                     <span>{c.title}</span>
                     {selectedCorridor === index && (
                       <span className="px-1.5 py-0.2 text-[9px] font-mono bg-emerald-500/20 text-emerald-400 rounded">
-                        ACTIVE
+                        {t("public.home.corridors.active")}
                       </span>
                     )}
                   </div>
@@ -132,7 +134,7 @@ export const CrossBorderCorridor: React.FC = () => {
               <div className="flex flex-wrap items-center justify-between gap-2 pb-4 mb-6 border-b border-white/10">
                 <div>
                   <span className="text-[10px] font-mono uppercase tracking-widest text-emerald-400">
-                    CORRIDOR TELEMETRY & CLEARING
+                    {t("public.home.corridors.telemetry")}
                   </span>
                   <h3 className="text-lg sm:text-2xl font-bold text-white mt-0.5">
                     {active.title}
@@ -153,8 +155,8 @@ export const CrossBorderCorridor: React.FC = () => {
                     <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-center text-xl shadow-lg">
                       🇳🇬
                     </div>
-                    <span className="text-xs font-bold text-white mt-1">Nigeria</span>
-                    <span className="text-[10px] font-mono text-slate-400">NGN ₦ Rails</span>
+                    <span className="text-xs font-bold text-white mt-1">{t("public.home.corridors.nigeria")}</span>
+                    <span className="text-[10px] font-mono text-slate-400">{t("public.home.corridors.nigeriaRails")}</span>
                   </div>
 
                   {/* Flow Animation Line */}
@@ -164,7 +166,7 @@ export const CrossBorderCorridor: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-1 mt-2 text-[10px] font-mono text-emerald-400">
                       <Zap className="w-3 h-3 text-amber-400" />
-                      <span>Settlement Speed: {active.settlementTime}</span>
+                      <span>{t("public.home.corridors.settleSpeed")}{active.settlementTime}</span>
                     </div>
                   </div>
 
@@ -173,8 +175,8 @@ export const CrossBorderCorridor: React.FC = () => {
                     <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/40 flex items-center justify-center text-xl shadow-lg">
                       🇳🇪
                     </div>
-                    <span className="text-xs font-bold text-white mt-1">Niger Rep.</span>
-                    <span className="text-[10px] font-mono text-slate-400">XOF CFA Rails</span>
+                    <span className="text-xs font-bold text-white mt-1">{t("public.home.corridors.niger")}</span>
+                    <span className="text-[10px] font-mono text-slate-400">{t("public.home.corridors.nigerRails")}</span>
                   </div>
                 </div>
               </div>
@@ -187,7 +189,7 @@ export const CrossBorderCorridor: React.FC = () => {
               {/* Key Flow Tags */}
               <div className="mb-6">
                 <div className="text-[11px] font-mono text-slate-400 uppercase mb-2">
-                  Key Economic Sectors Supported:
+                  {t("public.home.corridors.sectors")}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {active.keyFlows.map((flow, i) => (
@@ -205,13 +207,13 @@ export const CrossBorderCorridor: React.FC = () => {
               <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-white/10">
                 <div className="text-xs text-slate-400 flex items-center gap-1.5">
                   <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>Licensed financial partner settlement networks</span>
+                  <span>{t("public.home.corridors.licensed")}</span>
                 </div>
                 <button
                   onClick={() => openModal("bdc")}
                   className="w-full sm:w-auto px-4 py-2 rounded-xl btn-korie-primary text-xs font-bold flex items-center justify-center gap-1.5"
                 >
-                  <span>Connect Your Liquidity</span>
+                  <span>{t("public.home.corridors.connectCta")}</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>

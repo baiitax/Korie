@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useCountry } from "../ui/CountryContext";
+import { useLanguage } from "../ui/LanguageContext";
 import {
   Code2,
   Copy,
@@ -15,6 +16,7 @@ import Link from "next/link";
 
 export const DevCodePreview: React.FC = () => {
   const { openModal } = useCountry();
+  const { t } = useLanguage();
   const [activeLang, setActiveLang] = useState<"curl" | "node" | "python" | "go">("node");
   const [activeEndpoint, setActiveEndpoint] = useState<"transfer" | "qr" | "agency" | "webhook">("transfer");
   const [copied, setCopied] = useState(false);
@@ -264,13 +266,13 @@ def webhook():
         <div className="text-center max-w-3xl mx-auto mb-14">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800/80 border border-white/10 text-xs font-mono text-emerald-400 mb-3">
             <Code2 className="w-3.5 h-3.5" />
-            <span>DEVELOPER-FIRST ARCHITECTURE</span>
+            <span>{t("public.home.dev.badge")}</span>
           </div>
           <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight leading-tight">
-            Engineered for Scale, Speed & Developer Happiness
+            {t("public.home.dev.heading")}
           </h2>
           <p className="mt-4 text-sm sm:text-base text-slate-400 leading-relaxed">
-            Integrate seamless cross-border transfers, dynamic merchant QR payments, and agency terminal operations with unified REST APIs, robust webhooks, and official SDKs.
+            {t("public.home.dev.intro")}
           </p>
         </div>
 
@@ -361,14 +363,14 @@ def webhook():
           <div className="p-4 bg-slate-900/90 border-t border-white/10 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Sandbox Environment: Active & Instant Provisioning</span>
+              <span>{t("public.home.dev.sandbox")}</span>
             </div>
             <div className="flex items-center gap-3">
               <Link
                 href="/developers"
                 className="text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1"
               >
-                <span>Read Full API Docs</span>
+                <span>{t("public.home.dev.readDocs")}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </Link>
               <button
