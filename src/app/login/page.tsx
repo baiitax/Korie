@@ -3,221 +3,183 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import KorieLogo from "@/components/brand/KorieLogo";
-import {
-  Eye,
-  EyeOff,
-  Lock,
-  Phone,
-  Mail,
-  Fingerprint,
-  ArrowRight,
-  ShieldCheck,
-  AlertCircle,
-  Globe,
-} from "lucide-react";
+import AuthShell from "@/components/auth/AuthShell";
+import AuthCard from "@/components/auth/AuthCard";
+import AuthHeader from "@/components/auth/AuthHeader";
+import IdentifierInput from "@/components/auth/IdentifierInput";
+import PasswordInput from "@/components/auth/PasswordInput";
+import SecurityNotice from "@/components/auth/SecurityNotice";
+import AuthErrorAlert from "@/components/auth/AuthErrorAlert";
+import RoleSwitcherDevBar from "@/components/auth/RoleSwitcherDevBar";
+import { useAuth } from "@/components/auth/AuthContext";
+import { ArrowRight, Fingerprint, Shield, Sparkles } from "lucide-react";
 
-export default function CustomerLoginPage() {
+export default function LoginPage() {
   const router = useRouter();
-  const [identifier, setIdentifier] = useState("+234 803 456 7890");
-  const [password, setPassword] = useState("••••••••••••");
-  const [showPassword, setShowPassword] = useState(false);
+  const { login, biometricLogin, language, jurisdiction, activeRole } = useAuth();
+
+  const [identifier, setIdentifier] = useState(
+    jurisdiction === "NG" ? "+234 803 456 7890" : "+227 90 12 34 56"
+  );
+  const [password, setPassword] = useState("KoriePay@2026!");
+  const [rememberDevice, setRememberDevice] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedLang, setSelectedLang] = useState<"en" | "ha" | "fr">("en");
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setError(null);
-
-    // Realistic authentication flow
-    setTimeout(() => {
-      setIsLoading(false);
-      router.push("/customer");
-    }, 600);
-  };
-
-  const handleBiometricLogin = () => {
     setIsLoading(true);
-    setTimeout(() => {
+
+    try {
+      const result = await login({
+        identifier,
+        password,
+        rememberDevice,
+        country: jurisdiction,
+        selectedRoleOverride: activeRole,
+      });
+
+      if (!result.success) {
+        setError(
+          result.errorMessage ||
+            "We couldn't sign you in with those details. Please check your information and try again."
+        );
+      }
+    } catch (err: any) {
+      setError("A network or authentication service error occurred. Please try again.");
+    } finally {
       setIsLoading(false);
-      router.push("/customer");
-    }, 400);
+    }
   };
+
+  const handleBiometric = async () => {
+    setError(null);
+    try {
+      await biometricLogin(activeRole);
+    } catch (err: any) {
+      setError("Biometric challenge was not completed. Please use your account password.");
+    }
+  };
+
+  const submitText =
+    isLoading
+      ? language === "ha"
+        ? "Ana tantancewa..."
+        : language === "fr"
+        ? "Authentification..."
+        : "Signing you in…"
+      : language === "ha"
+      ? "Shiga Asusu"
+      : language === "fr"
+      ? "Se Connecter"
+      : "Sign In";
 
   return (
-    <div className="min-h-screen bg-[#060a14] text-white flex flex-col justify-between p-4 sm:p-6 lg:p-8 antialiased relative selection:bg-emerald-500 selection:text-slate-950">
-      {/* Background ambient lighting */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-0 right-0 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+    <AuthShell>
+      <div className="w-full max-w-md space-y-6">
+        <AuthHeader
+          titleEn="Welcome back"
+          titleHa="Barka da dawowa"
+          titleFr="Bienvenue de retour"
+          subtitleEn="Sign in securely to your KoriePay digital banking and settlement account."
+          subtitleHa="Shigar da bayanan asusunka na KoriePay don ci gaba da sarrafa kudade."
+          subtitleFr="Connectez-vous à votre compte bancaire et passerelle de règlement KoriePay."
+          badge="Institutional Gateway"
+        />
 
-      {/* Top Bar: Brand & Language Switcher */}
-      <header className="flex items-center justify-between w-full max-w-md mx-auto relative z-10">
-        <Link href="/" className="flex items-center">
-          <KorieLogo variant="full" theme="dark" height={32} />
-        </Link>
+        <AuthCard>
+          <AuthErrorAlert error={error} onDismiss={() => setError(null)} />
 
-        {/* 1-Tap Language Toggle */}
-        <div className="flex items-center p-1 rounded-xl bg-white/5 border border-white/10 text-xs font-mono font-bold">
-          <button
-            type="button"
-            onClick={() => setSelectedLang("en")}
-            className={`px-2 py-0.5 rounded-lg transition-colors ${
-              selectedLang === "en" ? "bg-emerald-500 text-slate-950" : "text-slate-400"
-            }`}
-          >
-            EN
-          </button>
-          <button
-            type="button"
-            onClick={() => setSelectedLang("ha")}
-            className={`px-2 py-0.5 rounded-lg transition-colors ${
-              selectedLang === "ha" ? "bg-emerald-500 text-slate-950" : "text-slate-400"
-            }`}
-          >
-            HA
-          </button>
-          <button
-            type="button"
-            onClick={() => setSelectedLang("fr")}
-            className={`px-2 py-0.5 rounded-lg transition-colors ${
-              selectedLang === "fr" ? "bg-emerald-500 text-slate-950" : "text-slate-400"
-            }`}
-          >
-            FR
-          </button>
-        </div>
-      </header>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Intelligent Identifier Input */}
+            <IdentifierInput
+              value={identifier}
+              onChange={(val) => {
+                setIdentifier(val);
+                if (error) setError(null);
+              }}
+              disabled={isLoading}
+              required
+            />
 
-      {/* Main Login Card */}
-      <main className="w-full max-w-md mx-auto my-auto py-8 relative z-10 space-y-6">
-        <div className="space-y-1 text-center sm:text-left">
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            {selectedLang === "ha"
-              ? "Barka da dawowa"
-              : selectedLang === "fr"
-              ? "Bienvenue de retour"
-              : "Welcome back"}
-          </h1>
-          <p className="text-xs text-slate-400">
-            {selectedLang === "ha"
-              ? "Shigar da bayanan asusunka na KoriePay don ci gaba."
-              : selectedLang === "fr"
-              ? "Connectez-vous à votre compte bancaire sécurisé KoriePay."
-              : "Sign in to access your multi-currency digital banking portal."}
-          </p>
-        </div>
+            {/* Password Field with Caps Lock Alert & Forgot Password Link */}
+            <PasswordInput
+              value={password}
+              onChange={(val) => {
+                setPassword(val);
+                if (error) setError(null);
+              }}
+              showForgotPassword
+              disabled={isLoading}
+              required
+            />
 
-        <form
-          onSubmit={handleLogin}
-          className="rounded-3xl bg-[#0b1324]/80 border border-white/10 p-6 sm:p-7 space-y-4 backdrop-blur-xl shadow-2xl"
-        >
-          {error && (
-            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-400 flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          {/* Identifier Input */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-300">
-              {selectedLang === "ha"
-                ? "Lambar Waya ko Imel"
-                : selectedLang === "fr"
-                ? "Téléphone ou Email"
-                : "Phone Number or Email"}
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                required
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
-                placeholder="+234 / +227 phone or email"
-                className="w-full pl-4 pr-4 py-3.5 rounded-2xl bg-slate-900 border border-white/10 text-white font-medium text-xs placeholder:text-slate-600 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-              />
-            </div>
-          </div>
-
-          {/* Password Input */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between text-xs">
-              <label className="font-semibold text-slate-300">
-                {selectedLang === "ha"
-                  ? "Kalmar Sirri"
-                  : selectedLang === "fr"
-                  ? "Mot de passe"
-                  : "Password"}
+            {/* Remember Device Checkbox */}
+            <div className="flex items-center justify-between text-xs pt-0.5">
+              <label className="flex items-center gap-2 cursor-pointer text-slate-300 select-none">
+                <input
+                  type="checkbox"
+                  checked={rememberDevice}
+                  onChange={(e) => setRememberDevice(e.target.checked)}
+                  disabled={isLoading}
+                  className="w-4 h-4 rounded bg-[#070d18] border-white/20 text-emerald-500 focus:ring-emerald-500/30 focus:ring-offset-0 transition-colors"
+                />
+                <span>Remember this device</span>
               </label>
-              <Link
-                href="/forgot-password"
-                className="text-emerald-400 hover:text-emerald-300 font-semibold text-[11px]"
-              >
-                {selectedLang === "ha"
-                  ? "Ka manta kalmar sirri?"
-                  : selectedLang === "fr"
-                  ? "Mot de passe oublié ?"
-                  : "Forgot password?"}
-              </Link>
+
+              <span className="text-[11px] text-slate-400 font-mono">
+                {jurisdiction === "NG" ? "Providus NG" : "Koris NE"}
+              </span>
             </div>
-            <div className="relative">
-              <input
-                type={showPassword ? "text" : "password"}
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter account password"
-                className="w-full pl-4 pr-11 py-3.5 rounded-2xl bg-slate-900 border border-white/10 text-white font-medium text-xs placeholder:text-slate-600 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-              />
+
+            {/* Primary Sign In Button */}
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full py-3.5 sm:py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-sm tracking-wide transition-all shadow-xl shadow-emerald-500/20 disabled:opacity-60 flex items-center justify-center gap-2 group transform active:scale-[0.99]"
+            >
+              {isLoading && (
+                <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+              )}
+              <span>{submitText}</span>
+              {!isLoading && (
+                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+              )}
+            </button>
+
+            {/* Biometric / WebAuthn Option */}
+            <div className="pt-1">
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5 top-3.5 text-slate-400 hover:text-white transition-colors"
+                onClick={handleBiometric}
+                disabled={isLoading}
+                className="w-full py-3 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.1] text-slate-200 hover:text-white font-bold text-xs flex items-center justify-center gap-2 transition-all"
               >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                <Fingerprint className="w-4 h-4 text-emerald-400" />
+                <span>Biometric / FaceID Login</span>
               </button>
             </div>
-          </div>
+          </form>
 
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-sm transition-all shadow-xl shadow-emerald-500/20 flex items-center justify-center gap-2"
-          >
-            <span>{isLoading ? "Authenticating..." : selectedLang === "ha" ? "Shiga Asusu" : selectedLang === "fr" ? "Se Connecter" : "Sign In"}</span>
-            {!isLoading && <ArrowRight className="w-4 h-4" />}
-          </button>
+          {/* Security Notice Pill */}
+          <SecurityNotice />
 
-          {/* Biometric Quick Login */}
-          <div className="pt-2">
-            <button
-              type="button"
-              onClick={handleBiometricLogin}
-              className="w-full py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white font-bold text-xs flex items-center justify-center gap-2 transition-colors"
-            >
-              <Fingerprint className="w-5 h-5 text-emerald-400" />
-              <span>Biometric / FaceID Login</span>
-            </button>
-          </div>
-        </form>
+          {/* Persona & Role Switcher for Developer Review & Audits */}
+          <RoleSwitcherDevBar />
+        </AuthCard>
 
-        {/* Register Prompt */}
+        {/* Create Account Prompt */}
         <p className="text-center text-xs text-slate-400">
-          Don&apos;t have an account?{" "}
-          <Link href="/register" className="text-emerald-400 hover:underline font-bold">
-            Create KoriePay Account
+          Don&apos;t have a KoriePay account yet?{" "}
+          <Link
+            href="/register"
+            className="text-emerald-400 hover:text-emerald-300 hover:underline font-bold transition-colors ml-1"
+          >
+            Create an account
           </Link>
         </p>
-      </main>
-
-      {/* Footer Security Stamp */}
-      <footer className="text-center py-4 relative z-10 text-[11px] text-slate-500 flex items-center justify-center gap-2">
-        <ShieldCheck className="w-4 h-4 text-emerald-500" />
-        <span>End-to-end 256-bit encrypted banking session</span>
-      </footer>
-    </div>
+      </div>
+    </AuthShell>
   );
 }

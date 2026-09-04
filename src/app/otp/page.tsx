@@ -1,101 +1,175 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import KorieLogo from "@/components/brand/KorieLogo";
-import { ArrowLeft, ShieldCheck, CheckCircle2, RotateCw } from "lucide-react";
+import AuthShell from "@/components/auth/AuthShell";
+import AuthCard from "@/components/auth/AuthCard";
+import AuthHeader from "@/components/auth/AuthHeader";
+import OTPInput from "@/components/auth/OTPInput";
+import SecurityNotice from "@/components/auth/SecurityNotice";
+import AuthErrorAlert from "@/components/auth/AuthErrorAlert";
+import { useAuth } from "@/components/auth/AuthContext";
+import { ArrowRight, ArrowLeft, RotateCw, ShieldCheck, CheckCircle2 } from "lucide-react";
 
 export default function OtpVerificationPage() {
   const router = useRouter();
+  const { verifyOtp, user, pendingDestination, jurisdiction } = useAuth();
+
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState(45);
+  const [resendCount, setResendCount] = useState(0);
+  const [isResending, setIsResending] = useState(false);
+  const [resendNotice, setResendNotice] = useState<string | null>(null);
 
-  const handleOtpChange = (idx: number, val: string) => {
-    if (val.length > 1) return;
-    const newOtp = [...otp];
-    newOtp[idx] = val;
-    setOtp(newOtp);
+  // Timer countdown
+  useEffect(() => {
+    if (countdown <= 0) return;
+    const interval = setInterval(() => {
+      setCountdown((prev) => prev - 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [countdown]);
 
-    // Auto-focus next
-    if (val && idx < 5) {
-      const nextInput = document.getElementById(`otp-${idx + 1}`);
-      nextInput?.focus();
+  const handleVerify = async (codeToVerify?: string) => {
+    const fullCode = codeToVerify || otp.join("");
+    if (fullCode.length < 6) {
+      setError("Please enter the complete 6-digit verification passcode.");
+      return;
+    }
+
+    setError(null);
+    setIsVerifying(true);
+
+    try {
+      const res = await verifyOtp(fullCode);
+      if (!res.success) {
+        setError(res.error || "The one-time passcode you entered is incorrect or has expired.");
+      }
+    } catch {
+      setError("An unexpected error occurred during verification. Please try again.");
+    } finally {
+      setIsVerifying(false);
     }
   };
 
-  const handleVerify = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsVerifying(true);
+  const handleResend = () => {
+    if (countdown > 0 || resendCount >= 3) return;
+
+    setIsResending(true);
+    setError(null);
+    setResendNotice(null);
+
     setTimeout(() => {
-      setIsVerifying(false);
-      router.push("/customer");
+      setIsResending(false);
+      setResendCount((prev) => prev + 1);
+      setCountdown(45);
+      setResendNotice("A new 6-digit one-time passcode has been dispatched.");
+      setOtp(["", "", "", "", "", ""]);
     }, 600);
   };
 
+  const maskedTarget =
+    pendingDestination ||
+    (user?.phone ? `+234 ••• ••• ${user.phone.slice(-4)}` : "+234 ••• ••• 7766");
+
   return (
-    <div className="min-h-screen bg-[#060a14] text-white flex flex-col justify-between p-4 sm:p-6 lg:p-8">
-      <header className="flex items-center justify-between w-full max-w-md mx-auto">
-        <Link href="/" className="flex items-center">
-          <KorieLogo variant="full" theme="dark" height={32} />
-        </Link>
-      </header>
+    <AuthShell>
+      <div className="w-full max-w-md space-y-6">
+        <AuthHeader
+          titleEn="Verify your account"
+          titleHa="Tabbatar da Asusu"
+          titleFr="Vérifier votre compte"
+          subtitleEn={`We sent a secure 6-digit verification code to ${maskedTarget}.`}
+          subtitleHa={`Mun tura lambar tantancewa mai lamba 6 zuwa ${maskedTarget}.`}
+          subtitleFr={`Nous avons envoyé un code de vérification à 6 chiffres au ${maskedTarget}.`}
+          badge="Two-Factor Authentication"
+        />
 
-      <main className="w-full max-w-md mx-auto my-auto py-8 space-y-6 text-center">
-        <div className="space-y-1">
-          <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mx-auto mb-3">
-            <ShieldCheck className="w-8 h-8" />
-          </div>
-          <h1 className="text-2xl font-extrabold text-white">
-            Verify Phone & Identity
-          </h1>
-          <p className="text-xs text-slate-400 max-w-xs mx-auto">
-            We sent a 6-digit one-time passcode (OTP) to your phone.
-          </p>
-        </div>
+        <AuthCard>
+          <AuthErrorAlert error={error} onDismiss={() => setError(null)} />
 
-        <form
-          onSubmit={handleVerify}
-          className="rounded-3xl bg-[#0b1324] border border-white/10 p-6 sm:p-8 space-y-6 shadow-2xl"
-        >
-          {/* 6 Digit Inputs */}
-          <div className="flex items-center justify-center gap-2 sm:gap-3">
-            {otp.map((digit, idx) => (
-              <input
-                key={idx}
-                id={`otp-${idx}`}
-                type="text"
-                inputMode="numeric"
-                maxLength={1}
-                value={digit}
-                onChange={(e) => handleOtpChange(idx, e.target.value)}
-                className="w-11 h-14 rounded-2xl bg-slate-900 border border-white/10 text-center font-mono text-xl font-extrabold text-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none"
+          {resendNotice && (
+            <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>{resendNotice}</span>
+            </div>
+          )}
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleVerify();
+            }}
+            className="space-y-5"
+          >
+            <div className="space-y-2 text-center">
+              <OTPInput
+                value={otp}
+                onChange={(val) => {
+                  setOtp(val);
+                  if (error) setError(null);
+                }}
+                disabled={isVerifying}
+                hasError={!!error}
+                onComplete={(code) => handleVerify(code)}
               />
-            ))}
+              <p className="text-[11px] text-slate-400">
+                Code expires automatically in 10 minutes.
+              </p>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isVerifying || otp.some((d) => !d)}
+              className="w-full py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-sm tracking-wide transition-all shadow-xl shadow-emerald-500/20 disabled:opacity-50 flex items-center justify-center gap-2 group"
+            >
+              {isVerifying && (
+                <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+              )}
+              <span>{isVerifying ? "Verifying Token..." : "Verify & Launch Portal"}</span>
+              {!isVerifying && <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />}
+            </button>
+
+            {/* Resend Code Action */}
+            <div className="text-center pt-1">
+              {countdown > 0 ? (
+                <span className="text-xs text-slate-400 font-mono">
+                  Resend code in 00:{countdown < 10 ? `0${countdown}` : countdown}
+                </span>
+              ) : resendCount >= 3 ? (
+                <span className="text-xs text-amber-400">
+                  Maximum resends reached. Please contact Support if you need assistance.
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  disabled={isResending}
+                  className="text-xs text-emerald-400 hover:text-emerald-300 font-bold inline-flex items-center gap-1.5 transition-colors"
+                >
+                  <RotateCw className={`w-3.5 h-3.5 ${isResending ? "animate-spin" : ""}`} />
+                  <span>Resend Code</span>
+                </button>
+              )}
+            </div>
+
+            <SecurityNotice />
+          </form>
+
+          <div className="pt-2 text-center border-t border-white/[0.08]">
+            <Link
+              href="/login"
+              className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-emerald-400 font-bold transition-colors"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Back to Sign In</span>
+            </Link>
           </div>
-
-          <button
-            type="submit"
-            disabled={isVerifying || otp.some((d) => !d)}
-            className="w-full py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-sm transition-all shadow-xl shadow-emerald-500/20 disabled:opacity-50"
-          >
-            {isVerifying ? "Verifying Token..." : "Verify & Launch Portal"}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => alert("New OTP code dispatched via SMS.")}
-            className="text-xs text-emerald-400 hover:text-emerald-300 font-semibold flex items-center justify-center gap-1.5 mx-auto"
-          >
-            <RotateCw className="w-3.5 h-3.5" />
-            <span>Resend OTP Code</span>
-          </button>
-        </form>
-      </main>
-
-      <footer className="text-center py-4 text-[11px] text-slate-500">
-        KoriePay Multi-Factor Authentication
-      </footer>
-    </div>
+        </AuthCard>
+      </div>
+    </AuthShell>
   );
 }

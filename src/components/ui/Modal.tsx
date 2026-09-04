@@ -113,48 +113,39 @@ export const Modal: React.FC = () => {
           <div className="flex items-center justify-between pb-4 mb-4 border-b border-white/10">
             <div>
               <h3 className="text-lg font-bold text-white">Access KoriePay Portal</h3>
-              <p className="text-xs text-slate-400">Select your infrastructure role to sign in</p>
+              <p className="text-xs text-slate-400">Select your destination portal to sign in</p>
             </div>
             <KorieLogo variant="icon" height={28} />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
             <a
-              href="#agent-portal"
-              onClick={(e) => {
-                e.preventDefault();
-                alert("Agent Banking Web & POS Portal is in active deployment. Contact onboarding for credentials.");
-              }}
+              href="/login"
+              onClick={() => closeModal()}
               className="p-3.5 rounded-xl bg-slate-800/80 border border-white/5 hover:border-emerald-500/40 hover:bg-slate-800 transition-all text-left group"
             >
               <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-semibold text-white group-hover:text-emerald-400">Agent Terminal</span>
-                <Building2 className="w-4 h-4 text-emerald-400" />
+                <span className="text-sm font-semibold text-white group-hover:text-emerald-400">Customer Banking</span>
+                <ArrowRight className="w-4 h-4 text-emerald-400" />
+              </div>
+              <p className="text-xs text-slate-400">Retail & SME multi-currency wallet portal</p>
+            </a>
+
+            <a
+              href="/agent"
+              onClick={() => closeModal()}
+              className="p-3.5 rounded-xl bg-slate-800/80 border border-white/5 hover:border-teal-500/40 hover:bg-slate-800 transition-all text-left group"
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-semibold text-white group-hover:text-teal-400">Agent Terminal</span>
+                <Building2 className="w-4 h-4 text-teal-400" />
               </div>
               <p className="text-xs text-slate-400">Agent wallet, cash-in/out, commissions ledger</p>
             </a>
 
             <a
-              href="#bdc-portal"
-              onClick={(e) => {
-                e.preventDefault();
-                alert("BDC / FX Treasury Console is accessible to registered operators. Submit verification to access.");
-              }}
-              className="p-3.5 rounded-xl bg-slate-800/80 border border-white/5 hover:border-amber-500/40 hover:bg-slate-800 transition-all text-left group"
-            >
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-semibold text-white group-hover:text-amber-400">BDC & FX Console</span>
-                <Repeat2 className="w-4 h-4 text-amber-400" />
-              </div>
-              <p className="text-xs text-slate-400">Cross-border liquidity & treasury settlements</p>
-            </a>
-
-            <a
-              href="#merchant-portal"
-              onClick={(e) => {
-                e.preventDefault();
-                alert("Merchant Hub: Collections, settlements, API keys, and reporting.");
-              }}
+              href="/merchant"
+              onClick={() => closeModal()}
               className="p-3.5 rounded-xl bg-slate-800/80 border border-white/5 hover:border-blue-500/40 hover:bg-slate-800 transition-all text-left group"
             >
               <div className="flex items-center justify-between mb-1">
@@ -165,16 +156,13 @@ export const Modal: React.FC = () => {
             </a>
 
             <a
-              href="#developer-portal"
-              onClick={(e) => {
-                e.preventDefault();
-                alert("Developer Dashboard: API keys, webhook simulators, and sandbox test credentials.");
-              }}
-              className="p-3.5 rounded-xl bg-slate-800/80 border border-white/5 hover:border-teal-500/40 hover:bg-slate-800 transition-all text-left group"
+              href="/developers"
+              onClick={() => closeModal()}
+              className="p-3.5 rounded-xl bg-slate-800/80 border border-white/5 hover:border-purple-500/40 hover:bg-slate-800 transition-all text-left group"
             >
               <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-semibold text-white group-hover:text-teal-400">Developer Cloud</span>
-                <Code2 className="w-4 h-4 text-teal-400" />
+                <span className="text-sm font-semibold text-white group-hover:text-purple-400">Developer Cloud</span>
+                <Code2 className="w-4 h-4 text-purple-400" />
               </div>
               <p className="text-xs text-slate-400">Sandbox keys, webhooks, and API logs</p>
             </a>
@@ -187,24 +175,22 @@ export const Modal: React.FC = () => {
             </span>
           </div>
 
-          <div className="text-center">
-            <p className="text-xs text-slate-400">
-              Don&apos;t have an infrastructure account?{" "}
-              <button
-                type="button"
-                onClick={() => {
-                  closeModal();
-                  setTimeout(() => {
-                    // re-open modal as agent application
-                    const btn = document.querySelector("[data-open-agent]") as HTMLButtonElement;
-                    if (btn) btn.click();
-                  }, 100);
-                }}
-                className="text-emerald-400 hover:underline font-medium"
-              >
-                Apply for Access
-              </button>
-            </p>
+          <div className="text-center flex items-center justify-between">
+            <a
+              href="/register"
+              onClick={() => closeModal()}
+              className="text-emerald-400 hover:underline font-medium text-xs"
+            >
+              Open Customer Account
+            </a>
+
+            <a
+              href="/login"
+              onClick={() => closeModal()}
+              className="px-4 py-2 rounded-xl bg-emerald-500 text-slate-950 font-bold text-xs hover:bg-emerald-400 transition-colors"
+            >
+              Proceed to Sign In
+            </a>
           </div>
         </div>
       );
