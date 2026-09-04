@@ -12,38 +12,36 @@ import CTASection from "@/components/sections/CTASection";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "KoriePay | Tier-1 Cross-Border Fintech Infrastructure for Nigeria & Niger Republic",
+  title: "Secure Cross-Border Payments & Fintech Infrastructure for Nigeria & Niger Republic",
   description:
-    "KoriePay is Tier-1 financial technology infrastructure powering Agency Banking, BDC & FX operations, Customer Wallets, and Merchant Payments across Nigeria and Niger Republic. Kudinka, Hannunka.",
+    "KoriePay connects people, agency banking networks, BDC/FX operators, merchants and businesses with secure digital payments and financial infrastructure across Nigeria and Niger Republic. Money transfer, agency banking, merchant payments and digital wallets. Kudinka, Hannunka.",
   keywords: [
     "KoriePay",
-    "Fintech Nigeria",
-    "Fintech Niger Republic",
-    "Agency Banking Nigeria",
-    "Agency Banking Niger",
-    "BDC technology",
-    "FX fintech",
-    "Payment infrastructure Nigeria",
-    "Payment infrastructure Niger",
-    "African fintech",
-    "Cross-border payments West Africa",
+    "cross-border payments Nigeria Niger",
+    "agency banking Nigeria",
+    "secure money transfer West Africa",
+    "African fintech infrastructure",
+    "digital banking Nigeria",
+    "merchant payments",
+    "BDC FX digital operations",
+    "Nigeria Niger financial connectivity",
     "Kudinka Hannunka",
   ],
   openGraph: {
-    title: "KoriePay — Powering the Financial Ecosystem Across Nigeria & Niger Republic",
+    title: "KoriePay | Secure Cross-Border Payments & Fintech Infrastructure",
     description:
-      "Connecting customers, agents, BDCs, merchants, and businesses through secure digital financial infrastructure built for the next generation of African commerce.",
+      "Secure, scalable digital financial infrastructure connecting agency banking, BDC/FX operators, merchants and consumers across Nigeria and Niger Republic.",
     url: "https://koriepay.com",
     siteName: "KoriePay",
     images: [
       {
-        url: "/brand/koriepay-logo-full.png",
-        width: 1200,
-        height: 630,
-        alt: "KoriePay Fintech Infrastructure",
+        url: "/images/visual/hero-ecosystem.webp",
+        width: 1536,
+        height: 1024,
+        alt: "KoriePay digital payment ecosystem connecting Nigeria and Niger Republic",
       },
     ],
-    locale: "en_US",
+    locale: "en_NG",
     type: "website",
   },
 };

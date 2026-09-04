@@ -24,35 +24,35 @@ export const HeroSection: React.FC = () => {
   const segmentContent = {
     agents: {
       badge: "Last-Mile Financial Infrastructure",
-      title: "Empowering Over 50,000+ Physical Service Points",
-      desc: "Transform your store or kiosk into a fully enabled banking agency point. Provide cash-in, cash-out, interbank transfers, and utility payments with reliable terminal hardware and instant commissions.",
+      title: "Turn Any Store Into a Banking Service Point",
+      desc: "Transform your store or kiosk into a fully enabled agency banking point. Offer cash-in, cash-out, interbank transfers, and utility payments with reliable terminal hardware and instant commissions.",
       cta: "Become a KoriePay Agent",
       action: () => openModal("agent"),
-      metric: "Instant Commission Settlement",
+      metric: "Commission on Every Transaction",
     },
     bdc: {
       badge: "Digital FX & Treasury Rails",
       title: "Modern Liquidity for Licensed FX Operators",
-      desc: "Connect your Bureau De Change directly to institutional cross-border liquidity. Manage customer transactions, rate transparency, multi-currency balances, and automated settlement between Nigeria and Niger.",
+      desc: "Connect your Bureau De Change to institutional cross-border liquidity. Manage customer transactions, rate transparency, multi-currency balances, and automated settlement between Nigeria and Niger.",
       cta: "Partner as BDC Operator",
       action: () => openModal("bdc"),
-      metric: "Sub-Second FX Corridor Routing",
+      metric: "NGN ⇄ XOF Corridor Rails",
     },
     customers: {
       badge: "Consumer Financial Freedom",
       title: "Your Money, Connected Across Borders",
-      desc: "Experience instant transfers, frictionless bill payments, dynamic merchant QR checkout, and cross-border remittances. As our Hausa slogan says: Kudinka, Hannunka — Your money, in your hands.",
+      desc: "Send transfers, pay bills, and pay with a dynamic merchant QR — including cross-border remittances. As our Hausa slogan says: Kudinka, Hannunka — Your money, in your hands.",
       cta: "Open an Account",
       action: () => openModal("contact", "Customer Wallet"),
-      metric: "Zero Latency Domestic & Regional Rails",
+      metric: "Domestic & Regional Payment Rails",
     },
     business: {
       badge: "Enterprise & SME Treasury",
       title: "High-Throughput Payments for Scaled Commerce",
-      desc: "Empower your enterprise with multi-currency accounts, automated bulk payroll, merchant payment links, and institutional developer APIs engineered for 99.98% reliability.",
+      desc: "Empower your enterprise with multi-currency accounts, automated bulk payroll, merchant payment links, and institutional developer APIs designed for scale.",
       cta: "Build With KoriePay",
       action: () => openModal("business"),
-      metric: "Enterprise SLA & Dedicated Desk",
+      metric: "Enterprise-Grade Developer APIs",
     },
   };
 
@@ -213,10 +213,10 @@ export const HeroSection: React.FC = () => {
             <div className="absolute -bottom-5 left-4 right-4 sm:left-6 sm:right-auto sm:w-72 p-4 rounded-2xl glass-03 shadow-xl">
               <div className="flex items-center justify-between pb-2 border-b border-[var(--border)]">
                 <div className="flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-[11px] font-mono text-[var(--foreground)]">LIVE NODE</span>
+                  <div className="w-2.5 h-2.5 rounded-full bg-[var(--brand-primary)]" />
+                  <span className="text-[11px] font-mono text-[var(--foreground)]">Rails · NGN ⇄ XOF</span>
                 </div>
-                <span className="text-[10px] font-mono text-[var(--brand-primary)]">99.98% SLA</span>
+                <span className="text-[10px] font-mono text-[var(--brand-primary)]">Cross-Border</span>
               </div>
               <div className="pt-2 space-y-1.5 text-xs">
                 <div className="flex justify-between">
@@ -228,31 +228,31 @@ export const HeroSection: React.FC = () => {
                   <span className="text-[var(--foreground)] font-mono">NGN ⇄ XOF</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-[var(--muted)]">Latency</span>
-                  <span className="text-[var(--brand-secondary)] font-mono">&lt; 420ms</span>
+                  <span className="text-[var(--muted)]">Formats</span>
+                  <span className="text-[var(--brand-secondary)] font-mono">Agent · BDC · Wallet</span>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Live Ecosystem Metrics Strip */}
+        {/* Ecosystem At-a-Glance Strip — verifiable, non-fabricated */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl mx-auto">
           <div className="p-4 rounded-2xl glass-01 text-center">
             <div className="text-xl sm:text-2xl font-bold text-[var(--brand-primary)] font-mono">2 Markets</div>
             <div className="text-xs text-[var(--muted)] mt-1">Nigeria 🇳🇬 &amp; Niger Republic 🇳🇪</div>
           </div>
           <div className="p-4 rounded-2xl glass-01 text-center">
-            <div className="text-xl sm:text-2xl font-bold text-[var(--brand-secondary)] font-mono">3 Core Pillars</div>
+            <div className="text-xl sm:text-2xl font-bold text-[var(--brand-secondary)] font-mono">3 Pillars</div>
             <div className="text-xs text-[var(--muted)] mt-1">Agency, BDC/FX &amp; Customers</div>
           </div>
           <div className="p-4 rounded-2xl glass-01 text-center">
-            <div className="text-xl sm:text-2xl font-bold text-[var(--brand-accent)] font-mono">&lt; 650ms</div>
-            <div className="text-xs text-[var(--muted)] mt-1">Sub-second Routing</div>
+            <div className="text-xl sm:text-2xl font-bold text-[var(--brand-accent)] font-mono">NGN ⇄ XOF</div>
+            <div className="text-xs text-[var(--muted)] mt-1">Cross-Border Corridor</div>
           </div>
           <div className="p-4 rounded-2xl glass-01 text-center">
-            <div className="text-xl sm:text-2xl font-bold text-[var(--foreground)] font-mono">99.98%</div>
-            <div className="text-xs text-[var(--muted)] mt-1">Uptime SLA</div>
+            <div className="text-xl sm:text-2xl font-bold text-[var(--foreground)] font-mono">1 Platform</div>
+            <div className="text-xs text-[var(--muted)] mt-1">Unified Financial Infrastructure</div>
           </div>
         </div>
       </div>

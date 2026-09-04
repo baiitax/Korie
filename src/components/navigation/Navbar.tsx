@@ -38,6 +38,12 @@ export const Navbar: React.FC = () => {
   const { country, setCountry, openModal, setIsSearchOpen } = useCountry();
   const { theme } = useTheme();
   const { isAuthenticated, logout } = useAuth();
+  const { language, setLanguage } = useLanguage();
+  const LANG_OPTIONS: { code: "en" | "fr" | "ha"; label: string }[] = [
+    { code: "en", label: "EN" },
+    { code: "fr", label: "FR" },
+    { code: "ha", label: "HA" },
+  ];
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -92,14 +98,17 @@ export const Navbar: React.FC = () => {
                 <button
                   className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-colors ${
                     activeDropdown === "solutions" || pathname?.startsWith("/solutions")
-                      ? "text-emerald-400 bg-[var(--surface-2)]"
+                      ? "text-[var(--brand-primary-active)] bg-[var(--brand-soft-strong)]"
                       : "text-[var(--nav-fg)] hover:text-[var(--nav-fg)] hover:bg-[var(--surface-2)]"
                   }`}
+                  aria-haspopup="true"
+                  aria-expanded={activeDropdown === "solutions"}
+                  aria-current={pathname?.startsWith("/solutions") ? "page" : undefined}
                 >
                   <span>Solutions</span>
                   <ChevronDown
                     className={`w-3.5 h-3.5 transition-transform duration-200 ${
-                      activeDropdown === "solutions" ? "rotate-180 text-emerald-400" : "text-[var(--nav-muted)]"
+                      activeDropdown === "solutions" ? "rotate-180 text-[var(--brand-primary)]" : "text-[var(--nav-muted)]"
                     }`}
                   />
                 </button>
@@ -117,7 +126,7 @@ export const Navbar: React.FC = () => {
                             <Building2 className="w-4 h-4" />
                           </div>
                           <div>
-                            <span className="text-xs font-bold text-[var(--nav-fg)] group-hover:text-emerald-400 transition-colors">
+                            <span className="text-xs font-bold text-[var(--nav-fg)] group-hover:text-[var(--brand-primary-active)] transition-colors">
                               Agency Banking
                             </span>
                             <span className="block text-[10px] text-[var(--nav-muted)]">
@@ -212,7 +221,7 @@ export const Navbar: React.FC = () => {
                             <Globe2 className="w-4 h-4" />
                           </div>
                           <div>
-                            <span className="text-xs font-bold text-[var(--nav-fg)] group-hover:text-emerald-400 transition-colors">
+                            <span className="text-xs font-bold text-[var(--nav-fg)] group-hover:text-[var(--brand-primary-active)] transition-colors">
                               Cross-Border Rails
                             </span>
                             <span className="block text-[10px] text-[var(--nav-muted)]">
@@ -232,7 +241,7 @@ export const Navbar: React.FC = () => {
                       </div>
                       <Link
                         href="/solutions"
-                        className="text-xs text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1"
+                        className="text-xs text-[var(--brand-primary)] hover:text-[var(--brand-primary-active)] font-semibold flex items-center gap-1"
                       >
                         View All Solutions <ArrowRight className="w-3.5 h-3.5" />
                       </Link>
@@ -250,14 +259,17 @@ export const Navbar: React.FC = () => {
                 <button
                   className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-colors ${
                     activeDropdown === "markets" || pathname === "/nigeria" || pathname === "/niger-republic"
-                      ? "text-emerald-400 bg-[var(--surface-2)]"
+                      ? "text-[var(--brand-primary-active)] bg-[var(--brand-soft-strong)]"
                       : "text-[var(--nav-fg)] hover:text-[var(--nav-fg)] hover:bg-[var(--surface-2)]"
                   }`}
+                  aria-haspopup="true"
+                  aria-expanded={activeDropdown === "markets"}
+                  aria-current={pathname === "/nigeria" || pathname === "/niger-republic" ? "page" : undefined}
                 >
                   <span>Markets</span>
                   <ChevronDown
                     className={`w-3.5 h-3.5 transition-transform duration-200 ${
-                      activeDropdown === "markets" ? "rotate-180 text-emerald-400" : "text-[var(--nav-muted)]"
+                      activeDropdown === "markets" ? "rotate-180 text-[var(--brand-primary)]" : "text-[var(--nav-muted)]"
                     }`}
                   />
                 </button>
@@ -271,7 +283,7 @@ export const Navbar: React.FC = () => {
                       <div className="text-xl">🇳🇬</div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-[var(--nav-fg)] group-hover:text-emerald-400">
+                          <span className="text-xs font-bold text-[var(--nav-fg)] group-hover:text-[var(--brand-primary-active)]">
                             Nigeria Ecosystem
                           </span>
                           <span className="text-[10px] font-mono px-1.5 py-0.2 bg-emerald-500/10 text-emerald-400 rounded">
@@ -316,14 +328,17 @@ export const Navbar: React.FC = () => {
                 <button
                   className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-colors ${
                     activeDropdown === "tech" || pathname === "/technology" || pathname === "/security" || pathname === "/developers"
-                      ? "text-emerald-400 bg-[var(--surface-2)]"
+                      ? "text-[var(--brand-primary-active)] bg-[var(--brand-soft-strong)]"
                       : "text-[var(--nav-fg)] hover:text-[var(--nav-fg)] hover:bg-[var(--surface-2)]"
                   }`}
+                  aria-haspopup="true"
+                  aria-expanded={activeDropdown === "tech"}
+                  aria-current={pathname === "/technology" || pathname === "/security" || pathname === "/developers" ? "page" : undefined}
                 >
                   <span>Technology</span>
                   <ChevronDown
                     className={`w-3.5 h-3.5 transition-transform duration-200 ${
-                      activeDropdown === "tech" ? "rotate-180 text-emerald-400" : "text-[var(--nav-muted)]"
+                      activeDropdown === "tech" ? "rotate-180 text-[var(--brand-primary)]" : "text-[var(--nav-muted)]"
                     }`}
                   />
                 </button>
@@ -355,7 +370,7 @@ export const Navbar: React.FC = () => {
                         <ShieldCheck className="w-4 h-4" />
                       </div>
                       <div>
-                        <span className="text-xs font-bold text-[var(--nav-fg)] group-hover:text-emerald-400">
+                        <span className="text-xs font-bold text-[var(--nav-fg)] group-hover:text-[var(--brand-primary-active)]">
                           Security & Risk Controls
                         </span>
                         <p className="text-[11px] text-[var(--nav-muted)] mt-0.5">
@@ -398,14 +413,21 @@ export const Navbar: React.FC = () => {
                     pathname === "/careers" ||
                     pathname === "/resources" ||
                     pathname === "/faq"
-                      ? "text-emerald-400 bg-[var(--surface-2)]"
+                      ? "text-[var(--brand-primary-active)] bg-[var(--brand-soft-strong)]"
                       : "text-[var(--nav-fg)] hover:text-[var(--nav-fg)] hover:bg-[var(--surface-2)]"
                   }`}
+                  aria-haspopup="true"
+                  aria-expanded={activeDropdown === "company"}
+                  aria-current={
+                    pathname === "/about" || pathname === "/partners" || pathname === "/careers" || pathname === "/resources" || pathname === "/faq"
+                      ? "page"
+                      : undefined
+                  }
                 >
                   <span>Company</span>
                   <ChevronDown
                     className={`w-3.5 h-3.5 transition-transform duration-200 ${
-                      activeDropdown === "company" ? "rotate-180 text-emerald-400" : "text-[var(--nav-muted)]"
+                      activeDropdown === "company" ? "rotate-180 text-[var(--brand-primary)]" : "text-[var(--nav-muted)]"
                     }`}
                   />
                 </button>
@@ -420,7 +442,7 @@ export const Navbar: React.FC = () => {
                         <Building2 className="w-4 h-4" />
                       </div>
                       <div>
-                        <span className="text-xs font-bold text-[var(--nav-fg)] group-hover:text-emerald-400">
+                        <span className="text-xs font-bold text-[var(--nav-fg)] group-hover:text-[var(--brand-primary-active)]">
                           About KoriePay
                         </span>
                         <p className="text-[11px] text-[var(--nav-muted)] mt-0.5">
@@ -486,9 +508,10 @@ export const Navbar: React.FC = () => {
               {/* Direct Contact Link */}
               <Link
                 href="/contact"
+                aria-current={pathname === "/contact" ? "page" : undefined}
                 className={`px-3 py-2 text-xs font-semibold rounded-lg transition-colors ${
                   pathname === "/contact"
-                    ? "text-emerald-400 bg-[var(--surface-2)]"
+                    ? "text-[var(--brand-primary-active)] bg-[var(--brand-soft-strong)]"
                     : "text-[var(--nav-fg)] hover:text-[var(--nav-fg)] hover:bg-[var(--surface-2)]"
                 }`}
               >
@@ -579,8 +602,9 @@ export const Navbar: React.FC = () => {
               {/* Mobile Menu Toggle Button */}
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="lg:hidden p-2 rounded-xl bg-[var(--surface)] border border-[var(--border)] text-[var(--nav-fg)] hover:text-[var(--nav-fg)]"
+                className="lg:hidden flex items-center justify-center min-h-[44px] min-w-[44px] rounded-xl bg-[var(--surface)] border border-[var(--border)] text-[var(--nav-fg)] hover:text-[var(--nav-fg)] hover:border-[var(--border-strong)] transition-colors"
                 aria-label="Toggle navigation menu"
+                aria-expanded={mobileMenuOpen}
               >
                 {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
@@ -629,6 +653,29 @@ export const Navbar: React.FC = () => {
                 >
                   🌍 Both
                 </button>
+              </div>
+            </div>
+
+            {/* Language Selector (EN / FR / HA) — accessible on mobile/tablet */}
+            <div className="p-3 rounded-2xl bg-[var(--surface)] border border-[var(--border)]">
+              <div className="text-[11px] font-semibold text-[var(--nav-muted)] uppercase tracking-wider mb-2">
+                Language
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {LANG_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.code}
+                    onClick={() => setLanguage(opt.code)}
+                    aria-pressed={language === opt.code}
+                    className={`min-h-[44px] rounded-xl text-xs font-semibold text-center transition-all ${
+                      language === opt.code
+                        ? "bg-[var(--brand-soft-strong)] text-[var(--brand-primary)] border border-[var(--accent-border)]"
+                        : "bg-[var(--surface-2)] text-[var(--nav-muted)] hover:text-[var(--nav-fg)]"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -763,7 +810,7 @@ export const Navbar: React.FC = () => {
                   setMobileMenuOpen(false);
                   openModal("login");
                 }}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[var(--surface-2)] text-[var(--nav-fg)] font-semibold text-xs border border-[var(--border)]"
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[var(--surface-2)] text-[var(--nav-fg)] font-semibold text-xs border border-[var(--border)]"
               >
                 <span>
                   {isAuthenticated ? "Go to My Dashboard" : "Sign In to Portal"}
@@ -774,14 +821,14 @@ export const Navbar: React.FC = () => {
                   setMobileMenuOpen(false);
                   openModal("agent");
                 }}
-                className="w-full py-3 rounded-xl btn-korie-primary text-slate-950 font-bold text-xs"
+                className="w-full py-3.5 rounded-xl btn-korie-primary text-slate-950 font-bold text-xs"
               >
                 Become a KoriePay Agent
               </button>
 
               {/* Day / Night + Logout */}
               <div className="grid grid-cols-2 gap-2 pt-1">
-                <ThemeToggle className="flex items-center justify-center gap-1.5 py-3 bg-[var(--surface)] border border-[var(--border)] text-[var(--nav-muted)] hover:text-[var(--nav-fg)]" label />
+                <ThemeToggle className="flex items-center justify-center gap-1.5 py-3.5 bg-[var(--surface)] border border-[var(--border)] text-[var(--nav-muted)] hover:text-[var(--nav-fg)]" label />
                 {isAuthenticated && (
                   <button
                     onClick={async () => {
@@ -791,7 +838,7 @@ export const Navbar: React.FC = () => {
                       } catch { /* noop */ }
                       await logout();
                     }}
-                    className="flex items-center justify-center gap-1.5 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 font-semibold text-xs"
+                    className="flex items-center justify-center gap-1.5 py-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 font-semibold text-xs"
                   >
                     <LogOut className="w-4 h-4" />
                     Log Out
