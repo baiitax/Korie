@@ -981,3 +981,11 @@
   .kp-pulse { animation: none; opacity: 1; }
 }
 
+/* Hide scrollbars on horizontal carousels while keeping them scrollable. */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}

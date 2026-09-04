@@ -940,6 +940,29 @@ export const fr = {
       REVERSED: "Inversé",
       CANCELLED: "Annulé",
     },
-  },
+  
+    vault: {
+      virtualTag: "Compte Virtuel / Tag",
+      accountHolder: "Titulaire du Compte",
+      primary: "Principal",
+      available: "Solde Disponible",
+    },
+    hub: {
+      fund: "Alimenter",
+      koriePay: "KoriePay",
+      interBank: "Interbancaire",
+      cards: "Cartes",
+      adashi: "Adashi",
+      verify: "Vérifier",
+    },
+    services: {
+      airtime: "Airtime",
+      data: "Données",
+      power: "Électricité",
+      cable: "Câble TV",
+    },
+    ledgerHistory: "Historique du Grand Livre",
+    servicesHeading: "Services Quotidiens",
+},
 
 };

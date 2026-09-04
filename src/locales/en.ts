@@ -927,6 +927,29 @@ export const en = {
       REVERSED: "Reversed",
       CANCELLED: "Cancelled",
     },
-  },
+  
+    vault: {
+      virtualTag: "Virtual Account / Tag",
+      accountHolder: "Account Holder",
+      primary: "Primary",
+      available: "Available Balance",
+    },
+    hub: {
+      fund: "Fund",
+      koriePay: "KoriePay",
+      interBank: "Inter-Bank",
+      cards: "Cards",
+      adashi: "Adashi",
+      verify: "Verify",
+    },
+    services: {
+      airtime: "Airtime",
+      data: "Data",
+      power: "Power",
+      cable: "Cable TV",
+    },
+    ledgerHistory: "Ledger History",
+    servicesHeading: "Everyday Services",
+},
 
 };

@@ -925,6 +925,29 @@ export const ha = {
       REVERSED: "An Koma",
       CANCELLED: "An Soke",
     },
-  },
+  
+    vault: {
+      virtualTag: "Asusun kama-da-wanka / Tag",
+      accountHolder: "Mai Asusu",
+      primary: "Babban",
+      available: "Ma'auni na Yanzu",
+    },
+    hub: {
+      fund: "Ƙara Kuɗi",
+      koriePay: "KoriePay",
+      interBank: "Tsakanin Bankuna",
+      cards: "Katuna",
+      adashi: "Adashi",
+      verify: "Tabbatar",
+    },
+    services: {
+      airtime: "Airtime",
+      data: "Data",
+      power: "Wutar Lantarki",
+      cable: "Cable TV",
+    },
+    ledgerHistory: "Tarihin Asusu",
+    servicesHeading: "Ayyuka na Yau da Kullum",
+},
 
 };
