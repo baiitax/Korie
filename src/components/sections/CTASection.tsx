@@ -2,6 +2,7 @@
 
 import React from "react";
 import { useCountry } from "../ui/CountryContext";
+import { useLanguage } from "../ui/LanguageContext";
 import {
   ArrowRight,
   Building2,
@@ -16,6 +17,7 @@ import Image from "next/image";
 
 export const CTASection: React.FC = () => {
   const { openModal } = useCountry();
+  const { t } = useLanguage();
 
   return (
     <section className="py-20 lg:py-28 relative kp-band-brand-tint overflow-hidden">
@@ -37,15 +39,15 @@ export const CTASection: React.FC = () => {
 
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono mb-4">
             <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            <span>CONNECT WITH KORIEPAY INFRASTRUCTURE</span>
+            <span>{t("public.home.cta.badge")}</span>
           </div>
 
           <h2 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight leading-tight max-w-3xl mx-auto mb-4">
-            Ready to Connect to the Future of Cross-Border African Finance?
+            {t("public.home.cta.heading")}
           </h2>
 
           <p className="text-sm sm:text-base text-slate-300 max-w-2xl mx-auto leading-relaxed mb-10">
-            Whether you run a community agency kiosk, a high-volume Bureau De Change, a fast-growing merchant business, or an institutional banking desk — KoriePay provides the unified technology layer.
+            {t("public.home.cta.intro")}
           </p>
 
           {/* Audience Conversion Action Grid */}
@@ -59,10 +61,10 @@ export const CTASection: React.FC = () => {
                 <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all" />
               </div>
               <div className="text-xs font-bold text-white group-hover:text-emerald-300">
-                Become an Agent
+                {t("public.home.cta.c1t")}
               </div>
               <div className="text-[10px] text-slate-400 mt-0.5">
-                POS terminals & cash points
+                {t("public.home.cta.c1s")}
               </div>
             </button>
 
@@ -75,10 +77,10 @@ export const CTASection: React.FC = () => {
                 <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-amber-400 group-hover:translate-x-1 transition-all" />
               </div>
               <div className="text-xs font-bold text-white group-hover:text-amber-300">
-                Partner as BDC
+                {t("public.home.cta.c2t")}
               </div>
               <div className="text-[10px] text-slate-400 mt-0.5">
-                FX treasury & settlements
+                {t("public.home.cta.c2s")}
               </div>
             </button>
 
@@ -91,10 +93,10 @@ export const CTASection: React.FC = () => {
                 <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-teal-400 group-hover:translate-x-1 transition-all" />
               </div>
               <div className="text-xs font-bold text-white group-hover:text-teal-300">
-                Accept Payments
+                {t("public.home.cta.c3t")}
               </div>
               <div className="text-[10px] text-slate-400 mt-0.5">
-                Merchant QR & checkout links
+                {t("public.home.cta.c3s")}
               </div>
             </button>
 
@@ -107,10 +109,10 @@ export const CTASection: React.FC = () => {
                 <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-blue-400 group-hover:translate-x-1 transition-all" />
               </div>
               <div className="text-xs font-bold text-white group-hover:text-blue-300">
-                Developer Sandbox
+                {t("public.home.cta.c4t")}
               </div>
               <div className="text-[10px] text-slate-400 mt-0.5">
-                APIs, SDKs & Webhooks
+                {t("public.home.cta.c4s")}
               </div>
             </button>
           </div>
@@ -119,15 +121,15 @@ export const CTASection: React.FC = () => {
           <div className="flex flex-wrap items-center justify-center gap-6 text-xs text-slate-400 pt-4 border-t border-white/10">
             <div className="flex items-center gap-1.5">
               <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              <span>Instant Verification</span>
+              <span>{t("public.home.cta.g1")}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              <span>Dedicated Account Manager</span>
+              <span>{t("public.home.cta.g2")}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              <span>Bilateral Regulatory Alignment</span>
+              <span>{t("public.home.cta.g3")}</span>
             </div>
           </div>
         </div>

@@ -15,41 +15,43 @@ import {
   Cpu,
 } from "lucide-react";
 import { useCountry } from "../ui/CountryContext";
+import { useLanguage } from "../ui/LanguageContext";
 import KpayImageCard from "@/components/ui/KpayImageCard";
 
 export const TrustMetrics: React.FC = () => {
   const { openModal } = useCountry();
+  const { t } = useLanguage();
 
   const securityPillars = [
     {
       icon: <KeyRound className="w-5 h-5 text-emerald-400" />,
-      title: "Zero-Trust Identity & MFA",
-      desc: "Multi-layered biometric verification, dynamic OTP challenge-response, and granular role-based access control (RBAC) across all merchant and agent interfaces.",
+      title: t("public.home.trust.t1"),
+      desc: t("public.home.trust.t1d"),
     },
     {
       icon: <Lock className="w-5 h-5 text-amber-400" />,
-      title: "End-to-End Cryptography",
-      desc: "TLS 1.3 in-transit encryption and AES-256 at-rest cryptographic protection ensuring transaction payloads and sensitive consumer records remain confidential.",
+      title: t("public.home.trust.t2"),
+      desc: t("public.home.trust.t2d"),
     },
     {
       icon: <Eye className="w-5 h-5 text-teal-400" />,
-      title: "Real-Time Anomaly Telemetry",
-      desc: "Automated heuristics monitoring velocity limits, IP/device geolocation divergence across the Nigeria-Niger border, and fraud patterns 24 hours a day.",
+      title: t("public.home.trust.t3"),
+      desc: t("public.home.trust.t3d"),
     },
     {
       icon: <FileCheck2 className="w-5 h-5 text-blue-400" />,
-      title: "NDPR & WAEMU Data Governance",
-      desc: "Architected in strict alignment with the Nigeria Data Protection Regulation (NDPR) and West African Economic and Monetary Union data residency standards.",
+      title: t("public.home.trust.t4"),
+      desc: t("public.home.trust.t4d"),
     },
     {
       icon: <Database className="w-5 h-5 text-purple-400" />,
-      title: "Immutable Transaction Ledger",
-      desc: "Double-entry cryptographic ledger architecture ensuring every debit, credit, fee split, and cross-border currency swap is fully auditable and tamper-evident.",
+      title: t("public.home.trust.t5"),
+      desc: t("public.home.trust.t5d"),
     },
     {
       icon: <Cpu className="w-5 h-5 text-orange-400" />,
-      title: "Redundant Cloud Resilience",
-      desc: "Multi-region distributed infrastructure with automated failover routing, maintaining 99.98% core transaction engine availability.",
+      title: t("public.home.trust.t6"),
+      desc: t("public.home.trust.t6d"),
     },
   ];
 
@@ -65,13 +67,13 @@ export const TrustMetrics: React.FC = () => {
             <div className="lg:col-span-6 text-center lg:text-left">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--brand-whisper)] border border-[var(--brand-border)]/40 text-xs font-mono text-[var(--brand-primary)] mb-3">
                 <ShieldCheck className="w-3.5 h-3.5" />
-                <span>SECURITY-FIRST ARCHITECTURE</span>
+                <span>{t("public.home.trust.badge")}</span>
               </div>
               <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight leading-tight text-[var(--foreground)]">
-                Security &amp; Integrity Engineered Into Every Transaction
+                {t("public.home.trust.heading")}
               </h2>
               <p className="mt-4 text-sm sm:text-base text-[var(--foreground-muted)] leading-relaxed">
-                Financial infrastructure demands uncompromised reliability. KoriePay is engineered from the ground up with defensive architecture, robust identity verification, and comprehensive auditability.
+                {t("public.home.trust.intro")}
               </p>
             </div>
             <div className="lg:col-span-6">
@@ -108,10 +110,10 @@ export const TrustMetrics: React.FC = () => {
         <div className="p-6 sm:p-8 rounded-3xl glass-02 border border-[var(--border-strong)] flex flex-col lg:flex-row items-center justify-between gap-6 shadow-2xl">
           <div className="space-y-1 text-center lg:text-left">
             <h4 className="text-base sm:text-lg font-bold text-white">
-              Institutional Compliance & Integration Inquiries
+              {t("public.home.trust.assureTitle")}
             </h4>
             <p className="text-xs text-slate-400 max-w-xl">
-              Are you a licensed commercial bank, BDC consortium, or fintech seeking integration whitepapers or architectural audits?
+              {t("public.home.trust.assureDesc")}
             </p>
           </div>
 
@@ -120,13 +122,13 @@ export const TrustMetrics: React.FC = () => {
               href="/security"
               className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-white/10 transition-colors"
             >
-              View Security Whitepaper
+              {t("public.home.trust.assureCta1")}
             </Link>
             <button
               onClick={() => openModal("contact", "Security & Compliance")}
               className="px-5 py-2.5 rounded-xl btn-korie-primary text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-md"
             >
-              <span>Contact Compliance Desk</span>
+              <span>{t("public.home.trust.assureCta2")}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>

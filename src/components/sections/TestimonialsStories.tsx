@@ -2,38 +2,40 @@
 
 import React from "react";
 import { Building2, Repeat2, Users, Briefcase, Quote, CheckCircle2 } from "lucide-react";
+import { useLanguage } from "../ui/LanguageContext";
 
 export const TestimonialsStories: React.FC = () => {
+  const { t } = useLanguage();
   const stories = [
     {
-      name: "Alhaji Garba Sani",
-      role: "Super Agent & Retail Distributor",
-      location: "Kano Commercial District, Nigeria 🇳🇬",
+      name: t("public.home.stories.s1name"),
+      role: t("public.home.stories.s1role"),
+      location: t("public.home.stories.s1loc"),
       quote:
-        "Before KoriePay, cash handling and network downtime on POS terminals caused significant business loss. With KoriePay's high transaction completion rate and instant commission settlement, my store processes over 200 daily customer transactions without fail.",
+        t("public.home.stories.s1q"),
       category: "Agency Banking Network",
       icon: <Building2 className="w-4 h-4 text-emerald-400" />,
-      tag: "Agent Operator",
+      tag: t("public.home.stories.s1tag"),
     },
     {
-      name: "Mamadou Oumarou",
-      role: "Cross-Border Commodity Merchant",
-      location: "Maradi Central Market, Niger Republic 🇳🇪",
+      name: t("public.home.stories.s2name"),
+      role: t("public.home.stories.s2role"),
+      location: t("public.home.stories.s2loc"),
       quote:
-        "Our grain trade between Maradi and Kano requires fast currency conversion and reliable receipts. KoriePay allows our partners in Nigeria to pay in Naira while we settle locally in CFA Franc within minutes. It has eliminated the danger of traveling with bags of cash across the border.",
+        t("public.home.stories.s2q"),
       category: "Cross-Border Trade",
       icon: <Repeat2 className="w-4 h-4 text-amber-400" />,
-      tag: "BDC & Commerce",
+      tag: t("public.home.stories.s2tag"),
     },
     {
-      name: "Amina Bello & Partners",
-      role: "Fintech Product Lead & SME Operator",
-      location: "Abuja & Lagos, Nigeria 🇳🇬",
+      name: t("public.home.stories.s3name"),
+      role: t("public.home.stories.s3role"),
+      location: t("public.home.stories.s3loc"),
       quote:
-        "Integrating KoriePay's developer APIs into our logistics application took less than 48 hours. The webhooks are rock solid, and having unified multi-currency capabilities for Nigeria and Niger opened up instant regional expansion for us.",
+        t("public.home.stories.s3q"),
       category: "Enterprise Developer",
       icon: <Briefcase className="w-4 h-4 text-teal-400" />,
-      tag: "Business Integration",
+      tag: t("public.home.stories.s3tag"),
     },
   ];
 
@@ -43,13 +45,13 @@ export const TestimonialsStories: React.FC = () => {
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-16">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800/80 border border-white/10 text-xs font-mono text-emerald-400 mb-3">
-            <span>REGIONAL VOICES</span>
+            <span>{t("public.home.stories.badge")}</span>
           </div>
           <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight leading-tight">
-            Trusted by Agents, Merchants & Operators Across the Sahel
+            {t("public.home.stories.heading")}
           </h2>
           <p className="mt-4 text-sm sm:text-base text-slate-400 leading-relaxed">
-            Real stories from the people on the ground driving daily commerce between Nigeria and Niger Republic.
+            {t("public.home.stories.intro")}
           </p>
         </div>
 
