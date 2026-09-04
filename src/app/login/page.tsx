@@ -12,6 +12,7 @@ import SecurityNotice from "@/components/auth/SecurityNotice";
 import AuthErrorAlert from "@/components/auth/AuthErrorAlert";
 import RoleSwitcherDevBar from "@/components/auth/RoleSwitcherDevBar";
 import { useAuth } from "@/components/auth/AuthContext";
+import { KpayInlineLoader } from "@/components/loading";
 import { ArrowRight, Fingerprint, Shield, Sparkles } from "lucide-react";
 
 export default function LoginPage() {
@@ -139,9 +140,7 @@ export default function LoginPage() {
               disabled={isLoading}
               className="w-full py-3.5 sm:py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-sm tracking-wide transition-all shadow-xl shadow-emerald-500/20 disabled:opacity-60 flex items-center justify-center gap-2 group transform active:scale-[0.99]"
             >
-              {isLoading && (
-                <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
-              )}
+              {isLoading && <KpayInlineLoader size="sm" className="border-slate-950 border-t-slate-950" />}
               <span>{submitText}</span>
               {!isLoading && (
                 <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />

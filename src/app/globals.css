@@ -636,3 +636,105 @@
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
+
+/* ------------------------------------------------------------------------- */
+/*  KORIEPAY GLOBAL LOADING / PRELOADER MOTION SYSTEM                        */
+/*  Light-first, glassmorphic, brand-driven loading primitives.              */
+/*  CSS-only + GPU-friendly (opacity / transform). Respects reduced motion.  */
+/* ------------------------------------------------------------------------- */
+
+/* Brand mark glow — soft teal cast, never harsh */
+.kp-brand-glow {
+  filter: drop-shadow(0 0 18px rgba(13, 148, 136, 0.32))
+          drop-shadow(0 2px 10px rgba(217, 119, 6, 0.14));
+}
+.dark .kp-brand-glow {
+  filter: drop-shadow(0 0 22px rgba(45, 212, 191, 0.35))
+          drop-shadow(0 2px 12px rgba(245, 158, 11, 0.18));
+}
+
+/* Logo reveal (fade + gentle rise + settle) */
+@keyframes kpReveal {
+  from { opacity: 0; transform: translateY(8px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.kp-anim-reveal { animation: kpReveal 0.45s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* Slow ambient breathe for the mark / orb */
+@keyframes kpBreathe {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.04); }
+}
+.kp-loader-breathe { animation: kpBreathe 3.4s ease-in-out infinite; }
+
+/* Ring rotation (indeterminate brand progress ring) */
+@keyframes kpSpin { to { transform: rotate(360deg); } }
+.kp-loader-ring { animation: kpSpin 1.05s cubic-bezier(0.6, 0, 0.2, 1) infinite; transform-origin: center; }
+
+/* Soft glow pulse for the backdrop orb */
+@keyframes kpGlowPulse {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50%      { opacity: 0.7;  transform: scale(1.08); }
+}
+.kp-glow-pulse { animation: kpGlowPulse 4.5s ease-in-out infinite; }
+
+/* Indeterminate progress line (brand gradient sweep) */
+.kp-indeterminate-track {
+  position: relative;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: var(--surface-3);
+}
+.kp-indeterminate-bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 42%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, var(--brand-primary), var(--brand-secondary));
+  animation: kpIndeterminate 1.35s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+@keyframes kpIndeterminate {
+  0%   { transform: translateX(-120%); }
+  100% { transform: translateX(360%); }
+}
+
+/* Light-first glass loader surface (full-screen / transaction panel) */
+.kp-loader-surface {
+  background: var(--background);
+  background-image:
+    radial-gradient(circle at 78% -6%, rgba(13, 148, 136, 0.1) 0%, transparent 42%),
+    radial-gradient(circle at 12% 8%, rgba(217, 119, 6, 0.07) 0%, transparent 40%),
+    radial-gradient(circle at 90% 90%, rgba(13, 148, 136, 0.08) 0%, transparent 42%);
+}
+.dark .kp-loader-surface {
+  background-image:
+    radial-gradient(circle at 78% -6%, rgba(20, 184, 166, 0.14) 0%, transparent 42%),
+    radial-gradient(circle at 12% 8%, rgba(245, 158, 11, 0.1) 0%, transparent 40%),
+    radial-gradient(circle at 90% 90%, rgba(20, 184, 166, 0.12) 0%, transparent 42%);
+}
+
+/* Premium glass stage for the centered loader */
+.kp-loader-stage {
+  background: var(--glass-modal-bg);
+  backdrop-filter: blur(var(--glass-blur-modal)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--glass-blur-modal)) saturate(160%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-xl), inset 0 1px 0 var(--glass-highlight);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .kp-loader-stage { background: var(--surface); }
+  .dark .kp-loader-stage { background: #101a2e; }
+}
+
+/* Reduced motion: freeze all loading animation, keep static high-contrast */
+@media (prefers-reduced-motion: reduce) {
+  .kp-anim-reveal, .kp-loader-breathe, .kp-loader-ring, .kp-glow-pulse,
+  .kp-indeterminate-bar, .kp-skeleton, .kp-progress-fill, .shimmer-text,
+  .animate-spin, .animate-pulse, .animate-pulse-slow, .animate-glow-pulse,
+  .animate-float, .animate-in, .animate-out, .animate-fadeIn {
+    animation: none !important;
+    transition: none !important;
+  }
+  .kp-indeterminate-bar { transform: translateX(0); width: 100%; }
+  .kp-skeleton { background: var(--surface-3); }
+}

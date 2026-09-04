@@ -8,7 +8,8 @@ import { LanguageProvider } from "@/components/ui/LanguageContext";
 import dynamic from "next/dynamic";
 import { RouteProgress } from "@/components/ui/RouteProgress";
 import PublicChrome from "@/components/navigation/PublicChrome";
-import Preloader from "@/components/brand/Preloader";
+import { LoadingProvider } from "@/components/loading";
+import BootstrapLoader from "@/components/loading/BootstrapLoader";
 
 // These are full-screen overlay/chrome primitives that only appear on user
 // interaction. Lazy-load them so their dependency subtree stays out of the
@@ -91,20 +92,23 @@ export default function RootLayout({
           <LanguageProvider>
             <AuthProvider>
               <CountryProvider>
-                {/* Thin, branded route progress indicator for navigation */}
-                <RouteProgress />
+                {/* Central KoriePay Loading Experience (full-screen + transaction) */}
+                <LoadingProvider>
+                  {/* Thin, branded route progress indicator for navigation */}
+                  <RouteProgress />
 
-                {/* Brief, non-blocking brand reveal (first visit only) */}
-                <Preloader />
+                  {/* Brief, non-blocking brand reveal (first visit only) */}
+                  <BootstrapLoader />
 
-                {/* Public marketing chrome (nav + footer) only on public pages */}
-                <PublicChrome>{children}</PublicChrome>
+                  {/* Public marketing chrome (nav + footer) only on public pages */}
+                  <PublicChrome>{children}</PublicChrome>
 
-                {/* Unified Command Palette Search */}
-                <QuickSearch />
+                  {/* Unified Command Palette Search */}
+                  <QuickSearch />
 
-                {/* Dynamic Interactive Modals (Agent, BDC, Merchant, Developer, Login, Contact) */}
-                <Modal />
+                  {/* Dynamic Interactive Modals (Agent, BDC, Merchant, Developer, Login, Contact) */}
+                  <Modal />
+                </LoadingProvider>
               </CountryProvider>
             </AuthProvider>
           </LanguageProvider>

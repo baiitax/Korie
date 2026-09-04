@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useCustomer } from "@/components/customer/CustomerContext";
 import PinModal from "@/components/customer/ui/PinModal";
+import { useLoading } from "@/components/loading";
 import { BANK_DIRECTORY, formatMoney, getFXRate } from "@/services/customerDataService";
 import { CustomerCurrency, CustomerCountry, CustomerTransaction } from "@/types/customer";
 import {
@@ -32,6 +33,7 @@ export default function SendMoneyPage() {
     openReceipt,
     t,
   } = useCustomer();
+  const { beginTransaction, updateTransactionStatus, endTransaction } = useLoading();
 
   // Step state: 1 = Details, 2 = Review, 3 = Completed
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -119,6 +121,23 @@ export default function SendMoneyPage() {
     setIsExecuting(true);
     setExecutionError(null);
 
+    // Show the KoriePay transaction overlay with real, authoritative state.
+    // It begins in PROCESSING (the in-flight period) and only ever reflects
+    // what the backend actually reports — never a premature success.
+    beginTransaction({
+      title: t("transfers.confirmTransfer"),
+      amount: formatMoney(parsedAmount, sourceCurrency),
+      recipient: recipientName,
+      summary: [
+        { label: "Recipient", value: recipientName || "—" },
+        { label: t("transfers.selectBank"), value: selectedBank?.name || "—" },
+        { label: t("transfers.transferFee"), value: formatMoney(fee, sourceCurrency) },
+        { label: t("transfers.totalDebit"), value: formatMoney(totalDebit, sourceCurrency) },
+      ],
+      status: "PROCESSING",
+      providerWait: true,
+    });
+
     const result = await executeTransfer({
       recipientName: recipientName || "Verified Recipient",
       recipientBank: selectedBank?.name || "Commercial Bank",
@@ -133,10 +152,20 @@ export default function SendMoneyPage() {
     setIsExecuting(false);
 
     if (result.success && result.transaction) {
-      setCompletedTx(result.transaction);
-      setStep(3);
+      // Reflect the terminal state from the backend, then close and show receipt.
+      updateTransactionStatus("SUCCESSFUL");
+      setTimeout(() => {
+        endTransaction();
+        setCompletedTx(result.transaction!);
+        setStep(3);
+      }, 900);
     } else {
-      setExecutionError(result.error || "Transfer failed. Please try again.");
+      // Never claim success: reflect FAILED from the authoritative result.
+      updateTransactionStatus("FAILED");
+      setTimeout(() => {
+        endTransaction();
+        setExecutionError(result.error || "Transfer failed. Please try again.");
+      }, 900);
     }
   };
 
