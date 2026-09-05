@@ -721,7 +721,10 @@ export const ha = {
     billPaymentSuccess: "An Biyan Kuɗin Cikin Nasara!",
     billPaymentSuccessDesc:
       "An tura biyan kuɗin {{amount}} zuwa {{provider}} cikin aminci.",
-  },
+      prepaidToken: "Alamar da Aka Biya",
+    payAnother: "Biyan Wata Lissafi",
+    payBillBtn2: "Biyan Lissafi",
+},
   cards: {
     title: "Katukan Banki",
     subtitle: "Sarrafa katukan Visa da Mastercard na yanar gizo da na zahiri.",
@@ -737,7 +740,11 @@ export const ha = {
     internationalUsage: "Amfani a Kasashen Waje",
     cardStatusActive: "Yana Aiki da Kariya",
     cardStatusFrozen: "Katin na Daskare",
-  },
+      cardsNew: "Sabon Kata",
+    cardholder: "Mai Katin",
+    expires: "Bayan Karewa",
+    frozenLabel: "An Daskare",
+},
   fx: {
     title: "Sauya Kuɗin Kasashen Waje (FX)",
     subtitle:
@@ -751,7 +758,12 @@ export const ha = {
     instantSwapBtn: "Sauya Kuɗi Nan Take",
     swapSuccess: "An Sauya Kuɗi Cikin Nasara!",
     swapSuccessDesc: "An yi nasarar sauya {{fromAmount}} zuwa {{toAmount}}.",
-  },
+      rateExpiresIn: "Farashin zai ƙare nan da {secs}s",
+    estimated: "An Ƙiyasta",
+    spreadProvider: "Mai Samar da Spread",
+    executeAnother: "Yi Wani Canji",
+    source: "Tushen",
+},
   transactions: {
     title: "Tarihin Ma'amaloli",
     subtitle:
@@ -987,6 +999,19 @@ export const ha = {
     emailReceiptsDesc: "Manun PDF akan canja wurin kuɗi",
     fxAlerts: "Canjin Canjin Kuɗi na Sahel",
     fxAlertsDesc: "Faɗakarwa don kari mai kyau na NGN ⇄ XOF",
+  },
+  beneficiaries: {
+    subtitle: "Sarrafa asusun banki da aka adana don canja wurin nan take.",
+    addRecipient: "Ƙara Mai Riba",
+    searchPlaceholder: "Nemo masu karɓar da aka adana...",
+    send: "Aika",
+    deleteTitle: "Share mai karɓa",
+    addNewTitle: "Ƙara Sabon Mai Karɓa",
+    destinationCountry: "Ƙasar da Aka Nufa",
+    bankName: "Sunan Banki",
+    accountNumber: "Lambar Asusu",
+    recipientName: "Cikakken Sunan Mai Karɓa",
+    saveBeneficiary: "Ajiye Mai Karɓa",
   },
 },
 

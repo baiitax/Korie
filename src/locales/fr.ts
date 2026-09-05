@@ -734,7 +734,10 @@ export const fr = {
     billPaymentSuccess: "Paiement Réussi !",
     billPaymentSuccessDesc:
       "Votre paiement de {{amount}} à {{provider}} a été traité avec succès.",
-  },
+      prepaidToken: "Jeton Prépayé",
+    payAnother: "Payer une Autre Facture",
+    payBillBtn2: "Payer la Facture",
+},
   cards: {
     title: "Cartes Virtuelles & Physiques",
     subtitle:
@@ -751,7 +754,11 @@ export const fr = {
     internationalUsage: "Utilisation Internationale",
     cardStatusActive: "Active & Sécurisée",
     cardStatusFrozen: "Carte Bloquée",
-  },
+      cardsNew: "Nouvelle Carte",
+    cardholder: "Titulaire",
+    expires: "Expire",
+    frozenLabel: "Gelée",
+},
   fx: {
     title: "Centre de Change (FX)",
     subtitle:
@@ -765,7 +772,12 @@ export const fr = {
     instantSwapBtn: "Exécuter le Change",
     swapSuccess: "Change Effectué avec Succès !",
     swapSuccessDesc: "Vous avez échangé {{fromAmount}} contre {{toAmount}}.",
-  },
+      rateExpiresIn: "Le taux expire dans {secs}s",
+    estimated: "Estimé",
+    spreadProvider: "Fournisseur de Spread",
+    executeAnother: "Exécuter un Autre Échange",
+    source: "Source",
+},
   transactions: {
     title: "Historique des Transactions",
     subtitle:
@@ -1002,6 +1014,19 @@ export const fr = {
     emailReceiptsDesc: "Pièce jointe PDF sur les transferts",
     fxAlerts: "Mouvements des Taux de Change Sahel",
     fxAlertsDesc: "Alertes pour les spreads favorables NGN ⇄ XOF",
+  },
+  beneficiaries: {
+    subtitle: "Gérez les comptes bancaires enregistrés pour des virements instantanés en un clic.",
+    addRecipient: "Ajouter un Bénéficiaire",
+    searchPlaceholder: "Rechercher des bénéficiaires...",
+    send: "Envoyer",
+    deleteTitle: "Supprimer le bénéficiaire",
+    addNewTitle: "Ajouter un Nouveau Bénéficiaire",
+    destinationCountry: "Pays de Destination",
+    bankName: "Nom de la Banque",
+    accountNumber: "Numéro de Compte",
+    recipientName: "Nom Complet du Bénéficiaire",
+    saveBeneficiary: "Enregistrer le Bénéficiaire",
   },
 },
 

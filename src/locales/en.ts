@@ -723,7 +723,10 @@ export const en = {
     billPaymentSuccess: "Payment Successful!",
     billPaymentSuccessDesc:
       "Your payment of {{amount}} to {{provider}} has been delivered.",
-  },
+      prepaidToken: "Prepaid Token",
+    payAnother: "Pay Another Bill",
+    payBillBtn2: "Pay Bill",
+},
   cards: {
     title: "Virtual & Physical Cards",
     subtitle:
@@ -740,7 +743,11 @@ export const en = {
     internationalUsage: "International Cross-Border Usage",
     cardStatusActive: "Active & Secured",
     cardStatusFrozen: "Card Frozen",
-  },
+      cardsNew: "New Card",
+    cardholder: "Cardholder",
+    expires: "Expires",
+    frozenLabel: "Frozen",
+},
   fx: {
     title: "Foreign Exchange Center",
     subtitle:
@@ -754,7 +761,12 @@ export const en = {
     instantSwapBtn: "Execute Currency Swap",
     swapSuccess: "FX Swap Completed!",
     swapSuccessDesc: "Successfully swapped {{fromAmount}} to {{toAmount}}.",
-  },
+      rateExpiresIn: "Rate expires in {secs}s",
+    estimated: "Estimated",
+    spreadProvider: "Spread Provider",
+    executeAnother: "Execute Another Swap",
+    source: "Source",
+},
   transactions: {
     title: "Transaction Activity",
     subtitle:
@@ -989,6 +1001,19 @@ export const en = {
     emailReceiptsDesc: "PDF receipt attachment on transfers",
     fxAlerts: "Sahel FX Rate Movements",
     fxAlertsDesc: "Alerts for NGN ⇄ XOF favorable spreads",
+  },
+  beneficiaries: {
+    subtitle: "Manage saved bank accounts for 1-tap instant transfers.",
+    addRecipient: "Add Recipient",
+    searchPlaceholder: "Search saved recipients...",
+    send: "Send",
+    deleteTitle: "Delete beneficiary",
+    addNewTitle: "Add New Beneficiary",
+    destinationCountry: "Destination Country",
+    bankName: "Bank Name",
+    accountNumber: "Account Number",
+    recipientName: "Recipient Full Name",
+    saveBeneficiary: "Save Beneficiary",
   },
 },
 
