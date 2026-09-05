@@ -30,6 +30,7 @@ export default function SendMoneyPage() {
     executeTransfer,
     openReceipt,
     t,
+    fxRates,
   } = useCustomer();
   const { beginTransaction, updateTransactionStatus, endTransaction } = useLoading();
 
@@ -54,10 +55,18 @@ export default function SendMoneyPage() {
   );
   const selectedBank = availableBanks.find((b) => b.code === selectedBankCode) || availableBanks[0];
 
-  const fxQuote = getFXRate("NGN", "XOF");
+  // Cross-border quote uses the engine's real execution rate (single source of
+  // truth) so the recipient amount shown matches what the transfer engine will
+  // apply; fall back to the catalog only if the engine rate is unavailable.
+  const engineNgnXof = fxRates.find((r) => r.fromCurrency === "NGN" && r.toCurrency === "XOF");
+  const fxQuote = engineNgnXof
+    ? { ...engineNgnXof, midRate: engineNgnXof.rate, buyRate: engineNgnXof.rate, sellRate: engineNgnXof.rate }
+    : getFXRate("NGN", "XOF");
   const parsedAmount = parseFloat(amount) || 0;
   const isCrossBorder = rail === "CROSS_BORDER";
-  const fee = isCrossBorder ? 1250 : sourceCurrency === "NGN" ? 50 : 25;
+  // Cross-border fee = 0.5% (the amount the transfer engine applies); NIP NGN =
+  // flat ₦50; XOF = flat CFA 25.
+  const fee = isCrossBorder ? parsedAmount * 0.005 : sourceCurrency === "NGN" ? 50 : 25;
   const totalDebit = parsedAmount + fee;
   const convertedDestinationAmount = isCrossBorder && fxQuote ? parsedAmount * fxQuote.midRate : 0;
 

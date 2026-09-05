@@ -7,6 +7,7 @@ import { buildReceiptData, TransactionReceiptData } from "@/lib/receipt";
 import { translateNamespace } from "@/locales";
 import ReceiptDocument from "./ReceiptDocument";
 import { downloadReceiptPng, downloadReceiptPdf } from "@/lib/captureReceipt";
+import { portalFetch } from "@/lib/customerPortalClient";
 import {
   X,
   Share2,
@@ -31,6 +32,9 @@ export const TransactionReceiptModal: React.FC = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [labels, setLabels] = useState<Record<string, string>>({});
   const [receiptData, setReceiptData] = useState<TransactionReceiptData | null>(null);
+  // "server" when the receipt came from the verified receipt API; "local" when
+  // the UI fell back to building it from the session transaction (offline/static).
+  const [receiptSource, setReceiptSource] = useState<"server" | "local">("local");
 
   const labelMap = (key: string) => labels[key] ?? key;
 
@@ -82,7 +86,36 @@ export const TransactionReceiptModal: React.FC = () => {
 
   useEffect(() => {
     if (isReceiptModalOpen && tx) {
-      setReceiptData(buildReceiptData(tx));
+      // Consume the verified receipt API first; the server is the authoritative
+      // source for amounts/fees/status/provider refs. Fall back to building the
+      // receipt from the session transaction only if the API is unreachable.
+      let cancelled = false;
+      const txId = tx.id || tx.reference;
+      const local = buildReceiptData(tx);
+      setReceiptSource("local");
+      setReceiptData(local);
+
+      (async () => {
+        try {
+          const res = await portalFetch(`/api/customer/receipts/${txId}`);
+          if (res.ok) {
+            const json = await res.json();
+            const serverReceipt = json?.data?.receipt;
+            if (serverReceipt && !cancelled) {
+              // The server returns the receipt already built from the
+              // authoritative transaction record — use it verbatim.
+              setReceiptData(serverReceipt as TransactionReceiptData);
+              setReceiptSource("server");
+            }
+          }
+        } catch {
+          /* keep local fallback */
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+      };
     }
   }, [isReceiptModalOpen, tx]);
 
@@ -96,6 +129,15 @@ export const TransactionReceiptModal: React.FC = () => {
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--foreground-muted)]">
               {labelMap("receipt.receiptDocumentType")} · {tx.reference}
+            </span>
+            <span
+              className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
+                receiptSource === "server"
+                  ? "bg-[var(--brand-soft)] text-[var(--brand-primary)]"
+                  : "bg-[var(--surface-elevated)] text-[var(--foreground-muted)]"
+              }`}
+            >
+              {receiptSource === "server" ? "Verified" : "Preview"}
             </span>
           </div>
           <button

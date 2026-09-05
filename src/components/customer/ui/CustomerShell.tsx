@@ -86,7 +86,7 @@ export const CustomerShell: React.FC<{ children: React.ReactNode }> = ({ childre
             </div>
 
             {/* Quick Balance Preview Card */}
-            <div className="p-3 mx-3 my-3 rounded-2xl bg-[var(--surface-2)] border border-[var(--border)] space-y-1">
+            <div className="p-3 mx-3 my-3 rounded-2xl bg-[var(--surface-elevated)] border border-[var(--border)] space-y-1">
               <div className="text-[10px] font-mono text-[var(--foreground-muted)] uppercase">
                 {t("dashboard.availableBalance")}
               </div>
@@ -110,7 +110,7 @@ export const CustomerShell: React.FC<{ children: React.ReactNode }> = ({ childre
                     className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
                       active
                         ? "bg-[var(--brand-soft)] text-[var(--brand-primary)] font-bold"
-                        : "text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-3)]"
+                        : "text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-elevated)]"
                     }`}
                   >
                     <div className="flex items-center gap-2.5">
@@ -139,7 +139,7 @@ export const CustomerShell: React.FC<{ children: React.ReactNode }> = ({ childre
                     className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
                       active
                         ? "bg-[var(--brand-soft)] text-[var(--brand-primary)] font-bold"
-                        : "text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-3)]"
+                        : "text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-elevated)]"
                     }`}
                   >
                     <div className="flex items-center gap-2.5">
@@ -154,7 +154,7 @@ export const CustomerShell: React.FC<{ children: React.ReactNode }> = ({ childre
           </div>
 
           {/* Desktop User Footer */}
-          <div className="p-3 border-t border-[var(--border)] bg-[var(--surface-2)]">
+          <div className="p-3 border-t border-[var(--border)] bg-[var(--surface-elevated)]">
             <Link
               href="/customer/profile"
               className="flex items-center justify-between p-2 rounded-xl bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--brand-border)] transition-all"
@@ -193,47 +193,51 @@ export const CustomerShell: React.FC<{ children: React.ReactNode }> = ({ childre
 
             {/* Right Controls */}
             <div className="flex items-center gap-2 sm:gap-3">
-              {/* Country / Currency badge */}
-              <div className="px-2 py-1 rounded-xl bg-[var(--surface)] border border-[var(--border)] text-xs font-mono font-semibold text-[var(--foreground-muted)] flex items-center gap-1.5">
-                <span>{customer.country === "NG" ? "🇳🇬 NGN" : "🇳🇪 XOF"}</span>
+              {/* Desktop-only cluster (hidden on phone): country badge, balance
+                  visibility, language, notifications, avatar */}
+              <div className="hidden lg:flex items-center gap-2 sm:gap-3">
+                {/* Country / Currency badge */}
+                <div className="px-2 py-1 rounded-xl bg-[var(--surface)] border border-[var(--border)] text-xs font-mono font-semibold text-[var(--foreground-muted)] flex items-center gap-1.5">
+                  <span>{customer.country === "NG" ? "🇳🇬 NGN" : "🇳🇪 XOF"}</span>
+                </div>
+
+                {/* Hide / Show Balance (persistent) */}
+                <button
+                  onClick={toggleHideBalance}
+                  className="p-2 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors"
+                  title={isBalanceHidden ? t("customer.accounts.showBalance") : t("customer.accounts.hideBalance")}
+                  aria-label={isBalanceHidden ? t("customer.accounts.showBalance") : t("customer.accounts.hideBalance")}
+                >
+                  {isBalanceHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                </button>
+
+                {/* Language Switcher */}
+                <LanguageSelector />
+
+                {/* Notifications Bell */}
+                <Link
+                  href="/customer/settings"
+                  className="relative p-2 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors"
+                  title="Notifications"
+                >
+                  <Bell className="w-4 h-4" />
+                  {notificationsCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[var(--brand-primary)] text-white font-bold font-mono text-[9px] flex items-center justify-center">
+                      {notificationsCount}
+                    </span>
+                  )}
+                </Link>
+
+                {/* User Avatar */}
+                <Link
+                  href="/customer/profile"
+                  className="w-8 h-8 rounded-xl bg-gradient-to-tr from-teal-600 to-teal-500 text-white flex items-center justify-center text-xs font-extrabold shadow-md shadow-[var(--brand-soft-strong)]"
+                >
+                  {customer.firstName[0]}
+                </Link>
               </div>
 
-              {/* Hide / Show Balance (persistent) */}
-              <button
-                onClick={toggleHideBalance}
-                className="p-2 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-3)] border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors"
-                title={isBalanceHidden ? t("customer.accounts.showBalance") : t("customer.accounts.hideBalance")}
-                aria-label={isBalanceHidden ? t("customer.accounts.showBalance") : t("customer.accounts.hideBalance")}
-              >
-                {isBalanceHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-              </button>
-
-              {/* Language Switcher */}
-              <LanguageSelector />
-
-              {/* Notifications Bell */}
-              <Link
-                href="/customer/settings"
-                className="relative p-2 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-3)] border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors"
-                title={t("customer.shell.language") === "Language" ? "Notifications" : "Notifications"}
-              >
-                <Bell className="w-4 h-4" />
-                {notificationsCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[var(--brand-primary)] text-white font-bold font-mono text-[9px] flex items-center justify-center">
-                    {notificationsCount}
-                  </span>
-                )}
-              </Link>
-
-              {/* User Avatar */}
-              <Link
-                href="/customer/profile"
-                className="w-8 h-8 rounded-xl bg-gradient-to-tr from-teal-600 to-teal-500 text-white flex items-center justify-center text-xs font-extrabold shadow-md shadow-[var(--brand-soft-strong)]"
-              >
-                {customer.firstName[0]}
-              </Link>
-
-              {/* Day/Night + Sign out */}
+              {/* Day/Night + Sign out — collapses to Logout-only on phone */}
               <ShellAccount />
             </div>
           </header>
@@ -264,7 +268,7 @@ export const CustomerShell: React.FC<{ children: React.ReactNode }> = ({ childre
               className={`flex flex-col items-center justify-center gap-1 px-3 min-w-[58px] min-h-[52px] rounded-2xl transition-all ${
                 active
                   ? "bg-[var(--brand-soft)]"
-                  : "hover:bg-[var(--surface-3)]"
+                  : "hover:bg-[var(--surface-elevated)]"
               }`}
               aria-current={active ? "page" : undefined}
             >

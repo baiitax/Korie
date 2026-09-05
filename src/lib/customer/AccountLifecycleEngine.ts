@@ -47,6 +47,30 @@ export class AccountLifecycleEngine {
         updatedAt: '2026-09-03T12:00:00Z',
       },
       {
+        // Same premium Nigerian customer holds a separate cross-border XOF
+        // wallet (second currency, first-class) — the product supports
+        // multi-currency portfolios per customer. Balance is the authoritative
+        // subledger value (Synced in getAccounts).
+        id: 'acc-ng-02',
+        accountNumber: 'NE5400240100987654321',
+        accountName: 'Ibrahim Bello Cross-Border XOF',
+        customerId: 'cust-ng-001-ibrahim',
+        productId: 'prod-ne-sahel-01',
+        productCode: 'KORIE_WALLET_XOF_STANDARD',
+        currency: 'XOF',
+        country: 'NE',
+        status: 'OPEN',
+        assignedBankName: 'Koris Bank Niger SA',
+        assignedBankCode: 'NE024',
+        isPrimary: false,
+        availableBalance: 1850000.0,
+        ledgerBalance: 1850000.0,
+        heldBalance: 0.0,
+        openedAt: '2026-08-05T10:30:00Z',
+        createdAt: '2026-08-05T10:30:00Z',
+        updatedAt: '2026-09-03T11:30:00Z',
+      },
+      {
         id: 'acc-ne-01',
         accountNumber: 'NE5400240100123456789012',
         accountName: 'Amara Diallo Sahel XOF',

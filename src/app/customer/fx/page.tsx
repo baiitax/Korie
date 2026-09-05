@@ -3,14 +3,15 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useCustomer } from "@/components/customer/CustomerContext";
-import { FX_RATES, formatMoney } from "@/services/customerDataService";
+import { FX_RATES } from "@/services/customerDataService";
+import { formatMoney } from "@/lib/money";
 import { CustomerCurrency } from "@/types/customer";
 import { ArrowLeft, Repeat2, Clock, ShieldCheck, CheckCircle2, Zap } from "lucide-react";
 
 export default function CustomerFxPage() {
-  const { t } = useCustomer();
-  const [fromCurrency, setFromCurrency] = useState<CustomerCurrency>("USD");
-  const [toCurrency, setToCurrency] = useState<CustomerCurrency>("NGN");
+  const { t, fxRates } = useCustomer();
+  const [fromCurrency, setFromCurrency] = useState<CustomerCurrency>("NGN");
+  const [toCurrency, setToCurrency] = useState<CustomerCurrency>("XOF");
   const [fromAmount, setFromAmount] = useState<string>("500");
   const [countdown, setCountdown] = useState<number>(60);
   const [swappedResult, setSwappedResult] = useState<{ from: string; to: string } | null>(null);
@@ -20,12 +21,19 @@ export default function CustomerFxPage() {
     return () => clearInterval(timer);
   }, []);
 
-  const currentQuote =
+  // Prefer the engine's real execution rate (single source of truth); fall back
+  // to the catalog quote only for pairs the engine does not serve (e.g. USD).
+  const engineQuote = fxRates.find((r) => r.fromCurrency === fromCurrency && r.toCurrency === toCurrency);
+  const catalogQuote =
     FX_RATES.find((r) => r.fromCurrency === fromCurrency && r.toCurrency === toCurrency) || FX_RATES[0];
+  const currentQuote = engineQuote
+    ? { ...engineQuote, midRate: engineQuote.rate, buyRate: engineQuote.rate, sellRate: engineQuote.rate, spreadPercent: 0 }
+    : catalogQuote;
 
   const parsedFromAmount = parseFloat(fromAmount) || 0;
   const rate = currentQuote.midRate;
-  const fee = parsedFromAmount * 0.005; // 0.5% (illustrative in this sandbox build)
+  // 0.5% cross-border fee matches the amount the transfer engine applies.
+  const fee = parsedFromAmount * 0.005;
   const estimatedToAmount = parsedFromAmount * rate;
 
   const handleSwapCurrencies = () => {

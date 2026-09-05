@@ -52,6 +52,22 @@ export class SubledgerEngine {
         updatedAt: '2026-09-03T12:00:00Z',
       },
       {
+        // Cross-border XOF wallet for the premium Nigerian customer (mirrors
+        // the account seed acc-ng-02). Authoritative balance for the XOF vault.
+        id: 'sub-cust-03',
+        subledgerType: 'CUSTOMER_WALLET',
+        entityId: 'cust-ng-001-ibrahim',
+        accountCode: '2020',
+        currency: 'XOF',
+        country: 'NE',
+        currentBalance: 1850000.0,
+        heldBalance: 0.0,
+        availableBalance: 1850000.0,
+        isActive: true,
+        createdAt: '2026-08-05T00:00:00Z',
+        updatedAt: '2026-09-03T12:00:00Z',
+      },
+      {
         id: 'sub-merch-01',
         subledgerType: 'MERCHANT_PAYABLE',
         entityId: 'merch-ng-001-jumia-hub',

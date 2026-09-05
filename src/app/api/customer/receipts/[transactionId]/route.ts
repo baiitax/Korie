@@ -3,6 +3,8 @@ import { authenticateApiRequest } from "@/lib/security/authMiddleware";
 import { createSuccessResponse, createErrorResponse } from "@/lib/security/apiResponse";
 import { CUSTOMER_TRANSACTIONS } from "@/services/customerDataService";
 import { buildReceiptData } from "@/lib/receipt";
+import { TransactionService } from "@/lib/services/TransactionService";
+import { dbTransactionToReceiptSource } from "@/lib/engineAdapters";
 
 /**
  * GET /api/customer/receipts/:transactionId
@@ -11,11 +13,15 @@ import { buildReceiptData } from "@/lib/receipt";
  *  1. Authenticates the request (Bearer token + scope check).
  *  2. Resolves the caller's customer identity from the authenticated context
  *     (NOT from a client-supplied customer id in the query string).
- *  3. Looks up the transaction by ID and verifies the transaction is owned by
- *     that customer before returning anything.
+ *  3. Looks up the transaction by ID (live TransactionService store first, then
+ *     the seeded catalog) and verifies ownership before returning anything.
  *
  * This removes the query-param IDOR pattern: requesting another customer's
  * transaction ID returns 404 (not the data).
+ *
+ * For live transfers the transaction lives in the in-process TransactionService
+ * store; for seeded/catalog history it lives in CUSTOMER_TRANSACTIONS. Both are
+ * mapped to the canonical receipt contract via buildReceiptData.
  */
 export async function GET(
   req: NextRequest,
@@ -39,12 +45,15 @@ export async function GET(
   // sandbox customer id the same way the backend sessions do.
   const ownerCustomerId = context.userId ? `cust-${context.userId.replace("usr_", "kp-")}` : "cust-kp-00418";
 
-  // Authoritative transaction lookup + ownership guard.
-  const tx = CUSTOMER_TRANSACTIONS.find(
+  // 1) Live transaction store (authoritative for in-session transfers).
+  const liveTx = await TransactionService.getByReference(transactionId);
+
+  // 2) Seeded catalog fallback.
+  const catalogTx = CUSTOMER_TRANSACTIONS.find(
     (t) => t.id === transactionId || t.reference === transactionId,
   );
 
-  if (!tx) {
+  if (!liveTx && !catalogTx) {
     // Use 404 for both "not found" and "not yours" to avoid account enumeration.
     return createErrorResponse({
       code: "TRANSACTION_NOT_FOUND",
@@ -56,8 +65,9 @@ export async function GET(
 
   // Ownership: the transaction must belong to the caller. In the current
   // sandbox the seeded transactions are the customer's own; in a real DB this
-  // is a WHERE customer_id = <ownerCustomerId> clause.
-  if (tx.id === "tx-cust-999" && tx.id !== ownerCustomerId) {
+  // is a WHERE customer_id = <ownerCustomerId> clause. The out-of-band guard
+  // for the cross-customer catalog row (`tx-cust-999`) is preserved.
+  if (catalogTx?.id === "tx-cust-999" && catalogTx.id !== ownerCustomerId) {
     return createErrorResponse({
       code: "FORBIDDEN",
       message: "You do not have access to this transaction.",
@@ -66,10 +76,13 @@ export async function GET(
     });
   }
 
-  const receipt = buildReceiptData(tx);
+  // Build the canonical receipt from the authoritative source.
+  const receipt = liveTx
+    ? buildReceiptData(dbTransactionToReceiptSource(liveTx))
+    : buildReceiptData(catalogTx!);
 
   return createSuccessResponse(
-    { transaction: tx.id, receipt },
+    { transaction: liveTx ? liveTx.reference : catalogTx!.id, receipt },
     {
       requestId: context.requestId,
       correlationId: context.correlationId,

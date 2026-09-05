@@ -12,6 +12,11 @@ import { Eye, EyeOff, Copy, Check } from "lucide-react";
  * light-first and token-driven. Presents the account as a distinct NGN / XOF /
  * USD vault with a virtual tag, account holder, and available balance.
  *
+ * Responsive: the bank info (virtual tag, account number) and the available
+ * balance scale fluidly to the card width via clamp() so the card never
+ * overflows or "shakes" on narrow (320px) phones; the holder + balance row
+ * stacks on small screens instead of colliding.
+ *
  * Only exposes data the backing account actually provides.
  */
 export const VaultCard: React.FC<{ wallet: CustomerWallet; className?: string }> = ({
@@ -44,7 +49,7 @@ export const VaultCard: React.FC<{ wallet: CustomerWallet; className?: string }>
 
   return (
     <div
-      className={`relative flex flex-col justify-between overflow-hidden rounded-3xl p-6 sm:p-7 text-white shadow-[var(--shadow-lg)] ${className}`}
+      className={`relative flex flex-col justify-between overflow-hidden rounded-3xl p-5 sm:p-6 md:p-7 text-white shadow-[var(--shadow-lg)] ${className}`}
       style={{ background: gradient }}
     >
       {/* soft brand glow */}
@@ -52,44 +57,47 @@ export const VaultCard: React.FC<{ wallet: CustomerWallet; className?: string }>
       <div className="pointer-events-none absolute -bottom-20 -left-12 h-44 w-44 rounded-full bg-white/5 blur-3xl" />
 
       {/* Top: monogram + vault label + PRIMARY */}
-      <div className="relative z-10 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15 backdrop-blur text-sm font-extrabold">
+      <div className="relative z-10 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-xl bg-white/15 backdrop-blur text-sm font-extrabold">
             K
           </div>
-          <div className="text-xs font-bold uppercase tracking-wider text-white/90">
+          <div className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-white/90 truncate">
             {wallet.currency} {t("customer.accounts.title")}
           </div>
         </div>
         {isPrimary && (
-          <span className="rounded-full border border-white/30 bg-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider">
+          <span className="shrink-0 rounded-full border border-white/30 bg-white/10 px-2.5 py-1 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider">
             {t("customer.vault.primary")}
           </span>
         )}
       </div>
 
       {/* Virtual account / tag */}
-      <div className="relative z-10 mt-8">
+      <div className="relative z-10 mt-6 sm:mt-8">
         <div className="text-[10px] font-mono uppercase tracking-widest text-white/60">
           {t("customer.vault.virtualTag")}
         </div>
-        <div className="mt-2 flex items-center gap-3">
-          <span className="text-2xl sm:text-3xl font-extrabold tracking-[0.18em] font-mono">
+        <div className="mt-2 flex items-center gap-2 min-w-0">
+          <span
+            className="whitespace-nowrap font-extrabold font-mono text-white"
+            style={{ fontSize: "clamp(1rem, 4.4vw, 1.6rem)", letterSpacing: "clamp(0.04em, 0.4vw, 0.16em)" }}
+          >
             {wallet.accountNumber.replace(/(.{3})/g, "$1 ").trim()}
           </span>
           <button
             onClick={handleCopy}
-            className="rounded-lg p-1.5 text-white/70 transition-colors hover:bg-white/15 hover:text-white"
+            className="shrink-0 rounded-lg p-1.5 text-white/70 transition-colors hover:bg-white/15 hover:text-white"
             aria-label={t("customer.accounts.copyNumber")}
             title={t("customer.accounts.copyNumber")}
           >
-            {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            {copied ? <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <Copy className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
           </button>
         </div>
       </div>
 
-      {/* Account holder + available balance */}
-      <div className="relative z-10 mt-8 flex items-end justify-between gap-4">
+      {/* Account holder + available balance — stacks on narrow screens */}
+      <div className="relative z-10 mt-6 sm:mt-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           <div className="text-[10px] font-mono uppercase tracking-widest text-white/60">
             {t("customer.vault.accountHolder")}
@@ -97,8 +105,8 @@ export const VaultCard: React.FC<{ wallet: CustomerWallet; className?: string }>
           <div className="mt-1 truncate text-sm font-bold text-white/90">{wallet.accountName}</div>
         </div>
 
-        <div className="text-right shrink-0">
-          <div className="flex items-center justify-end gap-2">
+        <div className="shrink-0 text-left sm:text-right">
+          <div className="flex items-center justify-start sm:justify-end gap-2">
             <div className="text-[10px] font-mono uppercase tracking-widest text-white/60">
               {t("customer.vault.available")}
             </div>
@@ -110,7 +118,10 @@ export const VaultCard: React.FC<{ wallet: CustomerWallet; className?: string }>
               {isBalanceHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
             </button>
           </div>
-          <div className="mt-1 text-xl sm:text-2xl font-extrabold font-mono tabular text-white">
+          <div
+            className="mt-1 whitespace-nowrap font-extrabold font-mono tabular text-white"
+            style={{ fontSize: "clamp(1rem, 4.8vw, 1.5rem)" }}
+          >
             {isBalanceHidden ? "••••••••" : formatMoney(wallet.availableBalance, wallet.currency)}
           </div>
         </div>

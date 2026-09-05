@@ -4,6 +4,36 @@ import { ProvidusBankAdapter, KorisBankAdapter } from './ProviderService';
 import { OutboxService } from './OutboxService';
 import { AuditService } from './AuditService';
 import { RequestContext } from '@/types/apiGateway';
+import { SubledgerEngine } from '../financial/SubledgerEngine';
+
+/**
+ * Debits the customer's per-currency wallet subledger (the authoritative
+ * balance the customer portal reads) so that a successful transfer is
+ * reflected in the customer's visible balance — not only in the aggregate GL
+ * rollup. Additive: skip when the source customer is unknown.
+ *
+ * UNIT NOTE: TransactionService/LedgerService amounts are expressed in MINOR
+ * units (kobo/cfa-centimes); the customer SubledgerEngine balances are stored
+ * as WHOLE currency units (e.g. 1,250,000 NGN). We convert here so the debit
+ * lands in the subledger's own unit.
+ */
+function debitCustomerSubledger(params: {
+  customerId: string;
+  currency: string;
+  amountMinorUnits: number;
+  narration: string;
+}): void {
+  const subledgerEngine = SubledgerEngine.getInstance();
+  const isXof = params.currency === 'XOF';
+  subledgerEngine.mutateBalance({
+    subledgerType: 'CUSTOMER_WALLET',
+    entityId: params.customerId,
+    accountCode: isXof ? '2020' : '2010',
+    currency: params.currency,
+    country: isXof ? 'NE' : 'NG',
+    deltaAmount: -(params.amountMinorUnits / 100),
+  });
+}
 
 const transactionsStore = new Map<string, DbTransaction>();
 
@@ -25,6 +55,8 @@ export class TransactionService {
         phone?: string;
       };
       narration?: string;
+      /** Owner's customer id so the source wallet subledger can be debited. */
+      sourceCustomerId?: string;
     }
   ): Promise<DbTransaction> {
     if (params.amount < 100) {
@@ -110,7 +142,18 @@ export class TransactionService {
 
     transactionsStore.set(tx.reference, tx);
 
-    // 4. Publish Outbox Event
+    // 4. Debit the customer's source-currency wallet subledger (authoritative
+    //    customer balance) for the full source amount (amount + fee).
+    if (params.sourceCustomerId) {
+      debitCustomerSubledger({
+        customerId: params.sourceCustomerId,
+        currency: params.sourceCurrency,
+        amountMinorUnits: params.amount,
+        narration: `Cross-border debit ${params.sourceCurrency} ${params.reference}`,
+      });
+    }
+
+    // 5. Publish Outbox Event
     await OutboxService.publishEvent({
       orgId: context.orgId,
       eventName: 'transfer.successful',
@@ -125,7 +168,7 @@ export class TransactionService {
       },
     });
 
-    // 5. Append Audit Event
+    // 6. Append Audit Event
     await AuditService.log({
       orgId: context.orgId,
       actorId: context.userId || 'system',
@@ -155,6 +198,8 @@ export class TransactionService {
       amount: number;
       reference: string;
       narration?: string;
+      /** Owner's customer id so the source NGN wallet subledger can be debited. */
+      sourceCustomerId?: string;
     }
   ): Promise<DbTransaction> {
     const fee = 5000; // ₦50.00 minor units
@@ -228,6 +273,16 @@ export class TransactionService {
 
     transactionsStore.set(tx.reference, tx);
 
+    // Debit the customer's NGN wallet subledger (authoritative customer balance).
+    if (params.sourceCustomerId) {
+      debitCustomerSubledger({
+        customerId: params.sourceCustomerId,
+        currency: 'NGN',
+        amountMinorUnits: params.amount,
+        narration: `NIP debit ${params.reference}`,
+      });
+    }
+
     await OutboxService.publishEvent({
       orgId: context.orgId,
       eventName: 'transfer.successful',
@@ -249,5 +304,21 @@ export class TransactionService {
    */
   static async getByReference(reference: string): Promise<DbTransaction | null> {
     return transactionsStore.get(reference) || null;
+  }
+
+  /**
+   * Single source of truth for the cross-border execution rate. The UI quote
+   * must match the rate actually applied so the customer is never shown a
+   * different rate from the one executed. Mirrors executeCrossBorderTransfer.
+   */
+  static getCrossBorderRate(
+    sourceCurrency: 'NGN' | 'XOF',
+  ): { sourceCurrency: 'NGN' | 'XOF'; destinationCurrency: 'NGN' | 'XOF'; rate: number } {
+    const rate = sourceCurrency === 'NGN' ? 0.43 : 2.31;
+    return {
+      sourceCurrency,
+      destinationCurrency: sourceCurrency === 'NGN' ? 'XOF' : 'NGN',
+      rate,
+    };
   }
 }
