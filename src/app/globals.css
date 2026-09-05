@@ -1089,7 +1089,8 @@
   --kp-content-clearance: calc(var(--kp-nav-height) + var(--kp-nav-inset) + env(safe-area-inset-bottom, 0px) + 24px);
 }
 
-.kp-portal {
+.kp-portal,
+.kp-compliance {
   /* Neutral foundation */
   --background: #f7f9fb;
   --background-secondary: #eff3f9;
@@ -1158,7 +1159,8 @@
 
 /* Dark mode is designed, not inverted (§39): deep navy rather than black, an
    explicit elevation ladder, and the gold/orange turned DOWN rather than up. */
-.dark .kp-portal {
+.dark .kp-portal,
+.dark .kp-compliance {
   --background: #0b1220;
   --background-secondary: #0e1626;
   --surface: #111c2f;
@@ -1319,10 +1321,12 @@
    light-mode emerald — under AA for the sizes these captions use.
    So the vault declares its own ink: `!important` to answer the legacy rule, and
    a 92% floor to answer the arithmetic. Hierarchy comes from size and weight. */
-.kp-portal .kp-on-vault {
+.kp-portal .kp-on-vault,
+.kp-compliance .kp-on-vault {
   color: #ffffff !important;
 }
-.kp-portal .kp-on-vault-soft {
+.kp-portal .kp-on-vault-soft,
+.kp-compliance .kp-on-vault-soft {
   color: rgba(255, 255, 255, 0.92) !important;
 }
 
@@ -1347,4 +1351,693 @@
 /* Print keeps the receipt legible on paper regardless of theme. */
 @media print {
   .kp-nav, .kp-sheet, .kp-sheet-scrim { display: none !important; }
+}
+
+/* ==========================================================================
+   COMPLIANCE CONSOLE — .kp-compliance
+   The same palette as the customer portal (shared above), but a different
+   instrument: dense rows, a persistent rail, and severity that never relies on
+   colour alone. Light mode is the default; dark is designed, not inverted.
+   ========================================================================== */
+
+.kp-compliance {
+  --cmp-rail-width: 264px;
+  --cmp-header-height: 60px;
+  --cmp-radius: 14px;
+  --cmp-radius-sm: 10px;
+  --cmp-row-height: 46px;
+  --cmp-gap: 16px;
+
+  /* Severity inks — AA on both surfaces, paired with an icon + label in JSX. */
+  --sev-critical: #b42318;
+  --sev-critical-soft: rgba(180, 35, 24, 0.10);
+  --sev-critical-border: rgba(180, 35, 24, 0.28);
+  --sev-high: #a3490a;
+  --sev-high-soft: rgba(163, 73, 10, 0.10);
+  --sev-medium: #8a6d10;
+  --sev-medium-soft: rgba(138, 109, 16, 0.12);
+  --sev-low: #1d4ed8;
+  --sev-low-soft: rgba(29, 78, 216, 0.08);
+  --sev-clear: #15803d;
+  --sev-clear-soft: rgba(21, 128, 61, 0.10);
+
+  /* Above the sheet rung (50) because a drawer or palette can open over a
+     filter sheet, and below the toast (70) so feedback always lands on top. */
+  --z-drawer: 56;
+  --z-palette: 58;
+  --z-menu: 46;
+
+  color-scheme: light;
+}
+
+.dark .kp-compliance {
+  --sev-critical: #ffb4a8;
+  --sev-critical-soft: rgba(255, 122, 102, 0.16);
+  --sev-critical-border: rgba(255, 122, 102, 0.34);
+  --sev-high: #fba94f;
+  --sev-high-soft: rgba(251, 169, 79, 0.16);
+  --sev-medium: #f0cf6a;
+  --sev-medium-soft: rgba(240, 207, 106, 0.14);
+  --sev-low: #91b6ff;
+  --sev-low-soft: rgba(145, 182, 255, 0.14);
+  --sev-clear: #6ee7a8;
+  --sev-clear-soft: rgba(110, 231, 168, 0.14);
+  color-scheme: dark;
+}
+
+/* ── Page frame ─────────────────────────────────────────────────────────── */
+
+.cmp-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cmp-gap);
+  width: 100%;
+  max-width: 1440px;
+  margin-inline: auto;
+}
+
+.cmp-page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cmp-page-title {
+  font-size: 22px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--foreground);
+}
+
+.cmp-page-sub {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--foreground-muted);
+  max-width: 72ch;
+}
+
+.cmp-page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Cards ────────────────────────────────────────────────────────────────── */
+
+.cmp-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--cmp-radius);
+  box-shadow: var(--shadow-xs);
+}
+.cmp-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.cmp-card__title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--foreground);
+}
+.cmp-card__body {
+  padding: 14px;
+}
+.cmp-card--flush .cmp-card__body {
+  padding: 0;
+}
+
+/* ── Chips: colour + icon + text, never colour alone ─────────────────────── */
+
+.cmp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px 2px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--foreground-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+.cmp-chip svg {
+  width: 12px;
+  height: 12px;
+  flex: none;
+}
+.cmp-chip[data-tone='critical'] {
+  color: var(--sev-critical);
+  background: var(--sev-critical-soft);
+  border-color: var(--sev-critical-border);
+}
+.cmp-chip[data-tone='high'] {
+  color: var(--sev-high);
+  background: var(--sev-high-soft);
+  border-color: transparent;
+}
+.cmp-chip[data-tone='medium'] {
+  color: var(--sev-medium);
+  background: var(--sev-medium-soft);
+  border-color: transparent;
+}
+.cmp-chip[data-tone='low'] {
+  color: var(--sev-low);
+  background: var(--sev-low-soft);
+  border-color: transparent;
+}
+.cmp-chip[data-tone='clear'] {
+  color: var(--sev-clear);
+  background: var(--sev-clear-soft);
+  border-color: transparent;
+}
+
+/* Provenance markers. Demo is dashed on purpose: it should read as unfinished,
+   not as a quieter version of the real thing. */
+.cmp-prov {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px dashed var(--border-strong);
+  color: var(--foreground-muted);
+  background: transparent;
+}
+.cmp-prov[data-source='live'] {
+  border-style: solid;
+  border-color: var(--brand-border);
+  color: var(--brand-primary);
+  background: var(--brand-soft);
+}
+.cmp-prov[data-source='derived'] {
+  border-style: solid;
+  border-color: var(--border-strong);
+  color: var(--foreground-muted);
+  background: var(--surface-2);
+}
+.cmp-prov[data-source='demo'] {
+  border-color: var(--sev-medium);
+  color: var(--sev-medium);
+  background: var(--sev-medium-soft);
+}
+
+/* ── Buttons ──────────────────────────────────────────────────────────────── */
+
+.cmp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: var(--cmp-radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 650;
+  transition: background-color 140ms ease, border-color 140ms ease, transform 90ms ease;
+}
+.cmp-btn:hover:not([disabled]) {
+  background: var(--surface-2);
+}
+.cmp-btn:active:not([disabled]) {
+  transform: translateY(1px);
+}
+.cmp-btn[data-variant='primary'] {
+  background: var(--brand-primary);
+  border-color: transparent;
+  color: var(--brand-on-primary);
+}
+.cmp-btn[data-variant='primary']:hover:not([disabled]) {
+  background: var(--brand-primary-hover);
+}
+.cmp-btn[data-variant='danger'] {
+  color: var(--sev-critical);
+  border-color: var(--sev-critical-border);
+  background: var(--sev-critical-soft);
+}
+.cmp-btn[data-variant='ghost'] {
+  border-color: transparent;
+  background: transparent;
+  color: var(--foreground-muted);
+}
+.cmp-btn[data-variant='ghost']:hover:not([disabled]) {
+  background: var(--surface-2);
+  color: var(--foreground);
+}
+.cmp-btn[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.cmp-btn--icon {
+  min-width: 38px;
+  padding: 0 8px;
+}
+
+/* ── Tables ───────────────────────────────────────────────────────────────── */
+
+.cmp-tablewrap {
+  position: relative;
+  overflow: auto;
+  overscroll-behavior-x: contain;
+}
+.cmp-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+}
+.cmp-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface-2);
+  color: var(--foreground-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: left;
+  padding: 0;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.cmp-table thead th > button,
+.cmp-table thead th > span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 9px 12px;
+  background: transparent;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  text-align: left;
+}
+.cmp-table thead th > button:hover {
+  color: var(--foreground);
+}
+.cmp-table tbody td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+  height: var(--cmp-row-height);
+}
+.cmp-table tbody tr:hover {
+  background: var(--surface-2);
+}
+.cmp-table tbody tr[data-clickable='true'] {
+  cursor: pointer;
+}
+.cmp-table [data-align='end'] {
+  text-align: right;
+}
+.cmp-cell-strong {
+  color: var(--foreground);
+  font-weight: 650;
+}
+.cmp-cell-muted {
+  color: var(--foreground-muted);
+  font-size: 12px;
+}
+.cmp-ref {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  letter-spacing: -0.01em;
+  color: var(--foreground-muted);
+}
+
+/* ── KPI tiles ────────────────────────────────────────────────────────────── */
+
+.cmp-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--cmp-radius);
+  min-width: 0;
+}
+.cmp-kpi__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--foreground-muted);
+}
+.cmp-kpi__value {
+  font-size: 26px;
+  font-weight: 750;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+.cmp-kpi__note {
+  font-size: 12px;
+  color: var(--foreground-muted);
+}
+.cmp-kpi[data-tone='critical'] {
+  border-color: var(--sev-critical-border);
+  background: var(--sev-critical-soft);
+}
+.cmp-kpi[data-tone='critical'] .cmp-kpi__value,
+.cmp-kpi[data-tone='critical'] .cmp-kpi__label {
+  color: var(--sev-critical);
+}
+.cmp-kpi[data-tone='attention'] .cmp-kpi__value {
+  color: var(--sev-high);
+}
+
+/* ── Rails, header, nav ───────────────────────────────────────────────────── */
+
+.cmp-rail {
+  width: var(--cmp-rail-width);
+  flex: none;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px 10px calc(16px + env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.cmp-rail__group + .cmp-rail__group {
+  margin-top: 6px;
+}
+.cmp-rail__label {
+  padding: 0 10px 6px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.cmp-rail__link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  padding: 0 10px;
+  border-radius: var(--cmp-radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--foreground-muted);
+  transition: background-color 130ms ease, color 130ms ease;
+}
+.cmp-rail__link:hover {
+  background: var(--surface-2);
+  color: var(--foreground);
+}
+.cmp-rail__link[aria-current='page'] {
+  background: var(--brand-soft);
+  color: var(--brand-primary);
+  font-weight: 700;
+}
+.cmp-rail__link[aria-current='page']::before {
+  content: '';
+  position: absolute;
+  left: -10px;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--brand-primary);
+}
+.cmp-rail__link svg {
+  width: 17px;
+  height: 17px;
+  flex: none;
+}
+.cmp-rail__count {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  color: var(--foreground-muted);
+}
+.cmp-rail__count[data-tone='critical'] {
+  background: var(--sev-critical);
+  color: #fff;
+}
+.cmp-rail__soon {
+  margin-left: auto;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.cmp-header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-nav);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--cmp-header-height);
+  padding: 8px 12px;
+  background: var(--nav-bg);
+  -webkit-backdrop-filter: blur(var(--nav-blur));
+  backdrop-filter: blur(var(--nav-blur));
+  border-bottom: 1px solid var(--border);
+}
+
+/* Mobile operator nav: a deliberate bar, not a squeezed rail. */
+.cmp-mobile-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-nav);
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+  background: var(--nav-bg);
+  -webkit-backdrop-filter: blur(var(--nav-blur));
+  backdrop-filter: blur(var(--nav-blur));
+  border-top: 1px solid var(--border);
+}
+.cmp-mobile-nav__item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 48px;
+  border-radius: 12px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--foreground-muted);
+  position: relative;
+}
+.cmp-mobile-nav__item[aria-current='page'] {
+  color: var(--brand-primary);
+  background: var(--brand-soft);
+}
+.cmp-mobile-nav__item svg {
+  width: 19px;
+  height: 19px;
+}
+
+/* ── Overlays: palette, drawer, popover ──────────────────────────────────── */
+
+.cmp-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-scrim);
+  background: rgba(8, 14, 24, 0.42);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+.cmp-palette {
+  position: fixed;
+  left: 50%;
+  top: 8vh;
+  transform: translateX(-50%);
+  z-index: var(--z-palette);
+  width: min(680px, calc(100vw - 24px));
+  max-height: min(76vh, 620px);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 16px;
+  box-shadow: var(--shadow-xl);
+  overflow: hidden;
+}
+.cmp-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-drawer);
+  width: min(560px, 100vw);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-left: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-xl);
+  animation: cmpDrawerIn 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes cmpDrawerIn {
+  from { transform: translateX(18px); opacity: 0.7; }
+  to { transform: none; opacity: 1; }
+}
+.cmp-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: var(--z-menu);
+  min-width: 232px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+}
+.cmp-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 36px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+}
+.cmp-menu__item:hover {
+  background: var(--surface-2);
+}
+.cmp-menu__label {
+  padding: 8px 9px 4px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* A skeleton line is a shape, not decoration: it reserves the row height the
+   loaded content will need, so nothing jumps when the data lands. */
+.cmp-skeleton-line {
+  display: block;
+  width: 100%;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--surface-2) 0%, var(--surface-3) 50%, var(--surface-2) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+/* ── Detail tabs ──────────────────────────────────────────────────────────── */
+
+.cmp-tabs {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  padding-bottom: 1px;
+  border-bottom: 1px solid var(--border);
+  scrollbar-width: thin;
+}
+.cmp-tab {
+  flex: none;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--foreground-muted);
+  font-size: 13px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.cmp-tab:hover {
+  color: var(--foreground);
+}
+.cmp-tab[aria-selected='true'] {
+  color: var(--brand-primary);
+  border-bottom-color: var(--brand-primary);
+}
+
+/* ── Definition lists (detail views) ─────────────────────────────────────── */
+
+.cmp-dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px 16px;
+}
+.cmp-dl__term {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.cmp-dl__value {
+  margin-top: 2px;
+  font-size: 13.5px;
+  color: var(--foreground);
+  word-break: break-word;
+}
+
+@media (max-width: 1023.98px) {
+  .cmp-page-title {
+    font-size: 19px;
+  }
+  .cmp-table tbody td {
+    height: auto;
+    padding: 9px 10px;
+  }
+  .cmp-drawer {
+    top: auto;
+    left: 0;
+    width: 100vw;
+    max-height: 88vh;
+    border-left: 0;
+    border-top: 1px solid var(--border-strong);
+    border-radius: 18px 18px 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cmp-drawer { animation: none; }
+  .cmp-btn, .cmp-rail__link { transition: none; }
 }

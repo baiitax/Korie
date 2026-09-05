@@ -8,6 +8,12 @@ interface PortalFooterProps {
   portal: string;
   /** Optional custom additional links e.g. for technical portals. */
   links?: { label: string; href: string }[];
+  /**
+   * Overrides the default `/{portal}/support` target, for portals that do not
+   * host a support section of their own (compliance links to the shared
+   * `/support` console rather than to a path that would 404).
+   */
+  supportHref?: string;
   version?: string;
 }
 
@@ -22,12 +28,16 @@ interface PortalFooterProps {
 export const PortalFooter: React.FC<PortalFooterProps> = ({
   portal,
   links = [],
+  supportHref,
   version,
 }) => {
   const { t } = useLanguage();
 
   const defaultLinks = [
-    { label: t("public.footer.support") || "Support", href: `/${portal}/support` },
+    // `supportHref` exists because not every portal hosts its own support
+    // section; the compliance console links to the shared one instead of a
+    // path that would 404.
+    { label: t("public.footer.support") || "Support", href: supportHref ?? `/${portal}/support` },
     { label: "Security", href: "/security" },
     { label: "Privacy", href: "/privacy" },
     { label: "Terms", href: "/terms" },
