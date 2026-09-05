@@ -27,6 +27,57 @@ function getNestedValue(obj: Record<string, unknown>, path: string): string | un
   return typeof current === "string" ? current : undefined;
 }
 
+// Flatten a nested object namespace into a flat dot-notated record, e.g.
+// { receipt: { title: "x" } } -> { "receipt.title": "x" }.
+function flattenNamespace(
+  namespace: Record<string, unknown>,
+  prefix = "",
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(namespace)) {
+    const fullKey = prefix ? `${prefix}.${key}` : key;
+    if (value && typeof value === "object") {
+      Object.assign(out, flattenNamespace(value as Record<string, unknown>, fullKey));
+    } else if (typeof value === "string") {
+      out[fullKey] = value;
+    }
+  }
+  return out;
+}
+
+/**
+ * Resolve an entire i18n namespace (e.g. "receipt") to a flat label map, with
+ * English fallback for any missing keys. Useful for passing a batch of labels
+ * to a component that renders keys directly (e.g. the receipt renderer).
+ */
+export function translateNamespace(
+  lang: SupportedLanguage,
+  namespace: string,
+): Record<string, string> {
+  const dictionary = (translations[lang] || translations.en) as Record<string, unknown>;
+  const nsObj = getNestedValue(dictionary as unknown as Record<string, unknown>, namespace);
+  const flat =
+    nsObj && typeof nsObj === "object"
+      ? flattenNamespace(nsObj as unknown as Record<string, unknown>, namespace)
+      : {};
+
+  // English fallback for keys missing in the selected language.
+  if (lang !== "en") {
+    const enNsObj = getNestedValue(
+      (translations.en as Record<string, unknown>) as unknown as Record<string, unknown>,
+      namespace,
+    );
+    const enFlat =
+      enNsObj && typeof enNsObj === "object"
+        ? flattenNamespace(enNsObj as unknown as Record<string, unknown>, namespace)
+        : {};
+    for (const [key, value] of Object.entries(enFlat)) {
+      if (flat[key] === undefined) flat[key] = value;
+    }
+  }
+  return flat;
+}
+
 export function translate(
   lang: SupportedLanguage,
   key: string,
