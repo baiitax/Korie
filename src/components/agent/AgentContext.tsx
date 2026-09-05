@@ -10,6 +10,10 @@ import {
   AgentTerminalInfo,
   AgencyRiskAlert,
   AgentCurrency,
+  FloatTopUpRequest,
+  FloatTopUpMethod,
+  SubAgent,
+  FloatAllocationRecord,
 } from "@/types/agent";
 import { SupportedLanguage } from "@/types/customer";
 import {
@@ -20,6 +24,9 @@ import {
   DAILY_RECONCILIATIONS,
   ACTIVE_TERMINAL,
   AGENCY_ALERTS,
+  FLOAT_TOPUP_REQUESTS,
+  SUB_AGENTS,
+  FLOAT_ALLOCATIONS,
   calculateAgentCommission,
 } from "@/services/agentDataService";
 import { translateAgency } from "@/locales/agency";
@@ -98,6 +105,28 @@ interface AgentContextType {
     record?: DailyCashReconciliation;
   }>;
 
+  // Float Top-Up Requests
+  floatTopUpRequests: FloatTopUpRequest[];
+  submitFloatTopUpRequest: (params: {
+    amount: number;
+    method: FloatTopUpMethod;
+    proofReference?: string;
+  }) => Promise<{ success: boolean; request?: FloatTopUpRequest; error?: string }>;
+
+  // Sub-Agent / Team Management (SUPER_AGENT tier)
+  subAgents: SubAgent[];
+  floatAllocations: FloatAllocationRecord[];
+  allocateFloatToSubAgent: (params: {
+    subAgentId: string;
+    amount: number;
+    note?: string;
+  }) => Promise<{ success: boolean; error?: string }>;
+  reclaimFloatFromSubAgent: (params: {
+    subAgentId: string;
+    amount: number;
+    note?: string;
+  }) => Promise<{ success: boolean; error?: string }>;
+
   notificationsCount: number;
 }
 
@@ -117,6 +146,9 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   const [reconciliations, setReconciliations] = useState<DailyCashReconciliation[]>(DAILY_RECONCILIATIONS);
   const [isOffline, setIsOffline] = useState<boolean>(false);
   const [notificationsCount, setNotificationsCount] = useState<number>(2);
+  const [floatTopUpRequests, setFloatTopUpRequests] = useState<FloatTopUpRequest[]>(FLOAT_TOPUP_REQUESTS);
+  const [subAgents, setSubAgents] = useState<SubAgent[]>(SUB_AGENTS);
+  const [floatAllocations, setFloatAllocations] = useState<FloatAllocationRecord[]>(FLOAT_ALLOCATIONS);
 
   // Modals
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
@@ -390,6 +422,168 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     return { success: true, record };
   };
 
+  // FLOAT TOP-UP: agent submits a request, it enters a PENDING approval queue
+  // (does not instantly credit the wallet — a treasury reviewer must approve it).
+  const submitFloatTopUpRequest = async (params: {
+    amount: number;
+    method: FloatTopUpMethod;
+    proofReference?: string;
+  }) => {
+    if (isOffline) {
+      return { success: false, error: "Offline network. Please reconnect to submit a top-up request." };
+    }
+
+    if (!params.amount || params.amount <= 0) {
+      return { success: false, error: "Enter a valid top-up amount." };
+    }
+
+    const hasPending = floatTopUpRequests.some(
+      (r) => r.agentId === agent.id && r.status === "PENDING"
+    );
+    if (hasPending) {
+      return {
+        success: false,
+        error: "You already have a pending float top-up request awaiting review.",
+      };
+    }
+
+    const request: FloatTopUpRequest = {
+      id: `ftr-${Date.now()}`,
+      agentId: agent.id,
+      amount: params.amount,
+      currency: liquidity.currency,
+      method: params.method,
+      proofReference: params.proofReference,
+      status: "PENDING",
+      requestedAt: new Date().toISOString(),
+    };
+
+    setFloatTopUpRequests((prev) => [request, ...prev]);
+
+    return { success: true, request };
+  };
+
+  // SUB-AGENT FLOAT ALLOCATION: only meaningful for SUPER_AGENT tier agents.
+  // Moves float from the super agent's own wallet float into a sub-agent's wallet.
+  const allocateFloatToSubAgent = async (params: {
+    subAgentId: string;
+    amount: number;
+    note?: string;
+  }) => {
+    if (agent.tier !== "SUPER_AGENT") {
+      return { success: false, error: "Only Super Agents can allocate float to sub-agents." };
+    }
+    if (isOffline) {
+      return { success: false, error: "Offline network. Float allocation blocked for safety." };
+    }
+    if (!params.amount || params.amount <= 0) {
+      return { success: false, error: "Enter a valid allocation amount." };
+    }
+    if (liquidity.walletFloat < params.amount) {
+      return { success: false, error: "Insufficient super-agent wallet float to allocate." };
+    }
+
+    const subAgent = subAgents.find((s) => s.id === params.subAgentId);
+    if (!subAgent) {
+      return { success: false, error: "Sub-agent not found." };
+    }
+
+    setLiquidity((prev) => ({
+      ...prev,
+      walletFloat: prev.walletFloat - params.amount,
+      totalLiquidity: prev.totalLiquidity - params.amount,
+    }));
+
+    setSubAgents((prev) =>
+      prev.map((s) =>
+        s.id === params.subAgentId
+          ? {
+              ...s,
+              walletFloat: s.walletFloat + params.amount,
+              health: s.walletFloat + params.amount >= s.cashThresholdMin ? "HEALTHY" : s.health,
+              status: s.status === "LOW_FLOAT" ? "ACTIVE" : s.status,
+            }
+          : s
+      )
+    );
+
+    const record: FloatAllocationRecord = {
+      id: `falc-${Date.now()}`,
+      subAgentId: subAgent.id,
+      subAgentName: subAgent.agentName,
+      direction: "ALLOCATE",
+      amount: params.amount,
+      currency: liquidity.currency,
+      timestamp: new Date().toISOString(),
+      note: params.note,
+    };
+    setFloatAllocations((prev) => [record, ...prev]);
+
+    return { success: true };
+  };
+
+  // SUB-AGENT FLOAT RECLAIM: pulls float back from a sub-agent into the super agent's wallet.
+  const reclaimFloatFromSubAgent = async (params: {
+    subAgentId: string;
+    amount: number;
+    note?: string;
+  }) => {
+    if (agent.tier !== "SUPER_AGENT") {
+      return { success: false, error: "Only Super Agents can reclaim float from sub-agents." };
+    }
+    if (isOffline) {
+      return { success: false, error: "Offline network. Float reclaim blocked for safety." };
+    }
+    if (!params.amount || params.amount <= 0) {
+      return { success: false, error: "Enter a valid reclaim amount." };
+    }
+
+    const subAgent = subAgents.find((s) => s.id === params.subAgentId);
+    if (!subAgent) {
+      return { success: false, error: "Sub-agent not found." };
+    }
+    if (subAgent.walletFloat < params.amount) {
+      return { success: false, error: "Sub-agent does not have enough float to reclaim that amount." };
+    }
+
+    setSubAgents((prev) =>
+      prev.map((s) =>
+        s.id === params.subAgentId
+          ? {
+              ...s,
+              walletFloat: s.walletFloat - params.amount,
+              health:
+                s.walletFloat - params.amount < s.cashThresholdMin ? "LOW" : s.health,
+              status:
+                s.walletFloat - params.amount < s.cashThresholdMin && s.status === "ACTIVE"
+                  ? "LOW_FLOAT"
+                  : s.status,
+            }
+          : s
+      )
+    );
+
+    setLiquidity((prev) => ({
+      ...prev,
+      walletFloat: prev.walletFloat + params.amount,
+      totalLiquidity: prev.totalLiquidity + params.amount,
+    }));
+
+    const record: FloatAllocationRecord = {
+      id: `falc-${Date.now()}`,
+      subAgentId: subAgent.id,
+      subAgentName: subAgent.agentName,
+      direction: "RECLAIM",
+      amount: params.amount,
+      currency: liquidity.currency,
+      timestamp: new Date().toISOString(),
+      note: params.note,
+    };
+    setFloatAllocations((prev) => [record, ...prev]);
+
+    return { success: true };
+  };
+
   return (
     <AgentContext.Provider
       value={{
@@ -422,6 +616,12 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         executeTransfer,
         submitReconciliation,
         notificationsCount,
+        floatTopUpRequests,
+        submitFloatTopUpRequest,
+        subAgents,
+        floatAllocations,
+        allocateFloatToSubAgent,
+        reclaimFloatFromSubAgent,
       }}
     >
       {children}

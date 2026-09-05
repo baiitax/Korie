@@ -144,3 +144,62 @@ export interface AgencyRiskAlert {
   timestamp: string;
   isResolved: boolean;
 }
+
+// ==========================================
+// FLOAT TOP-UP REQUEST & APPROVAL WORKFLOW
+// ==========================================
+export type FloatTopUpMethod = "BANK_TRANSFER" | "CASH_DEPOSIT_HUB" | "SUPER_AGENT_ALLOCATION";
+
+export type FloatTopUpStatus = "PENDING" | "PROCESSING" | "APPROVED" | "REJECTED";
+
+export interface FloatTopUpRequest {
+  id: string;
+  agentId: string;
+  amount: number;
+  currency: AgentCurrency;
+  method: FloatTopUpMethod;
+  proofReference?: string;
+  status: FloatTopUpStatus;
+  requestedAt: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
+  notes?: string;
+}
+
+// ==========================================
+// SUB-AGENT / TEAM MANAGEMENT (SUPER_AGENT tier)
+// ==========================================
+export type SubAgentStatus = "ACTIVE" | "SUSPENDED" | "LOW_FLOAT";
+
+export interface SubAgent {
+  id: string;
+  agentCode: string;
+  agentName: string;
+  businessName: string;
+  phone: string;
+  country: AgentCountry;
+  cityOrLGA: string;
+  status: SubAgentStatus;
+  walletFloat: number;
+  cashInHand: number;
+  currency: AgentCurrency;
+  cashThresholdMin: number;
+  health: LiquidityHealthStatus;
+  dailyCashLimit: number;
+  dailyCashSpent: number;
+  todayTransactionCount: number;
+  todayVolume: number;
+  onboardedAt: string;
+  lastActiveAt: string;
+}
+
+export interface FloatAllocationRecord {
+  id: string;
+  subAgentId: string;
+  subAgentName: string;
+  direction: "ALLOCATE" | "RECLAIM";
+  amount: number;
+  currency: AgentCurrency;
+  timestamp: string;
+  note?: string;
+}

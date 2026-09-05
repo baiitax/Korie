@@ -61,6 +61,9 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
         { label: t("common.sendTransfer"), href: "/agent/transfer", icon: ArrowRightLeft },
         { label: t("common.customers"), href: "/agent/customers", icon: Users },
         { label: t("common.transactions"), href: "/agent/transactions", icon: Activity },
+        ...(agent.tier === "SUPER_AGENT"
+          ? [{ label: "Sub-Agent Team", href: "/agent/team", icon: Users }]
+          : []),
       ],
     },
     {

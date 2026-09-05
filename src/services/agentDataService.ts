@@ -8,6 +8,9 @@ import {
   AgentTerminalInfo,
   AgencyRiskAlert,
   AgentCurrency,
+  FloatTopUpRequest,
+  SubAgent,
+  FloatAllocationRecord,
 } from "@/types/agent";
 
 // ==========================================
@@ -24,7 +27,7 @@ export const CURRENT_AGENT: AgentUser = {
   countryName: "Nigeria",
   stateOrRegion: "Kano State",
   cityOrLGA: "Fagge LGA, Kano Central",
-  tier: "TIER_2",
+  tier: "SUPER_AGENT",
   status: "ACTIVE",
   kycStatus: "VERIFIED",
   preferredLanguage: "ha",
@@ -267,3 +270,206 @@ export function calculateAgentCommission(type: string, amount: number): {
       return { customerFee: 50, agentCommission: 15 };
   }
 }
+
+/**
+ * Derives a real commission breakdown by transaction type from the agent's
+ * actual transaction feed instead of a hardcoded display array. Only
+ * SUCCESSFUL transactions count toward earned commission.
+ */
+export function computeCommissionBreakdown(transactions: AgencyTransaction[]): {
+  service: string;
+  type: string;
+  earned: number;
+  count: number;
+}[] {
+  const labels: Record<string, string> = {
+    CASH_IN: "Cash-In (Deposits)",
+    CASH_OUT: "Cash-Out (Withdrawals)",
+    TRANSFER_NIP: "Interbank Transfers",
+    TRANSFER_CROSS_BORDER: "Cross-Border Transfers",
+    BILL_AIRTIME: "Airtime & Data VTU",
+    BILL_DATA: "Airtime & Data VTU",
+    BILL_ELECTRICITY: "Electricity Token Vending",
+    BILL_CABLE_TV: "Cable TV Vending",
+  };
+
+  const byType = new Map<string, { earned: number; count: number }>();
+
+  for (const tx of transactions) {
+    if (tx.status !== "SUCCESSFUL") continue;
+    const key = tx.type;
+    const existing = byType.get(key) || { earned: 0, count: 0 };
+    existing.earned += tx.agentCommission;
+    existing.count += 1;
+    byType.set(key, existing);
+  }
+
+  return Array.from(byType.entries())
+    .map(([type, stats]) => ({
+      service: labels[type] || type,
+      type,
+      earned: stats.earned,
+      count: stats.count,
+    }))
+    .sort((a, b) => b.earned - a.earned);
+}
+
+/**
+ * Sums commission earned across transactions that fall within `days` of now.
+ * Used to compute weekly/monthly commission totals from real data instead of
+ * static placeholder figures.
+ */
+export function computeCommissionForPeriod(transactions: AgencyTransaction[], days: number): number {
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  return transactions
+    .filter((tx) => tx.status === "SUCCESSFUL" && new Date(tx.createdAt).getTime() >= cutoff)
+    .reduce((sum, tx) => sum + tx.agentCommission, 0);
+}
+
+// ==========================================
+// 9. FLOAT TOP-UP REQUESTS (pending approval queue)
+// ==========================================
+export const FLOAT_TOPUP_REQUESTS: FloatTopUpRequest[] = [
+  {
+    id: "ftr-2026-0031",
+    agentId: "ag-usr-0042",
+    amount: 500000,
+    currency: "NGN",
+    method: "BANK_TRANSFER",
+    proofReference: "NIP-TRF-88213094",
+    status: "APPROVED",
+    requestedAt: "2026-09-02T08:15:00Z",
+    reviewedAt: "2026-09-02T08:22:00Z",
+    reviewedBy: "Treasury Ops (Kano Desk)",
+    notes: "Matched incoming NUBAN credit. Float credited instantly.",
+  },
+  {
+    id: "ftr-2026-0030",
+    agentId: "ag-usr-0042",
+    amount: 250000,
+    currency: "NGN",
+    method: "CASH_DEPOSIT_HUB",
+    proofReference: "CIT-DEP-99120",
+    status: "REJECTED",
+    requestedAt: "2026-08-30T14:05:00Z",
+    reviewedAt: "2026-08-30T15:40:00Z",
+    reviewedBy: "Treasury Ops (Kano Desk)",
+    notes: "Deposit slip amount mismatch — resubmit with correct CIT reference.",
+  },
+];
+
+// ==========================================
+// 10. SUB-AGENT / TEAM ROSTER (for SUPER_AGENT tier)
+// ==========================================
+export const SUB_AGENTS: SubAgent[] = [
+  {
+    id: "sub-ag-101",
+    agentCode: "AG-NG-KAN-0101",
+    agentName: "Fatima Usman",
+    businessName: "Kantin Kwari Float Point 4",
+    phone: "+234 803 221 5590",
+    country: "NG",
+    cityOrLGA: "Kantin Kwari, Kano",
+    status: "LOW_FLOAT",
+    walletFloat: 85000,
+    cashInHand: 210000,
+    currency: "NGN",
+    cashThresholdMin: 250000,
+    health: "LOW",
+    dailyCashLimit: 5000000,
+    dailyCashSpent: 1180000,
+    todayTransactionCount: 22,
+    todayVolume: 1180000,
+    onboardedAt: "2026-03-14T00:00:00Z",
+    lastActiveAt: "2026-09-05T09:40:00Z",
+  },
+  {
+    id: "sub-ag-102",
+    agentCode: "AG-NG-KAN-0102",
+    agentName: "Ibrahim Suleiman",
+    businessName: "Sabon Gari Digital Kiosk",
+    phone: "+234 802 774 1123",
+    country: "NG",
+    cityOrLGA: "Sabon Gari, Kano",
+    status: "ACTIVE",
+    walletFloat: 1450000,
+    cashInHand: 620000,
+    currency: "NGN",
+    cashThresholdMin: 200000,
+    health: "HEALTHY",
+    dailyCashLimit: 8000000,
+    dailyCashSpent: 2340000,
+    todayTransactionCount: 41,
+    todayVolume: 2340000,
+    onboardedAt: "2026-01-22T00:00:00Z",
+    lastActiveAt: "2026-09-05T10:12:00Z",
+  },
+  {
+    id: "sub-ag-103",
+    agentCode: "AG-NE-MRD-0103",
+    agentName: "Zeinabou Abdou",
+    businessName: "Maradi Cross-Border Agency Point",
+    phone: "+227 90 55 12 40",
+    country: "NE",
+    cityOrLGA: "Maradi Grand Marché",
+    status: "ACTIVE",
+    walletFloat: 980000,
+    cashInHand: 340000,
+    currency: "XOF",
+    cashThresholdMin: 150000,
+    health: "WATCH",
+    dailyCashLimit: 6000000,
+    dailyCashSpent: 1620000,
+    todayTransactionCount: 15,
+    todayVolume: 1620000,
+    onboardedAt: "2026-05-02T00:00:00Z",
+    lastActiveAt: "2026-09-05T08:55:00Z",
+  },
+  {
+    id: "sub-ag-104",
+    agentCode: "AG-NG-KAN-0104",
+    agentName: "Chinedu Okafor",
+    businessName: "Fagge Road Agency Outlet",
+    phone: "+234 806 442 9081",
+    country: "NG",
+    cityOrLGA: "Fagge LGA, Kano",
+    status: "SUSPENDED",
+    walletFloat: 0,
+    cashInHand: 0,
+    currency: "NGN",
+    cashThresholdMin: 200000,
+    health: "CRITICAL",
+    dailyCashLimit: 4000000,
+    dailyCashSpent: 0,
+    todayTransactionCount: 0,
+    todayVolume: 0,
+    onboardedAt: "2026-02-10T00:00:00Z",
+    lastActiveAt: "2026-08-21T00:00:00Z",
+  },
+];
+
+// ==========================================
+// 11. FLOAT ALLOCATION HISTORY (Super Agent ↔ Sub-Agent)
+// ==========================================
+export const FLOAT_ALLOCATIONS: FloatAllocationRecord[] = [
+  {
+    id: "falc-9001",
+    subAgentId: "sub-ag-102",
+    subAgentName: "Ibrahim Suleiman",
+    direction: "ALLOCATE",
+    amount: 500000,
+    currency: "NGN",
+    timestamp: "2026-09-04T16:20:00Z",
+    note: "Weekly float replenishment ahead of Kano market day.",
+  },
+  {
+    id: "falc-9000",
+    subAgentId: "sub-ag-104",
+    subAgentName: "Chinedu Okafor",
+    direction: "RECLAIM",
+    amount: 320000,
+    currency: "NGN",
+    timestamp: "2026-08-21T11:10:00Z",
+    note: "Reclaimed full float balance ahead of compliance suspension.",
+  },
+];
