@@ -14,7 +14,7 @@ The KoriePay Core Financial Engine is a high-throughput, fault-tolerant, double-
 | Jurisdiction | Currency | Primary Clearing Node | Settlement Mechanism |
 |---|---|---|---|
 | **Nigeria 🇳🇬** | NGN | Providus Bank Nigeria | NIP Direct Settlement Pool (1010) |
-| **Niger Republic 🇳🇪** | XOF | Koris Bank Niger Republic | WAEMU Interbank Clearing Pool (1020) |
+| **Niger Republic 🇳🇪** | XOF | Coris Bank Niger Republic | WAEMU Interbank Clearing Pool (1020) |
 | **Cross-Border FX** | NGN / XOF | BDC Multi-Currency Clearing Desk | Zero-Sum FX Bridge Account (6010) |
 
 ## 4. Engine Architecture Diagram

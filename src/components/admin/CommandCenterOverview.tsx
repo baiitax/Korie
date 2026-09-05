@@ -162,7 +162,7 @@ export const CommandCenterOverview: React.FC = () => {
             {(metrics.volume.xof / 1000000).toFixed(2)}M CFA
           </div>
           <div className="text-[11px] text-slate-400 font-mono">
-            Settled via Koris Bank Sahel Rail
+            Settled via Coris Bank Sahel Rail
           </div>
         </div>
 

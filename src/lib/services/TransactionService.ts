@@ -97,7 +97,7 @@ export class TransactionService {
       ],
     });
 
-    // 2. Dispatch to Destination Banking Node (Koris Bank Niger Republic)
+    // 2. Dispatch to Destination Banking Node (Coris Bank Niger Republic)
     const providerDispatch = await KorisBankAdapter.initiateWaemuSettlement({
       reference: params.reference,
       destinationBankCode: params.recipient.bankCode,
@@ -126,7 +126,7 @@ export class TransactionService {
       destination_currency: params.destinationCurrency,
       exchange_rate: exchangeRate,
       recipient_name: params.recipient.name,
-      recipient_bank: 'Koris Bank Niger Republic',
+      recipient_bank: 'Coris Bank Niger Republic',
       recipient_account: params.recipient.accountNumber,
       provider_code: 'KORIS_NE',
       provider_reference: providerDispatch.providerReference,

@@ -217,7 +217,7 @@ export interface ApiRequestLog {
   requestBodyMasked?: Record<string, any>;
   responseBodyMasked: Record<string, any>;
   errorMessage?: string;
-  providerNode?: 'Providus Bank NG' | 'Koris Bank NE' | 'NIBSS NIP' | 'GIM-UEMOA';
+  providerNode?: 'Providus Bank NG' | 'Coris Bank NE' | 'NIBSS NIP' | 'GIM-UEMOA';
 }
 
 export interface ErrorAnalyticsSummary {

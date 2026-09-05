@@ -8,7 +8,7 @@ The ALM engine profiles the structural maturity and repricing behaviour of all b
 | **Customer Digital Wallets** | On Demand ($T+0$) | $75\%$ Core Stable Float, $25\%$ Volatile Runoff |
 | **Merchant Payables** | $T+1$ Settlement Cycle | $95\%$ Settled Daily, $5\%$ Rolling Reserve |
 | **Agent Operational Float** | $T+0$ Revolving | Stable working capital with $15\%$ peak weekend runoff |
-| **Providus / Koris Bank Nostro** | Overnight / Immediate | $100\%$ Liquid High-Quality Asset |
+| **Providus / Coris Bank Nostro** | Overnight / Immediate | $100\%$ Liquid High-Quality Asset |
 | **Commercial Bank Borrowings** | 12 - 36 Months Fixed/Floating | Contractual amortisation schedule |
 
 ---

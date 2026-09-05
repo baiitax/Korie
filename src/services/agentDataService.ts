@@ -71,7 +71,7 @@ export const AGENT_CUSTOMERS: AgentCustomer[] = [
     fullName: "Mamadou Oumarou",
     phone: "+227 90 12 34 56",
     accountNumberMasked: "NE0200****23",
-    bankName: "Koris Bank Niger Republic",
+    bankName: "Coris Bank Niger Republic",
     bankCode: "NE020",
     kycTier: "TIER_2",
     isVerified: true,
@@ -232,7 +232,7 @@ export const AGENCY_ALERTS: AgencyRiskAlert[] = [
   {
     id: "alt-01",
     severity: "INFO",
-    title: "Providus Bank & Koris Bank Nodes Online",
+    title: "Providus Bank & Coris Bank Nodes Online",
     description: "Average interbank response time 142ms. Real-time agency float sweeping active.",
     timestamp: "10 mins ago",
     isResolved: true,

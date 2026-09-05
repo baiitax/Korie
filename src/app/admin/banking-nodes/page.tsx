@@ -45,7 +45,7 @@ export default function BankingNodesPage() {
             Financial Institution Gateway Nodes
           </h1>
           <p className="text-xs text-slate-400 mt-0.5">
-            Real-time status, API latency, webhooks, and settlement clearing for Providus Bank (Nigeria) and Koris Bank (Niger Republic).
+            Real-time status, API latency, webhooks, and settlement clearing for Providus Bank (Nigeria) and Coris Bank (Niger Republic).
           </p>
         </div>
 

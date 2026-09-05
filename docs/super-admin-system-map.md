@@ -9,7 +9,7 @@
                    │                   │                   │
                NIGERIA              NIGER              GLOBAL
                    │                   │                   │
-            Providus Bank          Koris Bank        KoriePay Core
+            Providus Bank          Coris Bank        KoriePay Core
                    │                   │                   │
             ┌──────┼──────┐      ┌─────┼──────┐       ┌────┼────┐
             │      │      │      │     │      │       │    │    │
@@ -37,7 +37,7 @@
 
 2. **Provider → Gateway**:
    - **Providus Bank Nigeria Plc**: Interbank NIP, Virtual NUBAN, Webhooks, T+0 Settlement.
-   - **Koris Bank SA (Niger Republic)**: WAEMU / GIM-UEMOA Clearing, Bilateral NGN ⇄ XOF Currency Settlement, Maradi/Niamey Treasury.
+   - **Coris Bank SA (Niger Republic)**: WAEMU / GIM-UEMOA Clearing, Bilateral NGN ⇄ XOF Currency Settlement, Maradi/Niamey Treasury.
 
 3. **Risk & Governance**:
    - Dual-Control Maker-Checker Workflow for privileged actions (>₦10M FX Swaps, Wallet Freezes, Settlement Overrides).

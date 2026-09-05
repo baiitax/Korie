@@ -27,7 +27,7 @@ export interface IProviderAdapter {
 - **Capabilities**: NIP (NIBSS Instant Payments) Outward/Inward, Dedicated Virtual Accounts, Nostro Pool Balance Query.
 - **Failover Target**: Interswitch / Flutterwave secondary rail.
 
-### B. Koris Bank Niger Republic Adapter (`KORIS-NE-01`)
+### B. Coris Bank Niger Republic Adapter (`KORIS-NE-01`)
 - **Protocols**: ISO 20022 XML / JSON REST Gateway, BCEAO RTGS connectivity.
 - **Capabilities**: XOF Electronic Money Float Management, WAEMU Cross-Border Clearing, Regional Cash Vault Balancing.
 - **Failover Target**: Bilateral Clearing Node.

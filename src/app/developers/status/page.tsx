@@ -45,7 +45,7 @@ export default function StatusPage() {
           <div>
             <h2 className="text-base sm:text-lg font-bold text-white">{t.status.allOperational}</h2>
             <p className="text-xs text-slate-300">
-              Providus Bank Nigeria (NIP Outward) and Koris Bank Niger Republic (WAEMU RTGS) operating normally.
+              Providus Bank Nigeria (NIP Outward) and Coris Bank Niger Republic (WAEMU RTGS) operating normally.
             </p>
           </div>
         </div>

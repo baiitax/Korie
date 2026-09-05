@@ -8,7 +8,7 @@ import MakerCheckerModal from "@/components/admin/MakerCheckerModal";
 export const metadata = {
   title: "Super Admin Command Center | KoriePay",
   description:
-    "KoriePay Tier-1 Production Banking Command Center for Nigeria (Providus Bank) and Niger Republic (Koris Bank).",
+    "KoriePay Tier-1 Production Banking Command Center for Nigeria (Providus Bank) and Niger Republic (Coris Bank).",
 };
 
 export default function AdminLayout({

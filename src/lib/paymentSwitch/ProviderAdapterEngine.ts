@@ -123,7 +123,7 @@ export class ProvidusBankNgAdapter extends BasePaymentProviderAdapter {
 
 export class KorisBankNeAdapter extends BasePaymentProviderAdapter {
   readonly providerCode = 'KORIS_NE';
-  readonly providerName = 'Koris Bank Niger SA (BCEAO Rails)';
+  readonly providerName = 'Coris Bank Niger SA (BCEAO Rails)';
   readonly countryCode = 'NE';
 
   async execute(request: ProviderExecutionRequest): Promise<ProviderExecutionResponse> {
@@ -140,7 +140,7 @@ export class KorisBankNeAdapter extends BasePaymentProviderAdapter {
     const requestPayload = {
       virementRef: request.reference,
       ibanDestinataire: request.beneficiaryAccount || 'NE5400240100123456789012',
-      nomBeneficiaire: request.beneficiaryName || 'Client Koris Niger',
+      nomBeneficiaire: request.beneficiaryName || 'Client Coris Niger',
       montant: request.amount,
       devise: 'XOF',
       motif: request.narration || 'Transfert KoriePay',

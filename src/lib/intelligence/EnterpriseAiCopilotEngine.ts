@@ -51,7 +51,7 @@ export class EnterpriseAiCopilotEngine {
     if (q.includes('liquidity') || q.includes('providus') || q.includes('buffer') || q.includes('treasury')) {
       return {
         answer:
-          '[FACT] Total available liquid Nostro buffer across Providus Bank and Koris Bank is ₦14,250,000,000, providing 142.5% coverage over 30-day stressed outflows.\n\n[PREDICTION] Peak merchant settlement outflows over the next 7 days are forecasted at ₦15.10B.\n\n[RECOMMENDATION] Rebalance ₦500M from Central Reserve Vault to Providus Settlement Liquidity account to guarantee zero intraday clearing latency.',
+          '[FACT] Total available liquid Nostro buffer across Providus Bank and Coris Bank is ₦14,250,000,000, providing 142.5% coverage over 30-day stressed outflows.\n\n[PREDICTION] Peak merchant settlement outflows over the next 7 days are forecasted at ₦15.10B.\n\n[RECOMMENDATION] Rebalance ₦500M from Central Reserve Vault to Providus Settlement Liquidity account to guarantee zero intraday clearing latency.',
         classificationTag: 'PREDICTION',
         confidencePct: 93.0,
         citations: [

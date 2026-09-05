@@ -31,7 +31,7 @@ export async function GET(
       amount: 5000000,
       currency: 'NGN',
       channel: 'CROSS_BORDER_CORRIDOR',
-      settlement_node: 'Providus Bank Nigeria / Koris Bank NE',
+      settlement_node: 'Providus Bank Nigeria / Coris Bank NE',
       paid_at: new Date().toISOString(),
     }, {
       requestId: context.requestId,

@@ -135,7 +135,7 @@ Accept: application/json`}
               <div>
                 <h2 className="text-xl font-bold text-white">Bilateral Cross-Border Rails (NGN & XOF)</h2>
                 <p className="text-xs sm:text-sm text-slate-300 mt-1 leading-relaxed">
-                  KoriePay connects commercial banking rails in Nigeria (Providus Bank NIP) and Niger Republic (Koris Bank WAEMU GIM-UEMOA) into a single atomic liquidity bridge.
+                  KoriePay connects commercial banking rails in Nigeria (Providus Bank NIP) and Niger Republic (Coris Bank WAEMU GIM-UEMOA) into a single atomic liquidity bridge.
                 </p>
               </div>
 

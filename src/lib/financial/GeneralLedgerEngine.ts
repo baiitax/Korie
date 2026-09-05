@@ -68,7 +68,7 @@ export class GeneralLedgerEngine {
       {
         id: 'acc-1020',
         accountCode: '1020',
-        accountName: 'Koris Settlement Pool XOF',
+        accountName: 'Coris Bank Settlement Pool XOF',
         category: 'ASSET',
         normalBalance: 'DEBIT',
         currency: 'XOF',
@@ -76,7 +76,7 @@ export class GeneralLedgerEngine {
         subledgerType: 'PROVIDER_CLEARING',
         isActive: true,
         allowManualPosting: false,
-        description: 'Operational bank pool at Koris Bank Niger SA',
+        description: 'Operational bank pool at Coris Bank Niger SA',
         currentBalance: 88500000.0,
       },
       {

@@ -1,7 +1,7 @@
 # Treasury & Liquidity System Map
 
 ## 1. Architectural Mission
-The **KoriePay Treasury & Liquidity Management Engine** serves as the authoritative financial control center responsible for multi-country, multi-currency cash positioning, bank account float monitoring, settlement obligation matching, rolling liquidity forecasting, and stress simulation across **Nigeria (Providus Bank - NGN)** and **Niger Republic (Koris Bank - XOF)**.
+The **KoriePay Treasury & Liquidity Management Engine** serves as the authoritative financial control center responsible for multi-country, multi-currency cash positioning, bank account float monitoring, settlement obligation matching, rolling liquidity forecasting, and stress simulation across **Nigeria (Providus Bank - NGN)** and **Niger Republic (Coris Bank - XOF)**.
 
 ---
 
@@ -45,7 +45,7 @@ The **KoriePay Treasury & Liquidity Management Engine** serves as the authoritat
 ## 3. Account Hierarchy & Nodes
 1. **Asset Accounts (1000 Series)**:
    - `1010`: Providus Bank Nigeria Settlement Vault (NGN)
-   - `1020`: Koris Bank Niger Republic Settlement Vault (XOF)
+   - `1020`: Coris Bank Niger Republic Settlement Vault (XOF)
    - `1030`: Card & Checkout Aggregator Float (NGN)
    - `1040`: In-Flight Clearing & Settlement Inflow (Multi-currency)
 2. **Liability Accounts (2000 Series)**:

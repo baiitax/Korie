@@ -1,12 +1,12 @@
 # KORIEPAY AGGREGATOR SETTLEMENT MODEL
-## NIBSS Direct Credit, Providus Bank NG & Koris Bank NE Clearing
+## NIBSS Direct Credit, Providus Bank NG & Coris Bank NE Clearing
 
 ---
 
 ## 1. Settlement Rails
 
 - **Nigeria (NGN):** Providus Bank NIP Settlement Gateway & NIBSS Instant Payments.
-- **Niger Republic (XOF):** Koris Bank Niger Republic / BCEAO RTGS.
+- **Niger Republic (XOF):** Coris Bank Niger Republic / BCEAO RTGS.
 
 ---
 

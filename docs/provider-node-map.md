@@ -2,10 +2,10 @@
 
 ## 1. Banking Nodes Matrix
 
-| Attribute | 🇳🇬 Providus Bank Gateway | 🇳🇪 Koris Bank Gateway | 🌍 KoriePay Core Gateway |
+| Attribute | 🇳🇬 Providus Bank Gateway | 🇳🇪 Coris Bank Gateway | 🌍 KoriePay Core Gateway |
 |---|---|---|---|
 | **Node ID** | `providus_ng` | `koris_ne` | `korie_core` |
-| **Institution** | Providus Bank Plc | Koris Bank SA | KoriePay Financial Engine |
+| **Institution** | Providus Bank Plc | Coris Bank SA | KoriePay Financial Engine |
 | **Country** | Nigeria | Niger Republic | Multi-Market / Global |
 | **Base Currency** | Nigerian Naira (NGN ₦) | CFA Franc (XOF CFA) | Multi-Currency (NGN/XOF/USD) |
 | **Protocol** | REST / ISO 8583 / NIP Switch | REST / GIM-UEMOA / WAEMU | Asynchronous Event-Driven Microservices |

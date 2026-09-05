@@ -16,7 +16,7 @@
 
 ## 2. Core Ledger Accounts Catalog
 - `1010`: Cash & Bank - Providus Bank Operational Settlement (NGN)
-- `1020`: Cash & Bank - Koris Bank Operational Reserve (XOF)
+- `1020`: Cash & Bank - Coris Bank Operational Reserve (XOF)
 - `1100`: Clearing - Inward Virtual Account Collections (NGN)
 - `1110`: Clearing - Inward Sahel Collections (XOF)
 - `1200`: Settlement Receivables - Interswitch Gateway

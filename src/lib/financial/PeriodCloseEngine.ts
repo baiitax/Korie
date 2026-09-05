@@ -34,7 +34,7 @@ export class PeriodCloseEngine {
     {
       stepNumber: 3,
       stepName: 'Bank Statement Reconciliation',
-      description: 'Reconcile Providus Bank NGN and Koris Bank XOF MT940 statements against clearing pool',
+      description: 'Reconcile Providus Bank NGN and Coris Bank XOF MT940 statements against clearing pool',
       status: 'COMPLETED',
       completedAt: '2026-09-01T01:45:00Z',
     },

@@ -17,7 +17,7 @@ export default function WebhooksPage() {
     },
     {
       id: "whk-092",
-      provider: "Koris Bank Niger Republic",
+      provider: "Coris Bank Niger Republic",
       event: "settlement.batch.confirmed",
       status: "DELIVERED",
       attempts: 1,

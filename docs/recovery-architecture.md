@@ -21,7 +21,7 @@ In KoriePay's Tier-1 core banking architecture, transactions maintain discrete, 
 ## 2. Domain Ownership & Boundaries
 - **Payment Switch**: Owns route determination, upstream provider invocation, and attempt tracking.
 - **Double-Entry General Ledger**: Owns immutable double-entry journal postings, balances, and compensating entries. The Recovery engine *never* directly manipulates ledger balances outside the authorized posting gateway.
-- **Settlement Engine**: Owns batch clearing cycles with Providus Bank (NGN) and Koris Bank (XOF).
+- **Settlement Engine**: Owns batch clearing cycles with Providus Bank (NGN) and Coris Bank (XOF).
 - **Recovery Engine**: Owns uncertain transaction resolution, provider status inquiry workflows, safe retries, and automated reversals.
 - **Dispute & Chargeback Engine**: Owns customer/merchant claim dossiers, hash-verified evidence vaults, representment workflows, and SLA clocks.
 

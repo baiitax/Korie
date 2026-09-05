@@ -448,7 +448,7 @@ export default function ApiGatewayAdminPage() {
           <div className="p-5 bg-slate-900/60 border border-white/10 rounded-2xl">
             <h2 className="text-base font-bold text-white">Bank Node Adapters &amp; Circuit Breakers</h2>
             <p className="text-xs text-slate-400">
-              Stateful circuit breakers protecting upstream Providus Bank Nigeria and Koris Bank Niger Republic clearing nodes.
+              Stateful circuit breakers protecting upstream Providus Bank Nigeria and Coris Bank Niger Republic clearing nodes.
             </p>
           </div>
 

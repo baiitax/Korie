@@ -538,6 +538,9 @@ export const en = {
     hideBalance: "Hide Balance",
     showBalance: "Show Balance",
       done: "Done",
+
+    comingSoon: "Coming Soon",
+    learnMore: "Learn More",
 },
   loading: {
     initial: "Connecting your financial experience across borders\u2026",
@@ -680,6 +683,11 @@ export const en = {
     recipientReceives: "Recipient Receives",
     verifying: "Verifying...",
     sendFrom: "Send from",
+
+    recipientName: "Recipient name",
+    recipientRequired: "Select a recipient and enter their account details",
+    invalidAmount: "Enter a valid amount",
+    transferFailed: "Transfer could not be completed. Please try again.",
 },
   receive: {
     title: "Receive Money",
@@ -727,6 +735,9 @@ export const en = {
       prepaidToken: "Prepaid Token",
     payAnother: "Pay Another Bill",
     payBillBtn2: "Pay Bill",
+
+    comingSoonBanner: "Bill payments are coming soon. We're preparing a simple way to pay for the things you use every day.",
+    learnMore: "Want to be among the first to know when bill payments go live? We'll keep you informed.",
 },
   cards: {
     title: "Virtual & Physical Cards",
@@ -748,6 +759,10 @@ export const en = {
     cardholder: "Cardholder",
     expires: "Expires",
     frozenLabel: "Frozen",
+
+    comingSoonTitle: "KoriePay Cards are coming soon.",
+    comingSoonDesc: "We're building a secure card experience for everyday payments and financial access.",
+    learnMore: "KoriePay Cards will let you pay online and in-store safely. We're building a secure card experience for everyday payments and financial access.",
 },
   fx: {
     title: "Foreign Exchange Center",
@@ -767,6 +782,10 @@ export const en = {
     spreadProvider: "Spread Provider",
     executeAnother: "Execute Another Swap",
     source: "Source",
+
+    quoteReady: "Your quote is ready",
+    quoteReadyDesc: "{{fromAmount}} ≈ {{toAmount}}. The actual rate is applied when you send.",
+    proceedToSend: "Send Money",
 },
   transactions: {
     title: "Transaction Activity",
@@ -862,6 +881,10 @@ export const en = {
     receiptSaved: "Receipt saved to your device.",
     shareFailed: "Sharing isn't available here, so the receipt was copied to your clipboard.",
   },
+
+    to: "To",
+    from: "From",
+    date: "Date",
 },
   support: {
     title: "Customer Support & Resolution Desk",
@@ -994,7 +1017,9 @@ export const en = {
       accountHolder: "Account Holder",
       primary: "Primary",
       available: "Available Balance",
-    },
+    
+      accountNumber: "Account number",
+},
     hub: {
       fund: "Fund",
       koriePay: "KoriePay",
@@ -1002,7 +1027,9 @@ export const en = {
       cards: "Cards",
       adashi: "Adashi",
       verify: "Verify",
-    },
+    
+      receive: "Receive",
+},
     services: {
       airtime: "Airtime",
       data: "Data",
@@ -1146,4 +1173,44 @@ export const en = {
   },
 },
 
+
+  services: {
+    airtime: {
+      comingSoonDesc: "Airtime top-up is currently being prepared.",
+    },
+    data: {
+      comingSoonDesc: "Mobile data is currently being prepared.",
+    },
+    electricity: {
+      comingSoonDesc: "Electricity payment is currently being prepared.",
+    },
+    cableTv: {
+      comingSoonDesc: "Cable TV subscription is currently being prepared.",
+    },
+  },
+
+  fund: {
+    title: "Fund Account",
+    subtitle: "Add money to your account from an authorised agent or by bank transfer.",
+    fundingSource: "Where is the money coming from?",
+    agent: "Authorised Agent",
+    agentDesc: "Add cash through a KoriePay-authorized agent.",
+    bankTransfer: "Bank Transfer",
+    bankTransferDesc: "Transfer from your bank to your KoriePay account.",
+    destinationAccount: "Destination Account",
+    youAreFunding: "You are funding",
+    reference: "Funding Reference",
+    agentId: "Agent ID / Code (optional)",
+    agentIdPlaceholder: "e.g. AG-NE-XXXX",
+    agentNote: "Provide the agent's code so your deposit can be matched. No agent locations are listed here yet.",
+    agentInstructionsTitle: "Fund via an Authorised Agent",
+    agentInstructionsBody: "Show this reference to your KoriePay agent. Your account is credited once the agent confirms your deposit.",
+    bankInstructionsTitle: "Fund via Bank Transfer",
+    bankInstructionsBody: "Transfer the amount to the account below using your bank. Quote the reference so we can match your credit.",
+    bankName: "Bank Name",
+    accountNumber: "Account Number",
+    accountName: "Account Name",
+    confirmationNote: "Your balance updates once the deposit is confirmed by the agent or your bank. This reference helps us match the deposit.",
+    printInstructions: "Print / Save Instructions",
+  },
 };

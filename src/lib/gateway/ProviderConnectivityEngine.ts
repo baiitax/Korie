@@ -38,7 +38,7 @@ export class ProviderConnectivityEngine {
       {
         id: 'pvd-02',
         providerCode: 'KORIS_NE',
-        name: 'Koris Bank Niger Republic (BCEAO Regional Hub)',
+        name: 'Coris Bank Niger Republic (BCEAO Regional Hub)',
         country: 'NE',
         currency: 'XOF',
         adapterClass: 'KorisWaemuAdapter',

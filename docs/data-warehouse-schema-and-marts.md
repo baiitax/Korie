@@ -89,7 +89,7 @@ Point-in-time closing balance snapshots per account:
 - Aggregates switch latency, transaction success/failure rates, routing breakdowns, and clearing batches.
 
 ### C. Treasury & Liquidity Mart (`treasury_mart`, `liquidity_mart`)
-- Nostro bank balances (Providus Bank Nigeria, Koris Bank Niger Republic), vault balances, reserve requirements, and 30-day liquidity buffer coverage.
+- Nostro bank balances (Providus Bank Nigeria, Coris Bank Niger Republic), vault balances, reserve requirements, and 30-day liquidity buffer coverage.
 
 ### D. Risk, AML & Fraud Mart (`risk_mart`, `aml_mart`, `fraud_mart`)
 - Suspicious activity alerts, PEP/Sanctions screening matches, gross fraud attempts, recovered amounts, and net fraud loss basis points (bps).

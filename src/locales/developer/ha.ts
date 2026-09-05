@@ -26,7 +26,7 @@ export const ha = {
   },
   dashboard: {
     heroTitle: "Gina, Gwada & Faɗaɗa Fasahar Kuɗi ta Ƙetare Iyaka",
-    heroDesc: "Haɗa hanyoyin biyan kuɗi tsakanin Najeriya (Providus Bank NIP) da Jamhuriyar Nijar (Koris Bank WAEMU), asusun ajiyar NUBAN na dijital, na'urorin POS na wakilai, da sakonnin webhooks masu aiki kai tsaye.",
+    heroDesc: "Haɗa hanyoyin biyan kuɗi tsakanin Najeriya (Providus Bank NIP) da Jamhuriyar Nijar (Coris Bank WAEMU), asusun ajiyar NUBAN na dijital, na'urorin POS na wakilai, da sakonnin webhooks masu aiki kai tsaye.",
     totalRequests24h: "Yawan Buƙatun Sa'o'i 24",
     avgLatency: "Matsakaicin Lokacin Amsa",
     successRate: "Yawan Nasarar API",
@@ -58,7 +58,7 @@ export const ha = {
     title: "Wajen Gwajin Mu'amala na Sandbox",
     subtitle: "Gwada tura kuɗi tsakanin ƙasashe, shigar kuɗi cikin asusun banki na wucin-gadi, da gwajin kurakurai ba tare da taba ainihin kuɗi ba.",
     testCardTitle: "Katinan Gwaji da Aka Shirya",
-    testAccountTitle: "Asusun Gwaji na Providus Bank & Koris Bank",
+    testAccountTitle: "Asusun Gwaji na Providus Bank & Coris Bank",
     simulationEngine: "Injin Kwaikwayon Mu'amala",
     triggerScenario: "Fara Gwaji",
     simSuccess: "Gwada Nasarar Tura Kuɗi",
@@ -86,7 +86,7 @@ export const ha = {
   },
   status: {
     title: "Lafiyar Dandalin KoriePay & Tashoshin Bankuna",
-    subtitle: "Bayanai na kai tsaye da tarihin lafiyar kwanaki 90 na Providus Bank Najeriya, Koris Bank Jamhuriyar Nijar, NIP Switch, da sauran ayyuka.",
+    subtitle: "Bayanai na kai tsaye da tarihin lafiyar kwanaki 90 na Providus Bank Najeriya, Coris Bank Jamhuriyar Nijar, NIP Switch, da sauran ayyuka.",
     allOperational: "Duk Tashoshin Bankuna da Ƙofofin API suna Aiki Lafiya",
     degradedAlert: "An Samu Dan Jinkiri a Wasu Tashoshi",
     incidentHistory: "Tarihin Matsalolin da suka Gabata",

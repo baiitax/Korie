@@ -45,7 +45,7 @@ export default function CustomerWalletsPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-2xl bg-[var(--brand-soft)] text-[var(--brand-primary)] flex items-center justify-center font-bold text-xs">
-                  {w.currency === "NGN" ? "₦" : w.currency === "XOF" ? "CFA" : "$"}
+                  {w.currency === "XOF" ? "CFA" : w.currency === "NGN" ? "₦" : w.currency}
                 </div>
                 <div>
                   <div className="text-xs font-bold text-[var(--foreground)]">{w.bankName}</div>

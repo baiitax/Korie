@@ -21,5 +21,5 @@ The forecasting engine generates rolling financial and operational projections a
 ## 3. Liquidity Demand Forecasting (Providus & Koris)
 
 - **Providus Bank (NGN)**: Projects intraday NIP clearing outflows and NGN settlement buffers.
-- **Koris Bank (XOF)**: Forecasts cross-border remittance corridor volume (Kano $\leftrightarrow$ Maradi $\leftrightarrow$ Niamey) and regional vault restocking needs.
+- **Coris Bank (XOF)**: Forecasts cross-border remittance corridor volume (Kano $\leftrightarrow$ Maradi $\leftrightarrow$ Niamey) and regional vault restocking needs.
 - **Confidence Intervals**: All forecasts expose $P_{10}$ (Lower Bound), $P_{50}$ (Expected Median), and $P_{90}$ (Stressed Upper Bound) with calculated Mean Absolute Percentage Error (MAPE).

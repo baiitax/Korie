@@ -16,7 +16,7 @@ export const SecurityNotice: React.FC = () => {
         <div>
           <span className="font-semibold text-slate-300">Protected Gateway</span>
           <p className="text-[10px] text-slate-500">
-            {jurisdiction === "NG" ? "Providus Bank Core Integration" : "Koris Bank Core Integration"}
+            {jurisdiction === "NG" ? "Providus Bank Core Integration" : "Coris Bank Core Integration"}
           </p>
         </div>
       </div>

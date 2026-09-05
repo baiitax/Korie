@@ -20,7 +20,7 @@ export default function AggregatorServicesPage() {
       <div>
         <h1 className="text-xl sm:text-2xl font-black text-white">Banking Nodes & Service Availability</h1>
         <p className="text-xs text-slate-400">
-          Real-time telemetry on Providus Bank Nigeria, Koris Bank Niger Republic, Interswitch POS, and NIBSS gateways
+          Real-time telemetry on Providus Bank Nigeria, Coris Bank Niger Republic, Interswitch POS, and NIBSS gateways
         </p>
       </div>
 

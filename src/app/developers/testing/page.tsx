@@ -56,7 +56,7 @@ export default function TestingReadinessPage() {
             Overall Readiness: <span className="text-emerald-400">{score}%</span>
           </h2>
           <p className="text-xs sm:text-sm text-slate-300 max-w-xl">
-            {completedCount} of {integrationChecklist.length} architectural validation gates passed. Your system is ready for Providus Bank & Koris Bank production settlement routing.
+            {completedCount} of {integrationChecklist.length} architectural validation gates passed. Your system is ready for Providus Bank & Coris Bank production settlement routing.
           </p>
         </div>
 

@@ -10,13 +10,13 @@ import {
   engineToBeneficiary,
 } from "@/lib/engineAdapters";
 import { TransactionService } from "@/lib/services/TransactionService";
+import { orderCurrenciesXofFirst } from "@/lib/customer/customerFeatures";
 // Catalog data for domains that don't yet have a dedicated engine (transactions
 // history beyond this session, cards, support tickets). These are exposed via
 // the API so the client never imports mocks directly; the engine-backed fields
 // (customer, wallet balances, beneficiaries) come from the real engines above.
 import {
   CUSTOMER_TRANSACTIONS,
-  CUSTOMER_CARDS,
   CUSTOMER_SUPPORT_TICKETS,
 } from "@/services/customerDataService";
 
@@ -61,7 +61,10 @@ export async function GET(req: NextRequest) {
   const customer = customerRecord
     ? engineToUser(customerRecord)
     : fallbackUser(ownerCustomerId);
-  const wallets = accounts.length > 0 ? accounts.map(engineToWallet) : [];
+  // XOF first, NGN second (Niger-first). No customer-visible USD.
+  const wallets = accounts.length > 0
+    ? orderCurrenciesXofFirst(accounts.map(engineToWallet))
+    : [];
   const beneficiaries = beneficiaryRecords.map(engineToBeneficiary);
 
   // Cross-border execution rates from the transfer engine (single source of
@@ -83,7 +86,8 @@ export async function GET(req: NextRequest) {
         wallets,
         beneficiaries,
         transactions: CUSTOMER_TRANSACTIONS,
-        cards: CUSTOMER_CARDS,
+        // Cards are COMING SOON — do not expose fabricated card records.
+        cards: [],
         supportTickets: CUSTOMER_SUPPORT_TICKETS,
         fxRates,
       },

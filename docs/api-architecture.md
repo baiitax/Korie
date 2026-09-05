@@ -47,4 +47,4 @@ All KoriePay portals and external partners communicate through a centralized API
 ## 2. API Contract Layering
 - **Public REST API**: `/api/v1/*` (External merchants, agency apps, mobile clients).
 - **Internal Microservice Fabric**: `/api/v1/internal/*` (Reconciliation, health, outbox workers).
-- **Provider Webhook Ingest**: `/api/v1/webhooks/*` (Providus, Koris Bank, NIBSS).
+- **Provider Webhook Ingest**: `/api/v1/webhooks/*` (Providus, Coris Bank, NIBSS).

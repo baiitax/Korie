@@ -1,7 +1,7 @@
 # KORIEPAY DEVELOPER SANDBOX SIMULATOR & TEST INSTRUMENTS
 
 ## 1. Sandbox Purpose
-The KoriePay Sandbox is a high-fidelity isolated testnet that models Providus Bank Nigeria and Koris Bank Niger Republic transaction lifecycles without moving real funds.
+The KoriePay Sandbox is a high-fidelity isolated testnet that models Providus Bank Nigeria and Coris Bank Niger Republic transaction lifecycles without moving real funds.
 
 ---
 
@@ -15,4 +15,4 @@ The KoriePay Sandbox is a high-fidelity isolated testnet that models Providus Ba
 
 ### Virtual Accounts
 - **Providus Bank Nigeria**: `9928193820` (NGN)
-- **Koris Bank Niger Republic**: `22798102391` (XOF)
+- **Coris Bank Niger Republic**: `22798102391` (XOF)

@@ -8,7 +8,7 @@ Business logic is decoupled from external bank APIs through dedicated adapter in
                                      │
                      +───────────────┴───────────────+
                      ▼                               ▼
-          Providus Bank Adapter            Koris Bank Adapter
+          Providus Bank Adapter            Coris Bank Adapter
                (Nigeria)                    (Niger Republic)
                      │                               │
                      ▼                               ▼
@@ -23,6 +23,6 @@ Business logic is decoupled from external bank APIs through dedicated adapter in
 - **Capabilities**: Instant Outward NIP transfers to all 90+ Nigerian banks, Dynamic Virtual NUBAN generation, Inward credit webhooks.
 - **Circuit Breaker Threshold**: 5 consecutive failures trips circuit to `OPEN`, routing requests to fallback reconciliation queues.
 
-### 2.2 Koris Bank Niger Republic Node (`KORIS_NE`)
+### 2.2 Coris Bank Niger Republic Node (`KORIS_NE`)
 - **Capabilities**: WAEMU GIM-UEMOA RTGS settlement across Niger, Senegal, Côte d'Ivoire, Burkina Faso, Mali, Benin, Togo, and Guinea-Bissau.
 - **Settlement SLA**: Sub-second bilateral liquidity confirmation.

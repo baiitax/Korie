@@ -14,10 +14,10 @@ export const CHART_OF_ACCOUNTS: Record<string, ChartOfAccountItem> = {
   },
   '1020': {
     code: '1020',
-    name: 'Koris Settlement Pool XOF',
+    name: 'Coris Bank Settlement Pool XOF',
     category: 'ASSET',
     normalBalance: 'DEBIT',
-    description: 'Bank settlement operating account at Koris Bank Niger Republic',
+    description: 'Bank settlement operating account at Coris Bank Niger Republic',
     currency: 'XOF',
     country: 'NE',
     isActive: true,
@@ -282,7 +282,7 @@ export const CHART_OF_ACCOUNTS: Record<string, ChartOfAccountItem> = {
   },
   '5020': {
     code: '5020',
-    name: 'Koris Rail Processing Expense',
+    name: 'Coris Bank Rail Processing Expense',
     category: 'EXPENSE',
     normalBalance: 'DEBIT',
     description: 'Interbank rail processing cost in Niger',

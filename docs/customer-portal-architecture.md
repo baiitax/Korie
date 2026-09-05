@@ -12,7 +12,7 @@ The **KoriePay Customer Banking Portal** is a production-grade, mobile-first fin
 │  1. Mobile-First Shell & Fixed Bottom Navigation (48px+ touch targets) │
 │  2. Multilingual Internationalization Engine (English, Hausa, French) │
 │  3. Multi-Currency Double-Entry Vaults (NGN, XOF CFA, USD)             │
-│  4. Sub-Second Bilateral Sahel Corridor (Providus ⇄ Koris Bank)        │
+│  4. Sub-Second Bilateral Sahel Corridor (Providus ⇄ Coris Bank)        │
 │  5. 256-Bit Financial Security & Biometric 4-Digit PIN Authentication │
 └────────────────────────────────────────────────────────────────────────┘
 ```

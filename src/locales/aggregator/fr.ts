@@ -36,7 +36,7 @@ export const fr = {
     degraded: "Dégradé",
     normal: "Normal",
     providusNode: "Providus Bank Nigeria",
-    korisNode: "Koris Bank Niger Republic",
+    korisNode: "Coris Bank Niger Republic",
   },
   dashboard: {
     title: "Centre de Commandement du Réseau Financier",

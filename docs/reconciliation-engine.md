@@ -16,7 +16,7 @@ The KoriePay reconciliation engine continuously matches four distinct authoritat
              ▲
              │ (Matches 1:1)
              ▼
-[ 4. Core Bank Account Statements ] (Providus Bank MT940 & Koris Bank Statement)
+[ 4. Core Bank Account Statements ] (Providus Bank MT940 & Coris Bank Statement)
 ```
 
 ## 2. Discrepancy Classification Taxonomy

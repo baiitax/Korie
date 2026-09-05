@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS public.provider_nodes (
 INSERT INTO public.provider_nodes (code, name, country, status, base_url, health_check_url, latency_ms, success_rate_24h)
 VALUES
   ('PROVIDUS_NG', 'Providus Bank Nigeria NIP Banking Node', 'NG', 'CONNECTED', 'https://api.providusbank.com/v2', '/health', 142, 99.94),
-  ('KORIS_NE', 'Koris Bank Niger Republic WAEMU Core Node', 'NE', 'CONNECTED', 'https://api.korisbank.ne/v1', '/status', 188, 99.88),
+  ('KORIS_NE', 'Coris Bank Niger Republic WAEMU Core Node', 'NE', 'CONNECTED', 'https://api.korisbank.ne/v1', '/status', 188, 99.88),
   ('NIBSS_NIP', 'NIBSS Instant Payment Switch (Nigeria)', 'NG', 'CONNECTED', 'https://nip.nibss-plc.com.ng', '/heartbeat', 210, 99.82),
   ('GIM_UEMOA', 'GIM-UEMOA Interbank Settlement Switch', 'NE', 'CONNECTED', 'https://switch.gim-uemoa.org', '/ping', 240, 99.75)
 ON CONFLICT (code) DO NOTHING;

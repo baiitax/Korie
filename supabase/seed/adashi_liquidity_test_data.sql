@@ -48,7 +48,7 @@ SELECT
   '22222222-2222-2222-2222-222222222222',
   bp.id,
   'TEST-NE-KORIS-001',
-  'Koris Bank NE - Operational Settlement Vault',
+  'Coris Bank NE - Operational Settlement Vault',
   'COMMERCIAL_CHECKING',
   'XOF',
   'NE',

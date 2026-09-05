@@ -76,7 +76,7 @@ export class BankingProductFactory {
         id: 'prod-ne-sahel-01',
         productCode: 'KORIE_WALLET_XOF_STANDARD',
         name: 'KoriePay Sahel Digital Account (XOF)',
-        description: 'BCEAO compliant CFA Franc stored-value account with Koris Bank Niger SA settlement pool.',
+        description: 'BCEAO compliant CFA Franc stored-value account with Coris Bank Niger SA settlement pool.',
         productType: 'CONSUMER_WALLET',
         customerType: 'PERSONAL',
         jurisdiction: 'NE',
@@ -87,7 +87,7 @@ export class BankingProductFactory {
         minKycTier: 'TIER_1',
         maxRiskScore: 70.0,
         allowedChannels: ['SAHEL_SWITCH', 'VIRTUAL_ACCOUNT'],
-        glAssetPoolCode: '1020', // Koris Bank Operational Reserve XOF
+        glAssetPoolCode: '1020', // Coris Bank Operational Reserve XOF
         glLiabilityWalletCode: '2020', // Customer Stored-Value Wallets XOF
         glFeeRevenueCode: '4010',
         singleTransactionLimit: 100000,

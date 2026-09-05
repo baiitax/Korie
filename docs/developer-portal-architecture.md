@@ -27,7 +27,7 @@ The **KoriePay Developer & API Platform** provides a secure, low-latency, multi-
                     │                                 │
                     ▼                                 ▼
 +---------------------------------------+ +-------------------------------+
-|     Providus Bank Nigeria Node        | | Koris Bank Niger Republic Node|
+|     Providus Bank Nigeria Node        | | Coris Bank Niger Republic Node|
 |  NIP Gateway • Virtual NUBANs • Interswitch| | WAEMU GIM-UEMOA • RTGS Clearing |
 +---------------------------------------+ +-------------------------------+
 ```

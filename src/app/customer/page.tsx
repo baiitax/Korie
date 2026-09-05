@@ -25,6 +25,8 @@ function statusTone(status: string): "success" | "warning" | "danger" | "info" |
 
 export default function CustomerDashboardPage() {
   const { customer, wallets, activeCurrency, setActiveCurrency, transactions, openReceipt, isBalanceHidden, t } = useCustomer();
+  // wallets arrive XOF-first (Niger-first); USD is never customer-visible.
+  const visibleWallets = wallets;
 
   const hour = new Date().getHours();
   const greeting =
@@ -60,22 +62,18 @@ export default function CustomerDashboardPage() {
       {/* Hero vault card (horizontal snap-scroll for multiple currencies) */}
       <section aria-label={t("customer.accounts.title")}>
         <div className="flex snap-x gap-4 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
-          {wallets
-            .filter((w) => w.currency === "NGN" || w.currency === "XOF" || w.currency === "USD")
-            .map((w, idx) => (
-              <VaultCard
-                key={w.id}
-                wallet={w}
-                className={`snap-start w-[90%] max-w-[500px] shrink-0 ${idx === 0 ? "" : ""}`}
-              />
-            ))}
+          {visibleWallets.map((w, idx) => (
+            <VaultCard
+              key={w.id}
+              wallet={w}
+              className={`snap-start w-[90%] max-w-[500px] shrink-0 ${idx === 0 ? "" : ""}`}
+            />
+          ))}
         </div>
 
         {/* Vault switcher dots */}
         <div className="mt-3 flex items-center justify-center gap-2">
-          {wallets
-            .filter((w) => w.currency === "NGN" || w.currency === "XOF" || w.currency === "USD")
-            .map((w) => (
+          {visibleWallets.map((w) => (
               <button
                 key={w.currency}
                 onClick={() => setActiveCurrency(w.currency)}

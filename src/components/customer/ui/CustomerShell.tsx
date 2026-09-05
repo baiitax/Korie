@@ -25,16 +25,12 @@ import {
   Users,
   WifiOff,
   ChevronRight,
-  Coins,
-  Eye,
-  EyeOff,
   Send,
 } from "lucide-react";
 
 export const CustomerShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
-  const { customer, isOffline, activeWallet, isBalanceHidden, toggleHideBalance, t, notificationsCount } = useCustomer();
-  const [showNotificationPanel, setShowNotificationPanel] = useState(false);
+  const { customer, isOffline, activeWallet, isBalanceHidden, t, notificationsCount } = useCustomer();
 
   const desktopNavItems = [
     { label: t("nav.home"), href: "/customer", icon: Home },
@@ -80,8 +76,8 @@ export const CustomerShell: React.FC<{ children: React.ReactNode }> = ({ childre
               <Link href="/customer" className="flex items-center gap-2">
                 <KorieLogo variant="compact" theme="light" height={28} />
               </Link>
-              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-[var(--brand-soft)] border border-[var(--brand-border)] text-[10px] font-mono text-[var(--brand-primary)] font-bold">
-                <span>{customer.country === "NG" ? "🇳🇬 NG" : "🇳🇪 NE"}</span>
+              <div className="px-2 py-0.5 rounded-md bg-[var(--brand-soft)] border border-[var(--brand-border)] text-[10px] font-mono text-[var(--brand-primary)] font-bold">
+                XOF
               </div>
             </div>
 
@@ -193,24 +189,9 @@ export const CustomerShell: React.FC<{ children: React.ReactNode }> = ({ childre
 
             {/* Right Controls */}
             <div className="flex items-center gap-2 sm:gap-3">
-              {/* Desktop-only cluster (hidden on phone): country badge, balance
-                  visibility, language, notifications, avatar */}
+              {/* Desktop cluster (hidden on phone): language, notifications, avatar.
+                  Balance-visibility lives beside the balance (in the card), NOT here. */}
               <div className="hidden lg:flex items-center gap-2 sm:gap-3">
-                {/* Country / Currency badge */}
-                <div className="px-2 py-1 rounded-xl bg-[var(--surface)] border border-[var(--border)] text-xs font-mono font-semibold text-[var(--foreground-muted)] flex items-center gap-1.5">
-                  <span>{customer.country === "NG" ? "🇳🇬 NGN" : "🇳🇪 XOF"}</span>
-                </div>
-
-                {/* Hide / Show Balance (persistent) */}
-                <button
-                  onClick={toggleHideBalance}
-                  className="p-2 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors"
-                  title={isBalanceHidden ? t("customer.accounts.showBalance") : t("customer.accounts.hideBalance")}
-                  aria-label={isBalanceHidden ? t("customer.accounts.showBalance") : t("customer.accounts.hideBalance")}
-                >
-                  {isBalanceHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                </button>
-
                 {/* Language Switcher */}
                 <LanguageSelector />
 

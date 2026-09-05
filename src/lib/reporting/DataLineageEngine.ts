@@ -46,8 +46,8 @@ export class DataLineageEngine {
         dataset: 'ds_bceao_monthly_eme_liquidity_v2026_08',
         martTable: 'financial_mart.fact_daily_balances',
         warehouseFact: 'dw.fact_ledger_postings (GL 2100-XOF)',
-        sourceLedgerAccount: 'GL-2100-XOF (Koris Bank Niger Republic Float)',
-        originatingSystem: 'Koris Bank Core Banking Node Adapter',
+        sourceLedgerAccount: 'GL-2100-XOF (Coris Bank Niger Republic Float)',
+        originatingSystem: 'Coris Bank Core Banking Node Adapter',
         reconciliationVerified: true,
       },
       {

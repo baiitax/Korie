@@ -19,7 +19,7 @@ function initializeDefaultChartOfAccounts() {
   if (ledgerAccountsStore.size > 0) return;
 
   const defaultAccounts: LedgerAccount[] = [
-    // 1. Assets (Providus Bank Nigeria Reserve Node & Koris Bank Niger Reserve Node)
+    // 1. Assets (Providus Bank Nigeria Reserve Node & Coris Bank Niger Reserve Node)
     {
       id: 'acc_asset_providus_ngn',
       orgId: 'org_kor_99182',
@@ -39,7 +39,7 @@ function initializeDefaultChartOfAccounts() {
       id: 'acc_asset_koris_xof',
       orgId: 'org_kor_99182',
       accountNumber: '1020-KORIS-XOF-POOL',
-      name: 'Koris Bank Niger Republic WAEMU Liquidity Pool',
+      name: 'Coris Bank Niger Republic WAEMU Liquidity Pool',
       type: 'ASSET',
       currency: 'XOF',
       country: 'NE',

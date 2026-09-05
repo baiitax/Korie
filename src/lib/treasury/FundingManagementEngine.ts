@@ -40,7 +40,7 @@ export class FundingManagementEngine {
       {
         id: 'fac-koris-01',
         facilityCode: 'FAC-KORIS-BLP-01',
-        lenderName: 'Koris Bank Niger SA',
+        lenderName: 'Coris Bank Niger SA',
         facilityType: 'STANDBY_LIQUIDITY',
         legalEntity: 'KoriePay Niger SA',
         currency: 'XOF',

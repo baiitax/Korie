@@ -16,7 +16,7 @@
                ▼                                       ▼
 +──────────────────────────────+       +──────────────────────────────+
 |   BANKING NODE STATEMENT     |       |    PHYSICAL TERMINAL AUDIT   |
-| (Providus Bank / Koris Bank) |◄─────►|    (PAX / Sunmi POS Slips)   |
+| (Providus Bank / Coris Bank) |◄─────►|    (PAX / Sunmi POS Slips)   |
 +──────────────────────────────+       +──────────────────────────────+
 ```
 

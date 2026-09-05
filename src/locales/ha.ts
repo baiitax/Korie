@@ -537,6 +537,9 @@ export const ha = {
     hideBalance: "Boye Kuɗi",
     showBalance: "Nuna Kuɗi",
       done: "An Kammala",
+
+    comingSoon: "Nan ba da daɗewa ba",
+    learnMore: "Ƙara koyo",
 },
   loading: {
     initial: "Ana haɗa ƙwaren kuɗin ku a ƙetare iyaka\u2026",
@@ -679,6 +682,11 @@ export const ha = {
     recipientReceives: "Mai karɓa zai karɓa",
     verifying: "Ana bincike...",
     sendFrom: "Aika daga",
+
+    recipientName: "Sunan mai karɓa",
+    recipientRequired: "Zaɓi mai karɓa kuma shigar da lambar asusunsa",
+    invalidAmount: "Shigar da ingantaccen adadi",
+    transferFailed: "Ba a iya kammala canja wurin ba. Don Allah sake gwadawa.",
 },
   receive: {
     title: "Karɓi Kuɗi",
@@ -725,6 +733,9 @@ export const ha = {
       prepaidToken: "Alamar da Aka Biya",
     payAnother: "Biyan Wata Lissafi",
     payBillBtn2: "Biyan Lissafi",
+
+    comingSoonBanner: "Biyan lissafi yana zuwa nan ba da daɗewa ba. Muna shirya hanya mai sauƙi don biyan bukatun yau da kullum.",
+    learnMore: "Kuna son zama cikin waɗanda suka fara sani sa'ad da biyan lissafi ya fara? Za mu sanar da ku.",
 },
   cards: {
     title: "Katukan Banki",
@@ -745,6 +756,10 @@ export const ha = {
     cardholder: "Mai Katin",
     expires: "Bayan Karewa",
     frozenLabel: "An Daskare",
+
+    comingSoonTitle: "Katunan KoriePay suna zuwa nan ba da daɗewa ba.",
+    comingSoonDesc: "Muna gina ingantaccen kwarewar kati don biyan kuɗi da samun damar kuɗi a kullum.",
+    learnMore: "Katunan KoriePay za su ba ku damar biya kan layi da shago cikin aminci.",
 },
   fx: {
     title: "Sauya Kuɗin Kasashen Waje (FX)",
@@ -764,6 +779,10 @@ export const ha = {
     spreadProvider: "Mai Samar da Spread",
     executeAnother: "Yi Wani Canji",
     source: "Tushen",
+
+    quoteReady: "An shirya kimantawarku",
+    quoteReadyDesc: "{{fromAmount}} ≈ {{toAmount}}. Ana amfani da adadin na gaske lokacin aikawa.",
+    proceedToSend: "Aika kuɗi",
 },
   transactions: {
     title: "Tarihin Ma'amaloli",
@@ -859,6 +878,10 @@ export const ha = {
     receiptSaved: "An adana rasit ɗin a na'urarka.",
     shareFailed: "Ba a sami rabawa a nan ba, don haka an kwafi rasit ɗin a kwamfutarka.",
   },
+
+    to: "Zuwa",
+    from: "Daga",
+    date: "Kwana",
 },
   support: {
     title: "Taimako & Magance Matsaloli",
@@ -992,7 +1015,9 @@ export const ha = {
       accountHolder: "Mai Asusu",
       primary: "Babban",
       available: "Ma'auni na Yanzu",
-    },
+    
+      accountNumber: "Lambar asusu",
+},
     hub: {
       fund: "Ƙara Kuɗi",
       koriePay: "KoriePay",
@@ -1000,7 +1025,9 @@ export const ha = {
       cards: "Katuna",
       adashi: "Adashi",
       verify: "Tabbatar",
-    },
+    
+      receive: "Karɓa",
+},
     services: {
       airtime: "Airtime",
       data: "Data",
@@ -1144,4 +1171,44 @@ export const ha = {
   },
 },
 
+
+  services: {
+    airtime: {
+      comingSoonDesc: "Ana shirya cajin waya a halin yanzu.",
+    },
+    data: {
+      comingSoonDesc: "Ana shirya bayanan intanet a halin yanzu.",
+    },
+    electricity: {
+      comingSoonDesc: "Ana shirya biyan wutar lantarki a halin yanzu.",
+    },
+    cableTv: {
+      comingSoonDesc: "Ana shirya biyan tashoshi na talabijin a halin yanzu.",
+    },
+  },
+
+  fund: {
+    title: "Ƙara kuɗi a asusu",
+    subtitle: "Ƙara kuɗi a asusunku ta wakili mai izini ko ta canja wurin banki.",
+    fundingSource: "Kudin yana fitowa daga ina?",
+    agent: "Wakili mai izini",
+    agentDesc: "Ƙara kuɗi ta wakilin KoriePay mai izini.",
+    bankTransfer: "Canja wurin banki",
+    bankTransferDesc: "Canja wurin daga bankinku zuwa asusun KoriePay.",
+    destinationAccount: "Asusun da ake kaiwa",
+    youAreFunding: "Kuna ƙara",
+    reference: "Nunin ƙara kuɗi",
+    agentId: "Lambar wakili (na zaɓi)",
+    agentIdPlaceholder: "mis. AG-NE-XXXX",
+    agentNote: "Ka bayar da lambar wakili domin gano ajiyar ku. Ba a lissafa wakilai a nan ba tukuna.",
+    agentInstructionsTitle: "Ƙara ta wakili mai izini",
+    agentInstructionsBody: "Nuna wannan nuni ga wakilin ku na KoriePay. Za a yaba asusun ku da zarar wakili ya tabbatar da ajiyar.",
+    bankInstructionsTitle: "Ƙara ta canja wurin banki",
+    bankInstructionsBody: "Canja wurin adadin zuwa asusun da ke ƙasa daga bankinku. Ka ambaci nuni domin mu gane ajiyar.",
+    bankName: "Sunan banki",
+    accountNumber: "Lambar asusu",
+    accountName: "Sunan asusu",
+    confirmationNote: "Ma'aunin asusun ku yana sabuntawa da zarar wakili ko bankinku ya tabbatar da ajiyar.",
+    printInstructions: "Buga / Ajiye umarnin",
+  },
 };

@@ -30,9 +30,9 @@ export class TreasuryEngine {
       },
       {
         accountCode: '1020',
-        accountName: 'Koris Bank Niger Republic Sahel Vault',
+        accountName: 'Coris Bank Niger Republic Sahel Vault',
         accountType: 'BANK_VAULT',
-        bankOrProviderName: 'Koris Bank Niger SA',
+        bankOrProviderName: 'Coris Bank Niger SA',
         countryCode: 'NE',
         currency: 'XOF',
         ledgerBalanceMinor: koris?.calculatedBalance || 14_850_000_000,

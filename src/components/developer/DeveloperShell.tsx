@@ -432,7 +432,7 @@ export const DeveloperShell: React.FC<{ children: React.ReactNode }> = ({ childr
             </div>
 
             <p className="text-xs text-slate-300 leading-relaxed">
-              You are switching to <strong className="text-amber-400">LIVE PRODUCTION</strong>. API calls will move real funds through Providus Bank Nigeria and Koris Bank Niger Republic settlement accounts. Never use test cards or dummy references in this mode.
+              You are switching to <strong className="text-amber-400">LIVE PRODUCTION</strong>. API calls will move real funds through Providus Bank Nigeria and Coris Bank Niger Republic settlement accounts. Never use test cards or dummy references in this mode.
             </p>
 
             <div className="p-3.5 rounded-2xl bg-amber-500/5 border border-amber-500/20 text-[11px] font-mono text-amber-300">

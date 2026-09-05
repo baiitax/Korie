@@ -40,7 +40,7 @@ export class AdashiReconciliationEngine {
     // Simulated Core Ledger Escrow Account Balance (Zero-variance parity)
     const ledgerEscrow = operationalEscrow;
 
-    // Simulated Bank node (Providus Bank NGN / Koris Bank XOF)
+    // Simulated Bank node (Providus Bank NGN / Coris Bank XOF)
     const bankBalance = operationalEscrow;
 
     const variance = Math.abs(operationalEscrow - ledgerEscrow) + Math.abs(ledgerEscrow - bankBalance);

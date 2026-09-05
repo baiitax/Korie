@@ -333,7 +333,7 @@ export const ComplianceShell: React.FC<{ children: React.ReactNode }> = ({ child
                   <span className="text-amber-400 font-mono text-[11px] font-semibold">CONFIGURED</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-400">Koris Bank NE:</span>
+                  <span className="text-slate-400">Coris Bank NE:</span>
                   <span className="text-amber-400 font-mono text-[11px] font-semibold">CONFIGURED</span>
                 </div>
               </div>

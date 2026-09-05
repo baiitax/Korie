@@ -57,7 +57,7 @@ Country: NG | Currency: NGN               Country: NE | Currency: XOF
 NGN Central Pool          NGN Adashi Reserve    XOF Central Pool          XOF Adashi Reserve
 (KP-NG-LIQUIDITY)         (KP-NG-ADASHI-RES)    (KP-NE-LIQUIDITY)         (KP-NE-ADASHI-RES)
   │                              │                │                              │
-  ├── Providus Bank NG           └── Pool Holds   ├── Koris Bank NE              └── Pool Holds
+  ├── Providus Bank NG           └── Pool Holds   ├── Coris Bank NE              └── Pool Holds
   ├── Commercial Accounts                         ├── Commercial Accounts
   └── Settlement Accounts                         └── Settlement Accounts
 ```

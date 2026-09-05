@@ -87,7 +87,7 @@ export interface AggregatorOrganization {
   settlementBank: string;
   settlementAccountMasked: string;
   providerNodeNG: "Providus Bank Nigeria (Connected)" | "Providus Bank (Degraded)" | "Awaiting Provider";
-  providerNodeNE: "Koris Bank Niger Republic (Connected)" | "Koris Bank (Degraded)" | "Awaiting Provider";
+  providerNodeNE: "Coris Bank Niger Republic (Connected)" | "Coris Bank (Degraded)" | "Awaiting Provider";
   createdAt: string;
 }
 

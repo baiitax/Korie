@@ -588,7 +588,7 @@ export default function DisputesAndRecoveryAdminPage() {
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white"
                 >
                   <option value="NGN">NGN (Nigeria - Providus Bank Node)</option>
-                  <option value="XOF">XOF (Niger Republic - Koris Bank Node)</option>
+                  <option value="XOF">XOF (Niger Republic - Coris Bank Node)</option>
                 </select>
               </div>
 

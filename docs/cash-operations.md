@@ -16,7 +16,7 @@ KoriePay establishes a strict non-collapsing separation across five independent 
 |  [3. FINANCIAL LEDGER TRUTH]   Authoritative double-entry general ledger journal lines in         |
 |                                balanced debit/credit assets and liabilities.                      |
 |                                                                                                   |
-|  [4. SETTLEMENT TRUTH]         External confirmations from Providus Bank, Koris Bank, NIP,        |
+|  [4. SETTLEMENT TRUTH]         External confirmations from Providus Bank, Coris Bank, NIP,        |
 |                                BCEAO SIP, or CIT couriers.                                        |
 |                                                                                                   |
 |  [5. TREASURY LIQUIDITY TRUTH] Available, restricted, reserved, committed, and forecast funds      |

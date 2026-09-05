@@ -31,6 +31,6 @@ The Scenario Simulation Engine allows executive leadership to model macroeconomi
 2. **Provider Rail Outage (Providus NIP Down 4 Hours)**:
    - Simulates queue build-up, customer drop-off, switch fallback capacity, and fee leakage.
 3. **Cross-Border Corridor Liquidity Run (XOF Outflows +35%)**:
-   - Tests Koris Bank Nostro buffer exhaustion, physical vault restocking velocity, and emergency funding lead times.
+   - Tests Coris Bank Nostro buffer exhaustion, physical vault restocking velocity, and emergency funding lead times.
 4. **Adverse FX Devaluation (+15% NGN/XOF Shift)**:
    - Evaluates FX revaluation loss, margin squeeze on cross-border remittance, and intercompany settlements.

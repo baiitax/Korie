@@ -40,4 +40,4 @@ $$\text{Resilience} = \text{Financial Invariant Preservation} + \text{Zero Ledge
 1. **Database Layer (Supabase/PostgreSQL)**: Multi-AZ automated write-ahead logging (WAL), point-in-time recovery (PITR) with 15-minute granularity, and automated daily snapshot hashing.
 2. **Application Tier (Next.js / Node Core)**: Stateless containerized instances with health check probes (`/api/health`).
 3. **Queue & Background Jobs**: Durable Outbox table with Dead-Letter Queues (DLQ) and exponential backoff retry.
-4. **Provider Interconnects**: Dual banking nodes at Providus Bank (Nigeria) and Koris Bank (Niger Republic).
+4. **Provider Interconnects**: Dual banking nodes at Providus Bank (Nigeria) and Coris Bank (Niger Republic).

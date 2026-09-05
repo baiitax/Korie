@@ -11,7 +11,7 @@
 - **Statement Protocol**: Daily MT940 statement via SFTP and real-time transaction query API.
 - **Settlement Windows**: Intra-day T+0 and Batch T+1 at 06:00 UTC.
 
-### Node 2: Koris Bank Niger Republic (`KORIS_NE`)
+### Node 2: Coris Bank Niger Republic (`KORIS_NE`)
 - **Jurisdiction**: Niger Republic 🇳🇪 (XOF)
 - **Settlement Account Node**: Chart of Accounts `1020` (Koris Settlement Pool XOF)
 - **Primary Rails**:

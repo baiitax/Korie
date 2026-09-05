@@ -2,7 +2,7 @@
 
 ## 1. Partner Registry & Categories
 KoriePay classifies integration partners into distinct governance profiles:
-- `BANK`: Commercial settlement partners (Providus Bank Nigeria, Koris Bank Niger Republic).
+- `BANK`: Commercial settlement partners (Providus Bank Nigeria, Coris Bank Niger Republic).
 - `FINTECH` / `AGGREGATOR`: Payment service providers and multi-tenant platforms.
 - `MERCHANT`: Direct corporate merchants utilizing Checkout and Payment APIs.
 - `AGENCY_PARTNER`: Super-agents and agency network franchisees.

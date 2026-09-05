@@ -45,7 +45,7 @@ export class TransactionRecoveryEngine {
         transactionReference: 'PAY-NE-20260902',
         customerId: 'cust-ne-001-amara',
         customerName: 'Amara Diallo',
-        providerId: 'Koris Bank UEMOA Gateway',
+        providerId: 'Coris Bank UEMOA Gateway',
         failureCategory: 'UNKNOWN_PROVIDER_STATE',
         financialExposure: 4750000,
         currency: 'XOF',
@@ -97,7 +97,7 @@ export class TransactionRecoveryEngine {
       return { success: false, determinedStatus: 'STILL_PENDING', message: 'CASE_NOT_FOUND' };
     }
 
-    // In a real environment, query Providus NIP or Koris Bank API
+    // In a real environment, query Providus NIP or Coris Bank API
     // Simulation: provider confirms successful debit at switch
     const determinedStatus = 'SUCCESS';
     c.status = 'RESOLVED';

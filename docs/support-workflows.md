@@ -11,4 +11,4 @@ Inbound support tickets arrive via In-App Chat, Web Portal, WhatsApp, POS Agent 
 - **LOW (SLA: 8h First Response / 72h Resolution)**: General feature inquiries and product feedback.
 
 ## 3. Incident Linking & Broadcast
-When multiple tickets report the same underlying banking switch latency (e.g. Providus NIP or Koris Bank XOF), supervisors declare a Parent Incident. Frontline junior officers apply the approved incident notice with one click, eliminating duplicate investigation.
+When multiple tickets report the same underlying banking switch latency (e.g. Providus NIP or Coris Bank XOF), supervisors declare a Parent Incident. Frontline junior officers apply the approved incident notice with one click, eliminating duplicate investigation.

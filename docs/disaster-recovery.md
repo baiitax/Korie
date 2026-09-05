@@ -12,5 +12,5 @@
 |---|---|---|
 | **Primary Database Failure** | PostgreSQL streaming replica promoted to Primary | SRE checks connection pools |
 | **Providus Bank Node Outage**| Circuit breaker opens, outward transfers parked in PENDING | Finance informs treasury desk |
-| **Koris Bank Node Outage** | Bilateral corridor rate locks paused | Operations switches to async queue |
+| **Coris Bank Node Outage** | Bilateral corridor rate locks paused | Operations switches to async queue |
 | **Webhook Discard Spike** | Exponential retry backoff automatically engages | Developer alerted via email |

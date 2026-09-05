@@ -5,7 +5,7 @@
 ```
 Step 1: Rail Selection
   ├── 🇳🇬 Nigerian Bank (NIP Gateway via Providus Bank Node)
-  ├── 🇳🇪 Niger Bank (WAEMU / GIM-UEMOA via Koris Bank Node)
+  ├── 🇳🇪 Niger Bank (WAEMU / GIM-UEMOA via Coris Bank Node)
   └── 🌍 Cross-Border Bilateral Corridor (Sub-second NGN ⇄ XOF conversion)
 
 Step 2: Recipient Account Verification

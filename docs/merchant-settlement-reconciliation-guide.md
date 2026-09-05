@@ -7,7 +7,7 @@
 
 KoriePay routes settlements through tier-1 banking institutions:
 1. **Nigeria Rails (NGN):** Providus Bank NIP Settlement Gateway.
-2. **Francophone West Africa Rails (XOF):** Koris Bank Niger Republic / BCEAO RTGS.
+2. **Francophone West Africa Rails (XOF):** Coris Bank Niger Republic / BCEAO RTGS.
 
 ```
 +----------------------------------------------------------------------------------------------------+

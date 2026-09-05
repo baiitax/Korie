@@ -62,7 +62,7 @@ export default function MerchantReconciliationPage() {
       bankSettledTotal: 980000,
       variance: 0,
       status: "MATCHED",
-      providerNode: "Koris Bank NE",
+      providerNode: "Coris Bank NE",
     },
   ];
 

@@ -15,7 +15,7 @@ Transaction Dispatch (Cash-In, Cash-Out, Transfer, Bills)
         ↓
 KoriePay Core Router
         ↓
-Banking Provider Node (Providus Bank 🇳🇬 / Koris Bank 🇳🇪)
+Banking Provider Node (Providus Bank 🇳🇬 / Coris Bank 🇳🇪)
         ↓
 Provider Webhook Callback & HMAC Signature Check
         ↓
@@ -29,7 +29,7 @@ Thermal & Digital Receipt Generation (Selectable Language EN/HA/FR)
 ```
 
 ## 2. Liquidity & Float Model
-- **Wallet Float**: Digital clearing balance hosted at Providus Bank (Nigeria) or Koris Bank (Niger Republic).
+- **Wallet Float**: Digital clearing balance hosted at Providus Bank (Nigeria) or Coris Bank (Niger Republic).
 - **Physical Cash in Hand**: Vault currency held at agency kiosk for cash-out disbursements.
 - **Total Operational Liquidity**: `Wallet Float + Physical Cash in Hand`.
 - **Cash-In Operation**: Collects physical cash (+CashInHand), debits wallet float (-WalletFloat), credits customer bank account.

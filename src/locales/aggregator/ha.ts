@@ -36,7 +36,7 @@ export const ha = {
     degraded: "Akwai Tausayi",
     normal: "Daidai",
     providusNode: "Providus Bank Nigeria",
-    korisNode: "Koris Bank Niger Republic",
+    korisNode: "Coris Bank Niger Republic",
   },
   dashboard: {
     title: "Cibiyar Kula da Hanyoyin Kudi",

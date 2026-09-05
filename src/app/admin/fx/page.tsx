@@ -29,7 +29,7 @@ export default function FxRatesAdminPage() {
       buy: "602.50 CFA",
       sell: "606.00 CFA",
       mid: "604.25 CFA",
-      source: "Koris Bank Treasury Feed",
+      source: "Coris Bank Treasury Feed",
       updatedAt: "Live Push (45s ago)",
     },
   ];

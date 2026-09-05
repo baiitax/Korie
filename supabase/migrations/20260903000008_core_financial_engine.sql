@@ -64,7 +64,7 @@ INSERT INTO public.chart_of_accounts (account_code, name, category, normal_balan
 VALUES
     -- 1xxx: ASSETS
     ('1010', 'Providus Settlement Pool NGN', 'ASSET', 'DEBIT', 'NGN', 'NG', 'Bank settlement operating account at Providus Bank Nigeria'),
-    ('1020', 'Koris Settlement Pool XOF', 'ASSET', 'DEBIT', 'XOF', 'NE', 'Bank settlement operating account at Koris Bank Niger Republic'),
+    ('1020', 'Koris Settlement Pool XOF', 'ASSET', 'DEBIT', 'XOF', 'NE', 'Bank settlement operating account at Coris Bank Niger Republic'),
     ('1030', 'Central Reserve USD Nostro', 'ASSET', 'DEBIT', 'USD', 'CROSS_BORDER', 'FX Nostro clearing balance in USD'),
     ('1110', 'Customer Transit Clearing NGN', 'ASSET', 'DEBIT', 'NGN', 'NG', 'In-flight NIP collections and card transit receivables'),
     ('1120', 'Agent Float Clearing XOF', 'ASSET', 'DEBIT', 'XOF', 'NE', 'In-flight agency cash-in transit receivables'),

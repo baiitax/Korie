@@ -124,7 +124,7 @@ export default function SupportAnalyticsPage() {
                 <span className="text-emerald-400 font-bold font-mono">140 hrs/mo Saved</span>
               </div>
               <p className="text-slate-400 text-[11px]">
-                Auto-trigger MQTT push to PAX terminals immediately after Koris Bank / Providus credit confirmation.
+                Auto-trigger MQTT push to PAX terminals immediately after Coris Bank / Providus credit confirmation.
               </p>
             </div>
           </div>

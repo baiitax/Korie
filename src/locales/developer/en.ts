@@ -26,7 +26,7 @@ export const en = {
   },
   dashboard: {
     heroTitle: "Build, Test & Scale Cross-Border Fintech",
-    heroDesc: "Integrate Nigeria (Providus Bank NIP) & Niger Republic (Koris Bank WAEMU) bilateral payment rails, virtual NUBANs, agency POS switches, and automated webhooks.",
+    heroDesc: "Integrate Nigeria (Providus Bank NIP) & Niger Republic (Coris Bank WAEMU) bilateral payment rails, virtual NUBANs, agency POS switches, and automated webhooks.",
     totalRequests24h: "24h Request Volume",
     avgLatency: "Average Latency",
     successRate: "API Success Rate",
@@ -58,7 +58,7 @@ export const en = {
     title: "Transaction Testing Sandbox",
     subtitle: "Execute simulated cross-border transfers, virtual account credits, and edge-case error scenarios without moving real funds.",
     testCardTitle: "Pre-Configured Test Instruments",
-    testAccountTitle: "Providus Bank & Koris Bank Test Accounts",
+    testAccountTitle: "Providus Bank & Coris Bank Test Accounts",
     simulationEngine: "Scenario Simulator",
     triggerScenario: "Execute Simulation",
     simSuccess: "Simulate Successful Transfer",
@@ -86,7 +86,7 @@ export const en = {
   },
   status: {
     title: "KoriePay Platform & Banking Node Status",
-    subtitle: "Real-time telemetry and 90-day availability for Providus Bank Nigeria, Koris Bank Niger Republic, NIP Switch, and Core Services.",
+    subtitle: "Real-time telemetry and 90-day availability for Providus Bank Nigeria, Coris Bank Niger Republic, NIP Switch, and Core Services.",
     allOperational: "All Banking Nodes & API Gateways Operational",
     degradedAlert: "Partial Node Degradation Detected",
     incidentHistory: "Recent Incident History & Postmortems",

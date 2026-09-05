@@ -445,7 +445,7 @@ export const MOCK_REALTIME_RISK_TELEMETRY: RealtimeRiskTelemetry[] = [
     riskScore: 78,
     ruleDecision: 'FLAG',
     timestamp: '2026-09-03T11:30:15Z',
-    node: 'Koris Bank Core NE',
+    node: 'Coris Bank Core NE',
   },
   {
     id: 'TEL-88904',

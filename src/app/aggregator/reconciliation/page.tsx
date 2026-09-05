@@ -50,7 +50,7 @@ export default function AggregatorReconciliationPage() {
         <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center gap-3 text-xs font-mono">
           <CheckCircle2 className="w-5 h-5 shrink-0" />
           <span>
-            Three-way reconciliation complete: 100% of network transaction records match Providus Bank & Koris Bank credit settlement journals. Zero variance detected.
+            Three-way reconciliation complete: 100% of network transaction records match Providus Bank & Coris Bank credit settlement journals. Zero variance detected.
           </span>
         </div>
       )}

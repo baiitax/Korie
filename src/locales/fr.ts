@@ -545,6 +545,9 @@ export const fr = {
     hideBalance: "Masquer le Solde",
     showBalance: "Afficher le Solde",
       done: "Terminé",
+
+    comingSoon: "Bientôt disponible",
+    learnMore: "En savoir plus",
 },
   loading: {
     initial:
@@ -691,6 +694,11 @@ export const fr = {
     recipientReceives: "Le bénéficiaire reçoit",
     verifying: "Vérification...",
     sendFrom: "Envoyer depuis",
+
+    recipientName: "Nom du bénéficiaire",
+    recipientRequired: "Sélectionnez un bénéficiaire et saisissez ses coordonnées",
+    invalidAmount: "Saisissez un montant valide",
+    transferFailed: "Le transfert n'a pas pu être effectué. Veuillez réessayer.",
 },
   receive: {
     title: "Recevoir de l'argent",
@@ -738,6 +746,9 @@ export const fr = {
       prepaidToken: "Jeton Prépayé",
     payAnother: "Payer une Autre Facture",
     payBillBtn2: "Payer la Facture",
+
+    comingSoonBanner: "Le paiement des factures arrive bientôt. Nous préparons un moyen simple de payer vos besoins quotidiens.",
+    learnMore: "Vous voulez être parmi les premiers informés du lancement du paiement des factures ? Nous vous tiendrons au courant.",
 },
   cards: {
     title: "Cartes Virtuelles & Physiques",
@@ -759,6 +770,10 @@ export const fr = {
     cardholder: "Titulaire",
     expires: "Expire",
     frozenLabel: "Gelée",
+
+    comingSoonTitle: "Les cartes KoriePay arrivent bientôt.",
+    comingSoonDesc: "Nous construisons une expérience de carte sécurisée pour vos paiements et votre accès financier au quotidien.",
+    learnMore: "Les cartes KoriePay vous permettront de payer en ligne et en magasin en toute sécurité.",
 },
   fx: {
     title: "Centre de Change (FX)",
@@ -778,6 +793,10 @@ export const fr = {
     spreadProvider: "Fournisseur de Spread",
     executeAnother: "Exécuter un Autre Échange",
     source: "Source",
+
+    quoteReady: "Votre estimation est prête",
+    quoteReadyDesc: "{{fromAmount}} ≈ {{toAmount}}. Le taux réel est appliqué lors de l'envoi.",
+    proceedToSend: "Envoyer de l'argent",
 },
   transactions: {
     title: "Historique des Transactions",
@@ -873,6 +892,10 @@ export const fr = {
     receiptSaved: "Reçu enregistré sur votre appareil.",
     shareFailed: "Le partage n'est pas disponible ici, le reçu a donc été copié dans votre presse-papiers.",
   },
+
+    to: "À",
+    from: "De",
+    date: "Date",
 },
   support: {
     title: "Centre de Support & Résolution",
@@ -1007,7 +1030,9 @@ export const fr = {
       accountHolder: "Titulaire du Compte",
       primary: "Principal",
       available: "Solde Disponible",
-    },
+    
+      accountNumber: "Numéro de compte",
+},
     hub: {
       fund: "Alimenter",
       koriePay: "KoriePay",
@@ -1015,7 +1040,9 @@ export const fr = {
       cards: "Cartes",
       adashi: "Adashi",
       verify: "Vérifier",
-    },
+    
+      receive: "Recevoir",
+},
     services: {
       airtime: "Airtime",
       data: "Données",
@@ -1159,4 +1186,44 @@ export const fr = {
   },
 },
 
+
+  services: {
+    airtime: {
+      comingSoonDesc: "La recharge de crédit est en cours de préparation.",
+    },
+    data: {
+      comingSoonDesc: "Les forfaits internet sont en cours de préparation.",
+    },
+    electricity: {
+      comingSoonDesc: "Le paiement de l'électricité est en cours de préparation.",
+    },
+    cableTv: {
+      comingSoonDesc: "L'abonnement à la télévision câblée est en cours de préparation.",
+    },
+  },
+
+  fund: {
+    title: "Alimenter le compte",
+    subtitle: "Ajoutez de l'argent à votre compte via un agent agréé ou par virement bancaire.",
+    fundingSource: "D'où vient l'argent ?",
+    agent: "Agent agréé",
+    agentDesc: "Ajoutez du liquide via un agent agréé KoriePay.",
+    bankTransfer: "Virement bancaire",
+    bankTransferDesc: "Virement depuis votre banque vers votre compte KoriePay.",
+    destinationAccount: "Compte de destination",
+    youAreFunding: "Vous alimentez",
+    reference: "Référence de dépôt",
+    agentId: "Identifiant agent (facultatif)",
+    agentIdPlaceholder: "ex. AG-NE-XXXX",
+    agentNote: "Fournissez le code de l'agent pour que votre dépôt soit identifié. Aucun agent n'est encore listé ici.",
+    agentInstructionsTitle: "Alimenter via un agent agréé",
+    agentInstructionsBody: "Présentez cette référence à votre agent KoriePay. Votre compte est crédité dès que l'agent confirme votre dépôt.",
+    bankInstructionsTitle: "Alimenter par virement bancaire",
+    bankInstructionsBody: "Virez le montant vers le compte ci-dessous depuis votre banque. Indiquez la référence pour que nous puissions associer votre crédit.",
+    bankName: "Nom de la banque",
+    accountNumber: "Numéro de compte",
+    accountName: "Nom du compte",
+    confirmationNote: "Votre solde est mis à jour dès que le dépôt est confirmé par l'agent ou votre banque.",
+    printInstructions: "Imprimer / Enregistrer les instructions",
+  },
 };

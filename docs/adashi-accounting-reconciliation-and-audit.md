@@ -9,7 +9,7 @@ $$\sum \text{Member Contributions} - \sum \text{Beneficiary Payouts} - \sum \tex
 Every 24 hours, the `AdashiReconciliationEngine` performs deterministic 3-way balance verification:
 1. **Adashi Operational Aggregate**: Sum of all `adashi_contribution_obligations.status = 'PAID'` minus sum of `adashi_payouts.status = 'COMPLETED'`.
 2. **Core Ledger Escrow Account Balance**: Gl balance on `KORIEPAY_ESCROW_ADASHI_VAULT`.
-3. **Physical Bank Settlement Account Balance**: Total custodial cash deposited at Providus Bank (NGN) / Koris Bank (XOF).
+3. **Physical Bank Settlement Account Balance**: Total custodial cash deposited at Providus Bank (NGN) / Coris Bank (XOF).
 
 ---
 

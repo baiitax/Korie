@@ -12,7 +12,7 @@
   Tier 1: Financial Movement & Verification
      │
      ├── Providus Bank Nigeria Gateway Node (058)
-     ├── Koris Bank Niger Republic Gateway Node (SA)
+     ├── Coris Bank Niger Republic Gateway Node (SA)
      ├── Settlement Engine & settlement_batches Table
      └── Reconciliation Engine & MT940 Parser
      │

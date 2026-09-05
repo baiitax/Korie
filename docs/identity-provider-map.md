@@ -23,7 +23,7 @@ export interface IdentityVerificationProvider {
 | **Nigeria 🇳🇬** | National Identity (NIN) | NIMC Direct Verification Gateway | SmileID / VerifiedAfrica | NIMC National Database |
 | **Nigeria 🇳🇬** | Bank Verification Number (BVN) | NIBSS Direct Identity Switch | Providus Bank KYC Node | NIBSS Central Clearing |
 | **Nigeria 🇳🇬** | Business Registration (KYB) | CAC Corporate Affairs Commission Portal | Youverify Business Node | CAC Corporate Registry |
-| **Niger Republic 🇳🇪** | National Identity (NINA) | Niger Ministry of Interior Identity Node | Koris Bank KYC Gateway | NINA Central Register |
+| **Niger Republic 🇳🇪** | National Identity (NINA) | Niger Ministry of Interior Identity Node | Coris Bank KYC Gateway | NINA Central Register |
 | **Niger Republic 🇳🇪** | Business Registration (KYB) | RCCM (Registre du Commerce et du Crédit Mobilier) | Sahel Corporate Database | Niamey Commercial Court Registry |
 | **Global** | Biometric Liveness & Anti-Spoofing | Onfido / SmileID Biometric SDK | Internal Face-Match Engine | Passive Liveness ISO 30107-3 |
 

@@ -1,7 +1,7 @@
 # KORIEPAY AGGREGATOR SYSTEM MAP
 ## Multi-Country Financial Network & Distribution Infrastructure
 **Country Scope:** Nigeria 🇳🇬 (NGN) & Niger Republic 🇳🇪 (XOF)  
-**Primary Banking Nodes:** Providus Bank Nigeria & Koris Bank Niger Republic  
+**Primary Banking Nodes:** Providus Bank Nigeria & Coris Bank Niger Republic  
 
 ---
 

@@ -1,7 +1,7 @@
 # KORIEPAY MERCHANT FINANCIAL OPERATING SYSTEM (FOS)
 ## Enterprise Multi-Branch & Omni-Channel Payment Infrastructure
 **Country Coverage:** Nigeria 🇳🇬 (NGN) & Niger Republic 🇳🇪 (XOF / BCEAO)  
-**Primary Banking Nodes:** Providus Bank Nigeria & Koris Bank Niger Republic  
+**Primary Banking Nodes:** Providus Bank Nigeria & Coris Bank Niger Republic  
 **Target Merchant Tier:** Tier-1 FMCG, Agro-Distributors, Supermarkets, Superstores, and SME Merchants  
 
 ---

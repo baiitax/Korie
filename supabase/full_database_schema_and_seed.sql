@@ -806,7 +806,7 @@ ON CONFLICT (code) DO NOTHING;
 INSERT INTO liquidity.banking_providers (id, provider_code, provider_name, country_code, base_currency, provider_type)
 VALUES
   ('30000000-0000-0000-0000-000000000001', 'PROVIDUS_NG', 'Providus Bank Nigeria PLC', 'NG', 'NGN', 'COMMERCIAL_BANK'),
-  ('30000000-0000-0000-0000-000000000002', 'KORIS_NE', 'Koris Bank Niger Republic', 'NE', 'XOF', 'COMMERCIAL_BANK')
+  ('30000000-0000-0000-0000-000000000002', 'KORIS_NE', 'Coris Bank Niger Republic', 'NE', 'XOF', 'COMMERCIAL_BANK')
 ON CONFLICT (provider_code) DO NOTHING;
 
 -- 8.3 Seed Central Liquidity Pools & Positions
@@ -830,7 +830,7 @@ ON CONFLICT (pool_id) DO NOTHING;
 INSERT INTO liquidity.pool_accounts (id, pool_id, provider_id, account_identifier, account_name, account_type, currency, country_code, legal_entity_code, is_primary, is_test_data)
 VALUES
   ('50000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', 'TEST-NG-PROVIDUS-001', 'Providus Bank Clearing Vault', 'COMMERCIAL_CHECKING', 'NGN', 'NG', 'KP-NG', TRUE, TRUE),
-  ('50000000-0000-0000-0000-000000000002', '40000000-0000-0000-0000-000000000002', '30000000-0000-0000-0000-000000000002', 'TEST-NE-KORIS-001', 'Koris Bank Settlement Vault', 'COMMERCIAL_CHECKING', 'XOF', 'NE', 'KP-NE', TRUE, TRUE)
+  ('50000000-0000-0000-0000-000000000002', '40000000-0000-0000-0000-000000000002', '30000000-0000-0000-0000-000000000002', 'TEST-NE-KORIS-001', 'Coris Bank Settlement Vault', 'COMMERCIAL_CHECKING', 'XOF', 'NE', 'KP-NE', TRUE, TRUE)
 ON CONFLICT (account_identifier) DO NOTHING;
 
 -- 8.5 Seed Adashi Products

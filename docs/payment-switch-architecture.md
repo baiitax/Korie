@@ -42,7 +42,7 @@ A provider response of `SUCCESS` indicates execution completion; it does not rep
                ┌────────────┴────────────┐
                ▼                         ▼
          [Provider A]               [Provider B]
-      (Providus Bank NG)        (Koris Bank Niger SA)
+      (Providus Bank NG)        (Coris Bank Niger SA)
                │                         │
                └────────────┬────────────┘
                             │

@@ -351,7 +351,7 @@ export default function AdashiAdminPage() {
           <div className="text-xl font-extrabold text-teal-400 mt-1 font-mono">
             {(stats?.totalEscrowVaultXof ?? 0).toLocaleString()} CFA
           </div>
-          <div className="text-[10px] text-slate-400 mt-1">Koris Bank Niger Escrow</div>
+          <div className="text-[10px] text-slate-400 mt-1">Coris Bank Niger Escrow</div>
         </div>
 
         <div className="p-4 rounded-2xl bg-[#0d162a] border border-white/5">

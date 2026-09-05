@@ -38,7 +38,7 @@ export class DataDictionaryEngine {
         metricCode: 'MTR-TREAS-001',
         metricName: 'Available Liquid Nostro Reserves',
         domain: 'Treasury / ALM',
-        businessDefinition: 'Total settled cash held across Providus Bank Nigeria and Koris Bank Niger Republic clearing pools.',
+        businessDefinition: 'Total settled cash held across Providus Bank Nigeria and Coris Bank Niger Republic clearing pools.',
         technicalFormula: 'SUM(nostro_pool_accounts.cleared_balance)',
         dataOwner: 'Group Treasurer',
         dataSteward: 'Treasury Operations Lead',

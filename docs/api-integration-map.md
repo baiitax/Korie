@@ -3,7 +3,7 @@
 ## 1. API Integration Contracts
 - `POST /v1/transfers/cross-border`: Sub-second bilateral settlement between Nigeria (NGN) and Niger (XOF).
 - `POST /v2/nip-gateway/outward`: Providus Bank Nigeria instant interbank outward transfer.
-- `POST /core/v1/settlement`: Koris Bank Niger Republic WAEMU clearing.
+- `POST /core/v1/settlement`: Coris Bank Niger Republic WAEMU clearing.
 - `POST /v1/checkout/qr`: Dynamic multi-currency merchant standee QR generator.
 - `POST /v1/agency/cash-out`: Smart POS terminal biometric authorization.
 

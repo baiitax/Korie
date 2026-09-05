@@ -3,21 +3,26 @@
 import React, { useState } from "react";
 import { useCustomer } from "../CustomerContext";
 import { CustomerWallet } from "@/types/customer";
-import { getCurrencyMeta, formatMoney } from "@/lib/money";
+import { formatMoney, maskAccountNumber } from "@/lib/money";
 import { Eye, EyeOff, Copy, Check } from "lucide-react";
 
+const ACCOUNT_CAPTION: Record<string, string> = {
+  XOF: "West African CFA Franc Account",
+  NGN: "Nigerian Naira Account",
+};
+
 /**
- * VaultCard — a simple, premium hero account card inspired by the reference
- * dashboard. One card per currency (horizontal snap-swap for the rest), fully
- * light-first and token-driven. Presents the account as a distinct NGN / XOF /
- * USD vault with a virtual tag, account holder, and available balance.
+ * VaultCard — the premium hero account card, Niger-first (XOF primary).
  *
- * Responsive: the bank info (virtual tag, account number) and the available
- * balance scale fluidly to the card width via clamp() so the card never
- * overflows or "shakes" on narrow (320px) phones; the holder + balance row
- * stacks on small screens instead of colliding.
+ * Information hierarchy (mandatory, directive §6/§7/§39):
+ *   1. Account name (currency + caption)
+ *   2. BALANCE — visually dominant, bold, tabular, high-contrast
+ *   3. Account number — masked, BELOW the balance (never stronger than balance)
  *
- * Only exposes data the backing account actually provides.
+ * The balance-visibility toggle lives BESIDE the balance (not in the top bar),
+ * so there is exactly one privacy control and it belongs to the balance
+ * context. XOF is presented first and is the primary account; NGN secondary.
+ * No USD is ever rendered here.
  */
 export const VaultCard: React.FC<{ wallet: CustomerWallet; className?: string }> = ({
   wallet,
@@ -25,7 +30,7 @@ export const VaultCard: React.FC<{ wallet: CustomerWallet; className?: string }>
 }) => {
   const { isBalanceHidden, toggleHideBalance, t } = useCustomer();
   const [copied, setCopied] = useState(false);
-  const meta = getCurrencyMeta(wallet.currency);
+  const caption = ACCOUNT_CAPTION[wallet.currency] ?? `${wallet.currency} Account`;
   const isPrimary = wallet.isPrimary;
 
   const handleCopy = async (e: React.MouseEvent) => {
@@ -39,51 +44,81 @@ export const VaultCard: React.FC<{ wallet: CustomerWallet; className?: string }>
     }
   };
 
-  // Bank-card-inspired vault: teal gradient by currency; NGN brand-teal, XOF amber-teal.
+  // Bank-card-inspired vault surface: brand-teal for XOF (primary), deeper
+  // brand for NGN (secondary). Clean, light-first, readable; no neon/glass.
   const gradient =
     wallet.currency === "XOF"
-      ? "linear-gradient(135deg, #0f5c51 0%, #0d7a6b 55%, #0d9488 100%)"
-      : wallet.currency === "USD"
-      ? "linear-gradient(135deg, #0f2f4f 0%, #124a6b 60%, #1d6fa5 100%)"
-      : "linear-gradient(135deg, #071722 0%, #0a2a33 55%, #0d5b52 100%)";
+      ? "linear-gradient(135deg, #0f766e 0%, #0d9488 60%, #14b8a6 100%)"
+      : "linear-gradient(135deg, #0f2f4f 0%, #124a6b 60%, #1d6fa5 100%)";
 
   return (
     <div
       className={`relative flex flex-col justify-between overflow-hidden rounded-3xl p-5 sm:p-6 md:p-7 text-white shadow-[var(--shadow-lg)] ${className}`}
       style={{ background: gradient }}
     >
-      {/* soft brand glow */}
       <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-20 -left-12 h-44 w-44 rounded-full bg-white/5 blur-3xl" />
 
-      {/* Top: monogram + vault label + PRIMARY */}
+      {/* Top: KoriePay monogram + currency — the product identity line */}
       <div className="relative z-10 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 min-w-0">
           <div className="flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-xl bg-white/15 backdrop-blur text-sm font-extrabold">
             K
           </div>
-          <div className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-white/90 truncate">
-            {wallet.currency} {t("customer.accounts.title")}
+          <div className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-white/90">
+            KoriePay
           </div>
         </div>
-        {isPrimary && (
-          <span className="shrink-0 rounded-full border border-white/30 bg-white/10 px-2.5 py-1 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider">
-            {t("customer.vault.primary")}
+        <div className="flex items-center gap-2 shrink-0">
+          {isPrimary && (
+            <span className="rounded-full border border-white/30 bg-white/10 px-2.5 py-1 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider">
+              {t("customer.vault.primary")}
+            </span>
+          )}
+          <span className="rounded-full bg-white/20 px-2.5 py-1 text-[10px] sm:text-[11px] font-extrabold font-mono">
+            {wallet.currency}
           </span>
-        )}
+        </div>
       </div>
 
-      {/* Virtual account / tag */}
-      <div className="relative z-10 mt-6 sm:mt-8">
-        <div className="text-[10px] font-mono uppercase tracking-widest text-white/60">
-          {t("customer.vault.virtualTag")}
-        </div>
-        <div className="mt-2 flex items-center gap-2 min-w-0">
-          <span
-            className="whitespace-nowrap font-extrabold font-mono text-white"
-            style={{ fontSize: "clamp(1rem, 4.4vw, 1.6rem)", letterSpacing: "clamp(0.04em, 0.4vw, 0.16em)" }}
+      {/* Account caption */}
+      <div className="relative z-10 mt-5 sm:mt-6">
+        <div className="text-[12px] sm:text-[13px] font-semibold text-white/80">{caption}</div>
+      </div>
+
+      {/* BALANCE — dominant, above account number; toggle beside it */}
+      <div className="relative z-10 mt-4 sm:mt-5">
+        <div className="flex items-center justify-start gap-2">
+          <div className="text-[10px] font-mono uppercase tracking-widest text-white/70">
+            {t("customer.vault.available")}
+          </div>
+          <button
+            onClick={toggleHideBalance}
+            className="rounded-md p-1 text-white/80 transition-colors hover:text-white"
+            aria-label={isBalanceHidden ? t("customer.accounts.showBalance") : t("customer.accounts.hideBalance")}
+            aria-pressed={isBalanceHidden}
           >
-            {wallet.accountNumber.replace(/(.{3})/g, "$1 ").trim()}
+            {isBalanceHidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+          </button>
+        </div>
+        <div
+          className="mt-1 whitespace-nowrap font-extrabold font-mono tabular text-white"
+          style={{ fontSize: "clamp(1.4rem, 6vw, 2.25rem)" }}
+        >
+          {isBalanceHidden ? "CFA ••••••••" : formatMoney(wallet.availableBalance, wallet.currency)}
+        </div>
+      </div>
+
+      {/* Account number — masked, below the balance (never dominant) */}
+      <div className="relative z-10 mt-5 sm:mt-6">
+        <div className="text-[10px] font-mono uppercase tracking-widest text-white/60">
+          {t("customer.vault.accountNumber")}
+        </div>
+        <div className="mt-1.5 flex items-center gap-2 min-w-0">
+          <span
+            className="whitespace-nowrap font-semibold font-mono text-white/95"
+            style={{ fontSize: "clamp(0.95rem, 3.5vw, 1.15rem)", letterSpacing: "0.06em" }}
+          >
+            {maskAccountNumber(wallet.accountNumber)}
           </span>
           <button
             onClick={handleCopy}
@@ -91,39 +126,8 @@ export const VaultCard: React.FC<{ wallet: CustomerWallet; className?: string }>
             aria-label={t("customer.accounts.copyNumber")}
             title={t("customer.accounts.copyNumber")}
           >
-            {copied ? <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <Copy className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+            {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
           </button>
-        </div>
-      </div>
-
-      {/* Account holder + available balance — stacks on narrow screens */}
-      <div className="relative z-10 mt-6 sm:mt-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="min-w-0">
-          <div className="text-[10px] font-mono uppercase tracking-widest text-white/60">
-            {t("customer.vault.accountHolder")}
-          </div>
-          <div className="mt-1 truncate text-sm font-bold text-white/90">{wallet.accountName}</div>
-        </div>
-
-        <div className="shrink-0 text-left sm:text-right">
-          <div className="flex items-center justify-start sm:justify-end gap-2">
-            <div className="text-[10px] font-mono uppercase tracking-widest text-white/60">
-              {t("customer.vault.available")}
-            </div>
-            <button
-              onClick={toggleHideBalance}
-              className="rounded-md p-1 text-white/70 transition-colors hover:text-white"
-              aria-label={isBalanceHidden ? t("customer.accounts.showBalance") : t("customer.accounts.hideBalance")}
-            >
-              {isBalanceHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-            </button>
-          </div>
-          <div
-            className="mt-1 whitespace-nowrap font-extrabold font-mono tabular text-white"
-            style={{ fontSize: "clamp(1rem, 4.8vw, 1.5rem)" }}
-          >
-            {isBalanceHidden ? "••••••••" : formatMoney(wallet.availableBalance, wallet.currency)}
-          </div>
         </div>
       </div>
     </div>

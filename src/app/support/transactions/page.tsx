@@ -44,7 +44,7 @@ export default function TransactionInvestigationPage() {
           </div>
           <h1 className="text-2xl font-extrabold text-white">Transaction Investigation Desk</h1>
           <p className="text-xs text-slate-400">
-            Lifecycle traces, NIBSS Session IDs, Providus Bank NG & Koris Bank NE gateway logs.
+            Lifecycle traces, NIBSS Session IDs, Providus Bank NG & Coris Bank NE gateway logs.
           </p>
         </div>
       </div>

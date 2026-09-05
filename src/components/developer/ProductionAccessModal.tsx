@@ -76,7 +76,7 @@ export const ProductionAccessModal: React.FC<{ isOpen: boolean; onClose: () => v
                 className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-white text-xs font-mono focus:outline-none focus:border-emerald-500"
               >
                 <option value="Providus Bank Nigeria">🇳🇬 Providus Bank Nigeria (Commercial NUBAN)</option>
-                <option value="Koris Bank Niger Republic">🇳🇪 Koris Bank Niger Republic (WAEMU Account)</option>
+                <option value="Coris Bank Niger Republic">🇳🇪 Coris Bank Niger Republic (WAEMU Account)</option>
                 <option value="Bilateral Clearing Pool">🌍 Bilateral Dual-Currency Clearing Pool</option>
               </select>
             </div>

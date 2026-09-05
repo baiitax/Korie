@@ -36,7 +36,7 @@ export const en = {
     degraded: "Degraded",
     normal: "Normal",
     providusNode: "Providus Bank NG",
-    korisNode: "Koris Bank NE",
+    korisNode: "Coris Bank NE",
   },
   dashboard: {
     title: "Financial Network Command Center",

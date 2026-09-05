@@ -2,7 +2,7 @@
 
 ## 1. Credit Facility Master Registry
 KoriePay maintains institutional wholesale funding relationships:
-- **Commercial Bank Credit Lines**: Providus Bank (₦5,000,000,000 revolving credit), Koris Bank SA (10,000,000,000 XOF liquidity backstop).
+- **Commercial Bank Credit Lines**: Providus Bank (₦5,000,000,000 revolving credit), Coris Bank SA (10,000,000,000 XOF liquidity backstop).
 - **Facility Governance**: Tracks committed limits, current utilization, undrawn headroom, interest spread ($+\text{SOFR} / +\text{MPR}$), upfront commitment fees, and financial covenants (e.g. minimum liquidity buffer $> 20\%$).
 
 ---

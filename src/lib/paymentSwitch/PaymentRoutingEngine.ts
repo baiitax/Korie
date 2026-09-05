@@ -104,7 +104,7 @@ export class PaymentRoutingEngine {
       'KORIS_NE',
       {
         providerCode: 'KORIS_NE',
-        providerName: 'Koris Bank Niger SA (BCEAO Rails)',
+        providerName: 'Coris Bank Niger SA (BCEAO Rails)',
         country: 'NE',
         supportedCurrencies: ['XOF', 'USD'],
         supportedChannels: ['SAHEL_SWITCH', 'VIRTUAL_ACCOUNT'],

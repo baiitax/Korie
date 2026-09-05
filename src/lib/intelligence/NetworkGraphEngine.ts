@@ -22,7 +22,7 @@ export class NetworkGraphEngine {
   private seedGraph() {
     const defaultNodes: NetworkGraphNode[] = [
       { id: 'n-prov', nodeKey: 'NODE-PROVIDUS-BANK', nodeType: 'BANK_NODE', label: 'Providus Bank Nigeria Node', clusterId: 'SETTLEMENT_CORE', riskRating: 'LOW' },
-      { id: 'n-koris', nodeKey: 'NODE-KORIS-BANK', nodeType: 'BANK_NODE', label: 'Koris Bank Niger SA Node', clusterId: 'SETTLEMENT_CORE', riskRating: 'LOW' },
+      { id: 'n-koris', nodeKey: 'NODE-KORIS-BANK', nodeType: 'BANK_NODE', label: 'Coris Bank Niger SA Node', clusterId: 'SETTLEMENT_CORE', riskRating: 'LOW' },
       { id: 'n-agt1', nodeKey: 'NODE-AGT-KAN-001', nodeType: 'AGENT', label: 'Kano Agent Super-Hub', clusterId: 'NORTHERN_CORRIDOR', riskRating: 'LOW' },
       { id: 'n-agt2', nodeKey: 'NODE-AGT-MAR-002', nodeType: 'AGENT', label: 'Maradi Border Outpost', clusterId: 'NORTHERN_CORRIDOR', riskRating: 'LOW' },
       { id: 'n-mch1', nodeKey: 'NODE-MCH-SAHARA', nodeType: 'MERCHANT', label: 'Sahara Wholesale Corp', clusterId: 'COMMERCE_HUB', riskRating: 'LOW' },

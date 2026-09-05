@@ -42,7 +42,7 @@ export default function SandboxPage() {
 
   const testAccounts = [
     { bank: 'Providus Bank Nigeria', nuban: '9928193820', accountName: 'KORIE / TEST CUSTOMER / NGN', currency: 'NGN', note: 'Instant virtual collection NUBAN' },
-    { bank: 'Koris Bank Niger Republic', nuban: '22798102391', accountName: 'KORIE / TEST RECIPIENT / XOF', currency: 'XOF', note: 'WAEMU cross-border beneficiary' },
+    { bank: 'Coris Bank Niger Republic', nuban: '22798102391', accountName: 'KORIE / TEST RECIPIENT / XOF', currency: 'XOF', note: 'WAEMU cross-border beneficiary' },
   ];
 
   const handleExecuteSimulation = async () => {

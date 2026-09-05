@@ -36,7 +36,7 @@ def generate_diagram_1():
         ("PRODUCT & SWITCH", ["Customer Wallets", "Agency Banking", "BDC & FX Gateway", "Adashi ROSCA Engine", "Payment Switch"], ACCENT_TEAL, 3.0),
         ("FINANCIAL CORE", ["Double-Entry Core Ledger", "Journal Entry Vault", "Immutable Hash Log", "Maker-Checker Guard", "Chart of Accounts"], ACCENT_EMERALD, 2.0),
         ("TREASURY & CLEARING", ["Central Liquidity Pool", "4-Way Reconciliation", "Suspense Account Desk", "Settlement Engine", "ALM Planning"], ACCENT_AMBER, 1.0),
-        ("BANKING NODES", ["Providus Bank PLC (Nigeria - NGN)", "Koris Bank SA (Niger - XOF)", "NIBSS NIP Switch", "GIM-UEMOA Switch"], ACCENT_ROSE, 0.0),
+        ("BANKING NODES", ["Providus Bank PLC (Nigeria - NGN)", "Coris Bank SA (Niger - XOF)", "NIBSS NIP Switch", "GIM-UEMOA Switch"], ACCENT_ROSE, 0.0),
     ]
 
     for title, items, color, y in layers:
@@ -188,7 +188,7 @@ def generate_diagram_4():
                                      facecolor=CARD_BG, edgecolor=ACCENT_AMBER, linewidth=1.5)
     ax.add_patch(ne_rect)
     ax.text(8.25, 3.1, "NIGER POOL (KP-NE)", ha='center', va='center', color=ACCENT_AMBER, fontsize=9, weight='bold')
-    ax.text(8.25, 2.7, "Currency: XOF (West African CFA Franc)\nNode: Koris Bank SA Settlement Vault\nPools: KP-NE-LIQUIDITY, ADASHI-RES-NE\nRegulator: BCEAO / WAEMU Ecosystem",
+    ax.text(8.25, 2.7, "Currency: XOF (West African CFA Franc)\nNode: Coris Bank SA Settlement Vault\nPools: KP-NE-LIQUIDITY, ADASHI-RES-NE\nRegulator: BCEAO / WAEMU Ecosystem",
             ha='center', va='center', color=TEXT_WHITE, fontsize=7, linespacing=1.3)
 
     # Firewall Barrier in Center

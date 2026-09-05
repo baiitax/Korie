@@ -2,7 +2,7 @@
 
 ## 1. Executive Summary & Architectural Overview
 
-The **KoriePay Adashi / Ajo / ROSCA Platform** is an enterprise-grade rotating savings orchestration engine designed for Nigeria (NGN, Providus Bank rail, Central Bank of Nigeria regulations) and Niger Republic (XOF, Koris Bank rail, BCEAO regulations).
+The **KoriePay Adashi / Ajo / ROSCA Platform** is an enterprise-grade rotating savings orchestration engine designed for Nigeria (NGN, Providus Bank rail, Central Bank of Nigeria regulations) and Niger Republic (XOF, Coris Bank rail, BCEAO regulations).
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────┐

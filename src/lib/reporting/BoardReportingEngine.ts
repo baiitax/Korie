@@ -37,7 +37,7 @@ export class BoardReportingEngine {
       {
         id: 'act-01',
         boardReportId: 'brd-2026-q3',
-        directiveTitle: 'Expand Francophone XOF Nostro Facility at Koris Bank Niger SA',
+        directiveTitle: 'Expand Francophone XOF Nostro Facility at Coris Bank Niger SA',
         assignedOwner: 'Group Treasurer',
         dueDate: '2026-10-15',
         priority: 'HIGH',

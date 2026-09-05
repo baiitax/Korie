@@ -18,7 +18,7 @@ export default function ChangelogPage() {
       date: '2026-08-15',
       title: 'Bilateral Atomic Settlement & EMVCo Standee Dynamic QR',
       type: 'FEATURE',
-      summary: 'Introduced atomic bilateral corridor settlement between Nigeria (Providus) and Niger Republic (Koris Bank) with sub-second locks and EMV dynamic QR payloads.',
+      summary: 'Introduced atomic bilateral corridor settlement between Nigeria (Providus) and Niger Republic (Coris Bank) with sub-second locks and EMV dynamic QR payloads.',
       changes: [
         'Added POST /v1/transfers/cross-border with guaranteed 60s FX lock.',
         'Added POST /v1/merchant/checkout dynamic QR standee generation.',

@@ -18,7 +18,7 @@ The Routing Engine evaluates multi-dimensional attributes to select the optimal 
 | **Nigeria 🇳🇬** | Instant Bank Transfer (NIP) | Providus Bank Nigeria (`058`) | NIBSS Direct NIP Switch | 80% Primary / 20% Health Probe |
 | **Nigeria 🇳🇬** | Virtual Account Collections | Providus Virtual Accounts | Interswitch Collections | 90% Primary / 10% Failover |
 | **Nigeria 🇳🇬** | Card Processing (MDR) | Interswitch Payment Gateway | Paystack Direct | Least-Cost + Success Rate |
-| **Niger Republic 🇳🇪** | Interbank Transfer (Sahel) | Koris Bank Niger SA | GIM-UEMOA Direct Switch | Active-Passive Failover |
+| **Niger Republic 🇳🇪** | Interbank Transfer (Sahel) | Coris Bank Niger SA | GIM-UEMOA Direct Switch | Active-Passive Failover |
 | **Cross-Border** | NGN ➔ XOF Corridor | KoriePay Bilateral FX Bridge | Koris SA Treasury Desk | Guaranteed Quote Execution |
 
 ---

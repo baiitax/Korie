@@ -128,7 +128,7 @@ export class DisasterRecoveryEngine {
         stepNumber: 7,
         stepName: 'Provider Gateway Live Node Health Check',
         status: 'PASSED' as const,
-        details: 'Providus Bank NG (058) and Koris Bank NE responding within nominal SLA (<15ms).',
+        details: 'Providus Bank NG (058) and Coris Bank NE responding within nominal SLA (<15ms).',
         checkedAt: now,
       },
     ];

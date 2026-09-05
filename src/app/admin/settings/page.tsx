@@ -70,7 +70,7 @@ export default function SettingsAdminPage() {
             </div>
             <div>
               <label className="text-slate-400 block mb-1">Default Banking Gateway</label>
-              <input type="text" disabled defaultValue="Koris Bank SA (Niamey)" className="w-full p-2.5 rounded-xl bg-slate-900 border border-white/5 text-amber-400 font-mono" />
+              <input type="text" disabled defaultValue="Coris Bank SA (Niamey)" className="w-full p-2.5 rounded-xl bg-slate-900 border border-white/5 text-amber-400 font-mono" />
             </div>
           </div>
         </div>

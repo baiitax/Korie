@@ -22,7 +22,7 @@ export class CircuitBreakerEngine {
       coolOff: number;
     }[] = [
       { key: 'PROVIDUS_BANK_NG', name: 'Providus Bank Nigeria Settlement Switch', tier: 'TIER_1', threshold: 5, coolOff: 60 },
-      { key: 'KORIS_BANK_NE', name: 'Koris Bank Niger Republic Sahel Switch', tier: 'TIER_1', threshold: 5, coolOff: 60 },
+      { key: 'KORIS_BANK_NE', name: 'Coris Bank Niger Republic Sahel Switch', tier: 'TIER_1', threshold: 5, coolOff: 60 },
       { key: 'NIBSS_NIP_GATEWAY', name: 'NIBSS Direct NIP Clearing Switch', tier: 'TIER_1', threshold: 3, coolOff: 45 },
       { key: 'NIMC_NIN_IDENTITY', name: 'NIMC National Identity Verification Gateway', tier: 'TIER_2', threshold: 4, coolOff: 90 },
       { key: 'CARD_AGGREGATOR_NODE', name: 'Interswitch / Card Scheme Acquirer Node', tier: 'TIER_1', threshold: 5, coolOff: 60 },

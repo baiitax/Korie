@@ -64,7 +64,7 @@ ON CONFLICT (code) DO NOTHING;
 INSERT INTO liquidity.banking_providers (provider_code, provider_name, country_code, base_currency, provider_type, is_active)
 VALUES
   ('PROVIDUS_NG', 'Providus Bank Nigeria PLC', 'NG', 'NGN', 'COMMERCIAL_BANK', TRUE),
-  ('KORIS_NE', 'Koris Bank Niger Republic', 'NE', 'XOF', 'COMMERCIAL_BANK', TRUE)
+  ('KORIS_NE', 'Coris Bank Niger Republic', 'NE', 'XOF', 'COMMERCIAL_BANK', TRUE)
 ON CONFLICT (provider_code) DO NOTHING;
 
 -- =============================================================================

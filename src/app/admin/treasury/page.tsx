@@ -280,7 +280,7 @@ export default function TreasuryAdminPage() {
             <div className="p-5 bg-slate-900/60 border border-white/10 rounded-2xl">
               <div className="text-xs font-mono uppercase text-slate-400">Total Liquid Assets (XOF)</div>
               <div className="text-2xl font-bold text-teal-400 mt-1">14,850,000,000 XOF</div>
-              <div className="text-[11px] text-slate-400 mt-1">Koris Bank Sahel Nostro Clearing</div>
+              <div className="text-[11px] text-slate-400 mt-1">Coris Bank Sahel Nostro Clearing</div>
             </div>
 
             <div className="p-5 bg-slate-900/60 border border-white/10 rounded-2xl">

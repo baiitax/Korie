@@ -82,11 +82,11 @@ export class ProvidusBankAdapter {
 }
 
 /**
- * Koris Bank Niger Republic Provider Adapter (WAEMU RTGS & GIM-UEMOA Clearing)
+ * Coris Bank Niger Republic Provider Adapter (WAEMU RTGS & GIM-UEMOA Clearing)
  */
 export class KorisBankAdapter {
   static readonly CODE = 'KORIS_NE';
-  static readonly NAME = 'Koris Bank International (Niger Republic)';
+  static readonly NAME = 'Coris Bank International (Niger Republic)';
 
   static async initiateWaemuSettlement(params: {
     reference: string;
@@ -107,7 +107,7 @@ export class KorisBankAdapter {
       providerCode: this.CODE,
       providerReference: providerRef,
       responseCode: 'WAEMU_00',
-      message: 'Settlement confirmed by Koris Bank Central Core node.',
+      message: 'Settlement confirmed by Coris Bank Central Core node.',
       latencyMs,
       settledAt: new Date().toISOString(),
       rawResponse: {
@@ -147,7 +147,7 @@ export class ProviderService {
       {
         id: 'node_koris_01',
         code: 'KORIS_NE',
-        name: 'Koris Bank Niger Republic WAEMU Core Node',
+        name: 'Coris Bank Niger Republic WAEMU Core Node',
         country: 'NE',
         status: 'CONNECTED',
         is_active: true,

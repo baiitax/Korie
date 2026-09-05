@@ -290,7 +290,7 @@ def build_manual_pdf():
         [Paragraph("Technical Owner", table_cell_bold), Paragraph("KoriePay Technology, Core Banking & Cybersecurity Division", table_cell_style)],
         [Paragraph("Document Version / Status", table_cell_bold), Paragraph("Version 1.0 — Approved Institutional Baseline", table_cell_style)],
         [Paragraph("Effective Publication Date", table_cell_bold), Paragraph(CURRENT_DATE, table_cell_style)],
-        [Paragraph("Operating Jurisdictions", table_cell_bold), Paragraph("Nigeria (NGN / Providus Bank Node) & Niger Republic (XOF / Koris Bank Node)", table_cell_style)],
+        [Paragraph("Operating Jurisdictions", table_cell_bold), Paragraph("Nigeria (NGN / Providus Bank Node) & Niger Republic (XOF / Coris Bank Node)", table_cell_style)],
         [Paragraph("Mandatory Review Cycle", table_cell_bold), Paragraph("Quarterly or upon material system, infrastructural, or regulatory changes", table_cell_style)],
     ]
     meta_table = Table(meta_data, colWidths=[180, A4[0] - 80 - 180])
@@ -322,7 +322,7 @@ def build_manual_pdf():
         "or standalone regulatory authorization. All financial operations in the Federal Republic of Nigeria operate in strict alignment "
         "with Central Bank of Nigeria (CBN) regulations, the Banks and Other Financial Institutions Act (BOFIA 2020), and commercial clearing nodes (Providus Bank PLC). "
         "All operations in the Republic of Niger operate within the West African Economic and Monetary Union (WAEMU / UEMOA) framework "
-        "supervised by the Banque Centrale des États de l'Afrique de l'Ouest (BCEAO) in partnership with Koris Bank SA. "
+        "supervised by the Banque Centrale des États de l'Afrique de l'Ouest (BCEAO) in partnership with Coris Bank SA. "
         "Production deployment is strictly contingent upon verified regulatory filings, data localization compliance under the Nigeria Data Protection Act 2023 (NDPA), "
         "and active institutional maker-checker authorization protocols."
     )
@@ -413,7 +413,7 @@ def build_manual_pdf():
         [Paragraph("Legal Entity", table_cell_bold), Paragraph("KoriePay Nigeria Limited (RC-1928392)", table_cell_style), Paragraph("KoriePay Niger SAS (RCCM-NI-NIA-2026-B-09)", table_cell_style)],
         [Paragraph("Headquarters / Operational Base", table_cell_bold), Paragraph("Wuse II, Abuja / Victoria Island, Lagos", table_cell_style), Paragraph("Plateau District, Niamey, Niger Republic", table_cell_style)],
         [Paragraph("Sovereign Currency", table_cell_bold), Paragraph("Nigerian Naira (NGN, ₦)", table_cell_style), Paragraph("West African CFA Franc (XOF, CFA)", table_cell_style)],
-        [Paragraph("Primary Banking Node", table_cell_bold), Paragraph("Providus Bank PLC (Clearing & Settlement Node)", table_cell_style), Paragraph("Koris Bank SA (Commercial Settlement Node)", table_cell_style)],
+        [Paragraph("Primary Banking Node", table_cell_bold), Paragraph("Providus Bank PLC (Clearing & Settlement Node)", table_cell_style), Paragraph("Coris Bank SA (Commercial Settlement Node)", table_cell_style)],
         [Paragraph("National Switch Integration", table_cell_bold), Paragraph("NIBSS NIP / e-BillsPay / PayAttitude", table_cell_style), Paragraph("GIM-UEMOA / SICA-UEMOA / BCEAO STAR-UEMOA", table_cell_style)],
         [Paragraph("Primary Regulatory Body", table_cell_bold), Paragraph("Central Bank of Nigeria (CBN)", table_cell_style), Paragraph("Banque Centrale des États de l'Afrique de l'Ouest", table_cell_style)],
         [Paragraph("Data Protection Law", table_cell_bold), Paragraph("Nigeria Data Protection Act 2023 (NDPA)", table_cell_style), Paragraph("WAEMU Data Protection Directive / Law 2017-28", table_cell_style)],
@@ -463,7 +463,7 @@ def build_manual_pdf():
     coa_data = [
         [Paragraph("<b>ACCOUNT #</b>", table_header_style), Paragraph("<b>ACCOUNT NAME</b>", table_header_style), Paragraph("<b>TYPE</b>", table_header_style), Paragraph("<b>NORMAL BAL</b>", table_header_style), Paragraph("<b>FINANCIAL SIGNIFICANCE</b>", table_header_style)],
         [Paragraph("1010-NGN", table_cell_bold), Paragraph("Providus Bank NGN Clearing Vault", table_cell_style), Paragraph("ASSET", table_cell_style), Paragraph("DEBIT", table_cell_style), Paragraph("Primary clearing account holding physical NGN deposits", table_cell_style)],
-        [Paragraph("1020-XOF", table_cell_bold), Paragraph("Koris Bank XOF Settlement Vault", table_cell_style), Paragraph("ASSET", table_cell_style), Paragraph("DEBIT", table_cell_style), Paragraph("Primary clearing account holding physical XOF deposits", table_cell_style)],
+        [Paragraph("1020-XOF", table_cell_bold), Paragraph("Coris Bank XOF Settlement Vault", table_cell_style), Paragraph("ASSET", table_cell_style), Paragraph("DEBIT", table_cell_style), Paragraph("Primary clearing account holding physical XOF deposits", table_cell_style)],
         [Paragraph("2010-NGN", table_cell_bold), Paragraph("Customer NGN Wallet Liabilities", table_cell_style), Paragraph("LIABILITY", table_cell_style), Paragraph("CREDIT", table_cell_style), Paragraph("Total aggregate balance owed to Nigerian retail users", table_cell_style)],
         [Paragraph("2020-XOF", table_cell_bold), Paragraph("Customer XOF Wallet Liabilities", table_cell_style), Paragraph("LIABILITY", table_cell_style), Paragraph("CREDIT", table_cell_style), Paragraph("Total aggregate balance owed to Nigerien retail users", table_cell_style)],
         [Paragraph("2100-ADA", table_cell_bold), Paragraph("Adashi Circle Custodial Escrow", table_cell_style), Paragraph("LIABILITY", table_cell_style), Paragraph("CREDIT", table_cell_style), Paragraph("Pooled group contributions held pending cycle payout", table_cell_style)],
@@ -694,7 +694,7 @@ def build_manual_pdf():
         [Paragraph("Agency Banking Module", table_cell_bold), Paragraph("PRODUCTION READY", table_cell_style), Paragraph("Cash-in/out, POS terminal management, float management, commissions.", table_cell_style), Paragraph("100%", table_cell_bold)],
         [Paragraph("BDC / FX Treasury Engine", table_cell_bold), Paragraph("PRODUCTION READY", table_cell_style), Paragraph("Cross-border rates, quotes, treasury approval, settlement bridge.", table_cell_style), Paragraph("95%", table_cell_bold)],
         [Paragraph("Compliance & AML Engine", table_cell_bold), Paragraph("PRODUCTION READY", table_cell_style), Paragraph("Sanctions/PEP screening, case management, STR reporting framework.", table_cell_style), Paragraph("95%", table_cell_bold)],
-        [Paragraph("Bank Node Connectivity", table_cell_bold), Paragraph("CONFIGURABLE NODES", table_cell_style), Paragraph("Providus Bank & Koris Bank adapters ready for production credentials.", table_cell_style), Paragraph("90%", table_cell_bold)],
+        [Paragraph("Bank Node Connectivity", table_cell_bold), Paragraph("CONFIGURABLE NODES", table_cell_style), Paragraph("Providus Bank & Coris Bank adapters ready for production credentials.", table_cell_style), Paragraph("90%", table_cell_bold)],
     ]
     t_scr = Table(score_data, colWidths=[120, 100, 190, A4[0] - 80 - 410])
     t_scr.setStyle(TableStyle([

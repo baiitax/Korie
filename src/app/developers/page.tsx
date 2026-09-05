@@ -30,7 +30,7 @@ export default function DevelopersLandingPage() {
   const pillars = [
     {
       title: 'Bilateral Cross-Border Settlement',
-      desc: 'Instant NGN (Providus Bank Nigeria) to XOF (Koris Bank Niger Republic) settlement with sub-second atomic locking.',
+      desc: 'Instant NGN (Providus Bank Nigeria) to XOF (Coris Bank Niger Republic) settlement with sub-second atomic locking.',
       icon: Globe2,
       tag: 'Bilateral WAEMU',
     },
@@ -127,7 +127,7 @@ export default function DevelopersLandingPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <h2 className="text-xl sm:text-2xl font-black text-white">Engineered for Production Fintech</h2>
-            <p className="text-xs text-slate-400">Strict zero-data-loss architecture across Providus Bank & Koris Bank networks.</p>
+            <p className="text-xs text-slate-400">Strict zero-data-loss architecture across Providus Bank & Coris Bank networks.</p>
           </div>
           <Link href="/developers/apis" className="text-xs font-bold text-emerald-400 hover:underline flex items-center gap-1">
             <span>Explore All APIs</span>

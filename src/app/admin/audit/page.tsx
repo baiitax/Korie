@@ -28,7 +28,7 @@ export default function AuditAdminPage() {
       actor: "infrastructure.lead@koriepay.com",
       role: "INFRA_ADMIN",
       action: "BANKING_NODE_HEALTH_CHECK",
-      resource: "Providus Bank & Koris Bank Nodes",
+      resource: "Providus Bank & Coris Bank Nodes",
       ip: "102.89.44.20",
       timestamp: "35 mins ago",
     },

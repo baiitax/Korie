@@ -41,7 +41,7 @@ export class DecisionIntelligenceEngine {
         domain: 'AGENT',
         materialityTier: 'TIER_2_REC',
         observedTelemetry: 'Maradi Border agency till depletion velocity is 103% above baseline ahead of Friday cattle market.',
-        recommendedAction: 'Authorize G4S armored courier cash-in-transit dispatch of 15,000,000 XOF from Koris Bank Regional Vault.',
+        recommendedAction: 'Authorize G4S armored courier cash-in-transit dispatch of 15,000,000 XOF from Coris Bank Regional Vault.',
         expectedImpact: 'Prevents agent cash outages for over 450 cross-border traders.',
         confidencePct: 91.2,
         approverRole: 'Head of Cash Operations',

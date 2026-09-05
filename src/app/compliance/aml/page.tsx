@@ -318,7 +318,7 @@ export default function AmlCommandCenterPage() {
             <Layers className="w-4 h-4 text-emerald-400" />
           </div>
           <div className="text-2xl font-extrabold text-white">NGN / XOF</div>
-          <div className="text-[10px] text-emerald-400 font-mono">Providus NG &amp; Koris Bank NE</div>
+          <div className="text-[10px] text-emerald-400 font-mono">Providus NG &amp; Coris Bank NE</div>
         </div>
 
         <div className="p-4 rounded-2xl bg-[#080D1A]/90 border border-white/10 space-y-1">

@@ -10,4 +10,4 @@ Financial projections are generated dynamically from underlying operational driv
 ## 2. Unit Economics & Contribution Margins
 - **Product Profitability**: Computes revenue minus interchange fees, agent commissions, rail network costs, and funding cost per product line.
 - **Agent Economics**: Evaluates gross fee revenue vs. commission payout vs. physical cash handling cost to compute net agent ROI.
-- **Provider Economics**: Tracks Providus Bank, Koris Bank, Interswitch, and Paystack settlement fees vs. transaction success rates.
+- **Provider Economics**: Tracks Providus Bank, Coris Bank, Interswitch, and Paystack settlement fees vs. transaction success rates.

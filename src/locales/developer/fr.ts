@@ -26,7 +26,7 @@ export const fr = {
   },
   dashboard: {
     heroTitle: "Construisez, Testez & Développez la Fintech Transfrontalière",
-    heroDesc: "Intégrez les rails de paiement bilatéraux Nigeria (Providus Bank NIP) et République du Niger (Koris Bank UEMOA), les comptes virtuels NUBAN, les terminaux POS d'agents et les webhooks automatisés.",
+    heroDesc: "Intégrez les rails de paiement bilatéraux Nigeria (Providus Bank NIP) et République du Niger (Coris Bank UEMOA), les comptes virtuels NUBAN, les terminaux POS d'agents et les webhooks automatisés.",
     totalRequests24h: "Volume de Requêtes 24h",
     avgLatency: "Latence Moyenne",
     successRate: "Taux de Succès API",
@@ -58,7 +58,7 @@ export const fr = {
     title: "Sandbox de Test de Transactions",
     subtitle: "Exécutez des transferts transfrontaliers simulés, des crédits de comptes virtuels et des scénarios d'erreur sans déplacer de fonds réels.",
     testCardTitle: "Instruments de Test Préconfigurés",
-    testAccountTitle: "Comptes de Test Providus Bank & Koris Bank",
+    testAccountTitle: "Comptes de Test Providus Bank & Coris Bank",
     simulationEngine: "Simulateur de Scénarios",
     triggerScenario: "Lancer la Simulation",
     simSuccess: "Simuler un Transfert Réussi",
@@ -86,7 +86,7 @@ export const fr = {
   },
   status: {
     title: "État de la Plateforme KoriePay & Nœuds Bancaires",
-    subtitle: "Télémétrie en temps réel et disponibilité sur 90 jours pour Providus Bank Nigeria, Koris Bank Niger, le Switch NIP et les services centraux.",
+    subtitle: "Télémétrie en temps réel et disponibilité sur 90 jours pour Providus Bank Nigeria, Coris Bank Niger, le Switch NIP et les services centraux.",
     allOperational: "Tous les Nœuds Bancaires et Passerelles API sont Opérationnels",
     degradedAlert: "Dégradation Partielle Détectée",
     incidentHistory: "Historique des Incidents & Bilans",

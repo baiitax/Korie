@@ -164,5 +164,5 @@ const SUPPORT_FAQS = [
   { q: "How fast do cross-border transfers between Nigeria and Niger settle?", a: "Transfers via the KoriePay Bilateral Sahel corridor settle in sub-seconds between the clearing nodes 24/7." },
   { q: "What should I do if my prepaid electricity token is delayed?", a: "If the DisCo gateway experiences a temporary network lag, you can locate your token in the Transaction Activity receipt or tap Report an Issue to query it." },
   { q: "How do I upgrade to Tier 3 corporate limit?", a: "Navigate to KYC Verification from your profile, upload your CAC/RCCM registration filing, and our compliance desk will review it." },
-  { q: "Can I use my KoriePay USD virtual card on global sites?", a: "Yes, your virtual Visa/Mastercard works internationally for subscriptions, cloud services, and e-commerce transactions." },
+  { q: "When will KoriePay Cards be available?", a: "KoriePay Cards are coming soon. We're building a secure card experience for everyday payments and financial access." },
 ];

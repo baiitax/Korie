@@ -2,7 +2,7 @@
 
 ## 1. Executive Summary & Architectural Overview
 
-The **KoriePay Enterprise Integration Fabric & API Gateway** acts as the governed connectivity and policy perimeter across Nigeria (Providus Bank node) and Niger Republic (Koris Bank node).
+The **KoriePay Enterprise Integration Fabric & API Gateway** acts as the governed connectivity and policy perimeter across Nigeria (Providus Bank node) and Niger Republic (Coris Bank node).
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────┐

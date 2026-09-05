@@ -6,12 +6,12 @@ import { useCustomer } from "@/components/customer/CustomerContext";
 import { FX_RATES } from "@/services/customerDataService";
 import { formatMoney } from "@/lib/money";
 import { CustomerCurrency } from "@/types/customer";
-import { ArrowLeft, Repeat2, Clock, ShieldCheck, CheckCircle2, Zap } from "lucide-react";
+import { ArrowLeft, Repeat2, Clock, ShieldCheck, Zap } from "lucide-react";
 
 export default function CustomerFxPage() {
   const { t, fxRates } = useCustomer();
-  const [fromCurrency, setFromCurrency] = useState<CustomerCurrency>("NGN");
-  const [toCurrency, setToCurrency] = useState<CustomerCurrency>("XOF");
+  const [fromCurrency, setFromCurrency] = useState<CustomerCurrency>("XOF");
+  const [toCurrency, setToCurrency] = useState<CustomerCurrency>("NGN");
   const [fromAmount, setFromAmount] = useState<string>("500");
   const [countdown, setCountdown] = useState<number>(60);
   const [swappedResult, setSwappedResult] = useState<{ from: string; to: string } | null>(null);
@@ -66,17 +66,23 @@ export default function CustomerFxPage() {
       {swappedResult ? (
         <div className="rounded-3xl bg-[var(--surface)] border border-[var(--brand-border)] p-8 text-center space-y-5 shadow-[var(--shadow-card)] animate-in zoom-in-95">
           <div className="w-16 h-16 rounded-full bg-[var(--brand-soft)] text-[var(--brand-primary)] flex items-center justify-center mx-auto">
-            <CheckCircle2 className="w-10 h-10" />
+            <Zap className="w-8 h-8" />
           </div>
           <div className="space-y-1">
-            <h2 className="text-2xl font-extrabold text-[var(--foreground)] tracking-tight">{t("fx.swapSuccess")}</h2>
+            <h2 className="text-2xl font-extrabold text-[var(--foreground)] tracking-tight">{t("fx.quoteReady")}</h2>
             <p className="text-xs text-[var(--foreground-muted)]">
-              {t("fx.swapSuccessDesc", { fromAmount: swappedResult.from, toAmount: swappedResult.to })}
+              {t("fx.quoteReadyDesc", { fromAmount: swappedResult.from, toAmount: swappedResult.to })}
             </p>
           </div>
+          <Link
+            href="/customer/send-money"
+            className="w-full inline-flex items-center justify-center py-3.5 rounded-2xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-bold text-xs transition-colors shadow-[var(--shadow-md)]"
+          >
+            {t("fx.proceedToSend")}
+          </Link>
           <button
             onClick={() => setSwappedResult(null)}
-            className="w-full py-3.5 rounded-2xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-bold text-xs transition-colors shadow-[var(--shadow-md)]"
+            className="w-full py-3.5 rounded-2xl bg-[var(--surface)] hover:bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground)] font-bold text-xs transition-colors"
           >
             {t("fx.executeAnother")}
           </button>
@@ -99,7 +105,6 @@ export default function CustomerFxPage() {
           <div className="p-5 rounded-3xl bg-[var(--surface)] border border-[var(--border)] space-y-2 shadow-[var(--shadow-card)]">
             <div className="flex items-center justify-between text-xs text-[var(--foreground-muted)]">
               <span>{t("fx.convertFrom")}</span>
-              <span className="font-mono">{t("fx.source")}: {fromCurrency === "NGN" ? "Providus Vault" : fromCurrency === "XOF" ? "Sahel Vault" : "Foreign Vault"}</span>
             </div>
             <div className="flex items-center justify-between gap-3">
               <input
@@ -109,9 +114,8 @@ export default function CustomerFxPage() {
               />
               <select value={fromCurrency} onChange={(e) => setFromCurrency(e.target.value as CustomerCurrency)}
                 className="px-3 py-2 rounded-xl bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground)] font-mono font-bold text-xs focus:outline-none">
-                <option value="NGN">₦ NGN</option>
                 <option value="XOF">CFA XOF</option>
-                <option value="USD">$ USD</option>
+                <option value="NGN">₦ NGN</option>
               </select>
             </div>
           </div>
@@ -137,9 +141,8 @@ export default function CustomerFxPage() {
               </div>
               <select value={toCurrency} onChange={(e) => setToCurrency(e.target.value as CustomerCurrency)}
                 className="px-3 py-2 rounded-xl bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground)] font-mono font-bold text-xs focus:outline-none">
-                <option value="NGN">₦ NGN</option>
                 <option value="XOF">CFA XOF</option>
-                <option value="USD">$ USD</option>
+                <option value="NGN">₦ NGN</option>
               </select>
             </div>
           </div>

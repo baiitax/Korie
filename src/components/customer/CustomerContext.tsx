@@ -16,11 +16,18 @@ import {
   CUSTOMER_WALLETS,
   CUSTOMER_TRANSACTIONS,
   CUSTOMER_BENEFICIARIES,
-  CUSTOMER_CARDS,
   CUSTOMER_SUPPORT_TICKETS,
 } from "@/services/customerDataService";
 import { translate } from "@/locales";
 import { portalFetch } from "@/lib/customerPortalClient";
+import {
+  CUSTOMER_CONFIG,
+  orderCurrenciesXofFirst,
+  getServiceStatus,
+  isServiceAvailable,
+  CustomerServiceId,
+  ServiceStatus,
+} from "@/lib/customer/customerFeatures";
 
 interface TransferExecutionParams {
   recipientName: string;
@@ -55,6 +62,10 @@ interface CustomerContextType {
   isConnecting: boolean;
   /** Engine execution rates (match the rate applied on cross-border transfer). */
   fxRates: { fromCurrency: CustomerCurrency; toCurrency: CustomerCurrency; rate: number; source: string }[];
+  /** Niger-first product config: currency priority + service availability. */
+  productConfig: typeof CUSTOMER_CONFIG;
+  getServiceStatus: (id: CustomerServiceId) => ServiceStatus;
+  isServiceAvailable: (id: CustomerServiceId) => boolean;
 
   // Modals & Sheets
   isReceiptModalOpen: boolean;
@@ -97,13 +108,18 @@ const CustomerContext = createContext<CustomerContextType | undefined>(undefined
 
 export function CustomerProvider({ children }: { children: React.ReactNode }) {
   const [customer, setCustomer] = useState<CustomerUser>(CURRENT_CUSTOMER);
-  const [wallets, setWallets] = useState<CustomerWallet[]>(CUSTOMER_WALLETS);
-  const [activeCurrency, setActiveCurrency] = useState<CustomerCurrency>("NGN");
+  const [wallets, setWallets] = useState<CustomerWallet[]>(
+    orderCurrenciesXofFirst(CUSTOMER_WALLETS),
+  );
+  const [activeCurrency, setActiveCurrency] = useState<CustomerCurrency>(
+    CUSTOMER_CONFIG.primaryCurrency,
+  );
   const [isBalanceHidden, setIsBalanceHidden] = useState<boolean>(false);
   const [language, setLanguageState] = useState<SupportedLanguage>("en");
   const [transactions, setTransactions] = useState<CustomerTransaction[]>(CUSTOMER_TRANSACTIONS);
   const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>(CUSTOMER_BENEFICIARIES);
-  const [cards, setCards] = useState<VirtualCard[]>(CUSTOMER_CARDS);
+  // Cards are COMING_SOON — hold no fabricated card records.
+  const [cards, setCards] = useState<VirtualCard[]>([]);
   const [supportTickets, setSupportTickets] = useState<SupportTicket[]>(CUSTOMER_SUPPORT_TICKETS);
   const [isOffline, setIsOffline] = useState<boolean>(false);
   const [notificationsCount, setNotificationsCount] = useState<number>(3);
@@ -132,13 +148,20 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
       const portal = json?.data?.portal;
       if (!portal) throw new Error("no portal data");
       setCustomer(portal.customer);
-      setWallets(portal.wallets.length ? portal.wallets : CUSTOMER_WALLETS);
+      // XOF first, NGN second (Niger-first). No USD.
+      const liveWallets: CustomerWallet[] = portal.wallets?.length
+        ? orderCurrenciesXofFirst<CustomerWallet>(portal.wallets)
+        : orderCurrenciesXofFirst<CustomerWallet>(CUSTOMER_WALLETS);
+      setWallets(liveWallets);
       setTransactions(portal.transactions?.length ? portal.transactions : CUSTOMER_TRANSACTIONS);
       setBeneficiaries(portal.beneficiaries?.length ? portal.beneficiaries : CUSTOMER_BENEFICIARIES);
-      setCards(portal.cards?.length ? portal.cards : CUSTOMER_CARDS);
+      // Cards are COMING_SOON — never populate fabricated card records.
+      setCards([]);
       setSupportTickets(portal.supportTickets?.length ? portal.supportTickets : CUSTOMER_SUPPORT_TICKETS);
       setFxRates(portal.fxRates || []);
-      setActiveCurrency(portal.wallets?.[0]?.currency || "NGN");
+      setActiveCurrency(
+        (liveWallets[0]?.currency as CustomerCurrency) || CUSTOMER_CONFIG.primaryCurrency,
+      );
       setDataSource("live");
     } catch {
       // Keep seeded catalog; mark as demo. Never block the UI for a data load.
@@ -191,6 +214,15 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
 
   const t = (key: string, params?: Record<string, string | number>): string =>
     translate(language, key, params);
+
+  // Only allow switching to a configured customer-visible currency (XOF/NGN).
+  const chooseCurrency = (currency: CustomerCurrency) => {
+    if (!CUSTOMER_CONFIG.customerCurrencies.includes(currency)) {
+      setActiveCurrency(CUSTOMER_CONFIG.primaryCurrency);
+      return;
+    }
+    setActiveCurrency(currency);
+  };
 
   const activeWallet = wallets.find((w) => w.currency === activeCurrency) || wallets[0];
 
@@ -338,8 +370,11 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
         customer,
         wallets,
         activeCurrency,
-        setActiveCurrency,
+        setActiveCurrency: chooseCurrency,
         activeWallet,
+        productConfig: CUSTOMER_CONFIG,
+        getServiceStatus,
+        isServiceAvailable,
         isBalanceHidden,
         toggleHideBalance,
         language,

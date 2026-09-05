@@ -24,7 +24,7 @@
 | `/aggregator/exceptions` | Exceptions Center | Operational issue queue, float shortages, compliance flags |
 | `/aggregator/risk` | Risk & Fraud Desk | Velocity anomalies, repeated failure alerts, hardware locks |
 | `/aggregator/compliance` | Compliance Queue | Regulatory KYC/KYB document backlog and verification |
-| `/aggregator/services` | Service Health | Real-time telemetry on Providus Bank & Koris Bank nodes |
+| `/aggregator/services` | Service Health | Real-time telemetry on Providus Bank & Coris Bank nodes |
 | `/aggregator/analytics` | Analytics | Volume trends, time-series metrics, territory share |
 | `/aggregator/performance` | Network Growth | Comparative productivity metrics and node efficiency |
 | `/aggregator/targets` | Targets | Q3 2026 milestones, target vs actual progress bars |

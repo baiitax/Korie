@@ -34,7 +34,7 @@ export class ThirdPartyRiskEngine {
       {
         id: 'ven-02',
         vendorCode: 'VEN-KORIS',
-        name: 'Koris Bank Niger SA',
+        name: 'Coris Bank Niger SA',
         vendorType: 'CORRESPONDENT_BANK',
         criticality: 'TIER_1_MISSION_CRITICAL',
         riskRating: 'LOW',

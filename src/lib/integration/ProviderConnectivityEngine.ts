@@ -34,7 +34,7 @@ export class ProviderConnectivityEngine {
       {
         id: 'prov-02',
         providerCode: 'KORIS-NE-01',
-        providerName: 'Koris Bank Niger SA Node',
+        providerName: 'Coris Bank Niger SA Node',
         providerType: 'COMMERCIAL_BANK',
         country: 'NE',
         circuitBreakerStatus: 'CLOSED',

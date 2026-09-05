@@ -67,12 +67,12 @@ export class DoubleEntryLedgerEngine {
       sourceReference: 'TR-INIT-NGN-001',
     });
 
-    // 2. Initial Koris Bank Niger Liquidity
+    // 2. Initial Coris Bank Niger Liquidity
     this.postJournalEntry({
       journalNumber: 'JE-2026-0901-0002',
       ruleCode: 'RULE_EQUITY_CAPITALIZATION',
       ruleVersion: 'v1',
-      description: 'Initial Operating Liquidity Injection - Koris Bank Niger Republic',
+      description: 'Initial Operating Liquidity Injection - Coris Bank Niger Republic',
       currency: 'XOF',
       totalDebit: 75_000_000_00,
       totalCredit: 75_000_000_00,
@@ -81,13 +81,13 @@ export class DoubleEntryLedgerEngine {
           id: 'jl_seed_3',
           journalEntryId: '',
           accountCode: '1020',
-          accountName: 'Koris Settlement Pool XOF',
+          accountName: 'Coris Bank Settlement Pool XOF',
           category: 'ASSET',
           direction: 'DEBIT',
           debitAmount: 75_000_000_00,
           creditAmount: 0,
           currency: 'XOF',
-          narration: 'Koris Bank Settlement Float',
+          narration: 'Coris Bank Settlement Float',
           dimension: { country: 'NE', currency: 'XOF' },
           createdAt: '2026-09-01T08:30:00Z',
         },

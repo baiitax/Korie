@@ -20,7 +20,7 @@ The KoriePay ecosystem is modeled as an analytical Directed Graph $G = (V, E)$:
            [Merchant / Corporate]
                      │
                      ▼ (Settles With)
-[Customer] ────▶ [Agent Outlet] ────▶ [Providus / Koris Bank Node]
+[Customer] ────▶ [Agent Outlet] ────▶ [Providus / Coris Bank Node]
     │                 │
     ▼ (Shares Device) ▼ (Transfers Float)
 [Customer B]     [Regional Vault]

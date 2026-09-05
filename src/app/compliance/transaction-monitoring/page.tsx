@@ -65,7 +65,7 @@ export default function TransactionMonitoringPage() {
       currency: 'XOF',
       riskScore: 68,
       ruleDecision: 'FLAG',
-      node: 'Koris Bank NE (UEMOA Clearing)',
+      node: 'Coris Bank NE (UEMOA Clearing)',
       channel: 'AGENCY_CASH',
     },
     {
@@ -86,12 +86,12 @@ export default function TransactionMonitoringPage() {
       transactionId: 'TXN-NE-441210',
       timestamp: new Date(Date.now() - 18 * 60 * 1000).toISOString(),
       originEntityName: 'Société Nigérienne d’Énergie',
-      destinationEntityName: 'Koris Corporate Clearing',
+      destinationEntityName: 'Coris Corporate Clearing',
       amount: 15500000,
       currency: 'XOF',
       riskScore: 8,
       ruleDecision: 'PASS',
-      node: 'Koris Bank NE (BCEAO Transfer)',
+      node: 'Coris Bank NE (BCEAO Transfer)',
       channel: 'BCEAO_SIP',
     },
     {
@@ -141,7 +141,7 @@ export default function TransactionMonitoringPage() {
           </div>
           <h1 className="text-2xl font-extrabold text-white mt-1">Transaction Monitoring Live Stream</h1>
           <p className="text-xs text-slate-400 mt-0.5">
-            Real-time scoring stream evaluated across Providus Bank NG &amp; Koris Bank NE ledger settlement nodes.
+            Real-time scoring stream evaluated across Providus Bank NG &amp; Coris Bank NE ledger settlement nodes.
           </p>
         </div>
       </div>

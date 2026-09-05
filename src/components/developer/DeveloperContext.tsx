@@ -373,7 +373,7 @@ export const DeveloperProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             transfer_reference: `KP-XB-${Date.now()}`,
             merchant_reference: body?.reference || 'TRX-SAMPLE-001',
             source: { currency: body?.source_currency || 'NGN', amount: body?.amount || 5000000, bank_node: 'Providus Bank Nigeria' },
-            destination: { currency: body?.destination_currency || 'XOF', amount: Math.floor((body?.amount || 5000000) * 0.43), bank_node: 'Koris Bank Niger Republic' },
+            destination: { currency: body?.destination_currency || 'XOF', amount: Math.floor((body?.amount || 5000000) * 0.43), bank_node: 'Coris Bank Niger Republic' },
             exchange_rate: 0.43,
             settlement_status: 'COMPLETED',
           },

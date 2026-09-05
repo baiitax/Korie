@@ -9,7 +9,7 @@
 | **REC-03** | **P1** | Bank Reconciliation | MT940 / CSV parser, opening-closing balance assertions, and bank ledger comparison | `src/lib/reconciliation/BankReconciliationEngine.ts` |
 | **REC-04** | **P1** | Suspense Aging | 6-stage aging schedule (0–1d, 2–3d, 4–7d, 8–14d, 15–30d, 30+d) & resolution | `src/lib/reconciliation/SuspenseEngine.ts` |
 | **REC-05** | **P1** | Exception Work Queue | Root-cause classification (18 types), SLA tracking, assignment & resolution | `src/lib/reconciliation/ExceptionEngine.ts` |
-| **REC-06** | **P1** | Provider Adapters | Standardized `ProviderAdapter` for Providus Bank NG and Koris Bank NE | `src/lib/reconciliation/ProviderAdapterFramework.ts` |
+| **REC-06** | **P1** | Provider Adapters | Standardized `ProviderAdapter` for Providus Bank NG and Coris Bank NE | `src/lib/reconciliation/ProviderAdapterFramework.ts` |
 | **REC-07** | **P2** | Orphan Detection | Continuous detection of orphan provider records, txns, and bank movements | `src/lib/reconciliation/OrphanDetectionEngine.ts` |
 | **REC-08** | **P2** | EOD Daily Close | 15-step End-of-Day reconciliation workflow and control reports | `src/lib/reconciliation/DailyEodReconciliationEngine.ts` |
 | **REC-09** | **P2** | REST APIs | Complete `/api/core/v1/reconciliation/*` and `/api/core/v1/settlements/*` family | `src/app/api/core/v1/...` |

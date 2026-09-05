@@ -64,6 +64,20 @@ export async function POST(req: NextRequest) {
   const minorUnitAmount = Math.round(amount * 100);
 
   try {
+    // XOF -> XOF domestic transfer is NOT yet backed by the transfer engine
+    // (in-sandbox the engine supports NGN NIP + the NGN<->XOF cross-border
+    // corridor via Coris Bank). Return a controlled, honest response rather
+    // than fabricating a success. Coris Bank / GIM-UEMOA domestic routing is
+    // documented in BANKING_INTEGRATION_PLAN.md.
+    if (currency === "XOF" && destinationCurrency === "XOF") {
+      return createErrorResponse({
+        code: "XOF_DOMESTIC_NOT_YET_AVAILABLE",
+        message: "Same-currency XOF transfers are coming soon through Coris Bank. You can currently transfer within the NGN<->XOF corridor.",
+        requestId: `KP-REQ-${Date.now()}`,
+        httpStatus: 400,
+      });
+    }
+
     if (isCrossBorder) {
       const tx = await TransactionService.executeCrossBorderTransfer(context, {
         sourceCurrency: currency as "NGN" | "XOF",

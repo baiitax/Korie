@@ -325,7 +325,7 @@ export const SupportShell: React.FC<{ children: React.ReactNode }> = ({ children
                   <span className="text-amber-400 font-mono text-[11px] font-semibold">DEGRADED (INC-01)</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-400">Koris Bank (NE):</span>
+                  <span className="text-slate-400">Coris Bank (NE):</span>
                   <span className="text-emerald-400 font-mono text-[11px] font-semibold">ONLINE</span>
                 </div>
                 <div className="flex items-center justify-between">

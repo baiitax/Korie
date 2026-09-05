@@ -95,7 +95,7 @@ def build_manual_docx():
         ("Technical Owner", "KoriePay Technology, Core Banking & Cybersecurity Division"),
         ("Document Version / Status", "Version 1.0 — Approved Institutional Baseline"),
         ("Effective Publication Date", CURRENT_DATE),
-        ("Operating Jurisdictions", "Nigeria (NGN / Providus Bank Node) & Niger Republic (XOF / Koris Bank Node)"),
+        ("Operating Jurisdictions", "Nigeria (NGN / Providus Bank Node) & Niger Republic (XOF / Coris Bank Node)"),
         ("Mandatory Review Cycle", "Quarterly or upon material system, infrastructural, or regulatory changes"),
         ("Authoritative Truth Rule", "Double-Entry Core Ledger is Sole Financial Authority"),
     ]
@@ -137,7 +137,7 @@ def build_manual_docx():
     r.font.color.rgb = DARK_NAVY
 
     p_disc = doc.add_paragraph()
-    p_disc.add_run("This manual is an internal technology, operational, financial architecture, and compliance-readiness document prepared exclusively for authorized executives, engineers, auditors, and partner financial institutions of KoriePay. This document does not constitute formal legal advice, a direct banking licence, payment service bank licence, or standalone regulatory authorization. All financial operations in Nigeria operate in strict alignment with Central Bank of Nigeria (CBN) regulations and Providus Bank PLC clearing nodes. All operations in Niger Republic operate within the West African Economic and Monetary Union (WAEMU / UEMOA) framework supervised by the Banque Centrale des États de l'Afrique de l'Ouest (BCEAO) in partnership with Koris Bank SA.")
+    p_disc.add_run("This manual is an internal technology, operational, financial architecture, and compliance-readiness document prepared exclusively for authorized executives, engineers, auditors, and partner financial institutions of KoriePay. This document does not constitute formal legal advice, a direct banking licence, payment service bank licence, or standalone regulatory authorization. All financial operations in Nigeria operate in strict alignment with Central Bank of Nigeria (CBN) regulations and Providus Bank PLC clearing nodes. All operations in Niger Republic operate within the West African Economic and Monetary Union (WAEMU / UEMOA) framework supervised by the Banque Centrale des États de l'Afrique de l'Ouest (BCEAO) in partnership with Coris Bank SA.")
 
     # CHAPTER 2
     h2 = doc.add_paragraph()
@@ -161,7 +161,7 @@ def build_manual_docx():
         ("OPERATING ATTRIBUTE", "NIGERIA (KP-NG)", "NIGER REPUBLIC (KP-NE)"),
         ("Legal Entity", "KoriePay Nigeria Limited (RC-1928392)", "KoriePay Niger SAS (RCCM-NI-NIA-2026-B-09)"),
         ("Currency", "Nigerian Naira (NGN, ₦)", "West African CFA Franc (XOF, CFA)"),
-        ("Banking Node", "Providus Bank PLC (Clearing Vault)", "Koris Bank SA (Settlement Vault)"),
+        ("Banking Node", "Providus Bank PLC (Clearing Vault)", "Coris Bank SA (Settlement Vault)"),
         ("Switch Integration", "NIBSS NIP / e-BillsPay", "GIM-UEMOA / BCEAO STAR-UEMOA"),
         ("Regulatory Authority", "Central Bank of Nigeria (CBN)", "BCEAO / WAEMU Regulatory Commission"),
         ("Identity Verification", "BVN & NIN Verification Gateway", "NIF & CNI National Identity Scheme"),
