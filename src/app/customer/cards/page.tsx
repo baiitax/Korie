@@ -32,7 +32,7 @@ export default function CustomerCardsPage() {
         </div>
 
         <button
-          onClick={() => alert(t("cards.newCard"))}
+          onClick={() => alert(t("cards.cardsNew"))}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-bold text-xs transition-colors shadow-[var(--shadow-md)]"
         >
           <Plus className="w-4 h-4" />
