@@ -1,129 +1,48 @@
 'use client';
+import React, { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Landmark } from 'lucide-react';
+import { useCompliancePortal } from '@/components/compliance/CompliancePortalContext';
+import { Card, Chip, PageHead, useBoot, PageSkel, CkTable, Col, Avatar, EmptyState, Tabs, toneOfRisk } from '@/components/compliance/ui/Ck';
+import { usePaging, Paginator, Age } from '@/components/compliance/workspaces/helpers';
 
-import React, { useState } from 'react';
-import { useCompliance } from '@/components/compliance/ComplianceContext';
-import { Eye, Search, ShieldCheck, UserCheck, AlertTriangle } from 'lucide-react';
-
-export default function PepScreeningPage() {
-  const { selectedJurisdiction, formatDate } = useCompliance();
-  const [searchQuery, setSearchQuery] = useState('');
-
-  const mockPepList = [
-    {
-      id: 'PEP-NG-001',
-      fullName: 'Hon. Bello Sani Garba',
-      designation: 'Former State Commissioner for Trade & Investment',
-      jurisdiction: 'NG' as const,
-      category: 'DOMESTIC_PEP',
-      tier: 'HIGH_RISK',
-      associatedEntities: ['Kano Commodity Hub', 'Garba Logistics'],
-      lastScreened: '2026-08-20',
-      eddRequirement: 'ANNUAL_MANDATORY',
-    },
-    {
-      id: 'PEP-NE-002',
-      fullName: 'Dr. Mariam Soumana',
-      designation: 'Senior Director, Ministry of Petroleum & Energy',
-      jurisdiction: 'NE' as const,
-      category: 'DOMESTIC_PEP',
-      tier: 'HIGH_RISK',
-      associatedEntities: ['Société Pétrolière du Sahel'],
-      lastScreened: '2026-08-25',
-      eddRequirement: 'ANNUAL_MANDATORY',
-    },
-    {
-      id: 'PEP-NG-003',
-      fullName: 'Tariq Al-Mansoor',
-      designation: 'Foreign Diplomatic Envoy / Embassy Commercial Attaché',
-      jurisdiction: 'NG' as const,
-      category: 'FOREIGN_PEP',
-      tier: 'MEDIUM_RISK',
-      associatedEntities: ['Middle East Trade Desk'],
-      lastScreened: '2026-09-01',
-      eddRequirement: 'BIANNUAL_MANDATORY',
-    },
+const TABS = ['ALL', 'POTENTIAL_MATCH', 'UNDER_REVIEW', 'CONFIRMED_MATCH', 'FALSE_POSITIVE'] as const;
+export default function PepPage() {
+  const p = useCompliancePortal();
+  const { t } = p;
+  const router = useRouter();
+  const { ready } = useBoot(380);
+  const [tab, setTab] = useState<(typeof TABS)[number]>('ALL');
+  const list = useMemo(() => p.matches.filter((m) => m.kind === 'PEP' && (tab === 'ALL' ? true : m.status === tab)), [p.matches, tab]);
+  const pg = usePaging(list, 8);
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { ALL: p.matches.filter((m) => m.kind === 'PEP').length };
+    TABS.filter((x) => x !== 'ALL').forEach((s) => (c[s] = p.matches.filter((m) => m.kind === 'PEP' && m.status === s).length));
+    return c;
+  }, [p.matches]);
+  const pepJur = (c: 'NE' | 'NG' | string) => c === 'NE' ? `🇳🇪 ${t.common.niger}` : c === 'NG' ? `🇳🇬 ${t.common.nigeria}` : t.common.crossBorder;
+  const cols: Col<(typeof list)[number]>[] = [
+    { key: 'name', header: t.common.customer, render: (m) => (
+      <div className="flex items-center gap-2.5"><Avatar name={m.customerName} size={28} /><div className="min-w-0"><button onClick={() => router.push(`/compliance/pep/${m.id}`)} className="block text-[0.76rem] font-bold text-[var(--kpc-ink)] truncate max-w-[170px] hover:text-[var(--kpc-brand-ink)]">{m.customerName}</button><span className="block text-[0.6rem] kpc-mono text-[var(--kpc-ink-3)]">{m.customerId}</span></div></div> ) },
+    { key: 'pos', header: t.pepP.position, render: (m) => <span className="text-[0.68rem] font-bold text-[var(--kpc-ink-2)]">{m.listName}</span> },
+    { key: 'jur', header: t.pepP.jurisdiction, render: (m) => <span className="text-[0.64rem] text-[var(--kpc-ink-3)]">{pepJur(m.country)}</span> },
+    { key: 'score', header: t.sancP.matchScore, render: (m) => <span className="kpc-mono text-[0.8rem] font-extrabold text-[var(--kpc-ink)]">{m.score}%</span> },
+    { key: 'st', header: t.common.status, render: (m) => <Chip tone={toneOfRisk(m.status)}>{m.status.replace(/_/g, ' ')}</Chip> },
+    { key: 'at', header: t.common.submitted, sortVal: (r) => r.triggeredAt, render: (m) => <Age iso={m.triggeredAt} rel={p.relTime} /> },
+    { key: 'go', header: t.common.actions, render: (m) => <span className="kpc-btn kpc-btn-outline kpc-btn-sm" onClick={() => router.push(`/compliance/pep/${m.id}`)}>{t.sancP.decision}</span> },
   ];
-
-  const filtered = mockPepList.filter((p) => {
-    if (selectedJurisdiction !== 'ALL' && p.jurisdiction !== selectedJurisdiction) return false;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      return p.id.toLowerCase().includes(q) || p.fullName.toLowerCase().includes(q) || p.designation.toLowerCase().includes(q);
-    }
-    return true;
-  });
-
+  if (!ready) return <PageSkel />;
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-mono font-bold text-teal-400 uppercase tracking-wider mb-1">
-            <Eye className="w-4 h-4" />
-            POLITICALLY EXPOSED PERSONS REGISTER
-          </div>
-          <h1 className="text-2xl font-extrabold text-white">PEP Watchlist & Family Associates</h1>
-          <p className="text-xs text-slate-400">
-            Monitoring of domestic and foreign politically exposed persons, family members, and close business associates.
-          </p>
-        </div>
-      </div>
-
-      <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-4 flex items-center justify-between gap-4">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search PEP records by official name, position, or associated business..."
-            className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-500"
-          />
-        </div>
-      </div>
-
-      <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl overflow-hidden shadow-xl">
-        <table className="w-full text-left text-xs">
-          <thead className="bg-slate-950/80 border-b border-slate-800 text-slate-400 uppercase font-mono text-[10px]">
-            <tr>
-              <th className="p-3.5">PEP Official & ID</th>
-              <th className="p-3.5">Public Designation / Office</th>
-              <th className="p-3.5">PEP Category</th>
-              <th className="p-3.5">Associated Entities</th>
-              <th className="p-3.5">EDD Schedule</th>
-              <th className="p-3.5 text-right">Last Verified</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-800/60">
-            {filtered.map((pep) => (
-              <tr key={pep.id} className="hover:bg-slate-800/40">
-                <td className="p-3.5">
-                  <div className="font-bold text-white text-sm">{pep.fullName}</div>
-                  <div className="text-[11px] text-slate-400 font-mono">
-                    {pep.id} • {pep.jurisdiction === 'NG' ? '🇳🇬 Nigeria' : '🇳🇪 Niger'}
-                  </div>
-                </td>
-                <td className="p-3.5 text-slate-300 font-medium">{pep.designation}</td>
-                <td className="p-3.5">
-                  <span className="font-mono text-teal-400 font-bold bg-teal-950/60 px-2 py-0.5 rounded border border-teal-800/40 text-[11px]">
-                    {pep.category.replace(/_/g, ' ')}
-                  </span>
-                </td>
-                <td className="p-3.5 text-slate-300">
-                  {pep.associatedEntities.join(', ')}
-                </td>
-                <td className="p-3.5">
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase bg-amber-500/20 text-amber-300">
-                    {pep.eddRequirement.replace(/_/g, ' ')}
-                  </span>
-                </td>
-                <td className="p-3.5 text-right font-mono text-slate-400 text-[11px]">
-                  {pep.lastScreened}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+    <div>
+      <PageHead icon={Landmark} title={t.pepP.title} sub={t.pepP.subtitle} />
+      <Card flat className="mb-4 p-0 overflow-hidden">
+        <Tabs items={TABS.map((s) => ({ value: s, label: s === 'ALL' ? t.common.all : s.replace(/_/g, ' '), count: counts[s] }))} value={tab} onChange={(v) => { setTab(v as typeof tab); pg.reset(); }} className="px-3 pt-2" />
+      </Card>
+      <Card flat pad={false} className="overflow-hidden">
+        <CkTable aria-label={t.pepP.title} cols={cols} rows={pg.slice} rowKey={(m) => m.id} onRow={(m) => router.push(`/compliance/pep/${m.id}`)} dense />
+        {!pg.slice.length && <EmptyState title={t.common.noResults} />}
+        <Paginator {...pg} total={list.length} setPage={pg.setPage} />
+      </Card>
     </div>
   );
 }

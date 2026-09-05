@@ -1,127 +1,102 @@
 'use client';
+import React, { useMemo } from 'react';
+import { BarChart3, Percent, Timer, ShieldAlert, Clock3 } from 'lucide-react';
+import { useCompliancePortal } from '@/components/compliance/CompliancePortalContext';
+import { Card, PageHead, useBoot, PageSkel, Kpi, Chip, EmptyState } from '@/components/compliance/ui/Ck';
+import { Donut, Bars, HBarRows, TONE_HEX } from '@/components/compliance/ui/charts';
 
-import React from 'react';
-import { useCompliance } from '@/components/compliance/ComplianceContext';
-import { BarChart3, TrendingUp, ShieldAlert, PieChart, Activity, Globe } from 'lucide-react';
+export default function AnalyticsPage() {
+  const p = useCompliancePortal();
+  const { t } = p;
+  const { ready } = useBoot(480);
 
-export default function ComplianceAnalyticsPage() {
-  const { stats, selectedJurisdiction, formatCurrency } = useCompliance();
+  const d = useMemo(() => {
+    const by = <T,>(rows: T[], key: (r: T) => string) => {
+      const m: Record<string, number> = {};
+      rows.forEach((r) => (m[key(r)] = (m[key(r)] ?? 0) + 1));
+      return m;
+    };
+    const risk = by(p.customers, (c) => c.riskLevel);
+    const kycStatus = by(p.kyc, (k) => k.status);
+    const aml = p.alerts.filter((a) => a.kind === 'AML');
+    const closedAlerts = aml.filter((a) => a.status === 'RESOLVED' || a.status === 'DISMISSED');
+    const resH = closedAlerts.length ? Math.round(closedAlerts.reduce((s, a) => s + (Date.now() - new Date(a.triggeredAt).getTime()) / 36e5, 0) / closedAlerts.length) : 0;
+    const kycClosed = p.kyc.filter((k) => k.status === 'VERIFIED' || k.status === 'REJECTED');
+    const kycHours = kycClosed.length ? Math.round(kycClosed.reduce((s, k) => s + (new Date(k.updatedAt).getTime() - new Date(k.submittedAt).getTime()) / 36e5, 0) / kycClosed.length * 10) / 10 : 0;
+    const casesOpen = p.cases.filter((c) => c.status !== 'RESOLVED' && c.status !== 'CLOSED');
+    const casesOverdue = casesOpen.filter((c) => new Date(c.deadlineSla).getTime() < Date.now());
+    const alerts14 = Array.from({ length: 14 }, (_, i) => {
+      const day = new Date(Date.now() - (13 - i) * 864e5).toISOString().slice(0, 10);
+      return { label: day.slice(8), value: p.alerts.filter((a) => a.triggeredAt.slice(0, 10) === day).length };
+    });
+    const approvalsAll = p.approvals;
+    return { risk, kycStatus, aml, resH, kycHours, casesOpen, casesOverdue, alerts14, approvalsAll };
+  }, [p.customers, p.kyc, p.alerts, p.cases, p.approvals]);
 
+  if (!ready) return <PageSkel />;
+  const kycTotal = Object.values(d.kycStatus).reduce((a, b) => a + b, 0) || 1;
+  const riskTotal = Object.values(d.risk).reduce((a, b) => a + b, 0) || 1;
+  const caseTotal = d.casesOpen.length + p.cases.filter((c) => c.status === 'RESOLVED' || c.status === 'CLOSED').length || 1;
+  const slaPct = caseTotal ? Math.round(((caseTotal - d.casesOpen.length) / caseTotal) * 100) : 0;
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-mono font-bold text-emerald-400 uppercase tracking-wider mb-1">
-            <BarChart3 className="w-4 h-4" />
-            FINANCIAL CRIME INTELLIGENCE
-          </div>
-          <h1 className="text-2xl font-extrabold text-white">Compliance & Risk Analytics</h1>
-          <p className="text-xs text-slate-400">
-            Cross-border risk exposure metrics, alert conversion rates, and regulatory compliance performance.
-          </p>
-        </div>
+    <div>
+      <PageHead icon={BarChart3} title={t.anaP.title} sub={t.anaP.subtitle} />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+        <Kpi icon={Percent} label={t.anaP.kycConversion} value={Math.round(((d.kycStatus.VERIFIED ?? 0) / kycTotal) * 100) + '%'} sub={`${d.kycStatus.VERIFIED ?? 0} / ${kycTotal}`} />
+        <Kpi icon={Timer} label={t.anaP.verTime} value={`${d.kycHours}h`} sub={t.anaP.trend} />
+        <Kpi icon={ShieldAlert} label={t.anaP.alertRate} value={`${d.aml.length ? Math.round((d.aml.length / Math.max(p.txns.length, 1)) * 1000) : 0}‰`} sub={`${d.aml.length} ${t.amlP.title.toLowerCase()} / ${p.txns.length} ${t.txnP.title.toLowerCase()}`} />
+        <Kpi icon={Clock3} label={t.anaP.alertResTime} value={`${d.resH}h`} sub={t.anaP.trend} />
       </div>
-
-      {/* Analytics KPI Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-5 bg-slate-900/60 border border-slate-800/80 rounded-2xl">
-          <div className="text-slate-500 text-xs uppercase font-bold">Case Conversion Rate</div>
-          <div className="text-2xl font-extrabold text-emerald-400 font-mono mt-1">28.4%</div>
-          <div className="text-[11px] text-slate-400 mt-1">AML alerts escalated to formal cases</div>
-        </div>
-
-        <div className="p-5 bg-slate-900/60 border border-slate-800/80 rounded-2xl">
-          <div className="text-slate-500 text-xs uppercase font-bold">Mean SLA Resolution Time</div>
-          <div className="text-2xl font-extrabold text-white font-mono mt-1">18.2 hrs</div>
-          <div className="text-[11px] text-emerald-400 mt-1">Target: &lt; 24.0 hrs SLA</div>
-        </div>
-
-        <div className="p-5 bg-slate-900/60 border border-slate-800/80 rounded-2xl">
-          <div className="text-slate-500 text-xs uppercase font-bold">Sanctions False Positive Rate</div>
-          <div className="text-2xl font-extrabold text-teal-400 font-mono mt-1">62.5%</div>
-          <div className="text-[11px] text-slate-400 mt-1">AI fuzzy match optimization active</div>
-        </div>
-
-        <div className="p-5 bg-slate-900/60 border border-slate-800/80 rounded-2xl">
-          <div className="text-slate-500 text-xs uppercase font-bold">Regulatory Compliance Score</div>
-          <div className="text-2xl font-extrabold text-amber-400 font-mono mt-1">99.4%</div>
-          <div className="text-[11px] text-slate-400 mt-1">CBN / BCEAO Audit Readiness</div>
-        </div>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-4">
+        <Card>
+          <h3 className="text-[0.8rem] font-extrabold text-[var(--kpc-ink)] mb-3">{t.anaP.riskDistribution}</h3>
+          <div className="flex items-center gap-5">
+            <Donut size={150} thickness={18}
+              segs={(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const).map((k, i) => ({ label: k, value: d.risk[k] ?? 0, color: [TONE_HEX.low, TONE_HEX.medium, TONE_HEX.high, TONE_HEX.critical][i] }))}
+              centerTop={<span className="text-[1.1rem]">{riskTotal}</span>} centerSub={`${t.common.customer}s`} />
+            <div className="flex-1 min-w-0 space-y-1.5">
+              {(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const).map((k) => <div key={k} className="flex items-center gap-2 text-[0.68rem] font-bold"><span className="w-2 h-2 rounded-full" style={{ background: { LOW: TONE_HEX.low, MEDIUM: TONE_HEX.medium, HIGH: TONE_HEX.high, CRITICAL: TONE_HEX.critical }[k] }} />{k}<span className="ml-auto kpc-num">{d.risk[k] ?? 0}</span></div>)}
+            </div>
+          </div>
+          <p className="text-[0.6rem] text-[var(--kpc-ink-3)] mt-3">{t.common.demoNote}</p>
+        </Card>
+        <Card>
+          <h3 className="text-[0.8rem] font-extrabold text-[var(--kpc-ink)] mb-3">{t.anaP.kycConversion}</h3>
+          <Bars height={140} data={Object.entries(d.kycStatus).map(([k, v]) => ({ label: k.replace(/_/g, ' ').slice(0, 5), value: v, color: k === 'VERIFIED' ? TONE_HEX.ok : k === 'REJECTED' || k === 'EXPIRED' ? TONE_HEX.critical : TONE_HEX.warn }))} ariaLabel={t.anaP.kycConversion} />
+        </Card>
+        <Card>
+          <h3 className="text-[0.8rem] font-extrabold text-[var(--kpc-ink)] mb-3">{t.anaP.caseRes}</h3>
+          <HBarRows rows={[
+            { label: t.caseP.title, value: caseTotal, count: String(caseTotal), pct: 100, color: TONE_HEX.dim },
+            { label: t.common.open, value: d.casesOpen.length, count: String(d.casesOpen.length), pct: Math.round((d.casesOpen.length / caseTotal) * 100), color: TONE_HEX.warn },
+            { label: `${t.common.sla} ✓`, value: slaPct, count: slaPct + '%', pct: slaPct, color: TONE_HEX.ok },
+          ]} />
+          <p className="text-[0.6rem] text-[var(--kpc-ink-3)] mt-3">{t.anaP.slaCompliance}: {caseTotal ? Math.round(((caseTotal - d.casesOpen.length) / caseTotal) * 100) : 0}%</p>
+        </Card>
       </div>
-
-      {/* Breakdown Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-white">Jurisdictional Alert Distribution</h3>
-            <span className="text-xs text-slate-400 font-mono">Q3 2026</span>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <Card>
+          <h3 className="text-[0.8rem] font-extrabold text-[var(--kpc-ink)] mb-3">{t.anaP.alertsByDay}</h3>
+          <Bars height={130} data={d.alerts14} ariaLabel={t.anaP.alertsByDay} />
+          <p className="text-[0.6rem] text-[var(--kpc-ink-3)] mt-2">14 days · {t.common.all} kinds</p>
+        </Card>
+        <Card>
+          <h3 className="text-[0.8rem] font-extrabold text-[var(--kpc-ink)] mb-3">{t.anaP.approvalsByType}</h3>
+          <div className="space-y-1.5">
+            {Object.entries(d.approvalsAll.reduce<Record<string, number>>((m, a) => { m[a.status] = (m[a.status] ?? 0) + 1; return m; }, {})).map(([k, v]) => <div key={k} className="flex items-center gap-2 text-[0.7rem] font-bold"><Chip tone={k === 'APPROVED' ? 'ok' : k === 'DENIED' ? 'critical' : 'warn'}>{k}</Chip><span className="ml-auto kpc-num">{v}</span></div>)}
+            {!d.approvalsAll.length && <EmptyState title={t.common.noResults} />}
           </div>
-
-          <div className="space-y-3 text-xs">
-            <div>
-              <div className="flex justify-between text-slate-300 mb-1">
-                <span>Nigeria 🇳🇬 (NFIU / CBN Corridors)</span>
-                <span className="font-bold text-emerald-400">68%</span>
-              </div>
-              <div className="w-full bg-slate-950 rounded-full h-2">
-                <div className="bg-emerald-500 h-2 rounded-full" style={{ width: '68%' }} />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex justify-between text-slate-300 mb-1">
-                <span>Niger Republic 🇳🇪 (BCEAO / CENTIF Corridors)</span>
-                <span className="font-bold text-amber-400">26%</span>
-              </div>
-              <div className="w-full bg-slate-950 rounded-full h-2">
-                <div className="bg-amber-500 h-2 rounded-full" style={{ width: '26%' }} />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex justify-between text-slate-300 mb-1">
-                <span>Cross-Border Direct FX Clearing</span>
-                <span className="font-bold text-teal-400">6%</span>
-              </div>
-              <div className="w-full bg-slate-950 rounded-full h-2">
-                <div className="bg-teal-500 h-2 rounded-full" style={{ width: '6%' }} />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-white">Top Financial Crime Typologies Flagged</h3>
-            <span className="text-xs text-slate-400 font-mono">Real-Time Risk Engine</span>
-          </div>
-
-          <div className="space-y-3 text-xs">
-            <div className="p-3 bg-slate-950/80 rounded-xl flex items-center justify-between">
-              <div>
-                <div className="font-bold text-white">Rapid In-and-Out Flow (Structuring)</div>
-                <div className="text-[11px] text-slate-400">Funds deposited and evacuated within &lt;10 minutes</div>
-              </div>
-              <span className="text-xs font-mono font-bold text-rose-400">42 Alerts</span>
-            </div>
-
-            <div className="p-3 bg-slate-950/80 rounded-xl flex items-center justify-between">
-              <div>
-                <div className="font-bold text-white">Cross-Border Velocity Anomaly</div>
-                <div className="text-[11px] text-slate-400">Abnormal Kano - Niamey corridor volume spikes</div>
-              </div>
-              <span className="text-xs font-mono font-bold text-amber-400">28 Alerts</span>
-            </div>
-
-            <div className="p-3 bg-slate-950/80 rounded-xl flex items-center justify-between">
-              <div>
-                <div className="font-bold text-white">Tier-1 Limit Smurfing</div>
-                <div className="text-[11px] text-slate-400">Multiple micro-transfers to avoid KYC tier caps</div>
-              </div>
-              <span className="text-xs font-mono font-bold text-teal-400">19 Alerts</span>
-            </div>
-          </div>
-        </div>
+          <p className="text-[0.6rem] text-[var(--kpc-ink-3)] mt-3">{t.aprP.title} — {t.common.demoNote}</p>
+        </Card>
+        <Card>
+          <h3 className="text-[0.8rem] font-extrabold text-[var(--kpc-ink)] mb-3">{t.anaP.screeningMatches}</h3>
+          <HBarRows rows={(['SANCTIONS', 'PEP'] as const).map((k) => {
+            const list = p.matches.filter((m) => m.kind === k);
+            const pending = list.filter((m) => m.status === 'POTENTIAL_MATCH' || m.status === 'UNDER_REVIEW').length;
+            return { label: k, value: list.length, count: `${pending} ${t.common.pending}`, pct: list.length ? Math.round((pending / list.length) * 100) : 0, color: k === 'SANCTIONS' ? TONE_HEX.critical : TONE_HEX.info };
+          })} />
+          <p className="text-[0.6rem] text-[var(--kpc-ink-3)] mt-3">{t.statuses.open} reviews by list</p>
+        </Card>
       </div>
     </div>
   );

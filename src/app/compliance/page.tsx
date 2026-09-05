@@ -1,520 +1,252 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useCompliance } from '@/components/compliance/ComplianceContext';
-import { ComplianceCommandHero } from '@/components/compliance/ComplianceCommandHero';
-import { CaseInvestigationDrawer } from '@/components/compliance/CaseInvestigationDrawer';
-import { KycReviewModal } from '@/components/compliance/KycReviewModal';
-import { RestrictionModal } from '@/components/compliance/RestrictionModal';
-import { CreateCaseModal } from '@/components/compliance/CreateCaseModal';
-import { ComplianceCase, KycVerificationRecord, KybVerificationRecord } from '@/types/compliance';
 import {
-  ShieldAlert,
-  AlertTriangle,
-  FileSearch,
-  UserCheck,
-  Building2,
-  Calendar,
-  Radio,
-  ArrowRight,
-  Clock,
-  CheckCircle2,
-  Lock,
-  ExternalLink,
-  ChevronRight,
-  TrendingUp,
-  Activity,
+  Users, UserCheck, ShieldAlert, FolderSearch, Fingerprint, ArrowRight, Clock3, AlertOctagon,
+  FileSearch, CheckSquare, Activity, Lock, Building2, FileBarChart2, Radio, Sparkles,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { useCompliancePortal } from '@/components/compliance/CompliancePortalContext';
+import {
+  Card, SectionHeader, Kpi, Chip, Avatar, ViewAll, PageHead, useBoot, PageSkel,
+  toneOfRisk, TONE_CLASS, StatusDot,
+} from '@/components/compliance/ui/Ck';
+import { Bars, Donut, HBarRows, Legend, Sparkline, TONE_HEX, useThemeColors } from '@/components/compliance/ui/charts';
+import { useNowTick } from '@/components/compliance/workspaces/helpers';
 
 export default function ComplianceDashboardPage() {
-  const {
-    cases,
-    amlAlerts,
-    sanctionsAlerts,
-    kycRecords,
-    kybRecords,
-    calendarEvents,
-    telemetry,
-    selectedJurisdiction,
-    formatCurrency,
-    formatDate,
-    convertAmlAlertToCase,
-    updateSanctionsAlertStatus,
-  } = useCompliance();
+  const p = useCompliancePortal();
+  const { t, stats, totals } = p;
+  const { ready } = useBoot(500);
+  const hex = useThemeColors();
+  useNowTick(60_000);
 
-  const [selectedCase, setSelectedCase] = useState<ComplianceCase | null>(null);
-  const [selectedKyc, setSelectedKyc] = useState<KycVerificationRecord | KybVerificationRecord | null>(null);
-  const [kycType, setKycType] = useState<'KYC' | 'KYB'>('KYC');
-  const [isRestrictionModalOpen, setIsRestrictionModalOpen] = useState(false);
-  const [isCreateCaseOpen, setIsCreateCaseOpen] = useState(false);
+  const [kycRange, setKycRange] = useState('30D');
+  const rangeMul: Record<string, number> = { '7D': 0.23, '30D': 1, '90D': 2.7, '12M': 9.6 };
+  const mul = rangeMul[kycRange];
 
-  // Filter datasets by jurisdiction
-  const filteredCases = selectedJurisdiction === 'ALL' ? cases : cases.filter((c) => c.jurisdiction === selectedJurisdiction);
-  const filteredAml = selectedJurisdiction === 'ALL' ? amlAlerts : amlAlerts.filter((a) => a.jurisdiction === selectedJurisdiction);
-  const filteredSanctions = selectedJurisdiction === 'ALL' ? sanctionsAlerts : sanctionsAlerts.filter((s) => s.jurisdiction === selectedJurisdiction);
-  const filteredKyc = selectedJurisdiction === 'ALL' ? kycRecords : kycRecords.filter((k) => k.jurisdiction === selectedJurisdiction);
-  const filteredKyb = selectedJurisdiction === 'ALL' ? kybRecords : kybRecords.filter((k) => k.jurisdiction === selectedJurisdiction);
+  const riskRows = useMemo(() => {
+    const total = totals.riskDistribution.reduce((a, b) => a + b.count, 0);
+    const map: Record<string, keyof typeof TONE_HEX> = { LOW: 'low', MEDIUM: 'medium', HIGH: 'high', CRITICAL: 'critical' };
+    return totals.riskDistribution.map((r) => {
+      const level = t.riskLevels[r.level.toLowerCase() as 'low' | 'medium' | 'high' | 'critical'];
+      return {
+        label: <span className="inline-flex items-center gap-2">{level} {r.level === 'HIGH' || r.level === 'CRITICAL' ? <Chip tone={map[r.level] === 'critical' ? 'critical' : 'high'}>{r.count}</Chip> : null}</span>,
+        value: r.count,
+        count: r.count.toLocaleString(),
+        pct: Math.round((r.count / total) * 1000) / 10,
+        color: TONE_HEX[map[r.level]],
+      };
+    });
+  }, [totals, t]);
+
+  const kycData = [
+    { label: t.dash.kycSubmitted, value: Math.round(totals.kycVolume.submitted * mul), color: '#0ea5e9' },
+    { label: t.dash.kycApproved, value: Math.round(totals.kycVolume.verified * mul), color: TONE_HEX.ok },
+    { label: t.dash.kycManual, value: Math.round(totals.kycVolume.manualReview * mul), color: TONE_HEX.warn },
+    { label: t.dash.kycRejected, value: Math.round(totals.kycVolume.rejected * mul), color: TONE_HEX.critical },
+    { label: t.dash.kycExpired, value: Math.round(totals.kycVolume.expired * mul), color: '#94a3b8' },
+  ];
+
+  const openAlerts = p.alerts.filter((a) => a.status !== 'RESOLVED' && a.status !== 'DISMISSED');
+  const alertsBySev = (['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'] as const).map((s) => ({
+    label: t.alrtP.severity + ' ' + s.charAt(0) + s.slice(1).toLowerCase(),
+    value: openAlerts.filter((a) => a.severity === s).length,
+    color: TONE_HEX[s.toLowerCase()],
+  })).filter((x) => x.value > 0);
+
+  const txDays = useMemo(() => {
+    const names: string[] = [];
+    for (let i = 6; i >= 0; i--) names.push(new Intl.DateTimeFormat('en', { weekday: 'short' }).format(new Date(Date.now() - i * 864e5)));
+    const base = [14280, 14820, 14640, 15110, 14990, 15320, 14820];
+    const flag = [9, 12, 8, 14, 11, 13, 10];
+    return { names, base, flag };
+  }, []);
+
+  const attn = useMemo(() => {
+    const rows: { id: string; tone: 'critical' | 'high' | 'medium' | 'low' | 'ok'; text: string; sub: string; href: string; badge?: string }[] = [];
+    p.kyc.filter((k) => k.status === 'PENDING' || k.status === 'IN_REVIEW').slice(0, 2).forEach((k) =>
+      rows.push({ id: 'k' + k.id, tone: 'medium', text: `${k.customerName} — ${k.tier.replace('_', ' ')}`, sub: k.status === 'IN_REVIEW' ? t.kycP.tabsManual : t.common.pending, href: `/compliance/kyc/${k.id.replace('KYC-', '')}`, badge: t.common.requiresAttention }));
+    p.alerts.filter((a) => a.severity === 'CRITICAL' && a.status === 'OPEN').slice(0, 2).forEach((a) =>
+      rows.push({ id: a.id, tone: 'critical', text: a.title, sub: `${a.customerName ?? ''} · ${a.id}`, href: `/compliance/alerts/${a.id}` }));
+    p.matches.filter((m) => m.status === 'POTENTIAL_MATCH' || m.status === 'UNDER_REVIEW').slice(0, 2).forEach((m) =>
+      rows.push({ id: m.id, tone: 'high', text: `${m.listName} — ${m.customerName}`, sub: `${m.score}% · ${m.kind}`, href: `/compliance/sanctions/${m.id}` }));
+    p.cases.filter((c) => c.status !== 'RESOLVED' && new Date(c.deadlineSla).getTime() - Date.now() < 36 * 3600_000).slice(0, 2).forEach((c) =>
+      rows.push({ id: c.id, tone: 'high', text: `${c.caseNumber} · ${c.title}`, sub: `${c.customerName ?? ''} · SLA ${p.relTime(c.deadlineSla)}`, href: `/compliance/cases/${c.caseNumber}` }));
+    p.approvals.filter((a) => a.status === 'PENDING').slice(0, 2).forEach((a) =>
+      rows.push({ id: a.id, tone: 'medium', text: `${a.title}`, sub: `${a.type.replace(/_/g, ' ')} · ${a.requestedByName}`, href: '/compliance/approvals' }));
+    p.escalations.filter((e) => e.status === 'OPEN' || e.status === 'ACKNOWLEDGED').slice(0, 2).forEach((e) =>
+      rows.push({ id: e.id, tone: 'high', text: `${e.title}`, sub: `${e.level} · ${e.raisedByName}`, href: '/compliance/escalations' }));
+    return rows.slice(0, 8);
+  }, [p]);
+
+  if (!ready) return <PageSkel />;
 
   return (
-    <div className="space-y-6">
-      {/* Hero Command Banner */}
-      <ComplianceCommandHero
-        onOpenCreateCase={() => setIsCreateCaseOpen(true)}
-        onOpenRestriction={() => setIsRestrictionModalOpen(true)}
+    <div className="space-y-5">
+      <PageHead
+        icon={Sparkles}
+        title={t.dash.title}
+        sub={t.dash.subtitle}
+        actions={
+          <>
+            <Link href="/compliance/kyc" className="kpc-btn kpc-btn-primary"><UserCheck className="w-4 h-4" /> {t.dash.viewKyc}</Link>
+            <Link href="/compliance/alerts" className="kpc-btn kpc-btn-dark"><AlertOctagon className="w-4 h-4" /> {t.dash.viewAlerts}</Link>
+            <Link href="/compliance/cases" className="kpc-btn kpc-btn-outline"><FileSearch className="w-4 h-4" /> {t.dash.viewCases}</Link>
+          </>
+        }
       />
 
-      {/* Top Priority Action Bar */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Active Investigation Cases */}
-        <div className="lg:col-span-2 bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 bg-emerald-950 text-emerald-400 rounded-lg border border-emerald-800/40">
-                  <FileSearch className="w-4 h-4" />
-                </div>
-                <div>
-                  <h2 className="text-base font-bold text-white">Active Case Investigations</h2>
-                  <p className="text-xs text-slate-400">Cases requiring officer inquiry, evidence analysis, and filing</p>
-                </div>
-              </div>
-              <Link
-                href="/compliance/cases"
-                className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1"
-              >
-                View All Cases <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-
-            <div className="space-y-2.5">
-              {filteredCases.slice(0, 4).map((c) => (
-                <div
-                  key={c.id}
-                  onClick={() => setSelectedCase(c)}
-                  className="p-3.5 bg-slate-950/70 hover:bg-slate-800/60 border border-slate-800/80 rounded-xl cursor-pointer transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 group"
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-bold text-emerald-400 group-hover:underline">
-                        {c.caseNumber}
-                      </span>
-                      <span className="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-300">
-                        {c.jurisdiction === 'NG' ? '🇳🇬 NGN' : '🇳🇪 XOF'}
-                      </span>
-                      <span
-                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${
-                          c.priority === 'URGENT'
-                            ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
-                            : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                        }`}
-                      >
-                        {c.priority} SLA
-                      </span>
-                    </div>
-                    <div className="text-xs font-bold text-slate-200 line-clamp-1">{c.title}</div>
-                    <div className="text-[11px] text-slate-400 flex items-center gap-2">
-                      <span>Entity: <strong className="text-slate-300">{c.targetEntityName}</strong></span>
-                      <span>•</span>
-                      <span>Officer: <strong className="text-slate-300">{c.assignedOfficerName}</strong></span>
-                    </div>
-                  </div>
-
-                  <div className="text-right flex sm:flex-col items-center sm:items-end justify-between border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-800">
-                    <div className="text-xs font-bold text-emerald-400 font-mono">
-                      {formatCurrency(c.involvedAmount, c.currency)}
-                    </div>
-                    <div className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
-                      <Clock className="w-3 h-3 text-amber-400" />
-                      {formatDate(c.deadlineSla).slice(0, 12)}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Regulatory Calendar & Filing Obligations */}
-        <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 bg-amber-950 text-amber-400 rounded-lg border border-amber-800/40">
-                  <Calendar className="w-4 h-4" />
-                </div>
-                <div>
-                  <h2 className="text-base font-bold text-white">Regulatory Deadlines</h2>
-                  <p className="text-xs text-slate-400">NFIU, CBN & BCEAO statutory filings</p>
-                </div>
-              </div>
-              <Link
-                href="/compliance/calendar"
-                className="text-xs font-semibold text-amber-400 hover:text-amber-300 flex items-center gap-1"
-              >
-                Full Calendar <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-
-            <div className="space-y-3">
-              {calendarEvents.map((ev) => (
-                <div
-                  key={ev.id}
-                  className={`p-3 rounded-xl border text-xs space-y-1.5 ${
-                    ev.status === 'OVERDUE'
-                      ? 'bg-rose-950/20 border-rose-900/60'
-                      : 'bg-slate-950/60 border-slate-800/80'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-200">{ev.title}</span>
-                    <span
-                      className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${
-                        ev.status === 'OVERDUE'
-                          ? 'bg-rose-500/20 text-rose-300 font-mono'
-                          : 'bg-slate-800 text-slate-300'
-                      }`}
-                    >
-                      {ev.status}
-                    </span>
-                  </div>
-                  <div className="text-[11px] text-slate-400">{ev.description}</div>
-                  <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-800/60">
-                    <span className="font-mono text-emerald-400 font-semibold">{ev.regulator} • {ev.jurisdiction}</span>
-                    <span className="font-mono text-amber-400">{formatDate(ev.dueDate).slice(0, 12)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+      {/* KPI grid */}
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+        <Kpi label={t.dash.kpiCustomers} value={totals.totalCustomers.toLocaleString()} icon={Users} tone="brand" delta="+3.8%" sub={t.dash.kpiCustomersSub} to="/compliance/customers" />
+        <Kpi label={t.dash.kpiKyc} value={stats.kycOpen} icon={UserCheck} tone="warn" sub={t.dash.requiresAttention} to="/compliance/kyc" />
+        <Kpi label={t.dash.kpiRisk} value={totals.highRiskCustomers} icon={Activity} tone="high" sub={t.dash.reviewRequired} to="/compliance/risk" />
+        <Kpi label={t.dash.kpiAlerts} value={totals.openAmlAlerts} icon={ShieldAlert} tone="critical" sub={`${totals.criticalAmlAlerts} ${t.dash.critical}`} to="/compliance/alerts" />
+        <Kpi label={t.dash.kpiCases} value={totals.openCases} icon={FolderSearch} tone="high" sub={`${totals.escalatedCases} ${t.dash.escalated}`} to="/compliance/cases" />
+        <Kpi label={t.dash.kpiMatches} value={totals.screeningMatches} icon={Fingerprint} tone="warn" sub={`${totals.screeningRequireReview} ${t.dash.requireReview}`} to="/compliance/sanctions" />
       </div>
 
-      {/* AML & Sanctions Real-Time Alert Desks */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* AML Suspicious Alerts */}
-        <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 bg-amber-950 text-amber-400 rounded-lg border border-amber-800/40">
-                <AlertTriangle className="w-4 h-4" />
+      {/* risk / kyc / aml */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+        <Card>
+          <SectionHeader title={t.dash.riskDistTitle} actions={<ViewAll href="/compliance/risk" />} />
+          <div className="flex flex-col items-center gap-4 sm:flex-row">
+            <Donut
+              segs={totals.riskDistribution.map((r) => ({ label: r.level, value: r.count, color: TONE_HEX[r.level.toLowerCase()] }))}
+              centerSub={t.dash.kpiCustomers}
+            />
+            <div className="flex-1 w-full min-w-0">
+              <HBarRows rows={riskRows} />
+            </div>
+          </div>
+          <div className="mt-3"><Legend items={totals.riskDistribution.map((r) => ({ label: t.riskLevels[r.level.toLowerCase() as 'low' | 'medium' | 'high' | 'critical'], color: TONE_HEX[r.level.toLowerCase()], count: r.count.toLocaleString() }))} /></div>
+        </Card>
+
+        <Card>
+          <SectionHeader title={t.dash.kycTitle} actions={
+            <div className="flex items-center gap-1 text-[0.68rem] font-bold text-[var(--kpc-ink-3)]">
+              {Object.keys(rangeMul).map((k) => (
+                <button key={k} onClick={() => setKycRange(k)} className={kx(k, kycRange)}>{k}</button>
+              ))}
+            </div>
+          } />
+          <Bars data={kycData} height={120} ariaLabel={t.dash.kycTitle} />
+          <div className="mt-2"><Legend items={kycData.map((d) => ({ label: d.label, color: d.color, count: d.value.toLocaleString() }))} /></div>
+        </Card>
+
+        <Card>
+          <SectionHeader title={t.dash.amlTitle} actions={<ViewAll href="/compliance/aml" />} />
+          <div className="grid grid-cols-2 gap-2.5 mb-3">
+            {[
+              { l: t.dash.amlGenerated, v: stats.alertsOpen, c: TONE_HEX.warn },
+              { l: t.dash.amlResolved, v: p.alerts.filter((a) => a.status === 'RESOLVED').length, c: TONE_HEX.ok },
+              { l: t.dash.amlEscalations, v: stats.alertsEscalated, c: TONE_HEX.critical },
+              { l: t.dash.amlSuspiciousTrend, v: '↗', c: TONE_HEX.brand },
+            ].map((s, i) => (
+              <div key={i} className="kpc-inset px-3 py-2.5">
+                <p className="text-[0.62rem] font-extrabold uppercase tracking-wider text-[var(--kpc-ink-3)] truncate">{s.l}</p>
+                <p className="kpc-num text-[1.15rem] font-extrabold text-[var(--kpc-ink)] mt-0.5" style={{ color: s.c }}>{typeof s.v === 'number' ? s.v : s.v}</p>
               </div>
-              <div>
-                <h2 className="text-base font-bold text-white">AML Velocity & Pattern Alerts</h2>
-                <p className="text-xs text-slate-400">Automated transaction monitoring triggers</p>
+            ))}
+          </div>
+          <div className="kpc-inset p-3">
+            <p className="text-[0.64rem] font-bold uppercase tracking-wider text-[var(--kpc-ink-3)] mb-1.5">{t.dash.amlEscalations} · 7d</p>
+            <Sparkline values={[3, 5, 4, 7, 6, 9, 8]} color={TONE_HEX.critical} width={260} height={44} className="w-full" fill />
+          </div>
+        </Card>
+      </div>
+
+      {/* transaction monitoring + attention */}
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
+        <Card className="xl:col-span-3">
+          <SectionHeader title={t.dash.txnTitle} sub={`${t.dash.txnMonitored}: ${(totals.monitoredToday / 1000).toFixed(1)}k / 24h`} actions={<ViewAll href="/compliance/transaction-monitoring" label={t.common.viewAll} />} />
+          <div className="flex items-end justify-between gap-4 flex-wrap">
+            <div className="w-full max-w-[420px]">
+              <Bars data={txDays.base.map((v, i) => ({ label: txDays.names[i], value: v }))} height={130} ariaLabel={t.dash.txnMonitored} />
+              <div className="flex items-center justify-between mt-1">
+                <Legend items={[{ label: t.dash.txnMonitored, color: TONE_HEX.brand }]} />
               </div>
             </div>
-            <Link
-              href="/compliance/aml"
-              className="text-xs font-semibold text-amber-400 hover:text-amber-300 flex items-center gap-1"
-            >
-              AML Desk <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
+            <div className="grid grid-cols-2 gap-2.5 w-full max-w-[260px]">
+              <div className="kpc-inset px-3 py-2.5"><p className="text-[0.62rem] font-extrabold uppercase tracking-wider text-[var(--kpc-ink-3)]">{t.dash.txnFlagged}</p><p className="kpc-num text-[1.1rem] font-extrabold text-orange-600 dark:text-orange-400 mt-0.5">{txDays.flag[6]}</p></div>
+              <div className="kpc-inset px-3 py-2.5"><p className="text-[0.62rem] font-extrabold uppercase tracking-wider text-[var(--kpc-ink-3)]">{t.dash.txnCleared}</p><p className="kpc-num text-[1.1rem] font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">{(txDays.base[6] - txDays.flag[6]).toLocaleString()}</p></div>
+              <div className="col-span-2 kpc-inset px-3 py-2.5"><p className="text-[0.62rem] font-extrabold uppercase tracking-wider text-[var(--kpc-ink-3)]">{t.dash.txnSuspicious}</p><div className="mt-1"><Sparkline values={txDays.flag} color={TONE_HEX.critical} width={220} height={30} className="w-full" fill /></div></div>
+            </div>
           </div>
+        </Card>
 
-          <div className="space-y-3">
-            {filteredAml.slice(0, 3).map((alert) => (
-              <div
-                key={alert.id}
-                className="p-3.5 bg-slate-950/70 border border-slate-800/80 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-              >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono font-bold bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded">
-                      {alert.ruleCode}
-                    </span>
-                    <span
-                      className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${
-                        alert.severity === 'CRITICAL'
-                          ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
-                          : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                      }`}
-                    >
-                      {alert.severity}
-                    </span>
-                    <span className="text-xs font-bold text-white">{alert.ruleName}</span>
-                  </div>
-                  <div className="text-xs text-slate-300">{alert.triggerReason}</div>
-                  <div className="text-[11px] text-slate-400">
-                    Target: <strong className="text-slate-200">{alert.entityName}</strong> • {alert.jurisdiction}
-                  </div>
+        <Card className="xl:col-span-2">
+          <SectionHeader title={t.dash.attnTitle} sub={t.dash.attnSub} />
+          <div className="space-y-1.5">
+            {attn.map((r) => (
+              <Link key={r.id} href={r.href} className="flex items-center gap-3 rounded-xl border border-transparent hover:border-[rgba(13,148,136,0.35)] hover:bg-[rgba(13,148,136,0.05)] px-3 py-2.5 transition group">
+                <span className={cxTone(r.tone)}><span className="w-2 h-2 rounded-full" style={{ background: TONE_HEX[r.tone] }} /></span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[0.76rem] font-bold text-[var(--kpc-ink)] truncate">{r.text}</p>
+                  <p className="text-[0.64rem] text-[var(--kpc-ink-3)] truncate">{r.sub}</p>
                 </div>
+                {r.badge && <Chip tone="warn" className="hidden sm:inline-flex">{r.badge}</Chip>}
+                <ArrowRight className="w-3.5 h-3.5 text-[var(--kpc-ink-3)] group-hover:text-[var(--kpc-brand-ink)] shrink-0" />
+              </Link>
+            ))}
+            {!attn.length && <p className="text-[0.72rem] text-[var(--kpc-ink-3)] py-6 text-center">{t.dash.attnEmpty}</p>}
+          </div>
+        </Card>
+      </div>
 
-                <div className="flex sm:flex-col items-center sm:items-end justify-between gap-2">
-                  <span className="text-xs font-mono font-bold text-emerald-400">
-                    {formatCurrency(alert.transactionAmount, alert.currency)}
-                  </span>
-                  {alert.status === 'NEW' && (
-                    <button
-                      onClick={() => convertAmlAlertToCase(alert.id)}
-                      className="px-2.5 py-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-[11px] rounded transition shadow"
-                    >
-                      Convert to Case
-                    </button>
-                  )}
+      {/* activity + health */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <Card className="xl:col-span-2">
+          <SectionHeader title={t.dash.recentTitle} sub={t.dash.recentSub} actions={<ViewAll href="/compliance/activity" />} />
+          <div className="relative pl-5 space-y-0">
+            {p.activity.slice(0, 7).map((a, i, arr) => (
+              <div key={a.id} className="relative pb-3.5">
+                {i < arr.length - 1 && <span className="absolute left-[-15px] top-4 bottom-0 w-px bg-[rgba(var(--kpc-ring),0.55)]" aria-hidden />}
+                <div className="flex items-start gap-3 relative">
+                  <span className={cxTone2(a.tone)}>{ACT_ICONS[a.type]}</span>
+                  <div className="flex-1 min-w-0 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                    <span className="text-[0.76rem] font-bold text-[var(--kpc-ink)]">{a.headline}</span>
+                    {a.href ? <Link href={a.href} className="text-[0.66rem] kpc-link truncate max-w-full">{a.sub}</Link> : <span className="text-[0.66rem] text-[var(--kpc-ink-3)] truncate">{a.sub}</span>}
+                  </div>
+                  <span className="kpc-mono text-[0.64rem] text-[var(--kpc-ink-3)] shrink-0">{p.fmtDT(a.at)}</span>
                 </div>
               </div>
             ))}
           </div>
-        </div>
+        </Card>
 
-        {/* Sanctions & PEP Screenings */}
-        <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 bg-rose-950 text-rose-400 rounded-lg border border-rose-800/40">
-                <ShieldAlert className="w-4 h-4" />
-              </div>
-              <div>
-                <h2 className="text-base font-bold text-white">Sanctions & Watchlist Matches</h2>
-                <p className="text-xs text-slate-400">UN, OFAC, EU, CBN and CENTIF screenings</p>
-              </div>
-            </div>
-            <Link
-              href="/compliance/sanctions"
-              className="text-xs font-semibold text-rose-400 hover:text-rose-300 flex items-center gap-1"
-            >
-              Sanctions Desk <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-
-          <div className="space-y-3">
-            {filteredSanctions.map((s) => (
-              <div
-                key={s.id}
-                className="p-3.5 bg-slate-950/70 border border-slate-800/80 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-              >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-white">{s.targetEntityName}</span>
-                    <span className="text-[10px] font-mono bg-rose-950/80 text-rose-300 border border-rose-800/60 px-1.5 py-0.5 rounded font-bold">
-                      {s.matchScore}% Match
-                    </span>
-                  </div>
-                  <div className="text-xs text-slate-400">
-                    List: <strong className="text-slate-300">{s.watchlistName}</strong> ({s.matchedNameOnList})
-                  </div>
-                  <div className="text-[10px] text-slate-500">
-                    Category: {s.category} • Match Basis: {s.matchType}
-                  </div>
+        <Card>
+          <SectionHeader title={t.dash.healthTitle} sub={t.dash.healthSub} actions={<ViewAll href="/compliance/system-health" />} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {p.health.slice(0, 6).map((h) => (
+              <div key={h.id} className="kpc-inset px-3 py-2.5 flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-[0.72rem] font-bold text-[var(--kpc-ink)] truncate">{h.name}</p>
+                  <p className="text-[0.6rem] text-[var(--kpc-ink-3)] uppercase tracking-wide font-bold">{h.category}</p>
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => updateSanctionsAlertStatus(s.id, 'FALSE_POSITIVE', 'Verified identity divergence')}
-                    className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-[11px] rounded transition"
-                  >
-                    False Positive
-                  </button>
-                  <button
-                    onClick={() => {
-                      updateSanctionsAlertStatus(s.id, 'CONFIRMED_MATCH', 'Confirmed match against designated list');
-                      setIsRestrictionModalOpen(true);
-                    }}
-                    className="px-2.5 py-1 bg-rose-600 hover:bg-rose-500 text-white font-bold text-[11px] rounded transition shadow"
-                  >
-                    Confirm & Freeze
-                  </button>
-                </div>
+                <Chip tone={toneOfRisk(h.status)}>{h.status === 'OPERATIONAL' ? t.common.operational : h.status === 'DEGRADED' ? t.common.degraded : h.status === 'UNAVAILABLE' ? t.common.unavailable : t.common.unknown}</Chip>
               </div>
             ))}
           </div>
-        </div>
+        </Card>
       </div>
-
-      {/* KYC & KYB Due Diligence Quick Review Strip */}
-      <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-teal-950 text-teal-400 rounded-lg border border-teal-800/40">
-              <UserCheck className="w-4 h-4" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-white">Pending Due Diligence Verifications</h2>
-              <p className="text-xs text-slate-400">Customer KYC (Tier 1-3) & Merchant KYB corporate registrations</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <Link
-              href="/compliance/kyc"
-              className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1"
-            >
-              Customer KYC <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-            <span className="text-slate-600">•</span>
-            <Link
-              href="/compliance/kyb"
-              className="text-xs font-semibold text-teal-400 hover:text-teal-300 flex items-center gap-1"
-            >
-              Merchant KYB <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {filteredKyc.slice(0, 3).map((k) => (
-            <div
-              key={k.id}
-              onClick={() => {
-                setSelectedKyc(k);
-                setKycType('KYC');
-              }}
-              className="p-3.5 bg-slate-950/70 hover:bg-slate-800/60 border border-slate-800/80 rounded-xl cursor-pointer transition flex flex-col justify-between space-y-2 group"
-            >
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono bg-slate-800 px-1.5 py-0.5 rounded text-slate-300 font-bold">
-                    {k.tier}
-                  </span>
-                  <span
-                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${
-                      k.status === 'VERIFIED'
-                        ? 'bg-emerald-500/20 text-emerald-300'
-                        : 'bg-amber-500/20 text-amber-300'
-                    }`}
-                  >
-                    {k.status}
-                  </span>
-                </div>
-                <div className="text-xs font-bold text-slate-200 mt-2 group-hover:text-emerald-400 transition">
-                  {k.customerName}
-                </div>
-                <div className="text-[11px] text-slate-400 font-mono">
-                  NIN: {k.maskedNin} • BVN: {k.maskedBvn || 'N/A'}
-                </div>
-              </div>
-              <div className="text-[10px] text-slate-500 pt-2 border-t border-slate-800/80 flex items-center justify-between">
-                <span>{k.jurisdiction === 'NG' ? '🇳🇬 Nigeria' : '🇳🇪 Niger'}</span>
-                <span className="text-emerald-400 font-semibold group-hover:underline flex items-center gap-1">
-                  Inspect <ChevronRight className="w-3 h-3" />
-                </span>
-              </div>
-            </div>
-          ))}
-
-          {filteredKyb.slice(0, 3).map((b) => (
-            <div
-              key={b.id}
-              onClick={() => {
-                setSelectedKyc(b);
-                setKycType('KYB');
-              }}
-              className="p-3.5 bg-slate-950/70 hover:bg-slate-800/60 border border-slate-800/80 rounded-xl cursor-pointer transition flex flex-col justify-between space-y-2 group"
-            >
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono bg-teal-950/60 text-teal-300 border border-teal-800/60 px-1.5 py-0.5 rounded font-bold">
-                    {b.businessType}
-                  </span>
-                  <span
-                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${
-                      b.status === 'VERIFIED'
-                        ? 'bg-emerald-500/20 text-emerald-300'
-                        : 'bg-amber-500/20 text-amber-300'
-                    }`}
-                  >
-                    {b.status}
-                  </span>
-                </div>
-                <div className="text-xs font-bold text-slate-200 mt-2 group-hover:text-teal-400 transition">
-                  {b.businessName}
-                </div>
-                <div className="text-[11px] text-slate-400 font-mono">
-                  RC: {b.registrationNumber} • TIN: {b.taxIdentificationNumber}
-                </div>
-              </div>
-              <div className="text-[10px] text-slate-500 pt-2 border-t border-slate-800/80 flex items-center justify-between">
-                <span>{b.jurisdiction === 'NG' ? '🇳🇬 CAC Verified' : '🇳🇪 RCCM Verified'}</span>
-                <span className="text-teal-400 font-semibold group-hover:underline flex items-center gap-1">
-                  Inspect KYB <ChevronRight className="w-3 h-3" />
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Real-time Risk Telemetry Stream */}
-      <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-emerald-950 text-emerald-400 rounded-lg border border-emerald-800/40">
-              <Radio className="w-4 h-4 animate-pulse" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-white">Live Transaction Risk Telemetry</h2>
-              <p className="text-xs text-slate-400">Real-time risk scoring across banking nodes (Providus NG & Coris NE)</p>
-            </div>
-          </div>
-          <Link
-            href="/compliance/transaction-monitoring"
-            className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1"
-          >
-            Live Monitor <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="border-b border-slate-800 text-slate-400">
-                <th className="pb-2 font-semibold">Transaction ID</th>
-                <th className="pb-2 font-semibold">Origin Entity</th>
-                <th className="pb-2 font-semibold">Beneficiary</th>
-                <th className="pb-2 font-semibold">Amount</th>
-                <th className="pb-2 font-semibold">Risk Score</th>
-                <th className="pb-2 font-semibold">Decision</th>
-                <th className="pb-2 font-semibold">Banking Node</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60 font-mono">
-              {telemetry.map((t) => (
-                <tr key={t.id} className="hover:bg-slate-800/40">
-                  <td className="py-2.5 text-slate-300">{t.transactionId}</td>
-                  <td className="py-2.5 font-sans text-white font-medium">{t.originEntityName}</td>
-                  <td className="py-2.5 font-sans text-slate-300">{t.destinationEntityName}</td>
-                  <td className="py-2.5 font-bold text-emerald-400">
-                    {formatCurrency(t.amount, t.currency)}
-                  </td>
-                  <td className="py-2.5">
-                    <span
-                      className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                        t.riskScore > 75
-                          ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
-                          : t.riskScore > 40
-                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                          : 'bg-emerald-500/20 text-emerald-300'
-                      }`}
-                    >
-                      Score {t.riskScore}/100
-                    </span>
-                  </td>
-                  <td className="py-2.5 font-sans">
-                    <span
-                      className={`text-[11px] font-bold ${
-                        t.ruleDecision === 'PASS'
-                          ? 'text-emerald-400'
-                          : t.ruleDecision === 'FLAG'
-                          ? 'text-amber-400'
-                          : 'text-rose-400'
-                      }`}
-                    >
-                      {t.ruleDecision}
-                    </span>
-                  </td>
-                  <td className="py-2.5 text-slate-400 text-[11px]">{t.node}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Modals & Drawers */}
-      <CaseInvestigationDrawer caseItem={selectedCase} onClose={() => setSelectedCase(null)} />
-      <KycReviewModal record={selectedKyc} type={kycType} onClose={() => setSelectedKyc(null)} />
-      <RestrictionModal isOpen={isRestrictionModalOpen} onClose={() => setIsRestrictionModalOpen(false)} />
-      <CreateCaseModal isOpen={isCreateCaseOpen} onClose={() => setIsCreateCaseOpen(false)} />
     </div>
   );
 }
+
+function kx(k: string, cur: string) {
+  return `px-1.5 py-0.5 rounded-md transition ${k === cur ? 'bg-teal-600 text-white' : 'hover:text-[var(--kpc-ink)]'}`;
+}
+function cxTone(tone: string) {
+  return `w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${tone === 'critical' ? 'bg-rose-500/10' : tone === 'high' ? 'bg-orange-500/10' : tone === 'medium' ? 'bg-amber-500/10' : tone === 'ok' ? 'bg-emerald-500/10' : 'bg-sky-500/10'}`;
+}
+function cxTone2(tone: string) {
+  const c = tone === 'CRITICAL' ? 'text-rose-500 bg-rose-500/10' : tone === 'HIGH' ? 'text-orange-500 bg-orange-500/10' : tone === 'MEDIUM' ? 'text-amber-500 bg-amber-500/10' : tone === 'OK' ? 'text-emerald-500 bg-emerald-500/10' : 'text-teal-500 bg-teal-500/10';
+  return `w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ring-1 ring-inset ring-[rgba(var(--kpc-ring),0.5)] ${c}`;
+}
+const ACT_ICONS: Record<string, React.ReactNode> = {
+  KYC: <UserCheck className="w-3.5 h-3.5" />, KYB: <Building2 className="w-3.5 h-3.5" />, AML: <ShieldAlert className="w-3.5 h-3.5" />, SCREENING: <Fingerprint className="w-3.5 h-3.5" />, CASE: <FolderSearch className="w-3.5 h-3.5" />,
+  RESTRICTION: <Lock className="w-3.5 h-3.5" />, SYSTEM: <Activity className="w-3.5 h-3.5" />, REPORT: <FileBarChart2 className="w-3.5 h-3.5" />, APPROVAL: <CheckSquare className="w-3.5 h-3.5" />,
+};

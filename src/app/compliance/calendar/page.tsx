@@ -1,76 +1,50 @@
 'use client';
-
-import React from 'react';
+import React, { useMemo, useState } from 'react';
+import { CalendarDays, CheckCircle2, Search, AlertTriangle, Clock3 } from 'lucide-react';
 import { useCompliance } from '@/components/compliance/ComplianceContext';
-import { Calendar, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
+import { Card, Chip, PageHead, Input, Tabs, EmptyState, KeyVal } from '@/components/compliance/ui/Ck';
+import { usePaging, Paginator, Age } from '@/components/compliance/workspaces/helpers';
 
+const TABS = ['ALL', 'OVERDUE', 'DUE_SOON', 'UPCOMING', 'COMPLETED'] as const;
 export default function ComplianceCalendarPage() {
-  const { calendarEvents, acknowledgeCalendarEvent, formatDate } = useCompliance();
-
+  const c = useCompliance();
+  const { calendarEvents, acknowledgeCalendarEvent, formatDate } = c;
+  const [tab, setTab] = useState<(typeof TABS)[number]>('ALL');
+  const [q, setQ] = useState('');
+  const rows = useMemo(() => calendarEvents
+    .filter((e) => (tab === 'ALL' ? true : e.status === tab))
+    .filter((e) => !q.trim() || `${e.title} ${e.regulator}`.toLowerCase().includes(q.trim().toLowerCase()))
+    .sort((a, b) => (a.dueDate < b.dueDate ? -1 : 1)), [calendarEvents, tab, q]);
+  const pg = usePaging(rows, 8);
+  const counts = useMemo(() => {
+    const m: Record<string, number> = { ALL: calendarEvents.length };
+    TABS.filter((x) => x !== 'ALL').forEach((s) => (m[s] = calendarEvents.filter((e) => e.status === s).length));
+    return m;
+  }, [calendarEvents]);
+  const tone = (s: string) => (s === 'OVERDUE' ? 'critical' : s === 'DUE_SOON' ? 'high' : s === 'UPCOMING' ? 'warn' : 'ok') as 'critical' | 'high' | 'warn' | 'ok';
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-mono font-bold text-amber-400 uppercase tracking-wider mb-1">
-            <Calendar className="w-4 h-4" />
-            REGULATORY OBLIGATIONS & CALENDAR
-          </div>
-          <h1 className="text-2xl font-extrabold text-white">Compliance Obligation Calendar</h1>
-          <p className="text-xs text-slate-400">
-            Filing deadlines for Central Bank of Nigeria (CBN), NFIU, BCEAO, and CENTIF statutory returns.
-          </p>
-        </div>
+    <div>
+      <PageHead icon={CalendarDays} title="Obligation Calendar" sub="Filing deadlines for CBN, NFIU, BCEAO and CENTIF statutory returns — NE and NG stations." />
+      <div className="mb-4 flex flex-col xl:flex-row gap-2.5 justify-between">
+        <Tabs items={TABS.map((s) => ({ value: s, label: s.replace(/_/g, ' '), count: counts[s] }))} value={tab} onChange={(v) => { setTab(v as typeof tab); pg.reset(); }} />
+        <Input value={q} onChange={(e) => { setQ(e.target.value); pg.reset(); }} placeholder="Search obligations…" className="!text-[0.78rem] xl:w-72" icon={<Search className="w-4 h-4" />} aria-label="Search obligations" />
       </div>
-
-      <div className="space-y-4">
-        {calendarEvents.map((ev) => (
-          <div
-            key={ev.id}
-            className={`p-5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl ${
-              ev.status === 'OVERDUE'
-                ? 'bg-rose-950/20 border-rose-900/60'
-                : ev.status === 'COMPLETED'
-                ? 'bg-slate-900/40 border-slate-800/60 opacity-80'
-                : 'bg-slate-900/60 border-slate-800/80'
-            }`}
-          >
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-xs font-bold bg-slate-800 text-slate-300 px-2 py-0.5 rounded">
-                  {ev.regulator} • {ev.jurisdiction === 'NG' ? '🇳🇬 Nigeria' : '🇳🇪 Niger'}
-                </span>
-                <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase font-mono ${
-                    ev.status === 'OVERDUE'
-                      ? 'bg-rose-500/20 text-rose-300 font-bold'
-                      : ev.status === 'COMPLETED'
-                      ? 'bg-emerald-500/20 text-emerald-300'
-                      : 'bg-amber-500/20 text-amber-300'
-                  }`}
-                >
-                  {ev.status}
-                </span>
-                <h3 className="text-sm font-bold text-white">{ev.title}</h3>
-              </div>
-
-              <p className="text-xs text-slate-300">{ev.description}</p>
-              <div className="text-xs text-slate-400 font-mono">
-                Due Date: <strong className="text-amber-400">{formatDate(ev.dueDate)}</strong>
-              </div>
+      <div className="space-y-2.5">
+        {pg.slice.map((e) => (
+          <div key={e.id} className="kpc-card p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+            <span className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${e.status === 'OVERDUE' || e.status === 'DUE_SOON' ? 'bg-rose-500/10 text-rose-500' : 'bg-teal-500/10 text-teal-600 dark:text-teal-400'}`}>{e.status === 'OVERDUE' || e.status === 'DUE_SOON' ? <AlertTriangle className="w-4 h-4" /> : <Clock3 className="w-4 h-4" />}</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-[0.78rem] font-extrabold text-[var(--kpc-ink)]">{e.title}</p>
+              <p className="text-[0.64rem] font-semibold text-[var(--kpc-ink-3)]">{e.regulator} · {e.category ?? e.jurisdiction.replace(/_/g, ' ')}{e.assignedTo ? ` · ${e.assignedTo}` : ''}</p>
             </div>
-
-            {ev.status !== 'COMPLETED' && (
-              <button
-                onClick={() => acknowledgeCalendarEvent(ev.id)}
-                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg transition flex items-center gap-1.5 whitespace-nowrap"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                Mark Completed
-              </button>
-            )}
+            <KeyVal k="Due" v={formatDate(e.dueDate)} />
+            <Chip tone={tone(e.status)}>{e.status.replace(/_/g, ' ')}</Chip>
+            {e.status !== 'COMPLETED' && <button onClick={() => acknowledgeCalendarEvent(e.id)} className="kpc-btn kpc-btn-outline kpc-btn-sm shrink-0"><CheckCircle2 className="w-3.5 h-3.5" /> Mark complete</button>}
           </div>
         ))}
+        {!pg.slice.length && <Card><EmptyState title="No obligations match the current filters." /></Card>}
       </div>
+      <Paginator {...pg} total={rows.length} setPage={pg.setPage} />
     </div>
   );
 }

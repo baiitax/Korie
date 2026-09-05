@@ -1,152 +1,66 @@
 'use client';
-
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import { FileCheck2, Send, Search } from 'lucide-react';
 import { useCompliance } from '@/components/compliance/ComplianceContext';
-import { RegulatoryReport, ReportType } from '@/types/compliance';
-import {
-  FileCheck2,
-  Search,
-  Filter,
-  Send,
-  CheckCircle2,
-  Clock,
-  Building2,
-  FileText,
-  Download,
-} from 'lucide-react';
+import { Card, Chip, PageHead, Input, Select, Modal, KeyVal, EmptyState } from '@/components/compliance/ui/Ck';
+import { usePaging, Paginator, Age } from '@/components/compliance/workspaces/helpers';
 
 export default function RegulatoryReportingPage() {
-  const {
-    regulatoryReports,
-    selectedJurisdiction,
-    submitRegulatoryReport,
-    formatDate,
-    formatCurrency,
-  } = useCompliance();
-
-  const [searchQuery, setSearchQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState<'ALL' | ReportType>('ALL');
-
-  const filtered = regulatoryReports.filter((r) => {
-    if (selectedJurisdiction !== 'ALL' && r.jurisdiction !== selectedJurisdiction) return false;
-    if (typeFilter !== 'ALL' && r.reportType !== typeFilter) return false;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      return (
-        r.id.toLowerCase().includes(q) ||
-        r.reportType.toLowerCase().includes(q) ||
-        r.regulator.toLowerCase().includes(q) ||
-        r.reportingPeriod.toLowerCase().includes(q)
-      );
-    }
-    return true;
-  });
-
+  const c = useCompliance();
+  const { regulatoryReports, submitRegulatoryReport, formatCurrency, formatDate, selectedJurisdiction } = c;
+  const [q, setQ] = useState('');
+  const [status, setStatus] = useState('ALL');
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const rows = useMemo(() => regulatoryReports
+    .filter((r) => (status === 'ALL' ? true : r.filingStatus === status))
+    .filter((r) => (selectedJurisdiction === 'ALL' ? true : r.jurisdiction.includes(selectedJurisdiction)))
+    .filter((r) => !q.trim() || `${r.regulator} ${r.reportType} ${r.reportingPeriod} ${r.id}`.toLowerCase().includes(q.trim().toLowerCase()))
+    .sort((a, b) => ((b.createdAt ?? '') < (a.createdAt ?? '') ? -1 : 1)), [regulatoryReports, status, q, selectedJurisdiction]);
+  const pg = usePaging(rows, 7);
+  const active = regulatoryReports.find((r) => r.id === confirmId);
+  const tone = (s: string) => (['SUBMITTED', 'ACCEPTED', 'ACKNOWLEDGED'].includes(s) ? 'ok' : s === 'REJECTED' ? 'critical' : s === 'READY_FOR_SUBMISSION' ? 'warn' : 'dim') as 'ok' | 'critical' | 'warn' | 'dim';
+  const canSubmit = (s: string) => ['READY_FOR_SUBMISSION', 'PENDING_MLRO_APPROVAL', 'DRAFT'].includes(s);
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-mono font-bold text-emerald-400 uppercase tracking-wider mb-1">
-            <FileCheck2 className="w-4 h-4" />
-            STATUTORY FILING & REGULATORY COMPLIANCE
-          </div>
-          <h1 className="text-2xl font-extrabold text-white">Regulatory Reporting (NFIU / CENTIF)</h1>
-          <p className="text-xs text-slate-400">
-            Mandatory Cash Transaction Reports (CTR) and Suspicious Transaction Reports (STR) filing workflows.
-          </p>
+    <div>
+      <PageHead icon={FileCheck2} title="Regulatory Reporting" sub="STR/CTR and statutory returns to CBN, NFIU, BCEAO and CENTIF — XOF-first sample data." />
+      <Card flat className="mb-4 p-3">
+        <div className="flex flex-col xl:flex-row gap-2.5">
+          <Input value={q} onChange={(e) => { setQ(e.target.value); pg.reset(); }} placeholder="Search filings…" className="!text-[0.78rem]" wrapClass="flex-1 min-w-[220px]" icon={<Search className="w-4 h-4" />} aria-label="Search filings" />
+          <Select value={status} onChange={(e) => { setStatus(e.target.value); pg.reset(); }} aria-label="Status filter">
+            <option value="ALL">All statuses</option>
+            {['DRAFT', 'PENDING_MLRO_APPROVAL', 'READY_FOR_SUBMISSION', 'SUBMITTED', 'ACCEPTED', 'ACKNOWLEDGED', 'REJECTED'].map((s) => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
+          </Select>
         </div>
-      </div>
-
-      <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="relative flex-1 w-full">
-          <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search reports by filing type, regulator, period, or acknowledgement ref..."
-            className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
-          />
-        </div>
-
-        <select
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value as any)}
-          className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
-        >
-          <option value="ALL">All Statutory Reports</option>
-          <option value="NFIU_CTR">NFIU Cash Transaction Report (CTR)</option>
-          <option value="NFIU_STR">NFIU Suspicious Transaction Report (STR)</option>
-          <option value="CENTIF_DECLARATION">CENTIF Niger Suspicion Declaration</option>
-          <option value="CBN_MONTHLY_AML">CBN Monthly AML/CFT Returns</option>
-          <option value="BCEAO_QUARTERLY_RISK">BCEAO Quarterly Risk Report</option>
-        </select>
-      </div>
-
-      <div className="space-y-4">
-        {filtered.map((rep) => (
-          <div
-            key={rep.id}
-            className="p-5 bg-slate-900/60 border border-slate-800/80 rounded-2xl flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-xl"
-          >
-            <div className="space-y-2 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-mono text-xs font-bold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/40">
-                  {rep.id}
-                </span>
-                <span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-300 font-bold uppercase font-mono">
-                  {rep.regulator} • {rep.jurisdiction === 'NG' ? '🇳🇬 NIGERIA' : '🇳🇪 NIGER'}
-                </span>
-                <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
-                    rep.filingStatus === 'SUBMITTED' || rep.filingStatus === 'ACCEPTED'
-                      ? 'bg-emerald-500/20 text-emerald-300'
-                      : 'bg-amber-500/20 text-amber-300'
-                  }`}
-                >
-                  {rep.filingStatus}
-                </span>
-                <h3 className="text-sm font-bold text-white">{rep.reportType.replace(/_/g, ' ')}</h3>
-              </div>
-
-              <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800/60 text-xs space-y-1">
-                <div className="text-slate-300">
-                  Reporting Cycle Period: <strong className="text-white">{rep.reportingPeriod}</strong>
-                </div>
-                <div className="text-slate-400 flex items-center gap-4">
-                  <span>Transactions Aggregated: <strong className="text-slate-200">{rep.includedTransactionCount}</strong></span>
-                  <span>•</span>
-                  <span>Total Filing Value: <strong className="text-emerald-400 font-mono">{formatCurrency(rep.totalValueReported, rep.currency)}</strong></span>
-                </div>
-                {rep.acknowledgementRef && (
-                  <div className="text-emerald-400 font-mono text-[11px] pt-1 border-t border-slate-800">
-                    Regulator Acknowledgement Ref: {rep.acknowledgementRef}
-                  </div>
-                )}
-              </div>
+      </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {pg.slice.map((r) => (
+          <div key={r.id} className="kpc-card p-4 flex flex-col">
+            <div className="flex items-center justify-between gap-2 mb-1.5">
+              <Chip tone="dim">{r.regulator}</Chip>
+              <Chip tone={tone(r.filingStatus)}>{r.filingStatus.replace(/_/g, ' ')}</Chip>
             </div>
-
-            <div className="flex items-center gap-2 border-t lg:border-t-0 pt-3 lg:pt-0 border-slate-800">
-              {rep.filingStatus === 'DRAFT' || rep.filingStatus === 'READY_FOR_SUBMISSION' ? (
-                <button
-                  onClick={() => submitRegulatoryReport(rep.id)}
-                  className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl shadow-lg transition flex items-center gap-1.5"
-                >
-                  <Send className="w-4 h-4" />
-                  Dispatch Filing to {rep.regulator}
-                </button>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono text-emerald-400 flex items-center gap-1">
-                    <CheckCircle2 className="w-4 h-4" />
-                    Filed by {rep.submittedByOfficer}
-                  </span>
-                </div>
-              )}
+            <p className="text-[0.8rem] font-extrabold text-[var(--kpc-ink)]">{r.reportType.replace(/_/g, ' ')}</p>
+            <p className="text-[0.64rem] kpc-mono text-[var(--kpc-ink-3)]">{r.id} · {r.jurisdiction.replace(/_/g, ' ')}</p>
+            <div className="grid grid-cols-2 gap-x-6 mt-3">
+              <KeyVal k="Period" v={r.reportingPeriod} />
+              <KeyVal k="Txns" v={String(r.includedTransactionCount)} />
+              <KeyVal k="Value" v={formatCurrency(r.totalValueReported, r.currency)} strong />
+            </div>
+            <p className="text-[0.62rem] text-[var(--kpc-ink-3)] mt-2">Prepared: {r.preparedBy ?? '—'} · {r.submissionDate ? formatDate(r.submissionDate) : formatDate(r.createdAt ?? '')}</p>
+            <div className="mt-auto pt-2">
+              {r.acknowledgementRef && <p className="kpc-mono text-[0.62rem] font-bold text-[var(--kpc-ink-3)] mb-2">Ref {r.acknowledgementRef}</p>}
+              {canSubmit(r.filingStatus) && <button onClick={() => setConfirmId(r.id)} className="kpc-btn kpc-btn-primary kpc-btn-sm w-full"><Send className="w-3.5 h-3.5" /> Submit filing (demo)</button>}
             </div>
           </div>
         ))}
+        {!pg.slice.length && <div className="md:col-span-2 xl:col-span-3"><Card><EmptyState title="No filings match the current filters." /></Card></div>}
       </div>
+      <Paginator {...pg} total={rows.length} setPage={pg.setPage} />
+      <Modal open={!!active} onClose={() => setConfirmId(null)} title={`Submit filing — ${active?.id}`}
+        footer={<><button onClick={() => setConfirmId(null)} className="kpc-btn kpc-btn-ghost">Cancel</button>
+          <button onClick={() => { if (active) submitRegulatoryReport(active.id); setConfirmId(null); }} className="kpc-btn kpc-btn-primary">Submit</button></>}>
+        {active && <p className="text-[0.74rem] text-[var(--kpc-ink-2)]">File <b>{active.reportType.replace(/_/g, ' ')}</b> for period <b>{active.reportingPeriod}</b> to <b>{active.regulator}</b>? An acknowledgement reference is generated and the event is audit-logged. Demo mode: the regulator channel is simulated.</p>}
+      </Modal>
     </div>
   );
 }

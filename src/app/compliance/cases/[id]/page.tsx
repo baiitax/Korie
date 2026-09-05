@@ -1,424 +1,116 @@
 'use client';
-
 import React, { useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useCompliance } from '@/components/compliance/ComplianceContext';
-import {
-  ArrowLeft,
-  ShieldAlert,
-  Clock,
-  User,
-  Paperclip,
-  CheckCircle2,
-  FileCheck2,
-  AlertTriangle,
-  Building2,
-  Plus,
-  Send,
-  Lock,
-} from 'lucide-react';
-import { CaseStatus } from '@/types/compliance';
+import { useParams, useRouter } from 'next/navigation';
+import { FileSearch, ArrowUpRight, CheckCircle2, RotateCcw, MessageSquarePlus, FolderSearch, Clock3 } from 'lucide-react';
+import { useCompliancePortal } from '@/components/compliance/CompliancePortalContext';
+import { Card, Chip, KeyVal, PageHead, Modal, Input, EmptyState, toneOfRisk, Avatar, StatusDot } from '@/components/compliance/ui/Ck';
+import { chipTxt, Money } from '@/components/compliance/workspaces/helpers';
 
-export default function CaseDetailPage() {
+type Act = 'ESCALATE' | 'RESOLVE' | 'REOPEN' | 'ACK';
+export default function CaseWorkspacePage() {
   const params = useParams();
   const router = useRouter();
-  const caseId = params?.id as string;
-  const {
-    cases,
-    currentOfficer,
-    updateCaseStatus,
-    addCaseEvidence,
-    addCaseNote,
-    formatCurrency,
-    formatDate,
-    submitRegulatoryReport,
-  } = useCompliance();
-
-  const currentCase = cases.find((c) => c.id === caseId || c.caseNumber === caseId);
-
-  const [activeTab, setActiveTab] = useState<'overview' | 'timeline' | 'evidence' | 'notes' | 'decision'>('overview');
+  const p = useCompliancePortal();
+  const { t } = p;
+  const id = String(params?.id ?? '');
+  const c = p.caseById(id);
+  const [confirm, setConfirm] = useState<Act | null>(null);
+  const [note, setNote] = useState('');
   const [newNote, setNewNote] = useState('');
-  const [isConfidential, setIsConfidential] = useState(false);
-  const [evidenceTitle, setEvidenceTitle] = useState('');
-  const [evidenceType, setEvidenceType] = useState('BANK_STATEMENT');
-  const [decisionNotes, setDecisionNotes] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState<CaseStatus>('RESOLVED');
+  const [busy, setBusy] = useState(false);
 
-  if (!currentCase) {
-    return (
-      <div className="text-center py-20 space-y-4">
-        <ShieldAlert className="w-12 h-12 text-slate-600 mx-auto" />
-        <h2 className="text-xl font-bold text-white">Case Not Found</h2>
-        <p className="text-xs text-slate-400">The investigation case file &quot;{caseId}&quot; could not be retrieved from the compliance register.</p>
-        <Link
-          href="/compliance/cases"
-          className="inline-block px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-lg"
-        >
-          Back to Case Register
-        </Link>
-      </div>
-    );
-  }
+  if (!c) return <Card className="mt-3"><EmptyState title="Case not found" body={`No case ${id} in the demo set.`} action={<Link href="/compliance/cases" className="kpc-btn kpc-btn-primary">{t.caseP.title}</Link>} /></Card>;
 
-  const handleAddNote = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newNote.trim()) return;
-    addCaseNote(currentCase.id, newNote, isConfidential);
-    setNewNote('');
+  const doAct = () => {
+    if ((confirm === 'ESCALATE' || confirm === 'RESOLVE') && !note.trim()) return;
+    setBusy(true);
+    window.setTimeout(() => { p.caseAction(c!.caseNumber, confirm!, note.trim() || undefined); setConfirm(null); setNote(''); setBusy(false); router.refresh(); }, 320);
   };
+  const addNote = () => { if (!newNote.trim()) return; p.addCaseNote(c.caseNumber, newNote.trim()); setNewNote(''); };
 
-  const handleAddEvidence = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!evidenceTitle.trim()) return;
-    addCaseEvidence(currentCase.id, {
-      title: evidenceTitle,
-      fileType: evidenceType,
-      fileUrl: `/vault/${currentCase.id}/${evidenceTitle.toLowerCase().replace(/\s+/g, '_')}.pdf`,
-      uploadedByOfficer: currentOfficer.fullName,
-      notes: 'Investigator case exhibit',
-    });
-    setEvidenceTitle('');
-  };
-
-  const handleApplyDecision = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!decisionNotes.trim()) return;
-    updateCaseStatus(currentCase.id, selectedStatus, decisionNotes);
-  };
+  const slaMs = new Date(c.deadlineSla).getTime() - Date.now();
+  const slaTone = slaMs < 0 ? 'critical' : slaMs < 24 * 3600_000 ? 'high' : slaMs < 72 * 3600_000 ? 'medium' : 'low';
 
   return (
-    <div className="space-y-6">
-      {/* Top Breadcrumb & Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.back()}
-            className="p-2 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl border border-slate-800 transition"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </button>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-sm font-bold text-emerald-400">{currentCase.caseNumber}</span>
-              <span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-300 font-bold uppercase">
-                {currentCase.jurisdiction === 'NG' ? '🇳🇬 NIGERIA' : '🇳🇪 NIGER'}
-              </span>
-              <span
-                className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
-                  currentCase.status === 'RESOLVED' || currentCase.status === 'CLOSED'
-                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                    : currentCase.status === 'ESCALATED'
-                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
-                    : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                }`}
-              >
-                {currentCase.status.replace(/_/g, ' ')}
-              </span>
-            </div>
-            <h1 className="text-xl font-extrabold text-white mt-0.5">{currentCase.title}</h1>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setActiveTab('decision')}
-            className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl shadow-lg transition"
-          >
-            Record Formal Ruling
-          </button>
-        </div>
+    <div>
+      <PageHead icon={FileSearch} title={<span className="flex items-center gap-2 flex-wrap">{c.caseNumber}<Chip tone="dim" className="kpc-mono">{c.caseType.replace(/_/g, ' ')}</Chip></span>}
+        sub={t.caseD.title + ' — ' + c.title}
+        actions={<><Link href="/compliance/cases" className="kpc-btn kpc-btn-ghost">{t.common.back}</Link>{c.customerId && <Link href={`/compliance/customers/${c.customerId.replace('KP-', '')}`} className="kpc-btn kpc-btn-outline">{t.common.customer}</Link>}</>} />
+      <div className="flex flex-wrap gap-2 mb-4">
+        <Chip tone={toneOfRisk(c.status)}>{chipTxt(c.status, t)}</Chip>
+        <Chip tone={c.priority === 'URGENT' ? 'critical' : c.priority === 'HIGH' ? 'high' : 'medium'}>{c.priority}</Chip>
+        <Chip tone={toneOfRisk(c.riskLevel)}>{c.riskLevel}</Chip>
+        <Chip tone={slaTone as never}><Clock3 className="w-3 h-3" /> SLA {p.relTime(c.deadlineSla)}</Chip>
       </div>
-
-      {/* Case Overview Metrics Bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-5 bg-slate-900/60 border border-slate-800/80 rounded-2xl">
-        <div>
-          <div className="text-slate-500 text-xs uppercase font-bold">Target Entity</div>
-          <div className="text-base font-bold text-white mt-0.5">{currentCase.targetEntityName}</div>
-          <div className="text-[11px] text-slate-400 font-mono">ID: {currentCase.targetEntityId}</div>
-        </div>
-        <div>
-          <div className="text-slate-500 text-xs uppercase font-bold">Total Involved Value</div>
-          <div className="text-base font-bold text-emerald-400 font-mono mt-0.5">
-            {formatCurrency(currentCase.involvedAmount, currentCase.currency)}
-          </div>
-          <div className="text-[11px] text-slate-400">Ledger Currency: {currentCase.currency}</div>
-        </div>
-        <div>
-          <div className="text-slate-500 text-xs uppercase font-bold">Assigned Officer</div>
-          <div className="text-base font-bold text-slate-200 mt-0.5">{currentCase.assignedOfficerName}</div>
-          <div className="text-[11px] text-emerald-400 font-mono">MLRO Clearance Active</div>
-        </div>
-        <div>
-          <div className="text-slate-500 text-xs uppercase font-bold">Resolution SLA</div>
-          <div className="text-base font-bold text-amber-400 font-mono mt-0.5 flex items-center gap-1.5">
-            <Clock className="w-4 h-4" />
-            {formatDate(currentCase.deadlineSla).slice(0, 12)}
-          </div>
-          <div className="text-[11px] text-slate-400">Created: {formatDate(currentCase.createdAt).slice(0, 10)}</div>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex border-b border-slate-800 bg-slate-900/40 rounded-t-xl px-4">
-        {(['overview', 'timeline', 'evidence', 'notes', 'decision'] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`py-3 px-4 text-xs font-bold border-b-2 transition uppercase tracking-wider ${
-              activeTab === tab
-                ? 'border-emerald-500 text-emerald-400'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            {tab}
-            {tab === 'timeline' && ` (${currentCase.timeline.length})`}
-            {tab === 'evidence' && ` (${currentCase.evidence.length})`}
-            {tab === 'notes' && ` (${currentCase.internalNotes.length})`}
-          </button>
-        ))}
-      </div>
-
-      {/* Tab Panels */}
-      <div className="bg-slate-900/60 border border-slate-800/80 rounded-b-2xl p-6">
-        {activeTab === 'overview' && (
-          <div className="space-y-6">
-            <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-5 space-y-3">
-              <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider">Executive Investigation Summary</h3>
-              <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">{currentCase.summary}</p>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <div className="space-y-4 xl:col-span-2">
+          <Card>
+            <h3 className="text-[0.8rem] font-extrabold text-[var(--kpc-ink)] mb-2">{t.caseD.summaryBlock}</h3>
+            <p className="text-[0.78rem] text-[var(--kpc-ink-2)] leading-relaxed">{c.summary}</p>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 mt-3">
+              <KeyVal k={t.caseP.target} v={c.customerName ?? '—'} strong />
+              <KeyVal k={t.caseD.assignee} v={c.assignedOfficerName} />
+              <KeyVal k={t.caseP.linkedAlert} v={c.relatedAlertIds.length ? c.relatedAlertIds.join(', ') : '—'} mono />
+              {c.amount ? <KeyVal k={t.common.amount} v={<Money amount={c.amount} currency={c.currency ?? 'XOF'} fmt={p.fmtMoney} />} strong /> : null}
+              <KeyVal k={t.caseP.createdCol} v={p.fmtDT(c.createdAt)} />
+              <KeyVal k={t.caseP.updatedCol} v={p.fmtDT(c.updatedAt)} />
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-4 space-y-2">
-                <h4 className="text-xs font-bold text-slate-300">Target Profile & Risk Matrix</h4>
-                <div className="text-xs space-y-1.5">
-                  <div className="flex justify-between py-1 border-b border-slate-800">
-                    <span className="text-slate-400">Entity Type:</span>
-                    <span className="font-semibold text-slate-200">{currentCase.targetEntityType}</span>
-                  </div>
-                  <div className="flex justify-between py-1 border-b border-slate-800">
-                    <span className="text-slate-400">Assessed Risk Tier:</span>
-                    <span className="font-bold text-rose-400">{currentCase.riskLevel}</span>
-                  </div>
-                  <div className="flex justify-between py-1 border-b border-slate-800">
-                    <span className="text-slate-400">Jurisdiction Authority:</span>
-                    <span className="font-semibold text-slate-200">
-                      {currentCase.jurisdiction === 'NG' ? 'Central Bank of Nigeria / NFIU' : 'BCEAO / CENTIF Niger'}
-                    </span>
-                  </div>
-                </div>
+            {c.relatedAlertIds.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {c.relatedAlertIds.map((al) => <Link key={al} href={`/compliance/alerts/${al}`} className="kpc-chip tone-warn hover:opacity-80">{al}</Link>)}
               </div>
-
-              <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-4 space-y-2">
-                <h4 className="text-xs font-bold text-slate-300">Case Decision State</h4>
-                <div className="text-xs space-y-1.5">
-                  <div className="flex justify-between py-1 border-b border-slate-800">
-                    <span className="text-slate-400">Resolution Status:</span>
-                    <span className="font-semibold text-slate-200">
-                      {currentCase.decision.isResolved ? 'RESOLVED' : 'INQUIRY IN PROGRESS'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between py-1 border-b border-slate-800">
-                    <span className="text-slate-400">NFIU / CENTIF Filing Flag:</span>
-                    <span className="font-bold text-amber-400">
-                      {currentCase.decision.requiresNfiuCentifFiling ? 'MANDATORY STR REQUIRED' : 'NOT APPLICABLE'}
-                    </span>
-                  </div>
-                  {currentCase.decision.rulingSummary && (
-                    <div className="pt-2 text-slate-300">
-                      <strong className="text-emerald-400">Ruling: </strong>
-                      {currentCase.decision.rulingSummary}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'timeline' && (
-          <div className="relative pl-6 space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-800">
-            {currentCase.timeline.map((event) => (
-              <div key={event.id} className="relative group">
-                <div className="absolute -left-6 top-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border-4 border-[#090E1A]" />
-                <div className="text-xs text-slate-400 flex items-center gap-2">
-                  <span className="font-mono text-emerald-400">{formatDate(event.timestamp)}</span>
-                  <span>•</span>
-                  <span className="font-semibold text-slate-300">{event.officerName}</span>
-                </div>
-                <div className="text-sm font-bold text-white mt-0.5">{event.action.replace(/_/g, ' ')}</div>
-                <div className="text-xs text-slate-300 mt-1 bg-slate-950/60 p-3 rounded-lg border border-slate-800">
-                  {event.description}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {activeTab === 'evidence' && (
-          <div className="space-y-6">
-            <form onSubmit={handleAddEvidence} className="bg-slate-950/80 p-4 rounded-xl border border-slate-800 space-y-3">
-              <div className="text-xs font-bold text-slate-200">Upload New Exhibit / Statement to Vault</div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <input
-                  type="text"
-                  value={evidenceTitle}
-                  onChange={(e) => setEvidenceTitle(e.target.value)}
-                  placeholder="Document or Statement Title..."
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
-                  required
-                />
-                <select
-                  value={evidenceType}
-                  onChange={(e) => setEvidenceType(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
-                >
-                  <option value="BANK_STATEMENT">Bank Statement</option>
-                  <option value="IDENTITY_DOCUMENT">Passport / NIN Slip</option>
-                  <option value="CAC_CERTIFICATE">CAC / RCCM Certificate</option>
-                  <option value="TRANSACTION_LOG">Ledger Node Transaction Log</option>
-                  <option value="COMMUNICATION_RECORD">Email / SMS Communication</option>
-                </select>
-              </div>
-              <button
-                type="submit"
-                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-4 rounded-lg text-xs transition"
-              >
-                Deposit in Evidence Repository
-              </button>
-            </form>
-
-            <div className="space-y-3">
-              {currentCase.evidence.map((ev) => (
-                <div
-                  key={ev.id}
-                  className="p-4 bg-slate-950/60 border border-slate-800 rounded-xl flex items-center justify-between text-xs"
-                >
-                  <div className="flex items-center gap-3">
-                    <Paperclip className="w-5 h-5 text-emerald-400" />
-                    <div>
-                      <div className="font-bold text-white text-sm">{ev.title}</div>
-                      <div className="text-slate-400 mt-0.5">
-                        {ev.fileType} • Uploaded by {ev.uploadedByOfficer} • {formatDate(ev.uploadedAt)}
-                      </div>
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-2.5 py-1 rounded border border-emerald-800/40 font-bold">
-                    SECURE SHA-256 VAULT
-                  </span>
+            )}
+          </Card>
+          <Card>
+            <h3 className="text-[0.8rem] font-extrabold text-[var(--kpc-ink)] mb-3">{t.caseD.timelineBlock}</h3>
+            <div className="relative pl-5">
+              {c.timeline.map((ev, i, arr) => (
+                <div key={i} className="relative pb-3.5">
+                  {i < arr.length - 1 && <span className="absolute left-[-11px] top-4 bottom-0 w-px bg-[rgba(var(--kpc-ring),0.5)]" />}
+                  <div className="flex items-start gap-2.5"><span className="absolute left-[-15px] top-1 w-2 h-2 rounded-full bg-teal-500 ring-4 ring-teal-500/15" /><div className="flex-1"><p className="text-[0.74rem] font-bold text-[var(--kpc-ink)]">{ev.text}</p><p className="text-[0.62rem] text-[var(--kpc-ink-3)] mt-0.5">{ev.by ? `${ev.by} · ` : ''}{p.fmtDT(ev.at)}</p></div></div>
                 </div>
               ))}
             </div>
-          </div>
-        )}
-
-        {activeTab === 'notes' && (
-          <div className="space-y-6">
-            <form onSubmit={handleAddNote} className="bg-slate-950/80 p-4 rounded-xl border border-slate-800 space-y-3">
-              <div className="text-xs font-bold text-slate-200">Add Confidential Investigator Note</div>
-              <textarea
-                rows={3}
-                value={newNote}
-                onChange={(e) => setNewNote(e.target.value)}
-                placeholder="Record investigation findings, counterparty checks, or interview notes..."
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
-                required
-              />
-              <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isConfidential}
-                    onChange={(e) => setIsConfidential(e.target.checked)}
-                    className="rounded border-slate-700 text-emerald-600 focus:ring-emerald-500"
-                  />
-                  <span>Mark as Confidential MLRO-Only Note</span>
-                </label>
-                <button
-                  type="submit"
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-5 rounded-lg text-xs transition"
-                >
-                  Save Note
-                </button>
-              </div>
-            </form>
-
-            <div className="space-y-3">
-              {currentCase.internalNotes.map((n, idx) => {
-                const noteObj = typeof n === 'string'
-                  ? { id: `nt-${idx}`, officerName: 'Investigator', content: n, timestamp: currentCase.createdAt, isConfidential: false }
-                  : n;
-                return (
-                  <div
-                    key={noteObj.id || idx}
-                    className={`p-4 rounded-xl border text-xs space-y-1.5 ${
-                      noteObj.isConfidential ? 'bg-rose-950/20 border-rose-900/40' : 'bg-slate-950/60 border-slate-800'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-200 flex items-center gap-2">
-                        <User className="w-3.5 h-3.5 text-emerald-400" />
-                        {noteObj.officerName}
-                        {noteObj.isConfidential && (
-                          <span className="text-[10px] bg-rose-500/20 text-rose-300 px-1.5 py-0.5 rounded font-mono">
-                            CONFIDENTIAL
-                          </span>
-                        )}
-                      </span>
-                      <span className="text-slate-500 font-mono text-[10px]">{formatDate(noteObj.timestamp)}</span>
-                    </div>
-                    <p className="text-slate-300 leading-relaxed whitespace-pre-wrap">{noteObj.content}</p>
-                  </div>
-                );
-              })}
+          </Card>
+          <Card>
+            <h3 className="text-[0.8rem] font-extrabold text-[var(--kpc-ink)] mb-2">{t.caseD.notesBlock}</h3>
+            <div className="space-y-2 mb-3">
+              {c.notes.map((n, i) => <div key={i} className="kpc-inset px-3.5 py-2.5 text-[0.74rem] font-semibold text-[var(--kpc-ink-2)] flex items-start gap-2"><MessageSquarePlus className="w-3.5 h-3.5 mt-0.5 text-[var(--kpc-ink-3)] shrink-0" /><span>{n}</span></div>)}
+              {!c.notes.length && <p className="text-[0.7rem] text-[var(--kpc-ink-3)]">{t.caseD.notesEmpty}</p>}
             </div>
-          </div>
-        )}
-
-        {activeTab === 'decision' && (
-          <form onSubmit={handleApplyDecision} className="space-y-5 bg-slate-950/80 p-5 rounded-xl border border-slate-800 max-w-2xl">
-            <div>
-              <h3 className="text-sm font-bold text-white">Record Formal Case Ruling</h3>
-              <p className="text-xs text-slate-400 mt-1">
-                Finalizing the ruling records an immutable decision onto the audit log and updates the entity risk state across all KoriePay banking nodes.
-              </p>
+            <div className="flex gap-2">
+              <Input value={newNote} onChange={(e) => setNewNote(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addNote()} placeholder={t.caseD.addNotePh} className="!text-[0.76rem]" wrapClass="flex-1" />
+              <button onClick={addNote} className="kpc-btn kpc-btn-outline">{t.alrtD.addNote}</button>
             </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Target Case Status</label>
-              <select
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value as CaseStatus)}
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
-              >
-                <option value="UNDER_REVIEW">UNDER REVIEW</option>
-                <option value="ESCALATED">ESCALATE TO HEAD OF COMPLIANCE</option>
-                <option value="RESOLVED">RESOLVED - Clear & Close With Justification</option>
-                <option value="CLOSED">CLOSED - File Suspicious Activity Report (STR) & Close</option>
-              </select>
+          </Card>
+        </div>
+        <div className="space-y-4">
+          <Card>
+            <h3 className="text-[0.8rem] font-extrabold text-[var(--kpc-ink)] mb-1">{t.caseD.decisionBlock}</h3>
+            <p className="text-[0.62rem] text-[var(--kpc-ink-3)] mb-3">{t.common.demoNote}</p>
+            <div className="grid grid-cols-1 gap-2">
+              <button onClick={() => setConfirm('ESCALATE')} className="kpc-btn kpc-btn-warn"><ArrowUpRight className="w-4 h-4" /> {t.caseD.escalateBtn}</button>
+              <button onClick={() => setConfirm('RESOLVE')} className="kpc-btn kpc-btn-primary"><CheckCircle2 className="w-4 h-4" /> {t.caseD.resolveBtn}</button>
+              {['RESOLVED', 'CLOSED'].includes(c.status) && <button onClick={() => setConfirm('REOPEN')} className="kpc-btn kpc-btn-outline"><RotateCcw className="w-4 h-4" /> {t.caseD.reopenBtn}</button>}
             </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Official Ruling Rationale</label>
-              <textarea
-                rows={4}
-                value={decisionNotes}
-                onChange={(e) => setDecisionNotes(e.target.value)}
-                placeholder="State the comprehensive finding, source of funds evaluation, and regulatory outcome..."
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
-                required
-              />
+          </Card>
+          <Card>
+            <h3 className="text-[0.8rem] font-extrabold text-[var(--kpc-ink)] mb-2"><FolderSearch className="w-4 h-4 text-[var(--kpc-brand-ink)] inline mr-1" /> {t.caseD.assignee}</h3>
+            <div className="flex items-center gap-2.5">
+              <Avatar name={c.assignedOfficerName} size={34} />
+              <div><p className="text-[0.78rem] font-bold text-[var(--kpc-ink)]">{c.assignedOfficerName}</p><p className="text-[0.62rem] text-[var(--kpc-ink-3)]">{p.currentOfficer.id === c.assignedOfficerId ? 'Current officer' : 'Case officer'}</p></div>
             </div>
-
-            <button
-              type="submit"
-              className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-2.5 rounded-lg text-xs shadow-lg transition"
-            >
-              Sign & Apply Formal Investigation Ruling
-            </button>
-          </form>
-        )}
+          </Card>
+        </div>
       </div>
+
+      <Modal open={!!confirm} onClose={() => setConfirm(null)} title={confirm ? t.cases.decisionForm : ''}
+        footer={<><button onClick={() => setConfirm(null)} className="kpc-btn kpc-btn-ghost">{t.common.cancel}</button><button disabled={(confirm === 'ESCALATE' || confirm === 'RESOLVE') && !note.trim()} onClick={doAct} className={`kpc-btn ${confirm === 'ESCALATE' ? 'kpc-btn-warn' : 'kpc-btn-primary'}`}>{busy ? '…' : t.common.confirm}</button></>}>
+        {confirm === 'RESOLVE' && <label className="block text-[0.72rem] font-bold text-[var(--kpc-ink-2)] mb-2">{t.caseD.resolveBody}</label>}
+        {confirm === 'ESCALATE' && <label className="block text-[0.72rem] font-bold text-[var(--kpc-ink-2)] mb-2">{t.caseD.escBody}</label>}
+        {(confirm === 'RESOLVE' || confirm === 'ESCALATE') && <textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} placeholder={confirm === 'RESOLVE' ? t.caseD.resolveReason : t.kycD.decisionReasonPh} className="kpc-input !leading-relaxed resize-none" />}
+      </Modal>
     </div>
   );
 }

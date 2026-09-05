@@ -1,188 +1,66 @@
 'use client';
-
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { useCompliance } from '@/components/compliance/ComplianceContext';
-import { CaseInvestigationDrawer } from '@/components/compliance/CaseInvestigationDrawer';
-import { CreateCaseModal } from '@/components/compliance/CreateCaseModal';
-import { ComplianceCase, CaseStatus, RiskLevel } from '@/types/compliance';
-import {
-  FileSearch,
-  Plus,
-  Search,
-  Filter,
-  Clock,
-  ShieldAlert,
-  ArrowRight,
-  ChevronRight,
-  AlertOctagon,
-  CheckCircle2,
-} from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { FileSearch, Download } from 'lucide-react';
+import { useCompliancePortal } from '@/components/compliance/CompliancePortalContext';
+import { Card, Chip, PageHead, Input, Select, useBoot, PageSkel, CkTable, Col, EmptyState, Avatar, toneOfRisk } from '@/components/compliance/ui/Ck';
+import { usePaging, Paginator, Money, Age, chipTxt } from '@/components/compliance/workspaces/helpers';
 
 export default function CasesPage() {
-  const { cases, selectedJurisdiction, formatCurrency, formatDate } = useCompliance();
-  const [selectedCase, setSelectedCase] = useState<ComplianceCase | null>(null);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | CaseStatus>('ALL');
-  const [riskFilter, setRiskFilter] = useState<'ALL' | RiskLevel>('ALL');
+  const p = useCompliancePortal();
+  const { t } = p;
+  const router = useRouter();
+  const { ready } = useBoot(400);
+  const [q, setQ] = useState('');
+  const [status, setStatus] = useState('OPEN');
+  const [priority, setPriority] = useState('ALL');
 
-  const filteredCases = cases.filter((c) => {
-    if (selectedJurisdiction !== 'ALL' && c.jurisdiction !== selectedJurisdiction) return false;
-    if (statusFilter !== 'ALL' && c.status !== statusFilter) return false;
-    if (riskFilter !== 'ALL' && c.riskLevel !== riskFilter) return false;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      return (
-        c.caseNumber.toLowerCase().includes(q) ||
-        c.title.toLowerCase().includes(q) ||
-        c.targetEntityName.toLowerCase().includes(q)
-      );
-    }
-    return true;
-  });
+  const filtered = useMemo(() => {
+    const query = q.trim().toLowerCase();
+    return p.cases
+      .filter((c) => (status === 'ALL' ? true : status === 'OPEN' ? !['RESOLVED', 'CLOSED'].includes(c.status) : c.status === status))
+      .filter((c) => (priority === 'ALL' ? true : c.priority === priority))
+      .filter((c) => !query || `${c.caseNumber} ${c.title} ${c.customerName ?? ''}`.toLowerCase().includes(query))
+      .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
+  }, [p.cases, q, status, priority]);
+  const pg = usePaging(filtered, 9);
 
+  const cols: Col<(typeof filtered)[number]>[] = [
+    { key: 'num', header: t.caseP.caseId, render: (c) => (
+      <div className="min-w-0"><button onClick={() => router.push(`/compliance/cases/${c.caseNumber}`)} className="block kpc-mono text-[0.72rem] font-extrabold text-[var(--kpc-brand-ink)] hover:underline">{c.caseNumber}</button><span className="text-[0.6rem] text-[var(--kpc-ink-3)]">{c.caseType.replace(/_/g, ' ')}</span></div> ) },
+    { key: 'title', header: t.common.title, render: (c) => <p className="text-[0.74rem] font-bold text-[var(--kpc-ink)] max-w-[260px] truncate">{c.title}</p> },
+    { key: 'cust', header: t.caseP.target, render: (c) => c.customerId ? <button onClick={(e) => { e.stopPropagation(); if (c.customerId) router.push(`/compliance/customers/${c.customerId.replace('KP-', '')}`); }} className="text-[0.7rem] font-bold text-[var(--kpc-ink-2)] hover:text-[var(--kpc-brand-ink)] max-w-[140px] block truncate">{c.customerName}</button> : <span className="text-[var(--kpc-ink-3)]">—</span> },
+    { key: 'risk', header: t.common.risk, render: (c) => <Chip tone={toneOfRisk(c.riskLevel)}>{c.riskLevel}</Chip> },
+    { key: 'pr', header: t.caseP.priorityCol, render: (c) => <Chip tone={c.priority === 'URGENT' ? 'critical' : c.priority === 'HIGH' ? 'high' : c.priority === 'MEDIUM' ? 'medium' : 'low'}>{c.priority}</Chip> },
+    { key: 'alerts', header: t.caseP.linkedAlert, render: (c) => c.relatedAlertIds.length ? <span className="kpc-mono text-[0.64rem] font-bold text-[var(--kpc-ink-3)]">{c.relatedAlertIds.length}</span> : <span className="text-[var(--kpc-ink-3)]">—</span> },
+    { key: 'of', header: t.caseP.officerCol, render: (c) => <span className="flex items-center gap-1.5 text-[0.68rem] font-semibold text-[var(--kpc-ink-2)]"><Avatar name={c.assignedOfficerName} size={20} /><span className="truncate max-w-[110px]">{c.assignedOfficerName}</span></span> },
+    { key: 'sla', header: t.common.sla, sortVal: (r) => r.deadlineSla, render: (c) => <Age iso={c.deadlineSla} rel={p.relTime} /> },
+    { key: 'st', header: t.common.status, render: (c) => <Chip tone={toneOfRisk(c.status)}>{chipTxt(c.status, t)}</Chip> },
+    { key: 'upd', header: t.caseP.updatedCol, sortVal: (r) => r.updatedAt, render: (c) => <Age iso={c.updatedAt} rel={p.relTime} /> },
+  ];
+
+  if (!ready) return <PageSkel />;
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-mono font-bold text-emerald-400 uppercase tracking-wider mb-1">
-            <FileSearch className="w-4 h-4" />
-            INVESTIGATION LIFECYCLE MANAGEMENT
-          </div>
-          <h1 className="text-2xl font-extrabold text-white">Compliance Cases</h1>
-          <p className="text-xs text-slate-400">
-            End-to-end investigation workspace with immutable audit trails, evidence vaults, and STR/CTR filings.
-          </p>
+    <div>
+      <PageHead icon={FileSearch} title={t.caseP.title} sub={t.caseP.subtitle} actions={<button onClick={() => p.pushToast('info', t.common.export, `${filtered.length} rows (demo)`, true)} className="kpc-btn kpc-btn-outline"><Download className="w-4 h-4" /> {t.common.export}</button>} />
+      <Card flat className="mb-4 p-3">
+        <div className="flex flex-col xl:flex-row gap-2.5">
+          <Input value={q} onChange={(e) => { setQ(e.target.value); pg.reset(); }} placeholder={`${t.caseP.title} — ${t.common.search}`} className="!text-[0.78rem]" wrapClass="flex-1 min-w-[220px]" aria-label={t.common.search} />
+          <Select value={status} onChange={(e) => { setStatus(e.target.value); pg.reset(); }} aria-label={t.common.status}>
+            <option value="OPEN">{t.invP.active}</option>
+            {['ALL', 'ASSIGNED', 'UNDER_REVIEW', 'WAITING_FOR_INFO', 'ESCALATED', 'PENDING_DECISION', 'RESOLVED', 'REOPENED'].map((v) => <option key={v} value={v}>{v.replace(/_/g, ' ')}</option>)}
+          </Select>
+          <Select value={priority} onChange={(e) => { setPriority(e.target.value); pg.reset(); }} aria-label={t.caseP.priorityCol}>
+            <option value="ALL">{t.common.filter} — {t.caseP.priorityCol}</option>
+            {['URGENT', 'HIGH', 'MEDIUM', 'LOW'].map((v) => <option key={v} value={v}>{v}</option>)}
+          </Select>
         </div>
-
-        <button
-          onClick={() => setIsCreateModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold transition shadow-lg shadow-emerald-900/30"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Open New Case</span>
-        </button>
-      </div>
-
-      {/* Toolbar & Filters */}
-      <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="relative flex-1 w-full">
-          <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by case #, entity name, or subject..."
-            className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
-          />
-        </div>
-
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
-          >
-            <option value="ALL">All Statuses</option>
-            <option value="OPEN">OPEN</option>
-            <option value="UNDER_REVIEW">UNDER REVIEW</option>
-            <option value="ESCALATED">ESCALATED</option>
-            <option value="RESOLVED">RESOLVED</option>
-            <option value="CLOSED">CLOSED</option>
-          </select>
-
-          <select
-            value={riskFilter}
-            onChange={(e) => setRiskFilter(e.target.value as any)}
-            className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
-          >
-            <option value="ALL">All Risk Levels</option>
-            <option value="LOW">LOW</option>
-            <option value="MEDIUM">MEDIUM</option>
-            <option value="HIGH">HIGH</option>
-            <option value="CRITICAL">CRITICAL</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Case Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredCases.map((c) => (
-          <div
-            key={c.id}
-            className="bg-slate-900/60 hover:bg-slate-800/60 border border-slate-800/80 rounded-2xl p-5 flex flex-col justify-between space-y-4 transition group shadow-lg"
-          >
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="font-mono text-xs font-bold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/40">
-                  {c.caseNumber}
-                </span>
-                <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
-                    c.status === 'RESOLVED' || c.status === 'CLOSED'
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                      : c.status === 'ESCALATED'
-                      ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
-                      : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                  }`}
-                >
-                  {c.status.replace(/_/g, ' ')}
-                </span>
-              </div>
-
-              <div>
-                <h3 className="text-sm font-bold text-white group-hover:text-emerald-300 transition line-clamp-1">
-                  {c.title}
-                </h3>
-                <p className="text-xs text-slate-400 mt-1 line-clamp-2">{c.summary}</p>
-              </div>
-
-              <div className="p-3 bg-slate-950/80 rounded-xl space-y-1.5 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Target Entity:</span>
-                  <span className="font-semibold text-slate-200">{c.targetEntityName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Involved Value:</span>
-                  <span className="font-bold text-emerald-400 font-mono">
-                    {formatCurrency(c.involvedAmount, c.currency)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Assigned MLRO:</span>
-                  <span className="text-slate-300">{c.assignedOfficerName}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs">
-              <div className="text-[11px] text-amber-400 font-mono flex items-center gap-1">
-                <Clock className="w-3 h-3" />
-                SLA: {formatDate(c.deadlineSla).slice(0, 12)}
-              </div>
-              <div className="flex items-center gap-2">
-                <Link
-                  href={`/compliance/cases/${c.id}`}
-                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded text-[11px] transition"
-                >
-                  Deep Dive
-                </Link>
-                <button
-                  onClick={() => setSelectedCase(c)}
-                  className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded text-[11px] transition shadow"
-                >
-                  Investigate
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <CaseInvestigationDrawer caseItem={selectedCase} onClose={() => setSelectedCase(null)} />
-      <CreateCaseModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} />
+      </Card>
+      <Card flat pad={false} className="overflow-hidden">
+        <CkTable aria-label={t.caseP.title} cols={cols} rows={pg.slice} rowKey={(c) => c.id} onRow={(c) => router.push(`/compliance/cases/${c.caseNumber}`)} dense />
+        {!pg.slice.length && <EmptyState title={t.caseP.empty} />}
+        <Paginator {...pg} total={filtered.length} setPage={pg.setPage} />
+      </Card>
     </div>
   );
 }
