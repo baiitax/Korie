@@ -16,7 +16,7 @@ The KoriePay Reconciliation & Settlement Engine is a Tier-1 financial verificati
                                      ▼                   ▼
                       ┌──────────────────────┐   ┌──────────────────────┐
                       │  Double-Entry Ledger │   │   Provider Adapters  │
-                      │  (Financial Truth)   │   │  (Providus & Koris)  │
+                      │  (Financial Truth)   │   │  (Providus & Coris)  │
                       └──────────────┬───────┘   └───────────┬──────────┘
                                      │                       │
                                      ▼                       ▼
@@ -52,7 +52,7 @@ To avoid state confusion, KoriePay separates 12 distinct financial entities:
 2. **Transaction Attempt**: Individual network calls made to execute the transaction.
 3. **Internal Ledger Posting**: Authoritative immutable double-entry journal entry.
 4. **Account Balance**: Real-time derived projection of posted debits and credits.
-5. **Provider Transaction**: The transaction record acknowledged by Providus or Koris.
+5. **Provider Transaction**: The transaction record acknowledged by Providus or Coris.
 6. **Provider Settlement**: The provider's internal clearing confirmation.
 7. **Bank Statement Movement**: The external cash movement on the commercial bank statement.
 8. **Settlement Batch**: Grouped net payout instruction for merchants/agents.

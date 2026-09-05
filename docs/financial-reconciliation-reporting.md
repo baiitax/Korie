@@ -21,7 +21,7 @@ Before any financial or regulatory report is approved for filing, the automated 
 1. **Double-Entry Balance Equation**: $\sum \text{Debits} \equiv \sum \text{Credits}$ across all journal postings.
 2. **Trial Balance Equation**: $\text{Assets} \equiv \text{Liabilities} + \text{Equity} + (\text{Revenue} - \text{Expenses})$.
 3. **Customer Liability Reconciliation**: $\sum \text{Customer Wallets} \equiv \text{GL Account 2100 (Customer Deposits)}$.
-4. **Nostro Reserve Safeguarding**: $\sum \text{Correspondent Bank Accounts (Providus + Koris)} \ge \sum \text{Customer Liabilities}$.
+4. **Nostro Reserve Safeguarding**: $\sum \text{Correspondent Bank Accounts (Providus + Coris)} \ge \sum \text{Customer Liabilities}$.
 5. **Roll-Forward Integrity**: $\text{Closing Balance} \equiv \text{Opening Balance} + \sum \text{Inflows} - \sum \text{Outflows}$.
 
 ---

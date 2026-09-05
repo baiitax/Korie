@@ -25,4 +25,4 @@ All error responses adhere to RFC-7807 problem details:
 | `INVALID_AMOUNT` | 422 | VALIDATION | Amount must be an integer >= 100 minor currency units. |
 | `RATE_LOCK_EXPIRED` | 422 | PROVIDER | 60s FX lock expired. Call `/v1/fx/quote` for fresh quote. |
 | `DUPLICATE_IDEMPOTENCY_KEY`| 409 | LEDGER | Request with identical Idempotency-Key currently executing. |
-| `UPSTREAM_SWITCH_TIMEOUT` | 504 | PROVIDER | Providus/Koris bank node delay. Check `/v1/payments/{ref}/verify`. |
+| `UPSTREAM_SWITCH_TIMEOUT` | 504 | PROVIDER | Providus/Coris bank node delay. Check `/v1/payments/{ref}/verify`. |

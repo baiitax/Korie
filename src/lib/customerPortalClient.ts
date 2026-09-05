@@ -22,6 +22,11 @@ function getPortalToken(): string {
   return DEFAULT_SANDBOX_TOKEN;
 }
 
+/** Bearer value for customer portal calls (single source for fetch + XHR). */
+export function getPortalBearer(): string {
+  return `Bearer ${getPortalToken()}`;
+}
+
 export async function portalFetch(
   input: RequestInfo | URL,
   init: RequestInit = {},

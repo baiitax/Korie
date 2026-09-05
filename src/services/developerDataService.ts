@@ -1084,7 +1084,7 @@ export const webhookEventCatalog: WebhookEventDef[] = [
   {
     event: 'virtual_account.credited',
     category: 'merchant',
-    description: 'Dispatched when a customer transfers money into a dedicated Providus or Koris virtual NUBAN.',
+    description: 'Dispatched when a customer transfers money into a dedicated Providus or Coris virtual NUBAN.',
     jurisdiction: 'ALL',
     samplePayload: {
       event: 'virtual_account.credited',
@@ -1539,7 +1539,7 @@ export const initialIntegrationChecklist: IntegrationChecklistItem[] = [
     title: 'Daily Settlement & Ledger Reconciliation Job',
     category: 'RECONCILIATION',
     status: 'COMPLETED',
-    description: 'Nightly batch query to /v1/payments/{ref}/verify to balance ERP records with Providus & Koris bank settlements.',
+    description: 'Nightly batch query to /v1/payments/{ref}/verify to balance ERP records with Providus & Coris bank settlements.',
     verificationEvidence: 'Automated 23:59:00 UTC reconciliation script verified.',
   },
 ];

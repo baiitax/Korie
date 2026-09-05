@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     reconciliation_matrix: [
       { layer: 'Internal Transactions vs Ledger Entries', status: 'MATCHED_100%' },
       { layer: 'Ledger Entries vs Providus NIP Clearing', status: 'MATCHED_100%' },
-      { layer: 'Ledger Entries vs Koris WAEMU Clearing', status: 'MATCHED_100%' },
+      { layer: 'Ledger Entries vs Coris WAEMU Clearing', status: 'MATCHED_100%' },
       { layer: 'Settlement Batches vs Bank Statement NUBAN', status: 'MATCHED_100%' },
     ],
     reconciled_at: new Date().toISOString(),

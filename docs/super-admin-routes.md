@@ -2,7 +2,7 @@
 
 | Route | Focus & Operational Capabilities |
 |---|---|
-| `/admin` | **Command Center Overview** — Executive metrics, Providus & Koris live node telemetry, anomaly ticker, needs-attention queue. |
+| `/admin` | **Command Center Overview** — Executive metrics, Providus & Coris live node telemetry, anomaly ticker, needs-attention queue. |
 | `/admin/banking-nodes` | **Financial Institution Gateway Nodes** — Providus Bank 🇳🇬 & Coris Bank 🇳🇪 latency, uptime, ping tests, failover controls. |
 | `/admin/transactions` | **Transaction Control Center** — Global search, multi-faceted filtering, status tracking, CSV export, entity inspection. |
 | `/admin/customers` | **Customer Directory** — KYC tiers (Tier 1-3), wallet balances, risk scores, freeze/restrict dual-control. |

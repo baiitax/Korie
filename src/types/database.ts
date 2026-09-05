@@ -55,6 +55,16 @@ export interface DbCustomer {
   updated_at: string;
 }
 
+/**
+ * Owner of a transaction. Set by the engine at execution time and used by
+ * customer-facing read paths to enforce object-level authorization.
+ * NEVER accepted from a client request body or query string.
+ */
+export interface DbTransactionOwnership {
+  /** KoriePay customer id that owns this transaction (cust-…). */
+  owner_customer_id?: string;
+}
+
 export interface DbWallet {
   id: string;
   customer_id?: string;
@@ -71,7 +81,7 @@ export interface DbWallet {
   updated_at: string;
 }
 
-export interface DbTransaction {
+export interface DbTransaction extends DbTransactionOwnership {
   id: string;
   org_id: string;
   wallet_id?: string;

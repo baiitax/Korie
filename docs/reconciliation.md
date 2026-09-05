@@ -17,7 +17,7 @@ Reconciliation runs continuously to balance four independent operational layers:
                                     │ (Nightly Clearing Batch)
                                     ▼
 +-------------------------------------------------------------------------+
-| Layer 3: Provider Network Logs (Providus NIP / Koris RTGS)              |
+| Layer 3: Provider Network Logs (Providus NIP / Coris RTGS)              |
 +-------------------------------------------------------------------------+
                                     ▲
                                     │ (Daily Statement Match)

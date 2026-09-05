@@ -1,7 +1,7 @@
 export type CurrencyCode = 'NGN' | 'XOF' | 'USD';
 
 export type LedgerAccountType = 
-  | 'ASSET'       // e.g. Settlement Pool, Bank Reserve at Providus / Koris
+  | 'ASSET'       // e.g. Settlement Pool, Bank Reserve at Providus / Coris
   | 'LIABILITY'   // e.g. Customer Wallet Balance, Merchant Escrow Balance
   | 'EQUITY'      // e.g. KoriePay Capital Reserve
   | 'REVENUE'     // e.g. Transaction Fees, Cross-Border FX Margins, Interchange

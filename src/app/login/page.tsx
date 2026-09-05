@@ -130,7 +130,7 @@ export default function LoginPage() {
               </label>
 
               <span className="text-[11px] text-slate-400 font-mono">
-                {jurisdiction === "NG" ? "Providus NG" : "Koris NE"}
+                {jurisdiction === "NG" ? "Providus NG" : "Coris NE"}
               </span>
             </div>
 

@@ -26,7 +26,7 @@ export class PrivilegedAccessEngine {
         requestReference: 'JIT-2026-0041',
         requesterEmail: 'treasury.lead@koriepay.com',
         targetRoleCode: 'TREASURY_EMERGENCY_REBALANCE',
-        justification: 'Execute end-of-day multi-currency corridor rebalancing between Providus NG and Koris NE omnibus.',
+        justification: 'Execute end-of-day multi-currency corridor rebalancing between Providus NG and Coris NE omnibus.',
         changeTicketRef: 'CHG-OPS-9921',
         durationMinutes: 45,
         status: 'APPROVED',

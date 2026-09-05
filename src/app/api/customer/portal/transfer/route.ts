@@ -2,7 +2,8 @@ import { NextRequest } from "next/server";
 import { authenticateApiRequest } from "@/lib/security/authMiddleware";
 import { createSuccessResponse, createErrorResponse } from "@/lib/security/apiResponse";
 import { TransactionService } from "@/lib/services/TransactionService";
-import { dbTransactionToUi } from "@/lib/engineAdapters";
+import { customerScopeFromRequest } from "@/lib/customer/customerScope";
+import { toCustomerTransaction } from "@/lib/customer/CustomerTransactionQuery";
 import { CustomerCurrency } from "@/types/customer";
 
 /**
@@ -49,7 +50,21 @@ export async function POST(req: NextRequest) {
   const reference = String(body.reference || `KP-2026-TX-${Date.now()}`);
   const destinationCurrency = body.destinationCurrency as CustomerCurrency | undefined;
   const isCrossBorder = Boolean(body.isCrossBorder) || Boolean(destinationCurrency && destinationCurrency !== currency);
-  const sourceCustomerId = resolveCustomerId(context.userId);
+  // Identity comes from the SAME resolver every customer route uses. This route
+  // previously carried its own `resolveCustomerId()`, which guessed
+  // `cust-<userId>` from the subject and silently fell back to the demo
+  // customer when it could not — i.e. a second, weaker copy of the ownership
+  // rule on the only route that moves money.
+  const scope = customerScopeFromRequest(req, context);
+  if (!scope.ok || !scope.ownerCustomerId) {
+    return createErrorResponse({
+      code: "CUSTOMER_IDENTITY_UNRESOLVED",
+      message: "We could not resolve your profile for this session, so nothing was sent.",
+      httpStatus: 403,
+      requestId: `KP-REQ-${Date.now()}`,
+    });
+  }
+  const sourceCustomerId = scope.ownerCustomerId;
 
   if (!Number.isFinite(amount) || amount <= 0) {
     return createErrorResponse({
@@ -94,7 +109,7 @@ export async function POST(req: NextRequest) {
         sourceCustomerId,
       });
       return createSuccessResponse(
-        { transaction: dbTransactionToUi(tx), engine: { status: tx.status, providerReference: tx.provider_reference } },
+        { transaction: toCustomerTransaction(tx) },
         { requestId: context.requestId, correlationId: context.correlationId, environment: context.environment },
       );
     }
@@ -109,7 +124,7 @@ export async function POST(req: NextRequest) {
       sourceCustomerId,
     });
     return createSuccessResponse(
-      { transaction: dbTransactionToUi(tx), engine: { status: tx.status, providerReference: tx.provider_reference } },
+      { transaction: toCustomerTransaction(tx) },
       { requestId: context.requestId, correlationId: context.correlationId, environment: context.environment },
     );
   } catch (error: any) {
@@ -122,8 +137,3 @@ export async function POST(req: NextRequest) {
   }
 }
 
-function resolveCustomerId(userId?: string): string {
-  if (userId === "usr_dev_01") return "cust-ng-001-ibrahim";
-  if (userId) return `cust-${userId.replace("usr_", "")}`;
-  return "cust-ng-001-ibrahim";
-}

@@ -4,7 +4,7 @@
 In the event of upstream provider compromise, severe latency degradation, or partner abuse:
 - `GLOBAL_GATEWAY_PAUSE`: Rejects new inbound requests with `HTTP 503 SERVICE_UNAVAILABLE` while draining in-flight payments.
 - `PARTNER_SUSPENSION`: Immediately revokes partner tokens and stops new API invocations.
-- `PROVIDER_ROUTE_BLOCK`: Diverts traffic away from degraded banking nodes (e.g. Providus NG or Koris NE) to backup settlement rails.
+- `PROVIDER_ROUTE_BLOCK`: Diverts traffic away from degraded banking nodes (e.g. Providus NG or Coris NE) to backup settlement rails.
 
 ---
 

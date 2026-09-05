@@ -13,7 +13,7 @@
 
 ### Node 2: Coris Bank Niger Republic (`KORIS_NE`)
 - **Jurisdiction**: Niger Republic 🇳🇪 (XOF)
-- **Settlement Account Node**: Chart of Accounts `1020` (Koris Settlement Pool XOF)
+- **Settlement Account Node**: Chart of Accounts `1020` (Coris Settlement Pool XOF)
 - **Primary Rails**:
   - Inbound: WAEMU Regional Interbank Direct Inflows
   - Outbound: WAEMU Interbank Settlement Protocol

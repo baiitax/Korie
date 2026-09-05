@@ -54,7 +54,7 @@ export default function RequestLogsPage() {
           </span>
           <h1 className="text-xl sm:text-3xl font-black text-white mt-1">API Request Stream & Logs</h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Real-time request/response inspector with masked sensitive parameters and Providus/Koris telemetry.
+            Real-time request/response inspector with masked sensitive parameters and Providus/Coris telemetry.
           </p>
         </div>
       </div>

@@ -23,7 +23,10 @@ export type CustomerTransactionStatus =
   | "PROCESSING"
   | "FAILED"
   | "REVERSED"
-  | "CANCELLED";
+  | "CANCELLED"
+  /** Real engine state (ledger DISPUTED) — was missing from the UI set, which
+   *  meant a disputed row could not be rendered honestly. */
+  | "DISPUTED";
 
 export interface CustomerUser {
   id: string;

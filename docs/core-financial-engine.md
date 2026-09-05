@@ -8,7 +8,7 @@ The KoriePay Core Financial Engine is a high-throughput, fault-tolerant, double-
 2. **Immutable Audit Trails**: Journal entries and lines cannot be updated or deleted. Errors are corrected via compensating reversal journals.
 3. **Derived Projected Balances**: Account balances are non-authoritative read models computed deterministically by replaying posted journal lines.
 4. **Dual Control (Maker-Checker)**: All manual adjustments, large reversals, and suspense resolutions require two authorized roles.
-5. **Decoupled Outbox Dispatch**: External bank rail calls (Providus NIP, Koris Sahel desk) are dispatched via transactional outbox patterns.
+5. **Decoupled Outbox Dispatch**: External bank rail calls (Providus NIP, Coris Sahel desk) are dispatched via transactional outbox patterns.
 
 ## 3. Supported Rails and Currencies
 | Jurisdiction | Currency | Primary Clearing Node | Settlement Mechanism |
@@ -37,5 +37,5 @@ Client API Request
 [ Derived Balance Projection ] (Read Cache Rebuilt in Memory/DB)
        │
        ▼
-[ Outbox Event Dispatcher ] ──► [ External Bank Rails (Providus / Koris) ]
+[ Outbox Event Dispatcher ] ──► [ External Bank Rails (Providus / Coris) ]
 ```

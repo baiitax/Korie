@@ -58,7 +58,7 @@ export const CommandCenterOverview: React.FC = () => {
               <span className="text-xs text-slate-400">• Real-Time Anomaly Engine</span>
             </div>
             <p className="text-xs sm:text-sm text-slate-200 mt-1 font-medium">
-              ✓ All primary banking nodes (Providus 🇳🇬 & Koris 🇳🇪) operational. 2 reconciliation items and 1 high-value FX swap require supervisor review.
+              ✓ All primary banking nodes (Providus 🇳🇬 & Coris 🇳🇪) operational. 2 reconciliation items and 1 high-value FX swap require supervisor review.
             </p>
           </div>
         </div>
@@ -190,7 +190,7 @@ export const CommandCenterOverview: React.FC = () => {
             ₦ 1.24B
           </div>
           <div className="text-[11px] text-amber-400 font-mono">
-            + 890M CFA in Koris Liquidity Vault
+            + 890M CFA in Coris Liquidity Vault
           </div>
         </div>
       </div>

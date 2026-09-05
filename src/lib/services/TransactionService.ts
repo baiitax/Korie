@@ -132,6 +132,10 @@ export class TransactionService {
       provider_reference: providerDispatch.providerReference,
       provider_response_code: providerDispatch.responseCode,
       narration: params.narration || 'Cross-border remittance',
+      // Ownership: resolved server-side from the authenticated identity so the
+      // customer read path can enforce object-level authorization (§8 of the
+      // customer portal brief). Never sourced from the request body.
+      owner_customer_id: params.sourceCustomerId,
       metadata: {
         destAmount,
         providerLatencyMs: providerDispatch.latencyMs,
@@ -264,6 +268,8 @@ export class TransactionService {
       provider_reference: providerDispatch.providerReference,
       provider_response_code: providerDispatch.responseCode,
       narration: params.narration || 'NIP Outward Dispatch',
+      // Ownership resolved server-side (see cross-border path above).
+      owner_customer_id: params.sourceCustomerId,
       metadata: {
         sessionId: providerDispatch.rawResponse.sessionId,
       },
@@ -304,6 +310,46 @@ export class TransactionService {
    */
   static async getByReference(reference: string): Promise<DbTransaction | null> {
     return transactionsStore.get(reference) || null;
+  }
+
+  /**
+   * Authoritative transactions owned by a single customer.
+   *
+   * SECURITY CONTRACT: ownership is matched against `owner_customer_id`, which
+   * is only ever written by the engine from the authenticated request context.
+   * There is no public API that accepts a customer id to read another
+   * customer's rows — the filter argument is supplied by the server route,
+   * never by the browser.
+   *
+   * A transaction recorded before ownership tagging existed (no
+   * `owner_customer_id`) is returned to NOBODY: an unowned financial row must
+   * never surface in a customer portal.
+   */
+  static listRawForOwner(ownerCustomerId: string): DbTransaction[] {
+    if (!ownerCustomerId) return [];
+    const owned: DbTransaction[] = [];
+    transactionsStore.forEach((tx) => {
+      if (tx.owner_customer_id && tx.owner_customer_id === ownerCustomerId) owned.push(tx);
+    });
+    // Newest first, deterministic tie-break on id so cursors cannot skip rows.
+    return owned.sort((a, b) => {
+      const dt = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      if (dt !== 0) return dt;
+      return b.id < a.id ? -1 : b.id > a.id ? 1 : 0;
+    });
+  }
+
+  /**
+   * Single transaction by reference, scoped to an owner. Returns null when the
+   * reference does not exist OR belongs to a different customer — callers must
+   * render both as "not found" so existence is never leaked (anti-IDOR).
+   */
+  static findRawForOwner(reference: string, ownerCustomerId: string): DbTransaction | null {
+    if (!reference || !ownerCustomerId) return null;
+    const tx = transactionsStore.get(reference) || null;
+    if (!tx) return null;
+    if (tx.owner_customer_id !== ownerCustomerId) return null;
+    return tx;
   }
 
   /**

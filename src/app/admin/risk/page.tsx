@@ -310,7 +310,7 @@ export default function RiskAdminPage() {
               <div className="p-4 bg-slate-950/60 border border-emerald-500/30 rounded-xl">
                 <div className="text-emerald-400 font-bold uppercase text-[11px] mb-1">Financial & Liquidity</div>
                 <div className="text-white">Liquidity Buffer: 142.5%</div>
-                <div className="text-slate-400 text-[10px] mt-2">Nostro pool healthy at Providus & Koris.</div>
+                <div className="text-slate-400 text-[10px] mt-2">Nostro pool healthy at Providus & Coris.</div>
               </div>
               <div className="p-4 bg-slate-950/60 border border-teal-500/30 rounded-xl">
                 <div className="text-teal-400 font-bold uppercase text-[11px] mb-1">Payment & Switch</div>

@@ -78,6 +78,17 @@ export class BeneficiarySecurityEngine {
     return newBen;
   }
 
+  /**
+   * Ownership-enforced removal. The caller must pass the authenticated
+   * customer id; a beneficiary belonging to someone else cannot be deleted
+   * even if its id is known. Returns false when nothing was removed.
+   */
+  public removeBeneficiary(beneficiaryId: string, ownerCustomerId: string): boolean {
+    const existing = this.beneficiaries.get(beneficiaryId);
+    if (!existing || existing.customerId !== ownerCustomerId) return false;
+    return this.beneficiaries.delete(beneficiaryId);
+  }
+
   public evaluateCounterpartyRisk(beneficiaryId: string): { isSafe: boolean; isCooldownActive: boolean; riskScore: number } {
     const b = this.beneficiaries.get(beneficiaryId);
     if (!b) return { isSafe: false, isCooldownActive: false, riskScore: 100 };

@@ -1,273 +1,354 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCustomer } from "../CustomerContext";
 import KorieLogo from "@/components/brand/KorieLogo";
-import ShellAccount from "@/components/ui/ShellAccount";
 import PortalFooter from "@/components/ui/PortalFooter";
 import LanguageSelector from "./LanguageSelector";
 import TransactionReceiptModal from "./TransactionReceiptModal";
 import ReportDisputeModal from "./ReportDisputeModal";
+import FloatingMobileNav from "./FloatingMobileNav";
+import { isServiceAvailable } from "@/lib/customer/customerFeatures";
 import {
   Home,
+  Receipt,
+  Send,
+  Wallet,
   ArrowRightLeft,
   Zap,
   CreditCard,
-  Activity,
   Settings,
   ShieldCheck,
   LifeBuoy,
   Bell,
-  Wallet,
   Repeat2,
   Users,
   WifiOff,
   ChevronRight,
-  Send,
+  Download,
+  LogOut,
+  Sun,
+  Moon,
 } from "lucide-react";
+import { useAuth } from "@/components/auth/AuthContext";
+import { useTheme } from "@/components/ui/ThemeContext";
+import { useLoading } from "@/components/loading";
 
+type NavDef = {
+  label: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  /** Service id from customerFeatures — gates the "Coming soon" marker. */
+  service?: Parameters<typeof isServiceAvailable>[0] | null;
+};
+
+/**
+ * CustomerShell — desktop sidebar + header + the floating mobile nav.
+ *
+ * Header discipline (§48): brand · notifications · language · theme · profile.
+ * The balance-privacy switch is NOT here (it lives beside the balance, §45) and
+ * neither of the old duplicates remain.
+ */
 export const CustomerShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
-  const { customer, isOffline, activeWallet, isBalanceHidden, t, notificationsCount } = useCustomer();
+  const {
+    customer,
+    isOffline,
+    activeWallet,
+    isBalanceHidden,
+    t,
+    notificationsCount,
+    notificationsPhase,
+    dataSource,
+    getServiceStatus,
+    portalPhase,
+    portalError,
+    refreshPortal,
+  } = useCustomer();
+  const { logout } = useAuth();
+  const { resetBootstrapReady } = useLoading();
 
-  const desktopNavItems = [
+  // Ordered by real customer workflow: profile → money out → money in →
+  // record → services. A service whose status is COMING_SOON keeps its row but
+  // is labelled, so the sidebar never offers a silent dead end.
+  const primaryNav: NavDef[] = [
     { label: t("nav.home"), href: "/customer", icon: Home },
     { label: t("customer.accounts.title"), href: "/customer/wallets", icon: Wallet },
-    { label: t("nav.transfers"), href: "/customer/send-money", icon: ArrowRightLeft },
-    { label: t("nav.bills"), href: "/customer/bills", icon: Zap },
-    { label: t("nav.cards"), href: "/customer/cards", icon: CreditCard },
-    { label: t("nav.fx"), href: "/customer/fx", icon: Repeat2 },
-    { label: t("nav.activity"), href: "/customer/transactions", icon: Activity },
+    { label: t("nav.transfers"), href: "/customer/send-money", icon: ArrowRightLeft, service: "sendMoney" },
+    { label: t("customer.fund.title"), href: "/customer/fund", icon: Download, service: "fund" },
+    { label: t("nav.activity"), href: "/customer/transactions", icon: Receipt },
+  ];
+  const serviceNav: NavDef[] = [
+    { label: t("nav.fx"), href: "/customer/fx", icon: Repeat2, service: "fx" },
+    { label: t("nav.bills"), href: "/customer/bills", icon: Zap, service: "bills" },
+    { label: t("nav.cards"), href: "/customer/cards", icon: CreditCard, service: "cards" },
     { label: t("nav.beneficiaries"), href: "/customer/beneficiaries", icon: Users },
   ];
-
-  const mobileBottomNavItems = [
-    { label: t("nav.home"), href: "/customer", icon: Home },
-    { label: t("customer.accounts.title"), href: "/customer/wallets", icon: Wallet },
-    { label: t("nav.transfers"), href: "/customer/send-money", icon: Send },
-    { label: t("nav.cards"), href: "/customer/cards", icon: CreditCard },
-    { label: t("nav.more"), href: "/customer/settings", icon: Settings },
+  const secondaryNav: NavDef[] = [
+    { label: t("nav.verification"), href: "/customer/kyc", icon: ShieldCheck },
+    { label: t("nav.security"), href: "/customer/security", icon: Settings },
+    { label: t("nav.support"), href: "/customer/support", icon: LifeBuoy },
   ];
 
   const isActive = (href: string) =>
-    pathname === href ||
-    (href !== "/customer" && pathname.startsWith(href + "/")) ||
-    (href === "/customer" && pathname === "/customer");
+    href === "/customer" ? pathname === "/customer" : pathname === href || pathname.startsWith(`${href}/`);
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {
+      /* session teardown must not block sign-out */
+    }
+    // Re-arm the boot gate: the next session must wait for its own data rather
+    // than inheriting this one's "already loaded" flag.
+    resetBootstrapReady();
+    try {
+      sessionStorage.removeItem("koriepay_loaded");
+    } catch {
+      /* private mode */
+    }
+    await logout();
+  };
+
+  const NavRow = ({ item }: { item: NavDef }) => {
+    const active = isActive(item.href);
+    const Icon = item.icon;
+    const soon = item.service ? !isServiceAvailable(item.service) : false;
+    return (
+      <Link
+        href={item.href}
+        className={`flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors min-h-[40px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)] ${
+          active
+            ? "bg-[var(--brand-soft)] text-[var(--brand-primary)] font-bold"
+            : "text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-elevated)]"
+        }`}
+        aria-current={active ? "page" : undefined}
+      >
+        <span className="flex items-center gap-2.5 min-w-0">
+          <Icon className={`w-4 h-4 shrink-0 ${active ? "text-[var(--brand-primary)]" : "text-[var(--foreground-muted)]"}`} />
+          <span className="truncate">{item.label}</span>
+        </span>
+        {soon ? (
+          <span className="shrink-0 text-[8px] font-mono font-bold uppercase text-[var(--foreground-muted)] border border-[var(--border)] rounded-md px-1 py-0.5">
+            {t("common.comingSoon")}
+          </span>
+        ) : (
+          active && <ChevronRight className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+        )}
+      </Link>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] flex flex-col antialiased selection:bg-emerald-500 selection:text-white">
-      {/* Offline Status Warning Bar */}
-      {isOffline && (
-        <div className="bg-[var(--danger)] text-white text-xs font-semibold px-4 py-2 flex items-center justify-center gap-2 sticky top-0 z-50">
-          <WifiOff className="w-4 h-4 animate-pulse" />
-          <span>{t("common.offline")}: {t("common.offlineDesc")}</span>
+      {/* Offline / degraded-data status bars. Distinct messages: offline is the
+          customer's transport, unavailable is ours. */}
+      {isOffline ? (
+        <div
+          className="bg-[var(--danger)] text-white text-xs font-semibold px-4 py-2 flex items-center justify-center gap-2 sticky top-0 z-50"
+          role="status"
+        >
+          <WifiOff className="w-4 h-4" aria-hidden="true" />
+          <span>
+            {t("common.offline")}: {t("common.offlineDesc")}
+          </span>
         </div>
-      )}
+      ) : dataSource === "unavailable" && portalPhase === "error" ? (
+        <div
+          className="bg-[var(--warning-soft)] text-[var(--foreground)] text-xs font-semibold px-4 py-2 flex items-center justify-center gap-2 sticky top-0 z-50 border-b border-[var(--border)]"
+          role="alert"
+        >
+          <span>{portalError?.message ?? t("customer.shell.dataUnavailable")}</span>
+          <button
+            type="button"
+            onClick={() => void refreshPortal()}
+            className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-0.5 text-[11px] font-bold hover:bg-[var(--surface-elevated)]"
+          >
+            {t("common.tryAgain")}
+          </button>
+        </div>
+      ) : null}
 
-      {/* Main App Layout */}
       <div className="flex flex-1">
-        {/* Desktop Left Sidebar — light, token-driven, z-fixed */}
+        {/* Desktop sidebar */}
         <aside className="hidden lg:flex flex-col justify-between w-64 bg-[var(--surface)]/80 backdrop-blur-xl border-r border-[var(--border)] sticky top-0 shadow-[var(--shadow-sm)] h-screen overflow-y-auto z-40 shrink-0">
           <div>
-            {/* Logo */}
             <div className="p-5 border-b border-[var(--border)] flex items-center justify-between">
               <Link href="/customer" className="flex items-center gap-2">
                 <KorieLogo variant="compact" theme="light" height={28} />
               </Link>
-              <div className="px-2 py-0.5 rounded-md bg-[var(--brand-soft)] border border-[var(--brand-border)] text-[10px] font-mono text-[var(--brand-primary)] font-bold">
+              {/* XOF is the primary currency — never reordered, never swapped for USD. */}
+              <span className="px-2 py-0.5 rounded-md bg-[var(--brand-soft)] border border-[var(--brand-border)] text-[10px] font-mono text-[var(--brand-primary)] font-bold">
                 XOF
-              </div>
+              </span>
             </div>
 
-            {/* Quick Balance Preview Card */}
+            {/* Balance preview. Mirrors the masking preference; carries no extra
+                toggle so there is exactly one control beside the money. */}
             <div className="p-3 mx-3 my-3 rounded-2xl bg-[var(--surface-elevated)] border border-[var(--border)] space-y-1">
               <div className="text-[10px] font-mono text-[var(--foreground-muted)] uppercase">
-                {t("dashboard.availableBalance")}
+                {activeWallet ? t("dashboard.availableBalance") : t("customer.shell.loadingAccount")}
               </div>
-              <div className="text-base font-extrabold text-[var(--foreground)] font-mono tabular">
-                {isBalanceHidden ? "••••••••" : `${activeWallet.symbol} ${activeWallet.availableBalance.toLocaleString()}`}
+              <div className="text-base font-extrabold text-[var(--foreground)] font-mono tabular-nums">
+                {portalPhase === "loading"
+                  ? "••••••"
+                  : activeWallet
+                    ? isBalanceHidden
+                      ? `${activeWallet.symbol} •••••••`
+                      : `${activeWallet.symbol} ${activeWallet.availableBalance.toLocaleString()}`
+                    : t("customer.shell.noAccountYet")}
               </div>
               <div className="text-[10px] text-[var(--brand-primary)] font-mono truncate">
-                {activeWallet.bankName}
+                {activeWallet?.bankName ?? ""}
               </div>
             </div>
 
-            {/* Navigation Items */}
-            <nav className="p-3 space-y-0.5">
-              {desktopNavItems.map((item) => {
-                const active = isActive(item.href);
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                      active
-                        ? "bg-[var(--brand-soft)] text-[var(--brand-primary)] font-bold"
-                        : "text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-elevated)]"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <Icon className={`w-4 h-4 ${active ? "text-[var(--brand-primary)]" : "text-[var(--foreground-muted)]"}`} />
-                      <span>{item.label}</span>
-                    </div>
-                    {active && <ChevronRight className="w-3.5 h-3.5" />}
-                  </Link>
-                );
-              })}
+            <nav className="p-3 space-y-0.5" aria-label={t("customer.shell.primaryNav")}>
+              {primaryNav.map((item) => (
+                <NavRow key={item.href} item={item} />
+              ))}
             </nav>
 
-            {/* Secondary nav group */}
-            <nav className="p-3 pt-2 space-y-0.5 border-t border-[var(--border)]">
-              {[
-                { label: t("nav.security"), href: "/customer/security", icon: ShieldCheck },
-                { label: t("nav.support"), href: "/customer/support", icon: LifeBuoy },
-                { label: t("nav.settings"), href: "/customer/settings", icon: Settings },
-              ].map((item) => {
-                const active = isActive(item.href);
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                      active
-                        ? "bg-[var(--brand-soft)] text-[var(--brand-primary)] font-bold"
-                        : "text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-elevated)]"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <Icon className={`w-4 h-4 ${active ? "text-[var(--brand-primary)]" : "text-[var(--foreground-muted)]"}`} />
-                      <span>{item.label}</span>
-                    </div>
-                    {active && <ChevronRight className="w-3.5 h-3.5" />}
-                  </Link>
-                );
-              })}
+            <div className="px-3 pt-2 pb-1">
+              <span className="text-[9px] font-mono uppercase tracking-wider text-[var(--foreground-muted)]">
+                {t("customer.shell.servicesGroup")}
+              </span>
+            </div>
+            <nav className="p-3 pt-0 space-y-0.5 border-t border-[var(--border)]" aria-label={t("customer.shell.servicesNav")}>
+              {serviceNav.map((item) => (
+                <NavRow key={item.href} item={item} />
+              ))}
+            </nav>
+
+            <nav className="p-3 pt-2 space-y-0.5 border-t border-[var(--border)]" aria-label={t("customer.shell.accountNav")}>
+              {secondaryNav.map((item) => (
+                <NavRow key={item.href} item={item} />
+              ))}
             </nav>
           </div>
 
-          {/* Desktop User Footer */}
           <div className="p-3 border-t border-[var(--border)] bg-[var(--surface-elevated)]">
             <Link
               href="/customer/profile"
-              className="flex items-center justify-between p-2 rounded-xl bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--brand-border)] transition-all"
+              className="flex items-center justify-between p-2 rounded-xl bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--brand-border)] transition-colors"
             >
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-[var(--brand-soft)] text-[var(--brand-primary)] flex items-center justify-center text-xs font-bold font-mono">
-                  {customer.firstName[0]}{customer.lastName[0]}
-                </div>
-                <div className="truncate max-w-[110px]">
-                  <div className="text-xs font-bold text-[var(--foreground)] truncate">{customer.fullName}</div>
-                  <div className="text-[10px] text-[var(--brand-primary)] font-mono">{customer.kycTier}</div>
-                </div>
-              </div>
-              <ChevronRight className="w-4 h-4 text-[var(--foreground-muted)]" />
+              <span className="flex items-center gap-2 min-w-0">
+                <span className="w-8 h-8 rounded-lg bg-[var(--brand-soft)] text-[var(--brand-primary)] flex items-center justify-center text-xs font-bold font-mono shrink-0">
+                  {customer ? `${customer.firstName[0]}${customer.lastName[0] || ""}` : "••"}
+                </span>
+                <span className="truncate max-w-[110px]">
+                  <span className="block text-xs font-bold text-[var(--foreground)] truncate">
+                    {customer?.fullName ?? t("common.loading")}
+                  </span>
+                  <span className="block text-[10px] text-[var(--brand-primary)] font-mono">
+                    {customer?.kycTier ?? "—"}
+                  </span>
+                </span>
+              </span>
+              <ChevronRight className="w-4 h-4 text-[var(--foreground-muted)] shrink-0" aria-hidden="true" />
             </Link>
           </div>
         </aside>
 
-        {/* Center Content Column */}
+        {/* Content column — extra bottom padding clears the floating pill */}
         <div className="flex-1 flex flex-col min-w-0 pb-28 lg:pb-10">
-          {/* Top Sticky Header */}
           <header className="sticky top-0 z-30 glass-nav px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
-            {/* Mobile Brand / Greeting */}
-            <div className="flex items-center gap-3">
-              <Link href="/customer" className="lg:hidden flex items-center">
+            <div className="flex items-center gap-3 min-w-0">
+              <Link href="/customer" className="lg:hidden flex items-center" aria-label="KoriePay home">
                 <KorieLogo variant="compact" theme="light" height={26} />
               </Link>
-              <div className="hidden lg:block">
+              <div className="hidden lg:block min-w-0">
                 <span className="text-xs text-[var(--foreground-muted)]">{t("customer.shell.greeting")}</span>
-                <div className="text-sm font-bold text-[var(--foreground)] flex items-center gap-1.5">
-                  <span>{customer.fullName}</span>
-                  <span className="text-[var(--brand-primary)] text-xs">● {customer.kycTier}</span>
+                <div className="text-sm font-bold text-[var(--foreground)] flex items-center gap-1.5 min-w-0">
+                  <span className="truncate">{customer?.fullName ?? t("common.loading")}</span>
+                  {customer && (
+                    <span className="text-[var(--brand-primary)] text-xs shrink-0">● {customer.kycTier}</span>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Right Controls */}
-            <div className="flex items-center gap-2 sm:gap-3">
-              {/* Desktop cluster (hidden on phone): language, notifications, avatar.
-                  Balance-visibility lives beside the balance (in the card), NOT here. */}
-              <div className="hidden lg:flex items-center gap-2 sm:gap-3">
-                {/* Language Switcher */}
-                <LanguageSelector />
-
-                {/* Notifications Bell */}
-                <Link
-                  href="/customer/settings"
-                  className="relative p-2 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors"
-                  title="Notifications"
-                >
-                  <Bell className="w-4 h-4" />
-                  {notificationsCount > 0 && (
-                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[var(--brand-primary)] text-white font-bold font-mono text-[9px] flex items-center justify-center">
-                      {notificationsCount}
-                    </span>
-                  )}
-                </Link>
-
-                {/* User Avatar */}
-                <Link
-                  href="/customer/profile"
-                  className="w-8 h-8 rounded-xl bg-gradient-to-tr from-teal-600 to-teal-500 text-white flex items-center justify-center text-xs font-extrabold shadow-md shadow-[var(--brand-soft-strong)]"
-                >
-                  {customer.firstName[0]}
-                </Link>
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              {/* Appearance — desktop keeps the fast control; mobile gets it in
+                  More + Settings, which is what was missing before. */}
+              <div className="hidden lg:block">
+                <ThemeSelectorInline />
               </div>
 
-              {/* Day/Night + Sign out — collapses to Logout-only on phone */}
-              <ShellAccount />
+              <Link
+                href="/customer/settings"
+                className="relative p-2 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors min-h-[36px] min-w-[36px] grid place-items-center"
+                aria-label={
+                  notificationsPhase === "loading"
+                    ? t("customer.shell.loadingAlerts")
+                    : notificationsCount > 0
+                      ? t("customer.shell.alertsWithCount", { count: notificationsCount })
+                      : t("customer.shell.alertsNone")
+                }
+              >
+                <Bell className="w-4 h-4" aria-hidden="true" />
+                {notificationsCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-[var(--brand-primary)] text-white font-bold font-mono text-[9px] flex items-center justify-center tabular-nums">
+                    {notificationsCount > 9 ? "9+" : notificationsCount}
+                  </span>
+                )}
+              </Link>
+
+              <LanguageSelector />
+
+              <Link
+                href="/customer/profile"
+                className="w-8 h-8 rounded-xl bg-gradient-to-tr from-teal-600 to-teal-500 text-white flex items-center justify-center text-xs font-extrabold shadow-md hidden sm:flex"
+                aria-label={t("nav.profile")}
+              >
+                {customer?.firstName?.[0] ?? "•"}
+              </Link>
+
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="p-2 rounded-xl bg-[var(--surface)] hover:text-[var(--danger)] border border-[var(--border)] text-[var(--foreground-muted)] transition-colors min-h-[36px] min-w-[36px] grid place-items-center"
+                aria-label={t("common.sign_out")}
+                title={t("common.sign_out")}
+              >
+                <LogOut className="w-4 h-4" aria-hidden="true" />
+              </button>
             </div>
           </header>
 
-          {/* Dynamic Route Page Body */}
-          <main className="flex-1 w-full max-w-7xl mx-auto">
+          <main className="flex-1 w-full max-w-7xl mx-auto" id="main-content">
             {children}
           </main>
           <PortalFooter portal="customer" />
         </div>
       </div>
 
-      {/* Mobile Floating Rounded Pill Bottom Navigation */}
-      <nav
-        className="lg:hidden fixed bottom-3 left-3 right-3 z-40 mx-auto max-w-md px-1.5 py-1.5 rounded-3xl
-          glass-03
-          flex items-center justify-around
-          safe-area-bottom"
-        aria-label="Primary"
-      >
-        {mobileBottomNavItems.map((item) => {
-          const active = isActive(item.href);
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex flex-col items-center justify-center gap-1 px-3 min-w-[58px] min-h-[52px] rounded-2xl transition-all ${
-                active
-                  ? "bg-[var(--brand-soft)]"
-                  : "hover:bg-[var(--surface-elevated)]"
-              }`}
-              aria-current={active ? "page" : undefined}
-            >
-              <div className={`rounded-xl p-1 transition-all ${active ? "bg-[var(--brand-soft-strong)]" : ""}`}>
-                <Icon className={`w-[22px] h-[22px] transition-all ${active ? "text-[var(--brand-primary)] stroke-[2.5]" : "text-[var(--foreground-muted)]"}`} />
-              </div>
-              <span className={`text-[10px] leading-tight font-semibold tracking-tight ${active ? "text-[var(--brand-primary)]" : "text-[var(--foreground-muted)]"}`}>
-                {item.label}
-              </span>
-            </Link>
-          );
-        })}
-      </nav>
+      {/* Floating mobile navigation + More sheet */}
+      <FloatingMobileNav />
 
-      {/* Universal Modals */}
       <TransactionReceiptModal />
       <ReportDisputeModal />
     </div>
+  );
+};
+
+/** Compact desktop appearance control (same component as Settings/More). */
+const ThemeSelectorInline: React.FC = () => {
+  const { theme, setTheme } = useTheme();
+  const isDark = theme === "dark";
+  return (
+    <button
+      type="button"
+      onClick={() => setTheme(isDark ? "light" : "dark")}
+      className="p-2 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors min-h-[36px] min-w-[36px] grid place-items-center"
+      aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
+      title={isDark ? "Light mode" : "Dark mode"}
+      aria-pressed={isDark}
+    >
+      {isDark ? <Sun className="w-4 h-4" aria-hidden="true" /> : <Moon className="w-4 h-4" aria-hidden="true" />}
+    </button>
   );
 };
 

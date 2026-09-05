@@ -111,7 +111,7 @@ export class CashForecastingEngine {
       case 'BANK_SETTLEMENT_DELAY':
         return {
           scenarioCode: 'BANK_SETTLEMENT_DELAY',
-          scenarioName: 'Providus / Koris Settlement Batch Delay (T+1)',
+          scenarioName: 'Providus / Coris Settlement Batch Delay (T+1)',
           simulatedImpactNGN: -85000000,
           simulatedImpactXOF: -110000000,
           projectedDeficitLocations: 3,

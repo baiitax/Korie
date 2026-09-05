@@ -230,7 +230,7 @@ export default function PaymentSwitchAdminPage() {
         <div className="p-4 rounded-2xl bg-[#0b1324]/80 border border-white/10 shadow-lg">
           <div className="text-[10px] font-mono text-slate-400 uppercase">Active Provider Nodes</div>
           <div className="text-xl font-bold font-mono text-amber-400 mt-1">4 Nodes Connected</div>
-          <div className="text-[10px] text-slate-400 mt-1">Providus, Koris, ISW, NIBSS</div>
+          <div className="text-[10px] text-slate-400 mt-1">Providus, Coris, ISW, NIBSS</div>
         </div>
 
         <div className="p-4 rounded-2xl bg-[#0b1324]/80 border border-white/10 shadow-lg">

@@ -24,5 +24,5 @@ Financial transactions move through a deterministic state machine:
 
 ## 2. Decoupling Provider Status from Ledger Truth
 1. **Inward Deposits**: Funds are placed in suspense (`7100`) until provider signature and amount are cryptographically verified.
-2. **Outward Transfers**: Balances are held via `account_holds`. Upon final bank rail success (`200 OK` from Providus/Koris), the hold is captured and posted.
+2. **Outward Transfers**: Balances are held via `account_holds`. Upon final bank rail success (`200 OK` from Providus/Coris), the hold is captured and posted.
 3. **Timeouts**: If a bank network drops connection, transactions transition to `SUSPENSE_PARKED` rather than failing, preventing double-debits or customer losses.

@@ -3,14 +3,21 @@
 import React, { useEffect, useState, useRef } from "react";
 import KpayBrandMark from "./KpayBrandMark";
 
-/** Real, authoritative transaction status — never inferred, never faked. */
+/**
+ * Real, authoritative transaction status — never inferred, never faked.
+ * Mirrors `DbTransaction.status` exactly, so a backend state can never arrive
+ * that the overlay has no rendering for (it previously omitted CANCELLED and
+ * DISPUTED, which silently collapsed two real states into "still confirming").
+ */
 export type TransactionStatus =
   | "INITIATED"
   | "PENDING"
   | "PROCESSING"
   | "SUCCESSFUL"
   | "FAILED"
-  | "REVERSED";
+  | "REVERSED"
+  | "CANCELLED"
+  | "DISPUTED";
 
 export interface KpayTransactionSummaryItem {
   label: string;
@@ -29,7 +36,20 @@ export interface KpayTransactionOptions {
   onCheckStatus?: () => void;
 }
 
-const TERMINAL: TransactionStatus[] = ["SUCCESSFUL", "FAILED", "REVERSED"];
+/**
+ * Terminal = no further movement is expected, so the overlay may dismiss.
+ * DISPUTED is terminal *for the payment* (it re-opens as a case, not as a
+ * pending transfer) and is surfaced differently from SUCCESSFUL.
+ */
+export const TERMINAL_TRANSACTION_STATUSES: TransactionStatus[] = [
+  "SUCCESSFUL",
+  "FAILED",
+  "REVERSED",
+  "CANCELLED",
+  "DISPUTED",
+];
+
+const TERMINAL: TransactionStatus[] = TERMINAL_TRANSACTION_STATUSES;
 
 interface KpayTransactionLoaderProps {
   open: boolean;
@@ -87,27 +107,54 @@ export const KpayTransactionLoader: React.FC<KpayTransactionLoaderProps> = ({
   const { status } = options;
   const isTerminal = TERMINAL.includes(status);
   const isSuccess = status === "SUCCESSFUL";
-  const isFailed = status === "FAILED" || status === "REVERSED";
+  const isReversedOrCancelled = status === "REVERSED" || status === "CANCELLED";
+  const isDisputed = status === "DISPUTED";
+  const isFailed = status === "FAILED";
+  const isProblem = isFailed || isReversedOrCancelled || isDisputed;
   const longRunning = options.longRunning ?? elapsed >= 8;
   const providerWait = options.providerWait ?? (elapsed >= 3 && !isTerminal);
 
-  const message =
-    status === "SUCCESSFUL"
-      ? t("loading.txSuccess")
-      : status === "FAILED"
-        ? t("loading.txFailed")
-        : status === "REVERSED"
-          ? t("loading.txReversed")
-          : longRunning
-            ? t("loading.txLongRunning")
-            : providerWait
-              ? t("loading.txConfirming")
-              : t("loading.txProcessing");
+  // One message per authoritative state. A state the overlay has no copy for
+  // must never fall through to "successful", so unknown states read as pending.
+  const MESSAGE_KEY: Record<TransactionStatus, string> = {
+    SUCCESSFUL: "loading.txSuccess",
+    FAILED: "loading.txFailed",
+    REVERSED: "loading.txReversed",
+    CANCELLED: "loading.txCancelled",
+    DISPUTED: "loading.txDisputed",
+    INITIATED: "loading.txProcessing",
+    PENDING: "loading.txProcessing",
+    PROCESSING: "loading.txProcessing",
+  };
+  const STATUS_LABEL_KEY: Record<TransactionStatus, string> = {
+    SUCCESSFUL: "transactions.statusSuccess",
+    FAILED: "transactions.statusFailed",
+    REVERSED: "transactions.statusReversed",
+    CANCELLED: "transactions.statusCancelled",
+    DISPUTED: "transactions.statusDisputed",
+    INITIATED: "transactions.statusProcessing",
+    PENDING: "transactions.statusPending",
+    PROCESSING: "transactions.statusProcessing",
+  };
+
+  const message = isTerminal
+    ? t(MESSAGE_KEY[status])
+    : longRunning
+      ? t("loading.txLongRunning")
+      : providerWait
+        ? t("loading.txConfirming")
+        : t(MESSAGE_KEY[status]);
+
+  /**
+   * >8s without a terminal state: the honest instruction is DO NOT RETRY while
+   * we confirm — retrying is what creates duplicates in a payment system.
+   */
+  const guidance = longRunning && !isTerminal ? t("loading.txNoRetry") : null;
 
   // Status pill color follows the real state.
   const pillCls = isSuccess
     ? "kp-badge-success"
-    : isFailed
+    : isProblem
       ? "kp-badge-danger"
       : "kp-badge-brand";
 
@@ -134,6 +181,12 @@ export const KpayTransactionLoader: React.FC<KpayTransactionLoaderProps> = ({
         {/* Brand mark */}
         <KpayBrandMark size={isTerminal ? "sm" : "lg"} breathe={!isTerminal} glow />
 
+        {guidance && (
+          <p className="text-xs text-[var(--danger)] font-semibold" role="alert">
+            {guidance}
+          </p>
+        )}
+
         {/* Header */}
         <div className="space-y-1">
           <h3 className="text-lg font-bold text-[var(--foreground)]">{options.title}</h3>
@@ -142,11 +195,11 @@ export const KpayTransactionLoader: React.FC<KpayTransactionLoaderProps> = ({
           >
             <span
               className={`h-1.5 w-1.5 rounded-full ${
-                isSuccess ? "bg-[var(--success)]" : isFailed ? "bg-[var(--danger)]" : "bg-[var(--brand-primary)] animate-pulse"
+                isSuccess ? "bg-[var(--success)]" : isProblem ? "bg-[var(--danger)]" : "bg-[var(--brand-primary)] animate-pulse"
               }`}
               aria-hidden
             />
-            {status}
+            {t(STATUS_LABEL_KEY[status])}
           </span>
         </div>
 

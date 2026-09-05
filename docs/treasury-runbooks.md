@@ -3,7 +3,7 @@
 ## 1. Liquidity Buffer Breach Runbook
 When Available Liquidity drops below the $150\%$ target safety buffer:
 1. **Intraday Sweeps**: Trigger automated Nostro sweep from secondary collection accounts.
-2. **Wholesale Credit Drawdown**: Submit funding deal ticket against Providus / Koris revolving credit facility.
+2. **Wholesale Credit Drawdown**: Submit funding deal ticket against Providus / Coris revolving credit facility.
 3. **Payout Throttling**: Switch non-essential batch settlement windows from $T+0$ to $T+1$.
 
 ---

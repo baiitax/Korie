@@ -4,31 +4,61 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useCustomer } from "@/components/customer/CustomerContext";
 import PinModal from "@/components/customer/ui/PinModal";
+import ComingSoonServiceCard from "@/components/customer/ui/ComingSoonCard";
 import { formatMoney } from "@/lib/money";
-import { ArrowLeft, QrCode, CheckCircle2, Zap } from "lucide-react";
+import { isServiceAvailable } from "@/lib/customer/customerFeatures";
+import { ArrowLeft, QrCode, CheckCircle2, AlertTriangle } from "lucide-react";
 
 export default function CustomerPaymentsPage() {
-  const { activeWallet, executeTransfer, t } = useCustomer();
+  const { activeWallet, executeTransfer, t, isServiceAvailable: available } = useCustomer();
+  const enabled = available("merchantQr") && Boolean(activeWallet);
   const [merchantCode, setMerchantCode] = useState("MCH-SAHARA-001");
   const [amount, setAmount] = useState("4500");
   const [isPinOpen, setIsPinOpen] = useState(false);
   const [isPaid, setIsPaid] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handlePay = (e: React.FormEvent) => { e.preventDefault(); setIsPinOpen(true); };
 
-  const handleConfirmPin = async (pin: string) => {
+  const handleConfirmPin = async () => {
     setIsPinOpen(false);
+    if (!activeWallet) return;
+    setBusy(true);
+    setError(null);
     const parsed = parseFloat(amount) || 0;
-    await executeTransfer({
+    const result = await executeTransfer({
       recipientName: "Sahara Wholesale Supermarket",
       recipientBank: "Providus Merchant Settlement",
       recipientAccount: "0123991823",
       amount: parsed,
-      currency: activeWallet.currency,
+      currency: activeWallet!.currency,
       description: "In-store QR checkout payment",
     });
-    setIsPaid(true);
+    setBusy(false);
+    // Success is only claimed when the engine returned a transaction. The old
+    // code called setIsPaid(true) after an un-awaited executeTransfer, which
+    // told the customer a payment had settled when it may have failed.
+    if (result.success && result.transaction) setIsPaid(true);
+    else setError(result.error || t("customer.payments.failed"));
   };
+
+  if (!enabled) {
+    return (
+      <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-2xl mx-auto">
+        <Header t={t} />
+        <ComingSoonServiceCard
+          icon={QrCode}
+          title={t("customer.payments.titleQr")}
+          description={t("customer.payments.comingSoonDesc")}
+          statusLabel={t("common.comingSoon")}
+        />
+        <p className="text-[11px] text-[var(--foreground-muted)] text-center">
+          {t("customer.payments.comingSoonNote")}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-2xl mx-auto">
@@ -53,7 +83,7 @@ export default function CustomerPaymentsPage() {
           <div className="space-y-1">
             <h2 className="text-xl font-extrabold text-[var(--foreground)] tracking-tight">{t("customer.payments.confirmed")}</h2>
             <p className="text-xs text-[var(--foreground-muted)]">
-              {t("customer.payments.confirmedDesc", { amount: formatMoney(parseFloat(amount), activeWallet.currency), merchant: "Sahara Wholesale Supermarket" })}
+              {t("customer.payments.confirmedDesc", { amount: formatMoney(parseFloat(amount), activeWallet?.currency ?? "NGN"), merchant: "Sahara Wholesale Supermarket" })}
             </p>
           </div>
           <button onClick={() => setIsPaid(false)} className="w-full py-3.5 rounded-2xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-bold text-xs shadow-[var(--shadow-md)]">
@@ -79,18 +109,49 @@ export default function CustomerPaymentsPage() {
                 className="w-full p-3.5 rounded-2xl bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground)] font-mono text-xs focus:outline-none" />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-[var(--foreground)]">{t("customer.payments.amount")} ({activeWallet.currency})</label>
+              <label className="text-xs font-semibold text-[var(--foreground)]">
+                {t("customer.payments.amount")} ({activeWallet?.currency ?? ""})
+              </label>
               <input type="number" min="100" required value={amount} onChange={(e) => setAmount(e.target.value)}
                 className="w-full p-3.5 rounded-2xl bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground)] font-mono text-lg font-bold focus:outline-none" />
             </div>
-            <button type="submit" className="w-full py-4 rounded-2xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-extrabold text-sm transition-all shadow-[var(--shadow-md)]">
+            <button
+              type="submit"
+              disabled={busy || !activeWallet}
+              className="w-full py-4 rounded-2xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-extrabold text-sm transition-all shadow-[var(--shadow-md)] disabled:opacity-60 min-h-[48px]"
+            >
               {t("customer.payments.payNow")}
             </button>
           </form>
         </div>
       )}
 
+      {error && (
+        <p role="alert" className="flex items-start gap-2 rounded-2xl border border-[var(--danger-soft)] bg-[var(--danger-soft)]/40 p-3 text-[11px] font-semibold text-[var(--danger)]">
+          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" aria-hidden="true" />
+          {error}
+        </p>
+      )}
+
       <PinModal isOpen={isPinOpen} onClose={() => setIsPinOpen(false)} onSuccess={handleConfirmPin} />
     </div>
   );
 }
+
+const Header: React.FC<{ t: (k: string) => string }> = ({ t }) => (
+  <div className="flex items-center gap-3 pb-2 border-b border-[var(--border)]">
+    <Link
+      href="/customer"
+      className="p-2 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground-muted)] transition-colors"
+      aria-label="Back"
+    >
+      <ArrowLeft className="w-4 h-4" />
+    </Link>
+    <div>
+      <h1 className="text-xl sm:text-2xl font-extrabold text-[var(--foreground)] tracking-tight">
+        {t("nav.payments")} {t("customer.payments.titleQr")}
+      </h1>
+      <p className="text-xs text-[var(--foreground-muted)]">{t("customer.payments.subtitle")}</p>
+    </div>
+  </div>
+);

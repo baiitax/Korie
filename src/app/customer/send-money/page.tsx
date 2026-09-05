@@ -4,6 +4,8 @@ import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import { useCustomer } from "@/components/customer/CustomerContext";
 import PinModal from "@/components/customer/ui/PinModal";
+import { DataEmptyState, DataErrorState } from "@/components/customer/ui/CustomerStateViews";
+import { KpaySectionLoader } from "@/components/loading";
 import { useLoading } from "@/components/loading";
 import { BANK_DIRECTORY } from "@/services/customerDataService";
 import { formatMoney, maskAccountNumber } from "@/lib/money";
@@ -52,6 +54,9 @@ export default function SendMoneyPage() {
     openReceipt,
     t,
     fxRates,
+    portalPhase,
+    portalError,
+    refreshPortal,
   } = useCustomer();
   const { beginTransaction, updateTransactionStatus, endTransaction } = useLoading();
 
@@ -68,6 +73,9 @@ export default function SendMoneyPage() {
   const [error, setError] = useState<string | null>(null);
   const [completedTx, setCompletedTx] = useState<CustomerTransaction | null>(null);
 
+  // `wallets` is empty while the portal is loading and stays empty when the
+  // profile has no linked account. Every wallet-derived value below assumes a
+  // wallet exists, so the page must not render the form until it does.
   const sourceWallet = wallets.find((w) => w.currency === sourceCurrency) || wallets[0];
   const parsesAmount = (parseFloat(amountStr) || 0);
 
@@ -108,6 +116,10 @@ export default function SendMoneyPage() {
     e.preventDefault();
     if (parsesAmount <= 0) {
       setError(t("transfers.invalidAmount"));
+      return;
+    }
+    if (!sourceWallet) {
+      setError(t("customer.dashboard.noAccountTitle"));
       return;
     }
     if (parsesAmount + fee > sourceWallet.availableBalance) {
@@ -153,21 +165,56 @@ export default function SendMoneyPage() {
     });
 
     setIsExecuting(false);
+    // The loader is dismissed in the same tick as the real outcome. It used to
+    // sit on a `setTimeout(800)` after the response landed, which only made the
+    // UI look busy for no reason.
     if (result.success && result.transaction) {
       updateTransactionStatus("SUCCESSFUL");
-      setTimeout(() => {
-        endTransaction();
-        setCompletedTx(result.transaction!);
-        setStep(3);
-      }, 800);
+      endTransaction();
+      setCompletedTx(result.transaction);
+      setStep(3);
     } else {
       updateTransactionStatus("FAILED");
-      setTimeout(() => {
-        endTransaction();
-        setError(result.error || t("transfers.transferFailed"));
-      }, 800);
+      endTransaction();
+      setError(result.error || t("transfers.transferFailed"));
     }
   };
+
+  /**
+   * Wallet-state gate. Loading, failure and a genuinely account-less profile
+   * are three different things and must not render the same screen.
+   */
+  if (!sourceWallet) {
+    return (
+      <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-2xl mx-auto">
+        <div className="flex items-center gap-3">
+          <Link href="/customer" className="p-2 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors">
+            <ArrowLeft className="w-4 h-4" />
+          </Link>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-extrabold text-[var(--foreground)]">{t("transfers.sendMoneyTitle")}</h1>
+            <p className="text-xs text-[var(--foreground-muted)]">{t("transfers.sendMoneySubtitle")}</p>
+          </div>
+        </div>
+        {portalPhase === "loading" ? (
+          <KpaySectionLoader message={t("customer.shell.loadingAccount")} />
+        ) : portalError ? (
+          <DataErrorState
+            error={portalError}
+            retryLabel={t("transactions.refresh")}
+            onRetry={() => void refreshPortal()}
+            surface="transactions"
+          />
+        ) : (
+          <DataEmptyState
+            title={t("customer.dashboard.noAccountTitle")}
+            hint={t("customer.dashboard.noAccountHint")}
+            action={{ label: t("customer.wallets.title"), href: "/customer/wallets" }}
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-2xl mx-auto">

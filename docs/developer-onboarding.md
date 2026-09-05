@@ -24,7 +24,7 @@ Configure Webhook Endpoint & Verify HMAC
 Complete 6-Point Readiness Checklist
          │
          ▼
-Submit Providus / Koris Settlement Bank Details
+Submit Providus / Coris Settlement Bank Details
          │
          ▼
 Receive Live Production Credentials (`kp_live_...`)

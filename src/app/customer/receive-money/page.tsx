@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useCustomer } from "@/components/customer/CustomerContext";
+import CustomerProfileGate from "@/components/customer/ui/CustomerProfileGate";
 import { ArrowLeft, Copy, Check, Share2, Zap } from "lucide-react";
 
 export default function ReceiveMoneyPage() {
@@ -27,6 +28,14 @@ export default function ReceiveMoneyPage() {
       handleCopy(wallet.accountNumber, wallet.id);
     }
   };
+
+  if (!customer) {
+    return (
+      <CustomerProfileGate labelKey="common.loading">
+        {null}
+      </CustomerProfileGate>
+    );
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-3xl mx-auto">

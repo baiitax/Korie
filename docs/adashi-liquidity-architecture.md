@@ -29,7 +29,7 @@ Payment Switch (NIP / WAEMU RTGS)
 CORE DOUBLE-ENTRY LEDGER (Authoritative Balance Sheet)
        │
        ▼
-Settlement & Custodial Bank Clearing (Providus NG / Koris NE)
+Settlement & Custodial Bank Clearing (Providus NG / Coris NE)
        │
        ▼
 3-Way Zero-Variance Reconciliation Engine

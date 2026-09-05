@@ -22,7 +22,7 @@ export default function ExplorerPage() {
 
         <div className="flex items-center gap-2">
           <span className="px-3 py-1 rounded-xl bg-slate-900 border border-white/10 text-xs font-mono text-emerald-400 font-bold">
-            Sandbox Node: Providus / Koris Active
+            Sandbox Node: Providus / Coris Active
           </span>
         </div>
       </div>

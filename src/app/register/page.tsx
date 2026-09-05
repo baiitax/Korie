@@ -194,7 +194,7 @@ export default function RegisterPage() {
                     <span className="text-2xl">🇳🇪</span>
                     <div>
                       <div className="text-xs font-bold">Niger Republic</div>
-                      <div className="text-[10px] text-slate-400 font-mono">XOF • Koris Node</div>
+                      <div className="text-[10px] text-slate-400 font-mono">XOF • Coris Node</div>
                     </div>
                   </button>
                 </div>

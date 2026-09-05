@@ -19,7 +19,7 @@ The **KoriePay Enterprise Integration Fabric & API Gateway** acts as the governe
                                             ▼
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
 │                             ENTERPRISE INTEGRATION FABRIC                              │
-│  Provider Adapters (Providus/Koris) • Event Outbox & Bus • HMAC Webhook Dispatcher     │
+│  Provider Adapters (Providus/Coris) • Event Outbox & Bus • HMAC Webhook Dispatcher     │
 └───────────────────────────────────────────┬────────────────────────────────────────────┘
                                             │ Authoritative Domain Invocation
                                             ▼

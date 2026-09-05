@@ -15,7 +15,7 @@
 | Aggregator Commission | Kason Hukumar Hada-hadar Kudi | Commissions de l'Agrégateur | Aggregator earnings margin on processed volume |
 | Operational Exceptions | Kura-kuran Aiki | Exceptions Opérationnelles | Unresolved network errors requiring intervention |
 | Three-Way Reconciliation | Daidaita Lissafin Kudi Sau Uku | Rapprochement Comptable Tripartite | Proof matching between Ledger, Bank, and Terminals |
-| Banking Node | Tashar Hadin Gwiwa ta Banki | Nœud Bancaire Partenaire | Integrated settlement gateway (Providus / Koris) |
+| Banking Node | Tashar Hadin Gwiwa ta Banki | Nœud Bancaire Partenaire | Integrated settlement gateway (Providus / Coris) |
 | Risk Velocity Anomaly | Hatsarin Gudun Hada-hadar Kudi | Anomalie de Vélocité des Risques | Suspicious transaction spike detected by risk engine |
 | Field Officer | Jami'in Kula da Yanki | Agent de Terrain | Operations officer managing territory nodes |
 | Corporate Settlement | Biyan Kudi ga Asusun Kamfani | Règlement Bancaire Entreprise | Payout to Providus Bank corporate bank account |

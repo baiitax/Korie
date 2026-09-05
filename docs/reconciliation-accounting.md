@@ -4,7 +4,7 @@
 Reconciliation requires continuous automated comparison across:
 1. **Internal Switch Journal / Attempt Record**
 2. **Core General Ledger Account Postings**
-3. **External Bank / Network Switch Statements (Providus, NIBSS, Koris, Interswitch)**
+3. **External Bank / Network Switch Statements (Providus, NIBSS, Coris, Interswitch)**
 
 ---
 

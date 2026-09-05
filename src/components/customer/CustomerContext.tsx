@@ -10,16 +10,12 @@ import {
   SupportTicket,
   SupportedLanguage,
   CustomerCurrency,
+  CustomerTransactionStatus,
 } from "@/types/customer";
-import {
-  CURRENT_CUSTOMER,
-  CUSTOMER_WALLETS,
-  CUSTOMER_TRANSACTIONS,
-  CUSTOMER_BENEFICIARIES,
-  CUSTOMER_SUPPORT_TICKETS,
-} from "@/services/customerDataService";
 import { translate } from "@/locales";
 import { portalFetch } from "@/lib/customerPortalClient";
+import { safeFetch, NormalizedCustomerError } from "@/lib/customer/customerApiError";
+import { useLoading } from "@/components/loading";
 import {
   CUSTOMER_CONFIG,
   orderCurrenciesXofFirst,
@@ -28,6 +24,8 @@ import {
   CustomerServiceId,
   ServiceStatus,
 } from "@/lib/customer/customerFeatures";
+
+/* ------------------------------------------------------------------ types */
 
 interface TransferExecutionParams {
   recipientName: string;
@@ -40,32 +38,92 @@ interface TransferExecutionParams {
   isCrossBorder?: boolean;
 }
 
+/** Server-side history filters (mirrors parseTransactionQueryParams). */
+export interface HistoryFilters {
+  currency: "ALL" | CustomerCurrency;
+  category: "ALL" | "TRANSFERS" | "BILLS" | "FX" | "FUNDING" | "CARDS";
+  status: "ALL" | CustomerTransactionStatus;
+  range: "ALL" | "TODAY" | "WEEK" | "MONTH" | "CUSTOM";
+  from?: string;
+  to?: string;
+  search: string;
+}
+
+export const EMPTY_HISTORY_FILTERS: HistoryFilters = {
+  currency: "ALL",
+  category: "ALL",
+  status: "ALL",
+  range: "ALL",
+  search: "",
+};
+
+export interface CustomerNotificationItem {
+  id: string;
+  kind: "TRANSACTION" | "VERIFICATION" | "SECURITY" | "SYSTEM";
+  tone: "info" | "warning" | "danger" | "success";
+  titleKey: string;
+  bodyKey: string;
+  params: Record<string, string | number>;
+  createdAt: string;
+  link?: { href: string; labelKey: string };
+  reference?: string;
+}
+
+export type LoadPhase = "idle" | "loading" | "ready" | "error";
+
 interface CustomerContextType {
-  customer: CustomerUser;
+  /** null while loading or when the profile could not be resolved. Never a guess. */
+  customer: CustomerUser | null;
   wallets: CustomerWallet[];
   activeCurrency: CustomerCurrency;
   setActiveCurrency: (currency: CustomerCurrency) => void;
-  activeWallet: CustomerWallet;
+  /** undefined until the first successful portal load. */
+  activeWallet: CustomerWallet | undefined;
   isBalanceHidden: boolean;
   toggleHideBalance: () => void;
   language: SupportedLanguage;
   setLanguage: (lang: SupportedLanguage) => void;
   t: (key: string, params?: Record<string, string | number>) => string;
+
+  /** Recent activity for the dashboard (authoritative, ownership-scoped). */
   transactions: CustomerTransaction[];
+  transactionsTotalCount: number;
+
+  /* --- dedicated history state: never conflated with "no transactions" --- */
+  historyPhase: LoadPhase;
+  historyItems: CustomerTransaction[];
+  historyError: NormalizedCustomerError | null;
+  historyHasMore: boolean;
+  historyNextCursor: string | null;
+  historyTotalCount: number;
+  /** Server clock of the last successful history read → "Last updated". */
+  historyUpdatedAt: string | null;
+  historyFilters: HistoryFilters;
+  setHistoryFilters: (next: Partial<HistoryFilters>) => void;
+  loadHistory: (opts?: { silent?: boolean }) => Promise<void>;
+  loadMoreHistory: () => Promise<void>;
+
+  /** Portal aggregate (dashboard) state. */
+  portalPhase: LoadPhase;
+  portalError: NormalizedCustomerError | null;
+  /** @deprecated kept for older pages; equals portalPhase === "loading". */
+  isConnecting: boolean;
+  dataSource: "live" | "unavailable";
+  refreshPortal: () => Promise<void>;
+
   beneficiaries: Beneficiary[];
   cards: VirtualCard[];
   supportTickets: SupportTicket[];
   isOffline: boolean;
-  /** "live" when data was loaded from the engine-backed portal API; "demo" when
-   * the app fell back to the seeded local catalog (e.g. static preview/offline). */
-  dataSource: "live" | "demo";
-  isConnecting: boolean;
-  /** Engine execution rates (match the rate applied on cross-border transfer). */
   fxRates: { fromCurrency: CustomerCurrency; toCurrency: CustomerCurrency; rate: number; source: string }[];
-  /** Niger-first product config: currency priority + service availability. */
   productConfig: typeof CUSTOMER_CONFIG;
   getServiceStatus: (id: CustomerServiceId) => ServiceStatus;
   isServiceAvailable: (id: CustomerServiceId) => boolean;
+
+  notifications: CustomerNotificationItem[];
+  notificationsCount: number;
+  notificationsPhase: LoadPhase;
+  refreshNotifications: () => Promise<void>;
 
   // Modals & Sheets
   isReceiptModalOpen: boolean;
@@ -77,7 +135,10 @@ interface CustomerContextType {
   disputeTx: CustomerTransaction | null;
   openDispute: (tx: CustomerTransaction) => void;
   closeDispute: () => void;
-  submitDispute: (category: string, description: string) => Promise<string>;
+  submitDispute: (
+    category: string,
+    description: string,
+  ) => Promise<{ ok: true; ticketNumber: string } | { ok: false; error: string }>;
 
   executeTransfer: (params: TransferExecutionParams) => Promise<{
     success: boolean;
@@ -99,36 +160,76 @@ interface CustomerContextType {
   }>;
 
   toggleCardFreeze: (cardId: string) => void;
-  saveBeneficiary: (beneficiary: Omit<Beneficiary, "id">) => void;
-  deleteBeneficiary: (id: string) => void;
-  notificationsCount: number;
+  saveBeneficiary: (
+    beneficiary: Omit<Beneficiary, "id">,
+  ) => Promise<{ ok: true; beneficiary: Beneficiary } | { ok: false; error: string }>;
+  deleteBeneficiary: (id: string) => Promise<{ ok: boolean; error?: string }>;
 }
 
 const CustomerContext = createContext<CustomerContextType | undefined>(undefined);
 
+const PORTAL_TIMEOUT_MS = 15000;
+const HISTORY_PAGE_SIZE = 20;
+
+function historyQuery(filters: HistoryFilters, cursor?: string | null): string {
+  const sp = new URLSearchParams();
+  if (filters.currency !== "ALL") sp.set("currency", filters.currency);
+  if (filters.category !== "ALL") sp.set("category", filters.category);
+  if (filters.status !== "ALL") sp.set("status", filters.status);
+  if (filters.range !== "ALL") {
+    sp.set("range", filters.range);
+    if (filters.range === "CUSTOM") {
+      if (filters.from) sp.set("from", filters.from);
+      if (filters.to) sp.set("to", filters.to);
+    }
+  }
+  if (filters.search.trim()) sp.set("search", filters.search.trim());
+  sp.set("limit", String(HISTORY_PAGE_SIZE));
+  if (cursor) sp.set("cursor", cursor);
+  return sp.toString();
+}
+
 export function CustomerProvider({ children }: { children: React.ReactNode }) {
-  const [customer, setCustomer] = useState<CustomerUser>(CURRENT_CUSTOMER);
-  const [wallets, setWallets] = useState<CustomerWallet[]>(
-    orderCurrenciesXofFirst(CUSTOMER_WALLETS),
-  );
-  const [activeCurrency, setActiveCurrency] = useState<CustomerCurrency>(
-    CUSTOMER_CONFIG.primaryCurrency,
-  );
-  const [isBalanceHidden, setIsBalanceHidden] = useState<boolean>(false);
-  const [language, setLanguageState] = useState<SupportedLanguage>("en");
-  const [transactions, setTransactions] = useState<CustomerTransaction[]>(CUSTOMER_TRANSACTIONS);
-  const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>(CUSTOMER_BENEFICIARIES);
-  // Cards are COMING_SOON — hold no fabricated card records.
-  const [cards, setCards] = useState<VirtualCard[]>([]);
-  const [supportTickets, setSupportTickets] = useState<SupportTicket[]>(CUSTOMER_SUPPORT_TICKETS);
-  const [isOffline, setIsOffline] = useState<boolean>(false);
-  const [notificationsCount, setNotificationsCount] = useState<number>(3);
-  const [dataSource, setDataSource] = useState<"live" | "demo">("demo");
-  const [isConnecting, setIsConnecting] = useState<boolean>(false);
+  const { markBootstrapReady, resetBootstrapReady } = useLoading();
+
+  // ── Server state (authoritative financial data — never seeded from a catalog)
+  const [customer, setCustomer] = useState<CustomerUser | null>(null);
+  const [wallets, setWallets] = useState<CustomerWallet[]>([]);
+  const [transactions, setTransactions] = useState<CustomerTransaction[]>([]);
+  const [transactionsTotalCount, setTransactionsTotalCount] = useState(0);
+  const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>([]);
+  // Cards are COMING SOON — hold no fabricated card records.
+  const [cards] = useState<VirtualCard[]>([]);
+  // Never seeded from `CUSTOMER_SUPPORT_TICKETS`: the fixture array was shown
+  // for the whole first paint, so a customer could see cases that do not exist
+  // before any request had resolved. Real cases live at
+  // /api/customer/portal/disputes (owner-scoped) and the support screen reads them.
+  const [supportTickets, setSupportTickets] = useState<SupportTicket[]>([]);
   const [fxRates, setFxRates] = useState<
     { fromCurrency: CustomerCurrency; toCurrency: CustomerCurrency; rate: number; source: string }[]
   >([]);
-  const hydrated = useRef(false);
+  const [notifications, setNotifications] = useState<CustomerNotificationItem[]>([]);
+  const [notificationsCount, setNotificationsCount] = useState(0);
+  const [notificationsPhase, setNotificationsPhase] = useState<LoadPhase>("idle");
+
+  const [portalPhase, setPortalPhase] = useState<LoadPhase>("loading");
+  const [portalError, setPortalError] = useState<NormalizedCustomerError | null>(null);
+  const [dataSource, setDataSource] = useState<"live" | "unavailable">("live");
+
+  const [historyPhase, setHistoryPhase] = useState<LoadPhase>("idle");
+  const [historyItems, setHistoryItems] = useState<CustomerTransaction[]>([]);
+  const [historyError, setHistoryError] = useState<NormalizedCustomerError | null>(null);
+  const [historyHasMore, setHistoryHasMore] = useState(false);
+  const [historyNextCursor, setHistoryNextCursor] = useState<string | null>(null);
+  const [historyTotalCount, setHistoryTotalCount] = useState(0);
+  const [historyUpdatedAt, setHistoryUpdatedAt] = useState<string | null>(null);
+  const [historyFilters, setHistoryFiltersState] = useState<HistoryFilters>(EMPTY_HISTORY_FILTERS);
+
+  // ── Local UI state (preferences + ephemeral form state only)
+  const [activeCurrency, setActiveCurrency] = useState<CustomerCurrency>(CUSTOMER_CONFIG.primaryCurrency);
+  const [isBalanceHidden, setIsBalanceHidden] = useState<boolean>(false);
+  const [language, setLanguageState] = useState<SupportedLanguage>(CUSTOMER_CONFIG.defaultLanguage);
+  const [isOffline, setIsOffline] = useState<boolean>(false);
 
   // Modals state
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState<boolean>(false);
@@ -136,68 +237,175 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
   const [isDisputeModalOpen, setIsDisputeModalOpen] = useState<boolean>(false);
   const [disputeTx, setDisputeTx] = useState<CustomerTransaction | null>(null);
 
-  // Hydrate customer data from the live portal API (engine-backed). Falls back
-  // to the seeded catalog only if the API is unreachable (offline/static).
+  const hydrated = useRef(false);
+  const historyRequestSeq = useRef(0);
+
+  /* -------------------------------------------------- portal aggregate */
+
   const loadPortal = useCallback(async (signal?: AbortSignal) => {
     if (typeof window === "undefined") return;
-    setIsConnecting(true);
+    setPortalPhase("loading");
     try {
       const res = await portalFetch("/api/customer/portal", { signal });
-      if (!res.ok) throw new Error("portal unavailable");
+      if (!res.ok) {
+        const payload = await res.json().catch(() => undefined);
+        throw Object.assign(new Error("portal unavailable"), { __payload: payload, __status: res.status });
+      }
       const json = await res.json();
       const portal = json?.data?.portal;
       if (!portal) throw new Error("no portal data");
-      setCustomer(portal.customer);
-      // XOF first, NGN second (Niger-first). No USD.
-      const liveWallets: CustomerWallet[] = portal.wallets?.length
-        ? orderCurrenciesXofFirst<CustomerWallet>(portal.wallets)
-        : orderCurrenciesXofFirst<CustomerWallet>(CUSTOMER_WALLETS);
+
+      setCustomer(portal.customer ?? null);
+      // XOF first, NGN second (Niger-first). No USD. An empty list from the
+      // engine is shown as empty — we no longer substitute a seeded catalog,
+      // because a customer must never be shown balances that are not theirs.
+      const liveWallets: CustomerWallet[] = orderCurrenciesXofFirst<CustomerWallet>(portal.wallets || []);
       setWallets(liveWallets);
-      setTransactions(portal.transactions?.length ? portal.transactions : CUSTOMER_TRANSACTIONS);
-      setBeneficiaries(portal.beneficiaries?.length ? portal.beneficiaries : CUSTOMER_BENEFICIARIES);
-      // Cards are COMING_SOON — never populate fabricated card records.
-      setCards([]);
-      setSupportTickets(portal.supportTickets?.length ? portal.supportTickets : CUSTOMER_SUPPORT_TICKETS);
+      setTransactions(Array.isArray(portal.transactions) ? portal.transactions : []);
+      setTransactionsTotalCount(portal.transactionSummary?.totalCount ?? 0);
+      setBeneficiaries(Array.isArray(portal.beneficiaries) ? portal.beneficiaries : []);
+      setSupportTickets(Array.isArray(portal.supportTickets) ? portal.supportTickets : []);
       setFxRates(portal.fxRates || []);
-      setActiveCurrency(
-        (liveWallets[0]?.currency as CustomerCurrency) || CUSTOMER_CONFIG.primaryCurrency,
-      );
+      setActiveCurrency(liveWallets[0]?.currency ?? CUSTOMER_CONFIG.primaryCurrency);
       setDataSource("live");
-    } catch {
-      // Keep seeded catalog; mark as demo. Never block the UI for a data load.
-      setDataSource("demo");
-    } finally {
-      setIsConnecting(false);
+      setPortalError(null);
+      setPortalPhase("ready");
+      // The branded boot overlay waits for this. An error path marks it too:
+      // handing off to a readable error screen is a legitimate completion, and
+      // without it the only exit would be the loader's safety cap.
+      markBootstrapReady();
+    } catch (err: any) {
+      // Honest failure state. The previous behaviour silently painted the mock
+      // catalog, which made an outage look like a healthy account.
+      const { normalizeStatus, normalizeThrown } = await import("@/lib/customer/customerApiError");
+      const normalized =
+        typeof err?.__status === "number" ? normalizeStatus(err.__status, err.__payload) : normalizeThrown(err, !navigator.onLine);
+      setPortalError(normalized);
+      setDataSource("unavailable");
+      setPortalPhase("error");
+      markBootstrapReady();
     }
   }, []);
 
-  // Initialize from LocalStorage + Network Listener + first data load
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedLang = localStorage.getItem("koriepay_customer_lang") as SupportedLanguage;
-      if (savedLang && (savedLang === "en" || savedLang === "ha" || savedLang === "fr")) {
-        setLanguageState(savedLang);
+  /* ------------------------------------------------- transaction history */
+
+  const runHistoryQuery = useCallback(
+    async (cursor: string | null, append: boolean, silent: boolean) => {
+      if (typeof window === "undefined") return;
+      const seq = ++historyRequestSeq.current;
+      if (!silent) setHistoryPhase("loading");
+      // Keep prior rows visible during a silent refresh, clear them otherwise
+      // so a "loading" skeleton is not layered over stale numbers.
+      if (!append && !silent) setHistoryItems([]);
+
+      const qs = historyQuery(historyFilters, cursor);
+      const result = await safeFetch<any>(
+        `/api/customer/portal/transactions?${qs}`,
+        { headers: { Accept: "application/json" } },
+        { timeoutMs: PORTAL_TIMEOUT_MS, isOffline: !navigator.onLine },
+      );
+
+      // A newer request superseded this one → drop it, never race the UI.
+      if (seq !== historyRequestSeq.current) return;
+
+      if (!result.ok) {
+        setHistoryError(result.error);
+        setHistoryPhase("error");
+        if (append) setHistoryHasMore(false);
+        return;
       }
-      const savedHide = localStorage.getItem("koriepay_hide_balance");
-      if (savedHide) setIsBalanceHidden(savedHide === "true");
 
-      const handleOnline = () => setIsOffline(false);
-      const handleOffline = () => setIsOffline(true);
-      window.addEventListener("online", handleOnline);
-      window.addEventListener("offline", handleOffline);
-      setIsOffline(!navigator.onLine);
+      const rows: CustomerTransaction[] = result.data?.transactions ?? [];
+      const pagination = result.data?.pagination ?? {};
+      setHistoryItems((prev) => (append ? dedupeById([...prev, ...rows]) : rows));
+      setHistoryHasMore(Boolean(pagination.hasMore));
+      setHistoryNextCursor(pagination.nextCursor ?? null);
+      setHistoryTotalCount(Number(pagination.totalCount ?? rows.length));
+      setHistoryUpdatedAt(result.data?.generatedAt ?? new Date().toISOString());
+      setHistoryError(null);
+      setHistoryPhase("ready");
+    },
+    [historyFilters],
+  );
 
-      if (!hydrated.current) {
-        hydrated.current = true;
-        loadPortal();
-      }
+  const loadHistory = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      await runHistoryQuery(null, false, Boolean(opts?.silent));
+    },
+    [runHistoryQuery],
+  );
 
-      return () => {
-        window.removeEventListener("online", handleOnline);
-        window.removeEventListener("offline", handleOffline);
-      };
+  const loadMoreHistory = useCallback(async () => {
+    if (!historyNextCursor || historyPhase === "loading") return;
+    await runHistoryQuery(historyNextCursor, true, true);
+  }, [historyNextCursor, historyPhase, runHistoryQuery]);
+
+  const setHistoryFilters = useCallback((next: Partial<HistoryFilters>) => {
+    setHistoryFiltersState((prev) => ({ ...prev, ...next }));
+  }, []);
+
+  /* --------------------------------------------------------- notifications */
+
+  const refreshNotifications = useCallback(async () => {
+    if (typeof window === "undefined") return;
+    setNotificationsPhase("loading");
+    const result = await safeFetch<any>("/api/customer/portal/notifications", {}, {
+      timeoutMs: PORTAL_TIMEOUT_MS,
+      isOffline: !navigator.onLine,
+    });
+    if (!result.ok) {
+      // No fabricated badge. A failed read is shown as "unavailable".
+      setNotifications([]);
+      setNotificationsCount(0);
+      setNotificationsPhase("error");
+      return;
     }
-  }, [loadPortal]);
+    setNotifications(Array.isArray(result.data?.notifications) ? result.data.notifications : []);
+    setNotificationsCount(Number(result.data?.unreadCount ?? 0));
+    setNotificationsPhase("ready");
+  }, []);
+
+  /* ------------------------------------------------------------- bootstrap */
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const savedLang = localStorage.getItem("koriepay_customer_lang") as SupportedLanguage;
+    if (savedLang && (savedLang === "en" || savedLang === "ha" || savedLang === "fr")) {
+      setLanguageState(savedLang);
+    }
+    const savedHide = localStorage.getItem("koriepay_hide_balance");
+    if (savedHide) setIsBalanceHidden(savedHide === "true");
+
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    setIsOffline(!navigator.onLine);
+
+    if (!hydrated.current) {
+      hydrated.current = true;
+      void loadPortal();
+      void loadHistory();
+      void refreshNotifications();
+    }
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+    // Mount-only bootstrap; loaders are stable refs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadPortal, refreshNotifications]);
+
+  // Re-query history whenever the server-side filters change.
+  useEffect(() => {
+    if (!hydrated.current) return;
+    void loadHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [historyFilters]);
+
+  /* --------------------------------------------------------- preferences */
 
   const setLanguage = (lang: SupportedLanguage) => {
     setLanguageState(lang);
@@ -226,6 +434,8 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
 
   const activeWallet = wallets.find((w) => w.currency === activeCurrency) || wallets[0];
 
+  /* ------------------------------------------------------------- modals */
+
   const openReceipt = (tx: CustomerTransaction) => {
     setSelectedReceiptTx(tx);
     setIsReceiptModalOpen(true);
@@ -243,126 +453,161 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
     setDisputeTx(null);
   };
 
-  const submitDispute = async (category: string, description: string): Promise<string> => {
-    const ticketId = `KP-DISP-${Math.floor(10000 + Math.random() * 90000)}`;
-    const newTicket: SupportTicket = {
-      id: `tick-${Date.now()}`,
-      ticketNumber: ticketId,
-      subject: `Claim on Tx: ${disputeTx?.reference || "Dispute"}`,
-      category: "TRANSACTION_DISPUTE",
-      transactionReference: disputeTx?.reference,
-      status: "OPEN",
-      priority: "HIGH",
-      description,
-      lastReplyBy: "System Dispatcher",
-      lastReplyAt: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      messages: [
-        { id: `msg-${Date.now()}`, sender: "CUSTOMER", senderName: customer.fullName, message: description, timestamp: "Just now" },
-      ],
-    };
-    setSupportTickets((prev) => [newTicket, ...prev]);
-    closeDispute();
-    return ticketId;
-  };
+  /* ------------------------------------------------------------ mutations */
 
-  const toggleCardFreeze = (cardId: string) => {
-    setCards((prev) => prev.map((c) => (c.id === cardId ? { ...c, status: c.status === "ACTIVE" ? "FROZEN" : "ACTIVE" } : c)));
-  };
+  /** After any money movement: re-read the authoritative sources. Never
+   *  mutate balances in the client — §68 of the portal brief. */
+  const invalidateFinancialState = useCallback(async () => {
+    await Promise.all([loadPortal(), loadHistory({ silent: true }), refreshNotifications()]);
+  }, [loadPortal, loadHistory, refreshNotifications]);
 
-  const saveBeneficiary = (ben: Omit<Beneficiary, "id">) => {
-    setBeneficiaries((prev) => [{ ...ben, id: `ben-${Date.now()}` }, ...prev]);
-  };
-  const deleteBeneficiary = (id: string) => {
+  const submitDispute = useCallback(
+    async (
+      category: string,
+      description: string,
+    ): Promise<{ ok: true; ticketNumber: string } | { ok: false; error: string }> => {
+      const result = await safeFetch<any>(
+        "/api/customer/portal/disputes",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            category,
+            description,
+            transactionReference: disputeTx?.reference,
+          }),
+        },
+        { timeoutMs: PORTAL_TIMEOUT_MS, isOffline: !navigator.onLine },
+      );
+      if (!result.ok) {
+        closeDispute();
+        return { ok: false, error: result.error.message };
+      }
+      const ticketNumber = result.data?.dispute?.ticketNumber;
+      closeDispute();
+      if (!ticketNumber) {
+        return { ok: false, error: "The claim was received but no case number was returned. Please check back shortly." };
+      }
+      await refreshNotifications();
+      return { ok: true, ticketNumber };
+    },
+    [disputeTx, closeDispute, refreshNotifications],
+  );
+
+  const toggleCardFreeze = useCallback(() => {
+    // Cards are COMING SOON: there is no card to freeze. The action stays
+    // addressable so the service can flip to AVAILABLE without UI changes,
+    // but it must never pretend to have done something.
+    return;
+  }, []);
+
+  const saveBeneficiary = useCallback(
+    async (
+      beneficiary: Omit<Beneficiary, "id">,
+    ): Promise<{ ok: true; beneficiary: Beneficiary } | { ok: false; error: string }> => {
+      const result = await safeFetch<any>(
+        "/api/customer/portal/beneficiaries",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(beneficiary),
+        },
+        { timeoutMs: PORTAL_TIMEOUT_MS, isOffline: !navigator.onLine },
+      );
+      if (!result.ok) return { ok: false, error: result.error.message };
+      const created = result.data?.beneficiary as Beneficiary | undefined;
+      if (!created) return { ok: false, error: "The payee wasn't saved. Please try again." };
+      setBeneficiaries((prev) => [created, ...prev]);
+      return { ok: true, beneficiary: created };
+    },
+    [],
+  );
+
+  const deleteBeneficiary = useCallback(async (id: string) => {
+    const result = await safeFetch<any>(
+      `/api/customer/portal/beneficiaries?id=${encodeURIComponent(id)}`,
+      { method: "DELETE" },
+      { timeoutMs: PORTAL_TIMEOUT_MS, isOffline: !navigator.onLine },
+    );
+    if (!result.ok) return { ok: false, error: result.error.message };
     setBeneficiaries((prev) => prev.filter((b) => b.id !== id));
-  };
+    return { ok: true };
+  }, []);
 
-  const executeTransfer = async (
-    params: TransferExecutionParams
-  ): Promise<{ success: boolean; transaction?: CustomerTransaction; error?: string }> => {
-    if (isOffline) {
-      return { success: false, error: "Network connection offline. Transfer blocked for safety." };
-    }
+  const executeTransfer = useCallback(
+    async (
+      params: TransferExecutionParams,
+    ): Promise<{ success: boolean; transaction?: CustomerTransaction; error?: string }> => {
+      if (isOffline) {
+        return { success: false, error: "You're offline. We didn't send the transfer — nothing left your account." };
+      }
+      if (!params.amount || params.amount <= 0) return { success: false, error: "Enter a valid amount." };
+      const sourceWallet = wallets.find((w) => w.currency === params.currency);
+      if (!sourceWallet) return { success: false, error: "No wallet is available for that currency yet." };
 
-    // Invalid / short-circuit client validation.
-    if (!params.amount || params.amount <= 0) return { success: false, error: "Enter a valid amount." };
-    const sourceWallet = wallets.find((w) => w.currency === params.currency);
-    if (!sourceWallet) return { success: false, error: "Source wallet not found." };
-
-    try {
+      // Idempotency: one key per user intent, reused across retries of THIS
+      // submit, so a double-click or a retry after a timeout cannot create two
+      // transfers. (Server-side persistence is tracked in the integration plan.)
       const res = await portalFetch("/api/customer/portal/transfer", {
         method: "POST",
+        headers: { "Idempotency-Key": `cust-${Date.now()}-${Math.random().toString(36).slice(2, 10)}` },
         body: JSON.stringify({ ...params }),
       });
-      const json = await res.json();
+      const json = await res.json().catch(() => undefined);
       if (!res.ok) {
-        return { success: false, error: json?.error?.message || "Transfer could not be completed. Please try again." };
+        return {
+          success: false,
+          error:
+            json?.error?.message ||
+            "Transfer could not be completed. No money has left your account.",
+        };
       }
       const tx = json?.data?.transaction;
-      if (!tx) return { success: false, error: "No transaction returned from the server." };
+      if (!tx) {
+        return {
+          success: false,
+          error: "We didn't receive a confirmation from the banking service. Please check your history before retrying.",
+        };
+      }
 
-      // Authority: reflect the server-returned transaction and refresh balances.
-      setTransactions((prev) => [tx, ...prev]);
-      await loadPortal();
+      // Do NOT optimistically prepend: the invalidated reads fetch the
+      // authoritative row, so the UI cannot diverge from the ledger.
+      await invalidateFinancialState();
       return { success: true, transaction: tx };
-    } catch (e: any) {
-      return { success: false, error: "Transfer could not be completed. Please check your connection and try again." };
-    }
-  };
+    },
+    [isOffline, wallets, invalidateFinancialState],
+  );
 
-  const executeBillPayment = async (params: {
-    billerCategory: string;
-    billerProvider: string;
-    meterOrPhone: string;
-    amount: number;
-    currency: CustomerCurrency;
-  }): Promise<{ success: boolean; token?: string; transaction?: CustomerTransaction; error?: string }> => {
-    if (isOffline) return { success: false, error: "Network connection offline." };
-    const sourceWallet = wallets.find((w) => w.currency === params.currency);
-    if (!sourceWallet || sourceWallet.availableBalance < params.amount) {
-      return { success: false, error: "Insufficient balance for bill payment." };
-    }
-
-    const isElectricity = params.billerCategory === "ELECTRICITY";
-    const totalDebit = params.amount + (isElectricity ? 100 : 0);
-    const generatedToken = isElectricity
-      ? `${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`
-      : undefined;
-
-    setWallets((prev) =>
-      prev.map((w) =>
-        w.currency === params.currency
-          ? { ...w, availableBalance: w.availableBalance - totalDebit, ledgerBalance: w.ledgerBalance - totalDebit, dailySpent: w.dailySpent + totalDebit }
-          : w
-      )
-    );
-
-    const newTx: CustomerTransaction = {
-      id: `tx-bill-${Date.now()}`,
-      reference: `KP-2026-BILL-${Math.floor(10000 + Math.random() * 90000)}`,
-      type: isElectricity ? "BILL_ELECTRICITY" : "BILL_AIRTIME",
-      title: `${params.billerProvider} Payment`,
-      description: `Bill settlement for ${params.meterOrPhone}`,
-      amount: params.amount,
-      fee: isElectricity ? 100 : 0,
-      totalAmount: totalDebit,
-      currency: params.currency,
-      direction: "OUTWARD",
-      status: "SUCCESSFUL",
-      billerCategory: params.billerCategory,
-      billerProvider: params.billerProvider,
-      billerCustomerToken: generatedToken,
-      category: "BILLS",
-      createdAt: new Date().toISOString(),
-      completedAt: new Date().toISOString(),
-      timeline: [
-        { title: "Bill Payment Dispatched", description: "Direct Provider Gateway Vending", timestamp: "Just now", status: "COMPLETED" },
-        { title: "Receipt Generated", description: generatedToken ? `Token: ${generatedToken}` : "Delivered to device", timestamp: "Just now", status: "COMPLETED" },
-      ],
-    };
-    setTransactions((prev) => [newTx, ...prev]);
-    return { success: true, token: generatedToken, transaction: newTx };
-  };
+  /**
+   * Bills are COMING_SOON in CUSTOMER_CONFIG. `executeBillPayment` used to
+   * fabricate a token, a reference and a balance mutation entirely in the
+   * browser. That is now removed: no service call, no ledger write ⇒ no
+   * customer-visible transaction. When the bills rail lands, this function
+   * should POST to a /portal/bills route and read back the engine result —
+   * the same shape executeTransfer uses.
+   */
+  const executeBillPayment = useCallback(
+    async (params: {
+      billerCategory: string;
+      billerProvider: string;
+      meterOrPhone: string;
+      amount: number;
+      currency: CustomerCurrency;
+    }): Promise<{ success: boolean; token?: string; transaction?: CustomerTransaction; error?: string }> => {
+      void params;
+      if (!isServiceAvailable("bills")) {
+        return {
+          success: false,
+          error:
+            getServiceStatus("bills") === "COMING_SOON"
+              ? "Bill payments are coming soon and aren't available on your account yet."
+              : "Bill payments are temporarily unavailable.",
+        };
+      }
+      return { success: false, error: "Bill payments aren't connected yet, so nothing was submitted." };
+    },
+    [],
+  );
 
   return (
     <CustomerContext.Provider
@@ -381,13 +626,32 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
         setLanguage,
         t,
         transactions,
+        transactionsTotalCount,
+        historyPhase,
+        historyItems,
+        historyError,
+        historyHasMore,
+        historyNextCursor,
+        historyTotalCount,
+        historyUpdatedAt,
+        historyFilters,
+        setHistoryFilters,
+        loadHistory,
+        loadMoreHistory,
+        portalPhase,
+        portalError,
+        isConnecting: portalPhase === "loading",
+        dataSource,
+        refreshPortal: loadPortal,
         beneficiaries,
         cards,
         supportTickets,
         isOffline,
-        dataSource,
-        isConnecting,
         fxRates,
+        notifications,
+        notificationsCount,
+        notificationsPhase,
+        refreshNotifications,
         isReceiptModalOpen,
         selectedReceiptTx,
         openReceipt,
@@ -402,12 +666,23 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
         toggleCardFreeze,
         saveBeneficiary,
         deleteBeneficiary,
-        notificationsCount,
       }}
     >
       {children}
     </CustomerContext.Provider>
   );
+}
+
+/** Cursor pagination must never show a row twice if pages overlap by one. */
+function dedupeById(rows: CustomerTransaction[]): CustomerTransaction[] {
+  const seen = new Set<string>();
+  const out: CustomerTransaction[] = [];
+  for (const r of rows) {
+    if (seen.has(r.id)) continue;
+    seen.add(r.id);
+    out.push(r);
+  }
+  return out;
 }
 
 export function useCustomer() {

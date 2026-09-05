@@ -33,7 +33,7 @@ export default function AggregatorReconciliationPage() {
         <div>
           <h1 className="text-xl sm:text-2xl font-black text-white">Three-Way Financial Reconciliation</h1>
           <p className="text-xs text-slate-400">
-            Automated proof matching: Aggregator Ledger ↔ Banking Provider Nodes (Providus/Koris) ↔ Agent/Merchant Wallets
+            Automated proof matching: Aggregator Ledger ↔ Banking Provider Nodes (Providus/Coris) ↔ Agent/Merchant Wallets
           </p>
         </div>
         <button

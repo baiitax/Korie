@@ -18,7 +18,7 @@ export const SandboxSimulatorModal: React.FC<{ isOpen: boolean; onClose: () => v
   const scenarios = [
     { id: 'SUCCESS_TRANSFER', name: 'Simulate Successful Bilateral Transfer', desc: 'Debits source ledger and credits beneficiary bank in sub-second SLA.' },
     { id: 'INSUFFICIENT_FUNDS', name: 'Simulate Insufficient Balance (HTTP 400)', desc: 'Validates system behavior when wallet balance is lower than transaction amount + fee.' },
-    { id: 'TIMEOUT_SWITCH', name: 'Simulate Upstream Switch Timeout (HTTP 504)', desc: 'Simulates Providus NIP or Koris WAEMU downstream latency threshold.' },
+    { id: 'TIMEOUT_SWITCH', name: 'Simulate Upstream Switch Timeout (HTTP 504)', desc: 'Simulates Providus NIP or Coris WAEMU downstream latency threshold.' },
     { id: 'DUPLICATE_IDEMPOTENCY', name: 'Simulate Duplicate Idempotency Key (HTTP 409)', desc: 'Tests duplicate request locking and race-condition prevention.' },
   ];
 
@@ -126,8 +126,8 @@ export const SandboxSimulatorModal: React.FC<{ isOpen: boolean; onClose: () => v
                   onChange={e => setCorridor(e.target.value as any)}
                   className="w-full bg-slate-950 border border-white/10 rounded-xl p-2 text-xs font-mono text-white focus:outline-none"
                 >
-                  <option value="NGN_TO_XOF">🇳🇬 NGN (Providus) → 🇳🇪 XOF (Koris)</option>
-                  <option value="XOF_TO_NGN">🇳🇪 XOF (Koris) → 🇳🇬 NGN (Providus)</option>
+                  <option value="NGN_TO_XOF">🇳🇬 NGN (Providus) → 🇳🇪 XOF (Coris)</option>
+                  <option value="XOF_TO_NGN">🇳🇪 XOF (Coris) → 🇳🇬 NGN (Providus)</option>
                 </select>
               </div>
               <div>

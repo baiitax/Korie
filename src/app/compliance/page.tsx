@@ -443,7 +443,7 @@ export default function ComplianceDashboardPage() {
             </div>
             <div>
               <h2 className="text-base font-bold text-white">Live Transaction Risk Telemetry</h2>
-              <p className="text-xs text-slate-400">Real-time risk scoring across banking nodes (Providus NG & Koris NE)</p>
+              <p className="text-xs text-slate-400">Real-time risk scoring across banking nodes (Providus NG & Coris NE)</p>
             </div>
           </div>
           <Link

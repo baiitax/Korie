@@ -33,7 +33,7 @@ export default function AggregatorMerchantsPage() {
         <div>
           <h1 className="text-xl sm:text-2xl font-black text-white">Merchant Acquiring Network</h1>
           <p className="text-xs text-slate-400">
-            Supervise enterprise retail chains, wholesale distributors, POS standees, and Providus/Koris settlement routes
+            Supervise enterprise retail chains, wholesale distributors, POS standees, and Providus/Coris settlement routes
           </p>
         </div>
       </div>

@@ -15,7 +15,7 @@ Production access is never automatically issued merely upon passing sandbox requ
                  │
                  ▼
 +------------------------------------+
-| 3. Settlement Bank Binding         | -> Providus NUBAN or Koris WAEMU IBAN
+| 3. Settlement Bank Binding         | -> Providus NUBAN or Coris WAEMU IBAN
 +------------------------------------+
                  │
                  ▼

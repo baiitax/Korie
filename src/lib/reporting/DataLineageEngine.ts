@@ -42,7 +42,7 @@ export class DataLineageEngine {
       },
       {
         reportCell: 'BCEAO-M08-L2 (Total Émetteur Circulating Float)',
-        metricName: 'MTR-FIN-002 (Koris Niger Total E-Money Float)',
+        metricName: 'MTR-FIN-002 (Coris Niger Total E-Money Float)',
         dataset: 'ds_bceao_monthly_eme_liquidity_v2026_08',
         martTable: 'financial_mart.fact_daily_balances',
         warehouseFact: 'dw.fact_ledger_postings (GL 2100-XOF)',

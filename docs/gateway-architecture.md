@@ -37,7 +37,7 @@ KoriePay implements a centralized API Gateway and Integration Control Plane. The
                       ┌──────────────────────────────┼──────────────────────────────┐
                       ▼                              ▼                              ▼
              [Internal APIs]                [Partner APIs]                 [Provider Adapters]
-             (Core Banking / Admin)         (Transfers, KYC, QR)           (Providus NG, Koris NE)
+             (Core Banking / Admin)         (Transfers, KYC, QR)           (Providus NG, Coris NE)
                                                      │
                                                      ▼
                                       ┌─────────────────────────────┐

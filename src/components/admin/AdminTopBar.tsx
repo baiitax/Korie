@@ -147,7 +147,7 @@ export const AdminTopBar: React.FC = () => {
                 </div>
                 <div className="p-2 rounded-lg bg-slate-900/80 pt-2">
                   <div className="text-emerald-400 font-bold text-[11px]">Banking Nodes 100% Operational</div>
-                  <div className="text-slate-300 text-[11px] mt-0.5">Providus & Koris gateways healthy with sub-200ms latency.</div>
+                  <div className="text-slate-300 text-[11px] mt-0.5">Providus & Coris gateways healthy with sub-200ms latency.</div>
                 </div>
               </div>
             </div>

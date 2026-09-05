@@ -48,7 +48,7 @@ export const MOCK_SUPPORT_OFFICERS: SupportOfficer[] = [
     status: 'ONLINE',
     qaScore: 92.0,
     avatarUrl: '/avatars/abdoul.jpg',
-    skills: ['XOF Transfers', 'Koris Node', 'Merchant Payouts', 'French Support'],
+    skills: ['XOF Transfers', 'Coris Node', 'Merchant Payouts', 'French Support'],
     joinedDate: '2026-07-01',
   },
   {
@@ -125,7 +125,7 @@ export const MOCK_SUPPORT_OFFICERS: SupportOfficer[] = [
     maxCapacity: 10,
     status: 'ONLINE',
     qaScore: 98.0,
-    skills: ['Webhook Replay', 'API Latency', 'Providus & Koris Rail Diagnostics'],
+    skills: ['Webhook Replay', 'API Latency', 'Providus & Coris Rail Diagnostics'],
     joinedDate: '2025-04-12',
   },
 ];
@@ -590,7 +590,7 @@ export const MOCK_SUPPORT_PLAYBOOKS: SupportPlaybook[] = [
       {
         stepNumber: 1,
         title: 'Verify Settlement Batch ID & Banking Rails',
-        instructions: 'Locate the merchant batch reference in the settlement ledger. Check if Providus (NG) or Koris (NE) batch run is finalized.',
+        instructions: 'Locate the merchant batch reference in the settlement ledger. Check if Providus (NG) or Coris (NE) batch run is finalized.',
         checklistItems: ['Batch ID matched', 'Bank account details validated', 'No compliance hold active'],
         recommendedAction: 'Check Treasury balance on payout node.',
       },
@@ -819,7 +819,7 @@ export const MOCK_TRAINING_MODULES: TrainingModule[] = [
     completed: true,
     score: 100,
     certificationName: 'KoriePay Certified Junior Operator (Level 1)',
-    keySkills: ['Providus Virtual NUBANs', 'Koris XOF Clearing', 'Ledger Basics'],
+    keySkills: ['Providus Virtual NUBANs', 'Coris XOF Clearing', 'Ledger Basics'],
   },
   {
     id: 'MOD-02',

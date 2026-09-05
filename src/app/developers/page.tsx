@@ -190,7 +190,7 @@ export default function DevelopersLandingPage() {
           <div className="p-4 rounded-2xl bg-slate-900/80 border border-white/5 space-y-2">
             <div className="text-xs font-mono font-bold text-teal-400">04. GO LIVE</div>
             <div className="font-bold text-white text-sm">Production Settlement</div>
-            <p className="text-xs text-slate-400">Submit settlement bank verification (Providus/Koris) to receive live production secret keys.</p>
+            <p className="text-xs text-slate-400">Submit settlement bank verification (Providus/Coris) to receive live production secret keys.</p>
           </div>
         </div>
       </div>

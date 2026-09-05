@@ -512,7 +512,7 @@ export default function IntelligenceAdminPage() {
           <div className="p-5 bg-slate-900/60 border border-white/10 rounded-2xl">
             <h2 className="text-base font-bold text-white">Ecosystem Network Topology & Concentration Graph</h2>
             <p className="text-xs text-slate-400">
-              Graph modeling relationships between Bank Nodes (Providus/Koris), Agent Hubs, Merchants, and POS Hardware Terminals.
+              Graph modeling relationships between Bank Nodes (Providus/Coris), Agent Hubs, Merchants, and POS Hardware Terminals.
             </p>
           </div>
 

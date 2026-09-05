@@ -3,7 +3,7 @@
 ## 1. Runbook Index
 - **DR-SOP-01**: Primary Database Outage & Point-In-Time Restoration
 - **DR-SOP-02**: Core Double-Entry Ledger Invariant Violation Response
-- **DR-SOP-03**: Payment Switch / Banking Partner Outage (Providus / Koris)
+- **DR-SOP-03**: Payment Switch / Banking Partner Outage (Providus / Coris)
 - **DR-SOP-04**: Dead-Letter Queue (DLQ) Mass Failure & Idempotent Replay
 - **DR-SOP-05**: Credential / API Secret Compromise Rotation Protocol
 

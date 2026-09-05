@@ -26,7 +26,7 @@ export const merchantFr = {
     settings: "Paramètres",
     logout: "Se Déconnecter",
     posTerminals: "Terminaux POS & QR Standees",
-    settlementNode: "Passerelle de Règlement Providus / Koris",
+    settlementNode: "Passerelle de Règlement Providus / Coris",
   },
   payments: {
     title: "Encaissements de Paiements",

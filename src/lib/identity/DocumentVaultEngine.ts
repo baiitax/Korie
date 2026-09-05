@@ -57,7 +57,11 @@ export class DocumentVaultEngine {
   }): IdentityDocumentRecord {
     this.ensureInitialized();
     const id = `doc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const hash = `sha256_${Math.random().toString(36).substring(2, 10)}_${Date.now()}`;
+    // Placeholder only. A sha256 is an integrity claim, so it must come from
+    // the actual received bytes — callers use attestIntegrity() once they have
+    // hashed the upload. Random hex here previously asserted a digest that
+    // corresponded to no file at all.
+    const hash = 'PENDING_INTEGRITY_ATTESTATION';
 
     const doc: IdentityDocumentRecord = {
       id,
@@ -75,6 +79,32 @@ export class DocumentVaultEngine {
     };
 
     this.documents.set(id, doc);
+    return doc;
+  }
+
+  /**
+   * Bind the real SHA-256 digest of the stored bytes to a vault record.
+   * Returns false when the document does not exist. This is the only way a
+   * hash should ever be written after registration.
+   */
+  public static attestIntegrity(documentId: string, sha256Hex: string): boolean {
+    this.ensureInitialized();
+    const doc = this.documents.get(documentId);
+    if (!doc) return false;
+    if (!/^[a-f0-9]{64}$/.test(sha256Hex)) return false;
+    doc.fileSha256Hash = sha256Hex;
+    return true;
+  }
+
+  /**
+   * Ownership-scoped lookup. Callers in the customer portal must use this
+   * rather than reaching into the map, so a guessed document id cannot return
+   * another person's record.
+   */
+  public static getDocumentForIdentity(documentId: string, identityId: string): IdentityDocumentRecord | null {
+    this.ensureInitialized();
+    const doc = this.documents.get(documentId);
+    if (!doc || doc.identityId !== identityId) return null;
     return doc;
   }
 

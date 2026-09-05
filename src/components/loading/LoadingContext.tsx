@@ -73,6 +73,17 @@ interface LoadingManager {
   showFullScreen: (opts?: FullScreenOptions) => void;
   hideFullScreen: () => void;
 
+  /**
+   * Whether the first authoritative data load has resolved. The branded
+   * bootstrap overlay waits for this so a customer never sees an
+   * "empty" shell for a beat and then a jump-cut to data — and so the
+   * overlay is never dismissed while the app is still loading.
+   */
+  bootstrapReady: boolean;
+  markBootstrapReady: () => void;
+  /** Re-arm (e.g. after sign-out) so the next session's bootstrap waits again. */
+  resetBootstrapReady: () => void;
+
   /** Financial transaction overlay (real state only). */
   transaction: TransactionOptions | null;
   beginTransaction: (opts: TransactionOptions) => void;
@@ -87,6 +98,10 @@ export function LoadingProvider({ children }: { children: React.ReactNode }) {
 
   const [fullScreen, setFullScreen] = useState<FullScreenOptions | null>(null);
   const [transaction, setTransaction] = useState<TransactionOptions | null>(null);
+  const [bootstrapReady, setBootstrapReady] = useState(false);
+
+  const markBootstrapReady = useCallback(() => setBootstrapReady(true), []);
+  const resetBootstrapReady = useCallback(() => setBootstrapReady(false), []);
 
   // Refs so callbacks never go stale.
   const fullScreenRef = useRef<FullScreenOptions | null>(null);
@@ -126,6 +141,9 @@ export function LoadingProvider({ children }: { children: React.ReactNode }) {
         fullScreen,
         showFullScreen,
         hideFullScreen,
+        bootstrapReady,
+        markBootstrapReady,
+        resetBootstrapReady,
         transaction,
         beginTransaction,
         updateTransactionStatus,

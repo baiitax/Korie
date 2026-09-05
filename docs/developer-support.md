@@ -16,5 +16,5 @@ When a developer opens a ticket from `/developers/support`, the following teleme
 
 ## 2. Developer Escalation Tiers
 1. **Tier 1 Support Officer**: Inspects attached trace logs, verifies parameters, and matches against verified playbooks.
-2. **Tier 2 API Specialist**: Investigates banking node webhooks and Providus/Koris upstream switch status.
+2. **Tier 2 API Specialist**: Investigates banking node webhooks and Providus/Coris upstream switch status.
 3. **Platform Engineering / SRE**: Debugs edge gateway infrastructure and clears banking network locks.

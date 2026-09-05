@@ -33,7 +33,7 @@ export class ReverseStressEngine {
         recommendedBackstopBuffer: 800000000,
       },
       {
-        scenarioName: 'Providus & Koris Rail Timeout (T+3)',
+        scenarioName: 'Providus & Coris Rail Timeout (T+3)',
         maximumDailyWithdrawalSpike: 300000000,
         maximumSettlementDelayDays: 4,
         maximumSurvivableDaysBeforeCrisis: 9,

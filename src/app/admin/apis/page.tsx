@@ -269,7 +269,7 @@ export default function ApiGatewayAdminPage() {
               ENTERPRISE INTEGRATION FABRIC &amp; API GATEWAY
             </span>
             <span className="px-2.5 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              ● NGN (Providus) &amp; XOF (Koris) RAILS ACTIVE
+              ● NGN (Providus) &amp; XOF (Coris) RAILS ACTIVE
             </span>
           </div>
           <h1 className="text-xl sm:text-2xl font-extrabold text-white mt-1">
@@ -332,7 +332,7 @@ export default function ApiGatewayAdminPage() {
           </div>
           <div className="text-2xl font-extrabold text-white">2 Live Nodes</div>
           <div className="text-[10px] text-cyan-400 font-mono">
-            🇳🇬 Providus ({summary?.providusBankLatencyMs || 142}ms) • 🇳🇪 Koris ({summary?.korisBankLatencyMs || 188}ms)
+            🇳🇬 Providus ({summary?.providusBankLatencyMs || 142}ms) • 🇳🇪 Coris ({summary?.korisBankLatencyMs || 188}ms)
           </div>
         </div>
 

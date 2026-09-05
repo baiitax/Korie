@@ -3,10 +3,19 @@
 import React from "react";
 import Link from "next/link";
 import { useCustomer } from "@/components/customer/CustomerContext";
+import CustomerProfileGate from "@/components/customer/ui/CustomerProfileGate";
 import { ArrowLeft, ShieldCheck, Globe, Lock, LogOut, ChevronRight, Phone, Mail } from "lucide-react";
 
 export default function CustomerProfilePage() {
   const { customer, t } = useCustomer();
+
+  if (!customer) {
+    return (
+      <CustomerProfileGate labelKey="common.loading">
+        {null}
+      </CustomerProfileGate>
+    );
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-2xl mx-auto">

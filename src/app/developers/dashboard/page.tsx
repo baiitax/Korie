@@ -114,7 +114,7 @@ export default function DeveloperDashboardPage() {
           <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-white/5 space-y-1">
             <span className="text-slate-500 block text-[10px]">AVG LATENCY</span>
             <span className="text-teal-300 font-bold text-lg">142ms</span>
-            <span className="text-[10px] text-slate-400 block">Providus / Koris</span>
+            <span className="text-[10px] text-slate-400 block">Providus / Coris</span>
           </div>
           <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-white/5 space-y-1">
             <span className="text-slate-500 block text-[10px]">GO-LIVE READINESS</span>

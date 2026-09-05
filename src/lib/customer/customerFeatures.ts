@@ -30,7 +30,9 @@ export type CustomerServiceId =
   | "fx"
   | "adashi"
   | "sendMoney"
-  | "fund";
+  | "fund"
+  /** In-store merchant QR checkout — no rails wired, so it is not sellable. */
+  | "merchantQr";
 
 export interface CustomerService {
   id: CustomerServiceId;
@@ -103,6 +105,12 @@ export const CUSTOMER_CONFIG: CustomerConfig = {
     fund: {
       id: "fund",
       status: "AVAILABLE",
+    },
+    merchantQr: {
+      id: "merchantQr",
+      status: "COMING_SOON",
+      comingSoonLabel:
+        "QR payments at merchants are coming soon. We’re finishing the merchant settlement rail first.",
     },
   },
 };

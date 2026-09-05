@@ -36,7 +36,6 @@ export default function CustomerFundPage() {
   const [destCurrency, setDestCurrency] = useState<CustomerCurrency>("XOF");
   const [amountStr, setAmountStr] = useState("");
   const [agentId, setAgentId] = useState("");
-  const [reference] = useState(() => `KP-FUND-${Math.floor(10000 + Math.random() * 90000)}`);
   const [copied, setCopied] = useState<string | null>(null);
 
   const destWallet = wallets.find((w) => w.currency === destCurrency) || wallets[0];
@@ -175,8 +174,7 @@ export default function CustomerFundPage() {
 
             <div className="rounded-2xl bg-[var(--surface-elevated)] border border-[var(--border)] divide-y divide-[var(--border)] text-xs">
               <div className="flex items-center justify-between p-3.5"><span className="text-[var(--foreground-muted)]">{t("fund.fundingSource")}</span><span className="font-semibold text-[var(--foreground)]">{source === "AGENT" ? t("fund.agent") : t("fund.bankTransfer")}</span></div>
-              <div className="flex items-center justify-between p-3.5"><span className="text-[var(--foreground-muted)]">{t("fund.destinationAccount")}</span><span className="font-mono font-semibold text-[var(--foreground)]">{destCurrency}</span></div>
-              <div className="flex items-center justify-between p-3.5"><span className="text-[var(--foreground-muted)]">{t("fund.reference")}</span><span className="font-mono font-bold text-[var(--brand-primary)]">{reference}</span></div>
+              <div className="flex items-center justify-between p-3.5"><span className="text-[var(--foreground-muted)]">{t("fund.destinationAccount")}</span><span className="font-mono font-semibold text-[var(--foreground)]">{destCurrency} · {destWallet?.accountNumber ? maskAccountNumber(destWallet.accountNumber) : "—"}</span></div>
             </div>
 
             <div className="flex items-center gap-3 pt-2">
@@ -194,11 +192,10 @@ export default function CustomerFundPage() {
             <div className="text-center space-y-1">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--brand-soft)] text-[var(--brand-primary)] mx-auto"><Store className="h-6 w-6" /></div>
               <h2 className="text-xl font-extrabold text-[var(--foreground)]">{source === "AGENT" ? t("fund.agentInstructionsTitle") : t("fund.bankInstructionsTitle")}</h2>
-              <p className="text-xs text-[var(--foreground-muted)] max-w-md mx-auto">{source === "AGENT" ? t("fund.agentInstructionsBody", { reference }) : t("fund.bankInstructionsBody")}</p>
+              <p className="text-xs text-[var(--foreground-muted)] max-w-md mx-auto">{source === "AGENT" ? t("fund.agentInstructionsBody") : t("fund.bankInstructionsBody")}</p>
             </div>
 
             <div className="rounded-2xl bg-[var(--surface-elevated)] border border-[var(--border)] divide-y divide-[var(--border)] text-xs">
-              <CopyRow copied={copied === "ref"} onCopy={() => copy("ref", reference)} label={t("fund.reference")} value={reference} />
               <CopyRow copied={copied === "bank"} onCopy={() => copy("bank", destWallet?.bankName || "")} label={t("fund.bankName")} value={destWallet?.bankName || "—"} />
               <CopyRow copied={copied === "acct"} onCopy={() => copy("acct", destWallet?.accountNumber || "")} label={t("fund.accountNumber")} value={destWallet?.accountNumber || "—"} />
               <CopyRow copied={copied === "name"} onCopy={() => copy("name", destWallet?.accountName || "")} label={t("fund.accountName")} value={destWallet?.accountName || "—"} />

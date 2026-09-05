@@ -35,7 +35,7 @@ export default function SandboxPage() {
 
   const testCards = [
     { type: 'Providus Verve Debit (NGN)', number: '5061 9920 3819 0012', exp: '12/28', cvv: '123', pin: '1234', behavior: 'SUCCESS (All NGN charges)' },
-    { type: 'Koris WAEMU Visa (XOF)', number: '4111 2233 4455 6677', exp: '08/29', cvv: '456', pin: '0000', behavior: 'SUCCESS (All XOF charges)' },
+    { type: 'Coris WAEMU Visa (XOF)', number: '4111 2233 4455 6677', exp: '08/29', cvv: '456', pin: '0000', behavior: 'SUCCESS (All XOF charges)' },
     { type: 'Insufficient Funds Card', number: '5061 9900 0000 4001', exp: '01/27', cvv: '999', pin: '1234', behavior: 'FAIL 400 (INSUFFICIENT_FUNDS)' },
     { type: 'Declined / Fraud Suspected Card', number: '4111 0000 0000 4031', exp: '03/26', cvv: '000', pin: '9999', behavior: 'FAIL 403 (SANCTION_FLAGGED)' },
   ];
@@ -160,8 +160,8 @@ export default function SandboxPage() {
                 onChange={e => setCorridor(e.target.value as any)}
                 className="w-full bg-slate-900 border border-white/10 rounded-xl p-2 text-white font-bold"
               >
-                <option value="NGN_TO_XOF">🇳🇬 NGN (Providus) → 🇳🇪 XOF (Koris)</option>
-                <option value="XOF_TO_NGN">🇳🇪 XOF (Koris) → 🇳🇬 NGN (Providus)</option>
+                <option value="NGN_TO_XOF">🇳🇬 NGN (Providus) → 🇳🇪 XOF (Coris)</option>
+                <option value="XOF_TO_NGN">🇳🇪 XOF (Coris) → 🇳🇬 NGN (Providus)</option>
               </select>
             </div>
             <div>

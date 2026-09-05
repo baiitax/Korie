@@ -107,7 +107,7 @@ export const CreateTicketModal: React.FC<CreateModalProps> = ({ isOpen, onClose 
                 onChange={(e) => setCategory(e.target.value as TicketCategory)}
                 className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
               >
-                <option value="PENDING_TRANSACTION">Pending Transfer (NIP/Koris)</option>
+                <option value="PENDING_TRANSACTION">Pending Transfer (NIP/Coris)</option>
                 <option value="FAILED_TRANSACTION">Failed Transaction</option>
                 <option value="AGENT_FLOAT">Agent POS Float Discrepancy</option>
                 <option value="MERCHANT_SETTLEMENT">Merchant Daily Settlement</option>

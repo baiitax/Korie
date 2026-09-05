@@ -30,5 +30,5 @@ export interface BankingProduct {
 Every product defines deterministic double-entry accounting rules:
 - **Consumer Wallet NGN**: Dr `Customer Wallet (2010)` / Cr `Operational Pool (1010)`
 - **Agency Float NGN**: Dr `Agent Float (2010)` / Cr `Providus Settlement (1010)`
-- **Sahel XOF Current Account**: Dr `Customer Wallet (2020)` / Cr `Koris Settlement (1020)`
+- **Sahel XOF Current Account**: Dr `Customer Wallet (2020)` / Cr `Coris Settlement (1020)`
 - **Merchant Checkout MDR**: Dr `Merchant Undisbursed (2100)` / Cr `MDR Fee Revenue (4020)`

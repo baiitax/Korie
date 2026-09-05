@@ -1005,7 +1005,7 @@ export default function CashOperationsAdminPage() {
               >
                 <option value="SURGE_CASHOUT_20">+20% Agent Network Cash-Out Surge</option>
                 <option value="CIT_CORRIDOR_SHUTDOWN">24h Armored CIT Corridor Outage</option>
-                <option value="BANK_SETTLEMENT_DELAY">Providus / Koris Settlement Batch Delay</option>
+                <option value="BANK_SETTLEMENT_DELAY">Providus / Coris Settlement Batch Delay</option>
               </select>
 
               <button
