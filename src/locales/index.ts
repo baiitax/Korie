@@ -95,10 +95,17 @@ export function translate(
     return key;
   }
 
-  // Interpolate {{param}} variables
+  // Interpolate {{param}} variables. Both brace styles are supported: the
+  // dictionary mixes `{{param}}` and single-brace `{param}` authors (footer
+  // copyright year, FX rate countdown, Adashi cycle labels, payment and
+  // support strings). Before the single-brace pass existed, those keys
+  // rendered their placeholder verbatim on screen — e.g. "Rate expires in
+  // {secs}s" — because the `{{param}}` pattern never matched.
   if (params) {
     for (const [paramKey, paramValue] of Object.entries(params)) {
-      text = text.replace(new RegExp(`{{${paramKey}}}`, "g"), String(paramValue));
+      const value = String(paramValue);
+      text = text.replace(new RegExp(`\\{\\{${paramKey}\\}\\}`, "g"), value);
+      text = text.replace(new RegExp(`\\{${paramKey}\\}`, "g"), value);
     }
   }
 

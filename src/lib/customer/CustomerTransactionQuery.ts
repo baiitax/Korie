@@ -204,7 +204,12 @@ export function toCustomerTransaction(tx: DbTransaction): CustomerTransaction {
     description: tx.narration || "Settled through KoriePay",
     amount,
     fee,
-    totalAmount: Math.round((amount + fee) * 100) / 100,
+    // The wallet subledger is debited exactly `amount` — the fee is taken from
+    // within it, not added on top (see TransactionService.debitCustomerSubledger
+    // and the GL split: amount → netAmount onward + fee to revenue). Reporting
+    // `amount + fee` here asserted the customer paid more than ever left their
+    // wallet, so the receipt contradicted the balance.
+    totalAmount: amount,
     currency,
     direction: "OUTWARD",
     status: mapEngineStatusToUi(tx.status),

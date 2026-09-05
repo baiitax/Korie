@@ -601,6 +601,7 @@ export const fr = {
   },
   nav: {
     home: "Accueil",
+    adashi: "Adashi",
     payments: "Paiements",
     transfers: "Virements",
     bills: "Factures",
@@ -664,6 +665,7 @@ export const fr = {
     accountName: "Nom du Titulaire du Compte",
     amountToTransfer: "Montant à Envoyer",
     transferFee: "Frais de Transfert",
+    feeIncluded: "Frais de Transfert (inclus)",
     totalDebit: "Montant Total à Débiter",
     descriptionPlaceholder: "Motif du transfert (Optionnel)",
     reviewTransfer: "Vérifier le Virement",
@@ -1315,6 +1317,7 @@ export const fr = {
   adashi: {
     trustedRosca: "Épargne Rotative de Confiance (ROSCA)",
     escrowVault: "Protégé par Coffre Séquestre",
+    hubActive: "Actif",
     title: "Hub d'Épargne Collective Adashi / Ajo",
     subtitle: "Développez la discipline avec des cercles communautaires de confiance. Les tours sont vérifiables, sans frais cachés, avec paiements vers votre portefeuille KoriePay.",
     syncStatus: "Synchroniser",

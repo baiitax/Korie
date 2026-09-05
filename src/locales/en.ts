@@ -592,6 +592,7 @@ export const en = {
   },
   nav: {
     home: "Home",
+    adashi: "Adashi",
     payments: "Payments",
     transfers: "Transfers",
     bills: "Bills",
@@ -655,6 +656,7 @@ export const en = {
     accountName: "Account Holder Name",
     amountToTransfer: "Amount to Send",
     transferFee: "Transfer Fee",
+    feeIncluded: "Transfer Fee (included)",
     totalDebit: "Total Amount to Debit",
     descriptionPlaceholder: "What is this for? (Optional)",
     reviewTransfer: "Review Transfer",
@@ -1302,6 +1304,7 @@ export const en = {
   adashi: {
     trustedRosca: "Trusted Rotating Savings (ROSCA)",
     escrowVault: "Escrow Vault Protected",
+    hubActive: "Active",
     title: "Adashi / Ajo Collective Savings Hub",
     subtitle: "Build discipline with trusted community circles. Rotation turns are verifiable, with no hidden charges and payouts to your KoriePay wallet.",
     syncStatus: "Sync Status",

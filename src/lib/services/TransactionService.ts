@@ -147,7 +147,10 @@ export class TransactionService {
     transactionsStore.set(tx.reference, tx);
 
     // 4. Debit the customer's source-currency wallet subledger (authoritative
-    //    customer balance) for the full source amount (amount + fee).
+    //    customer balance) for the full source amount. The fee is INCLUSIVE:
+    //    it is taken from within `amount` (netAmount goes onward, fee to
+    //    revenue), never added on top — so the portal's "total debit" must
+    //    equal `amount`, and it does (see CustomerTransactionQuery).
     if (params.sourceCustomerId) {
       debitCustomerSubledger({
         customerId: params.sourceCustomerId,

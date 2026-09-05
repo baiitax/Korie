@@ -590,6 +590,7 @@ export const ha = {
   },
   nav: {
     home: "Gida",
+    adashi: "Adashi",
     payments: "Biyan Kuɗi",
     transfers: "Tura Kuɗi",
     bills: "Kuɗin Wuta & Waya",
@@ -653,6 +654,7 @@ export const ha = {
     accountName: "Sunan Mai Asusu",
     amountToTransfer: "Adadin da Za a Aika",
     transferFee: "Kudin Aika Kuɗi",
+    feeIncluded: "Kudin Aika Kuɗi (an haɗa)",
     totalDebit: "Jimillar Kuɗin da Za a Cire",
     descriptionPlaceholder: "Karin bayani kan dalilin tura kuɗi (Na son rai)",
     reviewTransfer: "Duba Bayanin Tura Kuɗi",
@@ -1300,6 +1302,7 @@ export const ha = {
   adashi: {
     trustedRosca: "Ajiye Mai Juyawa Mai Aminci (ROSCA)",
     escrowVault: "Kariyar Asusu (Escrow)",
+    hubActive: "Mai aiki",
     title: "Cibiyar Ajiye Jama'a ta Adashi / Ajo",
     subtitle: "Gina horo tare da ƙungiyoyin al'umma masu aminci. An tabbatar da juyawa, ba a ɓoye kuɗi, da biyan kuɗi zuwa asusun KoriePay.",
     syncStatus: "Daidaita Yanayi",
