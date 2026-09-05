@@ -191,8 +191,8 @@ export const AccountCard: React.FC<AccountCardProps> = ({
             setMenuOpen((v) => !v);
           }}
           className="rounded-full p-1.5 text-[var(--foreground-muted)] transition-colors hover:bg-[var(--surface-3)] hover:text-[var(--foreground)]"
-          aria-label="Account options"
-          title="Account options"
+          aria-label={t("customer.accounts.options")}
+          title={t("customer.accounts.options")}
         >
           <MoreHorizontal className="h-4 w-4" />
         </button>
@@ -220,7 +220,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
 
       {/* Actions menu (contextual; functions the backend actually supports) */}
       {menuOpen && (
-        <div className="absolute bottom-2 right-2 z-20 w-44 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-1 shadow-[var(--shadow-lg)]">
+        <div className="absolute bottom-2 right-2 z-[var(--z-sheet)] w-44 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-1 shadow-[var(--shadow-lg)]">
           <ActionMenuItem icon={<Wallet className="h-3.5 w-3.5" />} label={t("customer.accounts.transfer")} />
           <ActionMenuItem icon={<ArrowDownLeft className="h-3.5 w-3.5" />} label={t("customer.accounts.fund")} />
           <ActionMenuItem icon={<ArrowUpRight className="h-3.5 w-3.5" />} label={t("customer.accounts.withdraw")} />

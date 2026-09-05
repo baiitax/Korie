@@ -183,7 +183,7 @@ function SupportInner() {
           </div>
         </div>
         <button onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-bold text-xs transition-colors shadow-[var(--shadow-md)]">
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-on-primary)] font-bold text-xs transition-colors shadow-[var(--shadow-md)]">
           <Plus className="w-4 h-4" /><span>{t("support.createNewTicket")}</span>
         </button>
       </div>
@@ -292,7 +292,7 @@ function SupportInner() {
                 <CheckCircle2 className="w-12 h-12 text-[var(--success)] mx-auto" />
                 <h4 className="text-base font-bold text-[var(--foreground)]">{t("support.caseOpenedTitle")}</h4>
                 <p className="text-xs text-[var(--foreground-muted)]">{t("support.ticketCreated", { ticketNumber: createdTicketId })}</p>
-                <button onClick={handleCloseModal} className="w-full py-2.5 rounded-xl bg-[var(--brand-primary)] text-white font-bold text-xs hover:bg-[var(--brand-primary-hover)]">{t("common.done")}</button>
+                <button onClick={handleCloseModal} className="w-full py-2.5 rounded-xl bg-[var(--brand-primary)] text-[var(--brand-on-primary)] font-bold text-xs hover:bg-[var(--brand-primary-hover)]">{t("common.done")}</button>
               </div>
             ) : (
               <form onSubmit={handleCreateTicket} className="space-y-4 text-xs">
@@ -312,7 +312,7 @@ function SupportInner() {
                 {formError && (
                   <p className="text-[11px] font-semibold text-[var(--danger)]" role="alert">{formError}</p>
                 )}
-                <button type="submit" disabled={submitting} className="w-full py-3 rounded-xl bg-[var(--brand-primary)] text-white font-bold text-xs hover:bg-[var(--brand-primary-hover)] disabled:opacity-60 shadow-[var(--shadow-md)]">
+                <button type="submit" disabled={submitting} className="w-full py-3 rounded-xl bg-[var(--brand-primary)] text-[var(--brand-on-primary)] font-bold text-xs hover:bg-[var(--brand-primary-hover)] disabled:opacity-60 shadow-[var(--shadow-md)]">
                   {submitting ? t("support.submitting") : t("support.submitTicket")}
                 </button>
               </form>

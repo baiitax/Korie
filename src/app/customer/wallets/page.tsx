@@ -184,7 +184,7 @@ export default function CustomerWalletsPage() {
                 <Link
                   href="/customer/send-money"
                   onClick={() => setActiveCurrency(w.currency)}
-                  className="flex-1 py-3 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-bold text-xs text-center transition-colors shadow-[var(--shadow-md)] min-h-[44px] inline-flex items-center justify-center gap-1.5"
+                  className="flex-1 py-3 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-on-primary)] font-bold text-xs text-center transition-colors shadow-[var(--shadow-md)] min-h-[44px] inline-flex items-center justify-center gap-1.5"
                 >
                   <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" /> {t("customer.wallets.sendMoney")}
                 </Link>

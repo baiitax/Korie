@@ -106,6 +106,13 @@ function isLive(doc: IdentityDocumentRecord, now: number): boolean {
   return new Date(doc.expiresAt).getTime() > now;
 }
 
+/** Step id → the dictionary verb that fits it. Document steps need an upload;
+ * everything else is a form the customer continues. */
+const ACTION_VERB_BY_STEP: Partial<Record<VerificationStep["id"], "upload" | "continue">> = {
+  identity_document: "upload",
+  address: "upload",
+};
+
 export function documentsForCustomer(customer: CustomerRecord): IdentityDocumentRecord[] {
   const identityId = customer.identityRecordId;
   if (!identityId) return [];
@@ -214,7 +221,12 @@ export function deriveVerificationSummary(
     completedCount: completed.length,
     requiredCount: required.length,
     remainingCount: missing.length,
-    actionKey: missing.length ? `verification.action.${missing[0].id}` : null,
+    // The hint names the action the customer can take, from the verbs the
+    // dictionaries actually carry — a per-step key would silently render as
+    // "verification.action.identity_document" the moment a step was renamed.
+    actionKey: missing.length
+      ? `verification.action.${ACTION_VERB_BY_STEP[missing[0].id] ?? "continue"}`
+      : null,
     documents: liveDocs.map((d) => ({
       documentType: d.documentType,
       status: d.verificationStatus,

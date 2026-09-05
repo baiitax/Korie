@@ -86,7 +86,7 @@ export default function CustomerPaymentsPage() {
               {t("customer.payments.confirmedDesc", { amount: formatMoney(parseFloat(amount), activeWallet?.currency ?? "NGN"), merchant: "Sahara Wholesale Supermarket" })}
             </p>
           </div>
-          <button onClick={() => setIsPaid(false)} className="w-full py-3.5 rounded-2xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-bold text-xs shadow-[var(--shadow-md)]">
+          <button onClick={() => setIsPaid(false)} className="w-full py-3.5 rounded-2xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-on-primary)] font-bold text-xs shadow-[var(--shadow-md)]">
             {t("customer.payments.done")}
           </button>
         </div>
@@ -118,7 +118,7 @@ export default function CustomerPaymentsPage() {
             <button
               type="submit"
               disabled={busy || !activeWallet}
-              className="w-full py-4 rounded-2xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-extrabold text-sm transition-all shadow-[var(--shadow-md)] disabled:opacity-60 min-h-[48px]"
+              className="w-full py-4 rounded-2xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-on-primary)] font-extrabold text-sm transition-all shadow-[var(--shadow-md)] disabled:opacity-60 min-h-[48px]"
             >
               {t("customer.payments.payNow")}
             </button>
@@ -143,7 +143,7 @@ const Header: React.FC<{ t: (k: string) => string }> = ({ t }) => (
     <Link
       href="/customer"
       className="p-2 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground-muted)] transition-colors"
-      aria-label="Back"
+      aria-label={t("common.back")}
     >
       <ArrowLeft className="w-4 h-4" />
     </Link>

@@ -555,6 +555,7 @@ export const fr = {
     hideAmounts: "Masquer les montants",
     sign_out: "Se déconnecter",
     noData: "Rien à afficher pour le moment",
+    selectLanguage: "Changer de langue",
   },
   loading: {
     initial:
@@ -689,7 +690,6 @@ export const fr = {
       "Solde insuffisant dans votre portefeuille. Solde actuel : {{balance}}.",
     dailyLimitExceeded:
       "Limite quotidienne de transfert atteinte. Restant : {{limit}}.",
-  
     railNgBank: "Banque Nigériane",
     railNgBankSub: "Rail NIP (₦50)",
     railCrossBorder: "Corridor NGN ⇄ XOF",
@@ -715,6 +715,7 @@ export const fr = {
     invalidAmount: "Saisissez un montant valide",
     transferFailed: "Le transfert n'a pas pu être effectué. Veuillez réessayer.",
     pinNotVerifiedNote: "Saisir votre code confirme ce transfert sur cet appareil. Une vérification renforcée par la banque n'est pas encore disponible.",
+    insufficientFundsHidden: "Cela dépasse votre solde disponible majoré des frais.",
   },
   receive: {
     title: "Recevoir de l'argent",
@@ -836,7 +837,6 @@ export const fr = {
     downloadReceipt: "Télécharger le Reçu Numérique",
     reportIssue: "Signaler un Problème sur cette Transaction",
     noResults: "Aucune transaction ne correspond à vos filtres",
-  
     filterFunding: "Financement",
     statusProcessing: "En cours",
     statusReversed: "Inversé",
@@ -879,6 +879,18 @@ export const fr = {
       FUNDING: "Approvisionnement",
       CARDS: "Cartes",
     },
+    filters: "Filtres",
+    filtersTitle: "Filtrer vos transactions",
+    filtersActive: "{{count}} filtre appliqué",
+    filtersNone: "Aucun filtre appliqué",
+    applyFilters: "Appliquer",
+    removeFilter: "Retirer le filtre",
+    appliedFilters: "Filtres appliqués",
+    rangeCustom: "Personnalisé",
+    rangeFrom: "Du",
+    rangeTo: "Au",
+    groupToday: "Aujourd'hui",
+    groupYesterday: "Hier",
   },
   receipt: {
     title: "Reçu de Transaction Officiel",
@@ -1073,6 +1085,8 @@ export const fr = {
       alertsWithCount: "{{count}} nouvelle(s) alerte(s)",
       loadingAccount: "Chargement du compte…",
       dataUnavailable: "Les données du compte sont indisponibles pour le moment.",
+      homeAria: "Accueil KoriePay",
+      alertsUnavailable: "Alertes indisponibles — ouvrir pour réessayer",
     },
     accounts: {
       title: "Vos Comptes",
@@ -1107,6 +1121,11 @@ export const fr = {
       statement: "Voir le relevé",
       hideBalance: "Masquer le solde",
       showBalance: "Afficher le solde",
+      options: "Options du compte",
+      switcherLabel: "Vos comptes",
+      balanceHidden: "Solde masqué",
+      balanceVisible: "Solde visible",
+      noneYet: "Aucun compte n'est encore ouvert sur ce profil.",
     },
     quick: {
       send: "Envoyer de l'argent",
@@ -1135,6 +1154,20 @@ export const fr = {
       verificationAction: "Action requise",
       verificationComplete: "Vérifié",
       verificationPending: "En cours de vérification",
+      greetingSub: "Vos finances en un coup d'œil",
+      manageAccounts: "Gérer les comptes",
+      activityNote: "Les montants proviennent de votre propre relevé de compte.",
+      noTransactionsTitle: "Aucune transaction pour l'instant",
+      noTransactionsBody: "Votre activité récente apparaîtra ici.",
+      verificationCta: "Ouvrir la vérification",
+      verificationUnverifiedTitle: "Vérification d'identité non commencée",
+      verificationUnverifiedBody: "Complétez-la pour débloquer plus de votre compte.",
+      verificationPendingTitle: "La vérification est en cours d'examen",
+      verificationPendingBody: "Nous vous préviendrons dès qu'une décision sera prise.",
+      verificationRejectedTitle: "La vérification nécessite votre attention",
+      verificationRejectedBody: "Ouvrez la vérification pour voir quoi renvoyer.",
+      verificationVerifiedTitle: "Identité vérifiée",
+      verificationVerifiedBody: "Vous avez un accès complet aux fonctionnalités du compte.",
     },
     txStatus: {
       SUCCESSFUL: "Réussi",
@@ -1144,15 +1177,17 @@ export const fr = {
       REVERSED: "Inversé",
       CANCELLED: "Annulé",
     },
-  
     vault: {
       virtualTag: "Compte Virtuel / Tag",
       accountHolder: "Titulaire du Compte",
       primary: "Principal",
       available: "Solde Disponible",
-    
       accountNumber: "Numéro de compte",
-},
+
+      captionXof: "Compte en francs CFA (UEMOA)",
+      captionNgn: "Compte en nairas nigérianes",
+      accountGeneric: "Compte KoriePay",
+    },
     hub: {
       fund: "Alimenter",
       koriePay: "KoriePay",
@@ -1160,7 +1195,6 @@ export const fr = {
       cards: "Cartes",
       adashi: "Adashi",
       verify: "Vérifier",
-    
       receive: "Recevoir",
 },
     services: {
@@ -1320,6 +1354,7 @@ export const fr = {
       verificationCta: "Vérifiez votre identité",
       verificationPending: "La vérification est en attente",
       verificationRejected: "La vérification demande votre attention",
+      secondaryNav: "Plus dans KoriePay",
     },
     settings: {
       securityGroup: "Sécurité",
@@ -1355,6 +1390,15 @@ export const fr = {
       emailReceiptsDesc: "Pièce jointe PDF sur les transferts",
       fxAlerts: "Mouvements des Taux de Change Sahel",
       fxAlertsDesc: "Alertes pour les spreads favorables NGN ⇄ XOF",
+      appearanceToLight: "Passer en mode clair",
+      appearanceToDark: "Passer en mode sombre",
+    },
+    notifications: {
+      title: "Notifications",
+      refresh: "Actualiser",
+      unavailable: "Nous n'avons pas pu charger vos notifications.",
+      unavailableHint: "Vérifiez votre connexion et réessayez.",
+      allCaughtUp: "Vous êtes à jour.",
     },
   },
 
@@ -1427,6 +1471,8 @@ export const fr = {
     status: "Statut",
     time: "Heure",
     type: "Type",
+  
+    toAccount: "Compte destinataire",
   },
   verification: {
         title: "Vérifiez votre identité",
@@ -1525,7 +1571,14 @@ export const fr = {
         mismatched_name: "Le nom ne correspond pas à votre profil",
         other: "Un détail supplémentaire est nécessaire",
         unacceptable_document: "Ce type de document n'est pas accepté",
-    },
+            phone: "Confirmez le numéro de téléphone de votre compte",
+        email: "Confirmez l'adresse e-mail de votre compte",
+        personal: "Ajoutez votre nom complet, votre téléphone et votre e-mail pour que votre profil corresponde à votre document",
+        dob: "Ajoutez votre date de naissance",
+        address: "Ajoutez l'adresse de résidence indiquée sur une facture récente ou un relevé bancaire",
+        document: "Téléversez une photo nette d'une pièce d'identité acceptée",
+        review: "Vos informations sont vérifiées une dernière fois avant la mise à niveau du compte",
+},
         cameraHint: "Prenez une photo du document",
         chooseFile: "Choisir un fichier",
     fileHint: "JPG, PNG, HEIC ou PDF jusqu'à {{limit}} Mo",
@@ -1534,5 +1587,9 @@ export const fr = {
         retryUpload: "Réessayer",
         reviewInProgress: "Une vérification est déjà en cours pour ce document.",
         na: "Non disponible",
+  
+    guideCorners: "Les quatre coins sont dans le cadre",
+    guideReadable: "Le texte est net et lisible",
+    guideNoGlare: "Aucun reflet ni ombre sur le document",
   },
 };

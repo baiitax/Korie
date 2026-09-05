@@ -63,3 +63,14 @@ redesigned** ([`05-security-findings.md`](05-security-findings.md#L1)).
 | 07 | [Test & verification results](07-test-results.md) |
 | 08 | [Changed files](08-changed-files.md) |
 | 09 | [Remaining limitations (read this before shipping)](09-remaining-limitations.md) |
+| 10 | [UX reconstruction — experience, tokens, and the browser audit that backstops both](10-ux-reconstruction.md) |
+
+## Second pass (experience)
+
+[`10-ux-reconstruction.md`](10-ux-reconstruction.md) records the UX reconstruction on top of
+`65db3cc`: the brand layer and token ladder, the composition rules for every portal surface, and
+**the twelve defects a headless-browser audit found that no type-check or lint run could see** —
+including a data layer that silently dropped its credential, a balance card whose gradient never
+painted, an `<a>` inside an `<a>` that failed hydration across six portals, and an empty state
+impersonating a loading one. Its claims are numbers from `scripts/ux-sweep.mjs`, currently
+**0 failures across 10 viewport widths × 6 routes**.

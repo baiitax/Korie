@@ -547,6 +547,7 @@ export const ha = {
     hideAmounts: "Ɓoye adadin kuɗi",
     sign_out: "Fita",
     noData: "Babu abin da ake nunawa yanzu",
+    selectLanguage: "Canza harshe",
   },
   loading: {
     initial: "Ana haɗa ƙwaren kuɗin ku a ƙetare iyaka\u2026",
@@ -677,7 +678,6 @@ export const ha = {
     insufficientFunds: "Kuɗin asusunka bai isa ba. Kana da {{balance}}.",
     dailyLimitExceeded:
       "Ka cika iyakar kuɗin da za ka iya turawa a yau. Ragowar: {{limit}}.",
-  
     railNgBank: "Bankar Najeriya",
     railNgBankSub: "Hanyar NIP (₦50)",
     railCrossBorder: "Hanyar NGN ⇄ XOF",
@@ -703,6 +703,7 @@ export const ha = {
     invalidAmount: "Shigar da ingantaccen adadi",
     transferFailed: "Ba a iya kammala canja wurin ba. Don Allah sake gwadawa.",
     pinNotVerifiedNote: "Shigar da lambar ka yana tabbatar da wannan canja wurin a wannan na'urar. Babu gwajin tabbatarwa na banki tukuna.",
+    insufficientFundsHidden: "Wannan ya wuce daidaiton ku da kuɗin sabis.",
   },
   receive: {
     title: "Karɓi Kuɗi",
@@ -822,7 +823,6 @@ export const ha = {
     downloadReceipt: "Sauke Rasitin Shaidar Biyan Kuɗi",
     reportIssue: "Koka Kan Wannan Ma'amala",
     noResults: "Babu ma'amalar da ta dace da bincikenka",
-  
     filterFunding: "Ƙara kuɗi",
     statusProcessing: "Ana aiki",
     statusReversed: "An koma",
@@ -865,6 +865,18 @@ export const ha = {
       FUNDING: "Ciyowa",
       CARDS: "Katin",
     },
+    filters: "Matatara",
+    filtersTitle: "Matatara ma'amalolinka",
+    filtersActive: "an yi matatar {{count}}",
+    filtersNone: "babu matatara da aka yi",
+    applyFilters: "Aiwatar",
+    removeFilter: "Cire matatar",
+    appliedFilters: "Matatara da aka yi",
+    rangeCustom: "Na kansa",
+    rangeFrom: "Daga",
+    rangeTo: "Zuwa",
+    groupToday: "Yau",
+    groupYesterday: "Jiya",
   },
   receipt: {
     title: "Rasitin Shaidar Ma'amala",
@@ -1058,6 +1070,8 @@ export const ha = {
       alertsWithCount: "Gargaɗi {{count}}",
       loadingAccount: "Ana dawo da asusu…",
       dataUnavailable: "Bayanan asusu ba suwanzu a halin yanzu.",
+      homeAria: "Shafin KoriePay",
+      alertsUnavailable: "Sanarwa ba a samu — buɗe don sake gwadawa",
     },
     accounts: {
       title: "Asusunka",
@@ -1092,6 +1106,11 @@ export const ha = {
       statement: "Duba bayanan",
       hideBalance: "Ɗauke ma'auni",
       showBalance: "Nuna ma'auni",
+      options: "Zaɓukan asusu",
+      switcherLabel: "Asusunka",
+      balanceHidden: "An ɓoye daidaito",
+      balanceVisible: "An nuna daidaito",
+      noneYet: "Babu asusun da aka buɗe a Wannan bayanan tukuna.",
     },
     quick: {
       send: "Tura Kuɗi",
@@ -1120,6 +1139,20 @@ export const ha = {
       verificationAction: "Aiki yana buƙata",
       verificationComplete: "An tabbatar",
       verificationPending: "Ana dubawa",
+      greetingSub: "Kuɗinka a taƙaice",
+      manageAccounts: "Sarrafa asusu",
+      activityNote: "Lambobi sun fito daga rubutun asusunka.",
+      noTransactionsTitle: "Babu ma'amala tukuna",
+      noTransactionsBody: "Aikin da ka yi a asusunka zai bayyana anan.",
+      verificationCta: "Buɗe tabbatarwa",
+      verificationUnverifiedTitle: "Ba a fara tabbatar da shaidar asali ba",
+      verificationUnverifiedBody: "Cikar da ita don buɗe ƙarin asusunka.",
+      verificationPendingTitle: "Ana duba tabbatarwa",
+      verificationPendingBody: "Za mu gaya muku da zarar an yanke shawara.",
+      verificationRejectedTitle: "Tabbatarwa tana buƙatar kulawarka",
+      verificationRejectedBody: "Buɗe tabbatarwa don ganin abin da za a sake tura.",
+      verificationVerifiedTitle: "An tabbatar da shaidar asali",
+      verificationVerifiedBody: "Kuna da cikakken damar amfani da sabis.",
     },
     txStatus: {
       SUCCESSFUL: "Nasara",
@@ -1129,15 +1162,17 @@ export const ha = {
       REVERSED: "An Koma",
       CANCELLED: "An Soke",
     },
-  
     vault: {
       virtualTag: "Asusun kama-da-wanka / Tag",
       accountHolder: "Mai Asusu",
       primary: "Babban",
       available: "Ma'auni na Yanzu",
-    
       accountNumber: "Lambar asusu",
-},
+
+      captionXof: "Asusun kuɗin Faransin CFA",
+      captionNgn: "Asusun kuɗin Naira na Najeriya",
+      accountGeneric: "Asusun KoriePay",
+    },
     hub: {
       fund: "Ƙara Kuɗi",
       koriePay: "KoriePay",
@@ -1145,7 +1180,6 @@ export const ha = {
       cards: "Katuna",
       adashi: "Adashi",
       verify: "Tabbatar",
-    
       receive: "Karɓa",
 },
     services: {
@@ -1305,6 +1339,7 @@ export const ha = {
       verificationCta: "Tabbatar da shakhsiyarka",
       verificationPending: "Tabbatarwa tana jira",
       verificationRejected: "Tabbatarwa tana buƙatar hankalinka",
+      secondaryNav: "Ƙari a KoriePay",
     },
     settings: {
       securityGroup: "Tsaro",
@@ -1340,6 +1375,15 @@ export const ha = {
       emailReceiptsDesc: "Manun PDF akan canja wurin kuɗi",
       fxAlerts: "Canjin Canjin Kuɗi na Sahel",
       fxAlertsDesc: "Faɗakarwa don kari mai kyau na NGN ⇄ XOF",
+      appearanceToLight: "Koma yanayin haske",
+      appearanceToDark: "Koma yanayin duhu",
+    },
+    notifications: {
+      title: "Sanarwa",
+      refresh: "Sabuntawa",
+      unavailable: "Ba mu iya lodda sanarwarku ba.",
+      unavailableHint: "Duba hanyar sadarwa sannan a sake gwadawa.",
+      allCaughtUp: "Babu sabon abu.",
     },
   },
 
@@ -1412,6 +1456,8 @@ export const ha = {
     status: "Yanayi",
     time: "Lokaci",
     type: "Nau'i",
+  
+    toAccount: "Asusun da ake aika",
   },
   verification: {
         title: "Tabbatar da shakhsiyarka",
@@ -1510,7 +1556,14 @@ export const ha = {
         mismatched_name: "Suna bai dace da martaba ba",
         other: "Ana buƙatar ƙarin bayani",
         unacceptable_document: "Babu karɓar wannan nau'in takarda",
-    },
+            phone: "Tabbatar da lambar wayar da ke asubijinka",
+        email: "Tabbatar da adireshin imel ɗin da ke asubijinka",
+        personal: "Ku ƙara cikakken suna, waya da imel domin bayananka su yi daidai da takardarka",
+        dob: "Ku ƙara ranar haihuwarka",
+        address: "Ku ƙara adireshin zama da ke kan wata fattura ta baya-bayan nan ko wata sanarwar banki",
+        document: "Ku ɗora hoto mai tsafta na wata takarda ta gano mutum da aka amince da ita",
+        review: "Za a duba bayananka na ƙarshe kafin a haɓaka asubijinka",
+},
         cameraHint: "Yi hoton takardar",
         chooseFile: "Zaɓi fayil",
     fileHint: "JPG, PNG, HEIC ko PDF har MB {{limit}}",
@@ -1519,5 +1572,9 @@ export const ha = {
         retryUpload: "Sake gwadawa",
         reviewInProgress: "Ana duba wannan takarda a halin yanzu.",
         na: "Babu",
+  
+    guideCorners: "Dusurruna huɗu suna cikin tsari",
+    guideReadable: "Rubutun a fili kuma a karbabbe",
+    guideNoGlare: "Babu haske inuwa a kan takardar",
   },
 };

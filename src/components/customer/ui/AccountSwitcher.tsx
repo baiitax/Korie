@@ -15,10 +15,10 @@ import { Check, ChevronDown } from "lucide-react";
 export const AccountSwitcher: React.FC<{ className?: string }> = ({
   className = "",
 }) => {
-  const { wallets, activeCurrency, setActiveCurrency, isBalanceHidden } = useCustomer();
+  const { wallets, activeCurrency, setActiveCurrency, isBalanceHidden, t } = useCustomer();
 
   return (
-    <div className={`flex flex-wrap items-center gap-2 ${className}`} role="tablist" aria-label="Your accounts">
+    <div className={`flex flex-wrap items-center gap-2 ${className}`} role="tablist" aria-label={t("customer.accounts.switcherLabel")}>
       {wallets.map((w) => {
         const meta = getCurrencyMeta(w.currency);
         const isActive = w.currency === activeCurrency;

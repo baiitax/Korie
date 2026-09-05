@@ -14,6 +14,8 @@
  *      calm customer and someone who thinks their money vanished.
  */
 
+import { getPortalBearer } from "@/lib/customerPortalClient";
+
 export type CustomerErrorKind =
   | "UNAUTHENTICATED"
   | "FORBIDDEN"
@@ -182,8 +184,18 @@ export async function safeFetch<T = any>(
   const timeoutMs = opts.timeoutMs ?? 15000;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  // The portal API authenticates by `Authorization: Bearer` alone — there is no
+  // cookie fallback. A read that arrives without a credential is a 401 the
+  // customer cannot act on, so the credential is attached here, once, rather
+  // than relying on every call site to remember it.
+  const { token, headers: initHeaders, ...rest } = init;
+  const headers = new Headers(initHeaders || {});
+  if (!headers.has("Authorization")) {
+    headers.set("Authorization", token ? (token.startsWith("Bearer ") ? token : `Bearer ${token}`) : getPortalBearer());
+  }
+  if (rest.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   try {
-    const res = await fetch(input, { ...init, signal: controller.signal });
+    const res = await fetch(input, { ...rest, headers, signal: controller.signal });
     const text = await res.text();
     let payload: unknown = undefined;
     if (text) {

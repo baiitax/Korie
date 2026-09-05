@@ -25,7 +25,7 @@ export const Skeleton: React.FC<{
   tone?: SkeletonTone;
   style?: React.CSSProperties;
 }> = ({ className = "", tone = "default", style }) => (
-  <div className={`${base} ${TONE[tone]} ${className}`} style={style} aria-hidden />
+  <div className={`${base} ${TONE[tone]} ${className}`} data-kp-skeleton style={style} aria-hidden />
 );
 
 /** A single line of text. width in Tailwind units. */

@@ -122,7 +122,7 @@ export const TransactionReceiptModal: React.FC = () => {
   if (!isReceiptModalOpen || !tx || !receiptData) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
       <div className="receipt-print-root relative w-full max-w-lg rounded-3xl bg-[var(--surface)] border border-[var(--border)] shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Modal Header */}
         <div className="flex items-center justify-between p-4 border-b border-[var(--border)] bg-[var(--surface)]">
@@ -190,11 +190,11 @@ export const TransactionReceiptModal: React.FC = () => {
             </button>
             <button
               onClick={handleCopy}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-bold text-xs transition-colors shadow-[var(--shadow-md)]"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-on-primary)] font-bold text-xs transition-colors shadow-[var(--shadow-md)]"
             >
               <Copy className="w-3.5 h-3.5" />
               <span>{labelMap("receipt.copyReference")}</span>
-              {copiedRef && <span className="text-[10px] text-white/80 ml-1">✓</span>}
+              {copiedRef && <span className="text-[10px] ml-1 opacity-80">✓</span>}
             </button>
           </div>
         </div>

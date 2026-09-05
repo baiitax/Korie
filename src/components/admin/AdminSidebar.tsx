@@ -133,7 +133,7 @@ export const AdminSidebar: React.FC = () => {
         {/* Brand Header */}
         <div className="p-4 border-b border-white/10 flex items-center justify-between">
           <Link href="/admin" className="flex items-center gap-2">
-            <KorieLogo variant="compact" theme="dark" height={28} />
+            <KorieLogo variant="compact" theme="dark" height={28} linkHref="" />
           </Link>
           <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
             SUPER ADMIN

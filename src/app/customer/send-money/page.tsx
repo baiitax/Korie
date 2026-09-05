@@ -57,6 +57,7 @@ export default function SendMoneyPage() {
     portalPhase,
     portalError,
     refreshPortal,
+  isBalanceHidden,
   } = useCustomer();
   const { beginTransaction, updateTransactionStatus, endTransaction } = useLoading();
 
@@ -123,7 +124,11 @@ export default function SendMoneyPage() {
       return;
     }
     if (parsesAmount + fee > sourceWallet.availableBalance) {
-      setError(t("transfers.insufficientFunds", { balance: formatMoney(sourceWallet.availableBalance, sourceWallet.currency) }));
+      setError(
+        isBalanceHidden
+          ? t("transfers.insufficientFundsHidden")
+          : t("transfers.insufficientFunds", { balance: formatMoney(sourceWallet.availableBalance, sourceWallet.currency) }),
+      );
       return;
     }
     if (accountNumber.length < 6 || !recipientName) {
@@ -254,7 +259,7 @@ export default function SendMoneyPage() {
                       <span className="text-[10px] font-mono text-[var(--foreground-muted)]">{w.bankName}</span>
                     </div>
                     <div className="mt-1.5 text-sm font-extrabold font-mono tabular text-[var(--foreground)]">
-                      {formatMoney(w.availableBalance, w.currency)}
+                      {isBalanceHidden ? `${w.symbol} ••••••••` : formatMoney(w.availableBalance, w.currency)}
                     </div>
                   </button>
                 );
@@ -277,7 +282,7 @@ export default function SendMoneyPage() {
                     onClick={() => { handleSelectBeneficiary(ben); setError(null); }}
                     className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-[var(--surface)] hover:bg-[var(--surface-elevated)] border border-[var(--border)] shrink-0 transition-colors text-left"
                   >
-                    <div className="w-7 h-7 rounded-xl bg-[var(--brand-soft)] text-[var(--brand-primary)] text-white font-bold text-xs flex items-center justify-center">
+                    <div className="w-7 h-7 rounded-xl bg-[var(--brand-soft)] text-[var(--brand-primary)] font-bold text-xs flex items-center justify-center">
                       {ben.name[0]}
                     </div>
                     <div>
@@ -326,7 +331,9 @@ export default function SendMoneyPage() {
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs">
               <label className="font-semibold text-[var(--foreground)]">{t("transfers.amountToTransfer")}</label>
-              <span className="text-[var(--foreground-muted)] font-mono">{t("common.available")}: {formatMoney(sourceWallet.availableBalance, sourceWallet.currency)}</span>
+              <span className="font-mono text-[var(--foreground-muted)]">
+                {t("common.available")}: {isBalanceHidden ? `${sourceWallet.symbol} ••••••` : formatMoney(sourceWallet.availableBalance, sourceWallet.currency)}
+              </span>
             </div>
             <div className="relative">
               <span className="absolute left-4 top-3.5 text-lg font-bold text-[var(--foreground-muted)] font-mono">
@@ -376,7 +383,7 @@ export default function SendMoneyPage() {
           )}
 
           <button type="submit" disabled={parsesAmount <= 0}
-            className="w-full py-4 rounded-2xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] disabled:opacity-50 text-white font-extrabold text-sm transition-all shadow-[var(--shadow-md)]">
+            className="w-full py-4 rounded-2xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] disabled:opacity-50 text-[var(--brand-on-primary)] font-extrabold text-sm transition-all shadow-[var(--shadow-md)]">
             {t("transfers.reviewTransfer")}
           </button>
         </form>
@@ -410,7 +417,7 @@ export default function SendMoneyPage() {
               <button type="button" onClick={() => setStep(1)} className="w-1/2 py-3.5 rounded-2xl bg-[var(--surface)] hover:bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground)] font-semibold text-xs transition-colors">
                 {t("common.back")}
               </button>
-              <button type="button" onClick={() => setIsPinModalOpen(true)} className="w-1/2 py-3.5 rounded-2xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-bold text-xs transition-colors shadow-[var(--shadow-md)]">
+              <button type="button" onClick={() => setIsPinModalOpen(true)} className="w-1/2 py-3.5 rounded-2xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-on-primary)] font-bold text-xs transition-colors shadow-[var(--shadow-md)]">
                 {t("transfers.confirmTransfer")}
               </button>
             </div>
@@ -436,7 +443,7 @@ export default function SendMoneyPage() {
               <span className="font-bold">{completedTx.reference}</span>
             </div>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-              <button onClick={() => openReceipt(completedTx)} className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-bold text-xs transition-colors shadow-[var(--shadow-md)]">
+              <button onClick={() => openReceipt(completedTx)} className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-on-primary)] font-bold text-xs transition-colors shadow-[var(--shadow-md)]">
                 {t("transfers.viewReceipt")}
               </button>
               <button onClick={() => { setStep(1); setAmountStr(""); setRecipientName(""); setAccountNumber(""); setCompletedTx(null); }}

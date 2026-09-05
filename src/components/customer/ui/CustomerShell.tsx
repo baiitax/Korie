@@ -10,6 +10,7 @@ import LanguageSelector from "./LanguageSelector";
 import TransactionReceiptModal from "./TransactionReceiptModal";
 import ReportDisputeModal from "./ReportDisputeModal";
 import FloatingMobileNav from "./FloatingMobileNav";
+import NotificationCenter from "./NotificationCenter";
 import { isServiceAvailable } from "@/lib/customer/customerFeatures";
 import {
   Home,
@@ -22,7 +23,7 @@ import {
   Settings,
   ShieldCheck,
   LifeBuoy,
-  Bell,
+  
   Repeat2,
   Users,
   WifiOff,
@@ -51,7 +52,13 @@ type NavDef = {
  * The balance-privacy switch is NOT here (it lives beside the balance, §45) and
  * neither of the old duplicates remain.
  */
-export const CustomerShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const CustomerShell: React.FC<{
+  children: React.ReactNode;
+}> = ({ children }) => {
+  // The wordmark ships two cuts — ink for light surfaces, white for dark. Pinning
+  // one of them in markup is what left the logo almost invisible in dark mode.
+  const { theme: appearance } = useTheme();
+  const logoTheme = appearance === "dark" ? "dark" : "light";
   const pathname = usePathname();
   const {
     customer,
@@ -73,12 +80,14 @@ export const CustomerShell: React.FC<{ children: React.ReactNode }> = ({ childre
   // Ordered by real customer workflow: profile → money out → money in →
   // record → services. A service whose status is COMING_SOON keeps its row but
   // is labelled, so the sidebar never offers a silent dead end.
+  // §30 order — the record and the money movement come before the account
+  // catalogue, because that is the order a customer asks for them in.
   const primaryNav: NavDef[] = [
     { label: t("nav.home"), href: "/customer", icon: Home },
-    { label: t("customer.accounts.title"), href: "/customer/wallets", icon: Wallet },
-    { label: t("nav.transfers"), href: "/customer/send-money", icon: ArrowRightLeft, service: "sendMoney" },
-    { label: t("customer.fund.title"), href: "/customer/fund", icon: Download, service: "fund" },
     { label: t("nav.activity"), href: "/customer/transactions", icon: Receipt },
+    { label: t("nav.transfers"), href: "/customer/send-money", icon: ArrowRightLeft, service: "sendMoney" },
+    { label: t("customer.accounts.title"), href: "/customer/wallets", icon: Wallet },
+    { label: t("customer.fund.title"), href: "/customer/fund", icon: Download, service: "fund" },
   ];
   const serviceNav: NavDef[] = [
     { label: t("nav.fx"), href: "/customer/fx", icon: Repeat2, service: "fx" },
@@ -142,7 +151,7 @@ export const CustomerShell: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   return (
-    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] flex flex-col antialiased selection:bg-emerald-500 selection:text-white">
+    <div className="kp-portal min-h-screen bg-[var(--background)] text-[var(--foreground)] flex flex-col antialiased selection:bg-[var(--brand-primary)] selection:text-[var(--brand-on-primary)]">
       {/* Offline / degraded-data status bars. Distinct messages: offline is the
           customer's transport, unavailable is ours. */}
       {isOffline ? (
@@ -173,11 +182,14 @@ export const CustomerShell: React.FC<{ children: React.ReactNode }> = ({ childre
 
       <div className="flex flex-1">
         {/* Desktop sidebar */}
-        <aside className="hidden lg:flex flex-col justify-between w-64 bg-[var(--surface)]/80 backdrop-blur-xl border-r border-[var(--border)] sticky top-0 shadow-[var(--shadow-sm)] h-screen overflow-y-auto z-40 shrink-0">
+        <aside className="hidden lg:flex flex-col justify-between w-64 bg-[var(--surface)]/80 backdrop-blur-xl border-r border-[var(--border)] sticky top-0 shadow-[var(--shadow-sm)] h-screen overflow-y-auto z-[var(--z-page)] shrink-0">
           <div>
             <div className="p-5 border-b border-[var(--border)] flex items-center justify-between">
-              <Link href="/customer" className="flex items-center gap-2">
-                <KorieLogo variant="compact" theme="light" height={28} />
+              <Link href="/customer" className="flex min-h-[40px] items-center gap-2 rounded-xl px-1">
+                {/* linkHref="" — the logo component links by default, and an <a>
+                    inside this <a> is invalid HTML that costs a hydration pass and
+                    a duplicate focus stop. Here the wrapper owns the navigation. */}
+                <KorieLogo variant="compact" theme={logoTheme} height={28} linkHref="" />
               </Link>
               {/* XOF is the primary currency — never reordered, never swapped for USD. */}
               <span className="px-2 py-0.5 rounded-md bg-[var(--brand-soft)] border border-[var(--brand-border)] text-[10px] font-mono text-[var(--brand-primary)] font-bold">
@@ -253,11 +265,15 @@ export const CustomerShell: React.FC<{ children: React.ReactNode }> = ({ childre
         </aside>
 
         {/* Content column — extra bottom padding clears the floating pill */}
-        <div className="flex-1 flex flex-col min-w-0 pb-28 lg:pb-10">
-          <header className="sticky top-0 z-30 glass-nav px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+        <div className="flex-1 flex flex-col min-w-0 pb-[var(--kp-content-clearance)] lg:pb-10">
+          <header className="sticky top-0 z-[var(--z-nav)] glass-nav px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
-              <Link href="/customer" className="lg:hidden flex items-center" aria-label="KoriePay home">
-                <KorieLogo variant="compact" theme="light" height={26} />
+              <Link
+                href="/customer"
+                className="lg:hidden -ml-1 flex min-h-[42px] items-center rounded-xl px-1"
+                aria-label={t("customer.shell.homeAria")}
+              >
+                <KorieLogo variant="compact" theme={logoTheme} height={26} linkHref="" />
               </Link>
               <div className="hidden lg:block min-w-0">
                 <span className="text-xs text-[var(--foreground-muted)]">{t("customer.shell.greeting")}</span>
@@ -277,30 +293,13 @@ export const CustomerShell: React.FC<{ children: React.ReactNode }> = ({ childre
                 <ThemeSelectorInline />
               </div>
 
-              <Link
-                href="/customer/settings"
-                className="relative p-2 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors min-h-[36px] min-w-[36px] grid place-items-center"
-                aria-label={
-                  notificationsPhase === "loading"
-                    ? t("customer.shell.loadingAlerts")
-                    : notificationsCount > 0
-                      ? t("customer.shell.alertsWithCount", { count: notificationsCount })
-                      : t("customer.shell.alertsNone")
-                }
-              >
-                <Bell className="w-4 h-4" aria-hidden="true" />
-                {notificationsCount > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-[var(--brand-primary)] text-white font-bold font-mono text-[9px] flex items-center justify-center tabular-nums">
-                    {notificationsCount > 9 ? "9+" : notificationsCount}
-                  </span>
-                )}
-              </Link>
+              <NotificationCenter />
 
               <LanguageSelector />
 
               <Link
                 href="/customer/profile"
-                className="w-8 h-8 rounded-xl bg-gradient-to-tr from-teal-600 to-teal-500 text-white flex items-center justify-center text-xs font-extrabold shadow-md hidden sm:flex"
+                className="w-8 h-8 rounded-xl bg-[var(--brand-primary)] text-[var(--brand-on-primary)] flex items-center justify-center text-xs font-extrabold shadow-[var(--shadow-sm)] hidden sm:flex"
                 aria-label={t("nav.profile")}
               >
                 {customer?.firstName?.[0] ?? "•"}
@@ -337,14 +336,15 @@ export const CustomerShell: React.FC<{ children: React.ReactNode }> = ({ childre
 /** Compact desktop appearance control (same component as Settings/More). */
 const ThemeSelectorInline: React.FC = () => {
   const { theme, setTheme } = useTheme();
+  const { t } = useCustomer();
   const isDark = theme === "dark";
   return (
     <button
       type="button"
       onClick={() => setTheme(isDark ? "light" : "dark")}
       className="p-2 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors min-h-[36px] min-w-[36px] grid place-items-center"
-      aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
-      title={isDark ? "Light mode" : "Dark mode"}
+      aria-label={isDark ? t("customer.settings.appearanceToLight") : t("customer.settings.appearanceToDark")}
+      title={isDark ? t("customer.settings.appearanceLight") : t("customer.settings.appearanceDark")}
       aria-pressed={isDark}
     >
       {isDark ? <Sun className="w-4 h-4" aria-hidden="true" /> : <Moon className="w-4 h-4" aria-hidden="true" />}

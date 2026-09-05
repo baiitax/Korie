@@ -107,7 +107,7 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
             {/* Header Brand */}
             <div className="p-4 border-b border-white/10 flex items-center justify-between">
               <Link href="/agent" className="flex items-center gap-2">
-                <KorieLogo variant="compact" theme="dark" height={28} />
+                <KorieLogo variant="compact" theme="dark" height={28} linkHref="" />
               </Link>
               <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase bg-amber-500/10 text-amber-400 border border-amber-500/20">
                 AGENCY OPS
@@ -179,7 +179,7 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
           <header className="sticky top-0 z-30 glass-nav px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <Link href="/agent" className="lg:hidden flex items-center">
-                <KorieLogo variant="compact" theme="dark" height={26} />
+                <KorieLogo variant="compact" theme="dark" height={26} linkHref="" />
               </Link>
               <div className="hidden lg:block">
                 <span className="text-xs text-slate-400">{agent.businessName}</span>

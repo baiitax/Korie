@@ -13,6 +13,7 @@ import {
   CustomerTransactionStatus,
 } from "@/types/customer";
 import { translate } from "@/locales";
+import { useLanguage } from "@/components/ui/LanguageContext";
 import { portalFetch } from "@/lib/customerPortalClient";
 import { safeFetch, NormalizedCustomerError } from "@/lib/customer/customerApiError";
 import { useLoading } from "@/components/loading";
@@ -228,7 +229,12 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
   // ── Local UI state (preferences + ephemeral form state only)
   const [activeCurrency, setActiveCurrency] = useState<CustomerCurrency>(CUSTOMER_CONFIG.primaryCurrency);
   const [isBalanceHidden, setIsBalanceHidden] = useState<boolean>(false);
-  const [language, setLanguageState] = useState<SupportedLanguage>(CUSTOMER_CONFIG.defaultLanguage);
+  // One language for the whole app. The portal used to hold its own `language`
+  // state while the platform provider drove <html lang> and the header, so the
+  // two could disagree — a French portal announced to a screen reader as
+  // English. The portal's market default is seeded into the shared provider on
+  // first mount, and every later change is shared.
+  const { language, setLanguage: setPlatformLanguage } = useLanguage();
   const [isOffline, setIsOffline] = useState<boolean>(false);
 
   // Modals state
@@ -370,9 +376,18 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const savedLang = localStorage.getItem("koriepay_customer_lang") as SupportedLanguage;
-    if (savedLang && (savedLang === "en" || savedLang === "ha" || savedLang === "fr")) {
-      setLanguageState(savedLang);
+    const savedLang = localStorage.getItem("koriepay_customer_lang");
+    if (savedLang === "en" || savedLang === "fr" || savedLang === "ha") {
+      if (savedLang !== language) setPlatformLanguage(savedLang as SupportedLanguage);
+    } else if (!localStorage.getItem("koriepay_lang")) {
+      // No expressed preference anywhere: hand the portal default to the
+      // provider before its own mount effect reads storage (child effects run
+      // first), so the document language follows the copy on screen.
+      try {
+        localStorage.setItem("koriepay_lang", CUSTOMER_CONFIG.defaultLanguage);
+      } catch {
+        /* ignore */
+      }
     }
     const savedHide = localStorage.getItem("koriepay_hide_balance");
     if (savedHide) setIsBalanceHidden(savedHide === "true");
@@ -408,7 +423,10 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
   /* --------------------------------------------------------- preferences */
 
   const setLanguage = (lang: SupportedLanguage) => {
-    setLanguageState(lang);
+    // Persistence of the platform preference and `document.documentElement.lang`
+    // belong to the shared provider; the portal mirrors the choice so an
+    // in-portal preference survives even if chrome is changed elsewhere.
+    setPlatformLanguage(lang);
     if (typeof window !== "undefined") localStorage.setItem("koriepay_customer_lang", lang);
   };
 

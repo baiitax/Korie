@@ -106,7 +106,7 @@ export const DataEmptyState: React.FC<{
       (action.href ? (
         <Link
           href={action.href}
-          className="inline-block rounded-xl bg-[var(--brand-primary)] px-3.5 py-2 text-xs font-bold text-white"
+          className="inline-block rounded-xl bg-[var(--brand-primary)] px-3.5 py-2 text-xs font-bold text-[var(--brand-on-primary)]"
         >
           {action.label}
         </Link>
@@ -114,7 +114,7 @@ export const DataEmptyState: React.FC<{
         <button
           type="button"
           onClick={action.onClick}
-          className="rounded-xl bg-[var(--brand-primary)] px-3.5 py-2 text-xs font-bold text-white"
+          className="rounded-xl bg-[var(--brand-primary)] px-3.5 py-2 text-xs font-bold text-[var(--brand-on-primary)]"
         >
           {action.label}
         </button>

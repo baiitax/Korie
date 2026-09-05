@@ -194,7 +194,7 @@ export default function CustomerAdashiHub() {
                       }`}>
                         <div className="flex items-center justify-between">
                           <span className="px-2 py-0.5 rounded bg-[var(--surface)] text-[10px] font-mono font-bold text-[var(--foreground-muted)]">{t('customer.adashi.slot')} #{pos}</span>
-                          {isMe && <span className="px-1.5 py-0.5 rounded bg-[var(--brand-primary)] text-white text-[9px] font-bold font-mono">{t('customer.adashi.you')}</span>}
+                          {isMe && <span className="px-1.5 py-0.5 rounded bg-[var(--brand-primary)] text-[var(--brand-on-primary)] text-[9px] font-bold font-mono">{t('customer.adashi.you')}</span>}
                           {isCompleted && <span className="text-[var(--success)] text-[10px] font-mono font-bold flex items-center gap-0.5"><Check className="w-3 h-3" /> {t('customer.adashi.paidOut')}</span>}
                           {isCurrent && <span className="text-[var(--warning)] text-[10px] font-mono font-bold animate-pulse">● {t('customer.adashi.currentTurn')}</span>}
                         </div>
@@ -220,7 +220,7 @@ export default function CustomerAdashiHub() {
                     <div className="text-[11px] text-[var(--foreground-muted)] mt-0.5">{t('customer.adashi.autoDebitNote')}</div>
                   </div>
                   <button onClick={() => handlePayObligation('obl-001')} disabled={payLoading}
-                    className="px-4 py-2 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white text-xs font-bold shadow-[var(--shadow-md)] whitespace-nowrap disabled:opacity-50">
+                    className="px-4 py-2 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-on-primary)] text-xs font-bold shadow-[var(--shadow-md)] whitespace-nowrap disabled:opacity-50">
                     {t('customer.adashi.payContribution')}
                   </button>
                 </div>

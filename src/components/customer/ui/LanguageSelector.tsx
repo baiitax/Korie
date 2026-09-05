@@ -17,7 +17,7 @@ import { Globe, Check, ChevronDown } from "lucide-react";
 export const LanguageSelector: React.FC<{ variant?: "compact" | "full" }> = ({
   variant = "compact",
 }) => {
-  const { language, setLanguage } = useCustomer();
+  const { language, setLanguage, t } = useCustomer();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -44,7 +44,7 @@ export const LanguageSelector: React.FC<{ variant?: "compact" | "full" }> = ({
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-elevated)] border border-[var(--border)] text-xs font-semibold text-[var(--foreground)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)]"
-        aria-label="Select Language"
+        aria-label={t("common.selectLanguage")}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
       >
@@ -56,7 +56,7 @@ export const LanguageSelector: React.FC<{ variant?: "compact" | "full" }> = ({
       {isOpen && (
         <div
           role="listbox"
-          className="absolute right-0 mt-2 w-52 rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)] backdrop-blur-xl z-50 py-1 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
+          className="absolute right-0 mt-2 w-52 rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)] backdrop-blur-xl z-[var(--z-sheet)] py-1 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
         >
           <div className="px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-[var(--foreground-muted)] border-b border-[var(--border)]">
             {languages.map((l) => l.code.toUpperCase()).join(" · ")}

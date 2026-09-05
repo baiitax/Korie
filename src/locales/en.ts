@@ -548,6 +548,7 @@ export const en = {
     hideAmounts: "Hide amounts",
     sign_out: "Sign out",
     noData: "Nothing to show yet",
+    selectLanguage: "Change language",
   },
   loading: {
     initial: "Connecting your financial experience across borders\u2026",
@@ -678,7 +679,6 @@ export const en = {
       "Exchange Rate: 1 NGN = {{rate}} XOF (Sub-second bilateral clearing)",
     insufficientFunds: "Insufficient wallet balance. You have {{balance}}.",
     dailyLimitExceeded: "Daily transfer limit exceeded. Remaining: {{limit}}.",
-  
     railNgBank: "Nigerian Bank",
     railNgBankSub: "NIP Rail (₦50)",
     railCrossBorder: "NGN ⇄ XOF Corridor",
@@ -704,6 +704,7 @@ export const en = {
     invalidAmount: "Enter a valid amount",
     transferFailed: "Transfer could not be completed. Please try again.",
     pinNotVerifiedNote: "Entering your code confirms this transfer on this device. A bank-verified step-up check is not available yet.",
+    insufficientFundsHidden: "That is more than your available balance plus fees.",
   },
   receive: {
     title: "Receive Money",
@@ -825,7 +826,6 @@ export const en = {
     downloadReceipt: "Download Digital Receipt",
     reportIssue: "Report an Issue with this Transaction",
     noResults: "No transactions match your search filter",
-  
     filterFunding: "Funding",
     statusProcessing: "Processing",
     statusReversed: "Reversed",
@@ -868,6 +868,18 @@ export const en = {
       FUNDING: "Funding",
       CARDS: "Cards",
     },
+    filters: "Filters",
+    filtersTitle: "Filter your transactions",
+    filtersActive: "{{count}} filter applied",
+    filtersNone: "No filters applied",
+    applyFilters: "Apply",
+    removeFilter: "Remove filter",
+    appliedFilters: "Applied filters",
+    rangeCustom: "Custom",
+    rangeFrom: "From",
+    rangeTo: "To",
+    groupToday: "Today",
+    groupYesterday: "Yesterday",
   },
   receipt: {
     title: "Official Transaction Receipt",
@@ -1060,6 +1072,8 @@ export const en = {
       alertsWithCount: "{{count}} new alert(s)",
       loadingAccount: "Loading account…",
       dataUnavailable: "Account data is unavailable right now.",
+      homeAria: "KoriePay home",
+      alertsUnavailable: "Alerts unavailable — open to retry",
     },
     accounts: {
       title: "Your Accounts",
@@ -1094,6 +1108,11 @@ export const en = {
       statement: "View Statement",
       hideBalance: "Hide balance",
       showBalance: "Show balance",
+      options: "Account options",
+      switcherLabel: "Your accounts",
+      balanceHidden: "Balance hidden",
+      balanceVisible: "Balance visible",
+      noneYet: "No accounts are open on this profile yet.",
     },
     quick: {
       send: "Send Money",
@@ -1122,6 +1141,20 @@ export const en = {
       verificationAction: "Action required",
       verificationComplete: "Verified",
       verificationPending: "In review",
+      greetingSub: "Your finances at a glance",
+      manageAccounts: "Manage accounts",
+      activityNote: "Figures come from your own account record.",
+      noTransactionsTitle: "No transactions yet",
+      noTransactionsBody: "Your recent account activity will appear here.",
+      verificationCta: "Open verification",
+      verificationUnverifiedTitle: "Identity verification not started",
+      verificationUnverifiedBody: "Complete it to unlock more of your account.",
+      verificationPendingTitle: "Verification is under review",
+      verificationPendingBody: "We will tell you as soon as it is decided.",
+      verificationRejectedTitle: "Verification needs your attention",
+      verificationRejectedBody: "Open verification to see what to send again.",
+      verificationVerifiedTitle: "Identity verified",
+      verificationVerifiedBody: "You have full access to account features.",
     },
     txStatus: {
       SUCCESSFUL: "Successful",
@@ -1131,15 +1164,17 @@ export const en = {
       REVERSED: "Reversed",
       CANCELLED: "Cancelled",
     },
-  
     vault: {
       virtualTag: "Virtual Account / Tag",
       accountHolder: "Account Holder",
       primary: "Primary",
       available: "Available Balance",
-    
       accountNumber: "Account number",
-},
+
+      captionXof: "West African CFA franc account",
+      captionNgn: "Nigerian naira account",
+      accountGeneric: "KoriePay account",
+    },
     hub: {
       fund: "Fund",
       koriePay: "KoriePay",
@@ -1147,7 +1182,6 @@ export const en = {
       cards: "Cards",
       adashi: "Adashi",
       verify: "Verify",
-    
       receive: "Receive",
 },
     services: {
@@ -1307,6 +1341,7 @@ export const en = {
       verificationCta: "Verify your identity",
       verificationPending: "Verification is pending",
       verificationRejected: "Verification needs your attention",
+      secondaryNav: "More in KoriePay",
     },
     settings: {
       securityGroup: "Security",
@@ -1342,6 +1377,15 @@ export const en = {
       emailReceiptsDesc: "PDF receipt attachment on transfers",
       fxAlerts: "Sahel FX Rate Movements",
       fxAlertsDesc: "Alerts for NGN ⇄ XOF favorable spreads",
+      appearanceToLight: "Switch to light mode",
+      appearanceToDark: "Switch to dark mode",
+    },
+    notifications: {
+      title: "Notifications",
+      refresh: "Refresh",
+      unavailable: "We couldn't load your notifications.",
+      unavailableHint: "Check your connection and try again.",
+      allCaughtUp: "You're all caught up.",
     },
   },
 
@@ -1414,6 +1458,8 @@ export const en = {
     status: "Status",
     time: "Time",
     type: "Type",
+  
+    toAccount: "Destination account",
   },
   verification: {
         title: "Verify your identity",
@@ -1512,7 +1558,14 @@ export const en = {
         mismatched_name: "The name does not match your profile",
         other: "Additional detail is needed",
         unacceptable_document: "That document type is not accepted",
-    },
+            phone: "Confirm the phone number on your account",
+        email: "Confirm the email address on your account",
+        personal: "Add your full name, phone and email so your profile matches your document",
+        dob: "Add your date of birth",
+        address: "Add the residential address shown on a recent utility bill or bank statement",
+        document: "Upload a clear photo of an accepted identity document",
+        review: "Your details are checked one last time before the account is upgraded",
+},
         cameraHint: "Take a photo of the document",
         chooseFile: "Choose a file",
     fileHint: "JPG, PNG, HEIC or PDF up to {{limit}} MB",
@@ -1521,5 +1574,9 @@ export const en = {
         retryUpload: "Try again",
         reviewInProgress: "A review is already in progress for this document.",
         na: "Not available",
+  
+    guideCorners: "All four corners are inside the frame",
+    guideReadable: "The text is sharp and readable",
+    guideNoGlare: "No glare or shadow on the document",
   },
 };

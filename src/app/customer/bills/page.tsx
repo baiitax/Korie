@@ -63,7 +63,7 @@ export default function CustomerBillsPage() {
         </p>
         <Link
           href="/customer/support"
-          className="mt-3 inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-bold text-xs transition-colors shadow-[var(--shadow-md)]"
+          className="mt-3 inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-on-primary)] font-bold text-xs transition-colors shadow-[var(--shadow-md)]"
         >
           {t("common.learnMore")}
         </Link>

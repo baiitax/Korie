@@ -1,216 +1,142 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Home,
-  Receipt,
-  Send,
-  Wallet,
-  Ellipsis,
-  Bell,
-  ShieldCheck,
-  CreditCard,
-  LifeBuoy,
-  Settings,
-  X,
-  ChevronRight,
-  Download,
-  Repeat2,
-  Users,
-  Zap,
-} from "lucide-react";
+import { Home, Receipt, Send, Wallet, Ellipsis } from "lucide-react";
 import { useCustomer } from "../CustomerContext";
-import { isServiceAvailable } from "@/lib/customer/customerFeatures";
+import { MoreMenuSheet } from "./MoreMenuSheet";
 import { KpayInlineLoader } from "@/components/loading/KpayInlineLoader";
 
 /**
- * FloatingMobileNav — §41–§43 rebuilt.
+ * FloatingMobileNav — the capsule (directive §21–§29).
  *
- * What was wrong before: the floating pill was Home / Accounts / Send /
- * **Cards** / More. Two defects in five slots — Cards is `COMING_SOON`, so a
- * fifth of the primary bar was a dead end, and Transaction History (the P0
- * screen) had no mobile entry point at all. "More" also pointed at Settings,
- * which is not a menu.
+ * Five destinations, and only five: Home · Transactions · Send · Accounts ·
+ * More. The version this replaced had **Cards** (a `COMING_SOON` dead end) in a
+ * primary slot and no entry point at all for transaction history, which is the
+ * screen customers actually go looking for.
  *
- * Now: Home · Transactions · Send · Accounts · More, and the More sheet is
- * generated from real routes + real service availability. A COMING_SOON service
- * still appears — hiding it makes customers think the product forgot them — but
- * it is labelled and never looks like a working destination.
+ * Geometry lives in `.kp-nav` (globals.css) so the numbers are stated once:
+ * 92% width, 430px max, 26px radius, 62px tall, and `env(safe-area-inset-bottom)`
+ * added to the 14px inset. §29's clearance is the matching `--kp-content-clearance`
+ * on the shell's content column, so the last row of a list can never sit under it.
  *
- * Ergonomics: 44–48px+ targets, `safe-area-bottom`, glass pill, single active
- * indicator, Escape/scrim close, focus returned to the trigger on close, and
- * the sheet traps nothing that would block a screen reader from reading it.
+ * §25 Send: raised 10px with the brand fill — the strongest affordance in the
+ * bar, but it is *inside* the capsule and uses the same radius family, so it
+ * reads as one control cluster rather than a floating action button glued on top.
+ *
+ * §27 scroll: scrolling down quiets the capsule (opacity 0.9, 2px settle,
+ * lighter shadow); scrolling up restores it. It never unmounts or slides away —
+ * during a transfer or a funding flow (`/customer/send-money`, `/customer/fund`,
+ * `/customer/receive-money`) the condensing is switched off entirely, because
+ * navigation that fades while a customer is moving money is a stability problem
+ * dressed up as polish.
+ *
+ * §69 layering: the capsule is `--z-nav`; sheets `--z-sheet`; scrims
+ * `--z-scrim`; dialogs `--z-modal`; loaders `--z-loader`. One ladder, so a sheet
+ * is always above the nav and the nav can never cover a dialog's action bar.
  */
 
 const PRIMARY = [
   { href: "/customer", labelKey: "nav.home", icon: Home },
   { href: "/customer/transactions", labelKey: "nav.activity", icon: Receipt },
-  { href: "/customer/send-money", labelKey: "nav.send", icon: Send },
+  { href: "/customer/send-money", labelKey: "nav.send", icon: Send, emphasis: true },
   { href: "/customer/wallets", labelKey: "customer.accounts.title", icon: Wallet },
 ] as const;
 
+/** §27 — flows where the bar must stay exactly where it is. */
+const CRITICAL_ROUTES = ["/customer/send-money", "/customer/fund", "/customer/receive-money", "/customer/kyc"];
+
 export const FloatingMobileNav: React.FC = () => {
   const pathname = usePathname();
-  const { t, notificationsCount, notificationsPhase, getServiceStatus } = useCustomer();
-  const [open, setOpen] = useState(false);
-  const [sheetPhase, setSheetPhase] = useState<"idle" | "closing">("idle");
+  const { t, notificationsCount, notificationsPhase } = useCustomer();
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [condensed, setCondensed] = useState(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const panelRef = useRef<HTMLDivElement | null>(null);
+  const lastY = useRef(0);
 
-  const close = useCallback(() => {
-    setOpen(false);
-    setSheetPhase("idle");
-    triggerRef.current?.focus();
-  }, []);
+  const critical = CRITICAL_ROUTES.some((r) => pathname.startsWith(r));
 
+  // Scroll affordance, throttled to one write per frame.
   useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
+    if (critical || moreOpen) {
+      setCondensed(false);
+      return;
+    }
+    let raf = 0;
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const y = window.scrollY || 0;
+        const goingDown = y > lastY.current + 6;
+        const goingUp = y < lastY.current - 6;
+        if (goingDown && y > 96) setCondensed(true);
+        else if (goingUp) setCondensed(false);
+        lastY.current = Math.max(y, 0);
+      });
     };
-    document.addEventListener("keydown", onKey);
-    // Lock the page behind the sheet so the pill cannot scroll out from under it.
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const first = panelRef.current?.querySelector<HTMLElement>("[data-autofocus]");
-    first?.focus();
+    lastY.current = window.scrollY || 0;
+    window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
+      if (raf) cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", onScroll);
     };
-  }, [open, close]);
+  }, [critical, moreOpen]);
+
+  // A route change is a new context: restore full prominence.
+  useEffect(() => setCondensed(false), [pathname]);
 
   const isActive = (href: string) =>
     href === "/customer" ? pathname === "/customer" : pathname === href || pathname.startsWith(`${href}/`);
 
-  // Any primary route inside /customer but not in PRIMARY should light "More".
   const moreActive =
-    open ||
-    ["/customer/settings", "/customer/security", "/customer/kyc", "/customer/support", "/customer/notifications"].some(
+    moreOpen ||
+    ["/customer/settings", "/customer/security", "/customer/kyc", "/customer/support", "/customer/fund", "/customer/beneficiaries"].some(
       (href) => isActive(href),
     );
 
-  const secondary = [
-    {
-      href: "/customer/fund",
-      labelKey: "customer.fund.title",
-      icon: Download,
-      service: "fund" as const,
-    },
-    { href: "/customer/kyc", labelKey: "nav.verification", icon: ShieldCheck, service: null },
-    { href: "/customer/cards", labelKey: "nav.cards", icon: CreditCard, service: "cards" as const },
-    { href: "/customer/bills", labelKey: "nav.bills", icon: Zap, service: "bills" as const },
-    { href: "/customer/fx", labelKey: "nav.fx", icon: Repeat2, service: "fx" as const },
-    { href: "/customer/beneficiaries", labelKey: "nav.beneficiaries", icon: Users, service: null },
-    { href: "/customer/support", labelKey: "nav.support", icon: LifeBuoy, service: null },
-    { href: "/customer/settings", labelKey: "nav.settings", icon: Settings, service: null },
-  ];
-
   return (
     <>
-      {open && (
-        <>
-          {/* More sheet */}
-          <div
-            ref={panelRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label={t("nav.more")}
-            className="lg:hidden fixed inset-x-3 bottom-[92px] z-50 rounded-3xl glass-modal border border-[var(--border)] shadow-[var(--shadow-lg)] overflow-hidden"
-          >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
-              <h2 className="text-sm font-extrabold text-[var(--foreground)]">{t("customer.more.title")}</h2>
-              <button
-                type="button"
-                onClick={close}
-                className="p-2 -m-1 rounded-xl text-[var(--foreground-muted)] hover:bg-[var(--surface-elevated)] min-h-[40px] min-w-[40px] grid place-items-center"
-                aria-label={t("common.close")}
-                data-autofocus
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* Action centre: verification is never buried (§22). */}
-            <VerificationPrompt />
-
-            <nav className="max-h-[52vh] overflow-y-auto overscroll-contain p-2">
-              <ul className="space-y-0.5">
-                {secondary.map((item) => {
-                  const soon = item.service ? !isServiceAvailable(item.service) : false;
-                  const active = isActive(item.href);
-                  const Icon = item.icon;
-                  return (
-                    <li key={item.href}>
-                      <Link
-                        href={item.href}
-                        onClick={close}
-                        className={`flex items-center gap-3 rounded-2xl px-3 py-3 min-h-[48px] transition-colors ${
-                          active ? "bg-[var(--brand-soft)]" : "hover:bg-[var(--surface-elevated)]"
-                        }`}
-                        aria-current={active ? "page" : undefined}
-                      >
-                        <span
-                          className={`grid h-9 w-9 place-items-center rounded-xl border ${
-                            active
-                              ? "bg-[var(--brand-soft-strong)] border-[var(--brand-border)] text-[var(--brand-primary)]"
-                              : "bg-[var(--surface-elevated)] border-[var(--border)] text-[var(--foreground-muted)]"
-                          }`}
-                          aria-hidden="true"
-                        >
-                          <Icon className="h-4 w-4" />
-                        </span>
-                        <span className="flex-1 min-w-0">
-                          <span className={`block truncate text-sm font-bold ${active ? "text-[var(--brand-primary)]" : "text-[var(--foreground)]"}`}>
-                            {t(item.labelKey)}
-                          </span>
-                          {soon && (
-                            <span className="mt-0.5 inline-flex items-center rounded-full bg-[var(--surface-3)] px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase text-[var(--foreground-muted)]">
-                              {t("common.comingSoon")}
-                            </span>
-                          )}
-                        </span>
-                        <ChevronRight className="h-4 w-4 text-[var(--foreground-muted)]" aria-hidden="true" />
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            </nav>
-          </div>
-
-          {/* Scrim */}
-          <button
-            type="button"
-            aria-label={t("common.close")}
-            onClick={close}
-            className="lg:hidden fixed inset-0 z-40 bg-black/25 backdrop-blur-[2px]"
-          />
-        </>
-      )}
+      <MoreMenuSheet open={moreOpen} onClose={() => { setMoreOpen(false); triggerRef.current?.focus(); }} />
 
       <nav
-        className="lg:hidden fixed bottom-3 left-3 right-3 z-50 mx-auto max-w-md px-1.5 py-1.5 rounded-3xl glass-03 flex items-center justify-around safe-area-bottom"
+        className="kp-nav flex items-stretch justify-around gap-0.5 px-1.5 py-1.5"
         aria-label={t("customer.more.primaryNav")}
+        data-condensed={condensed ? "true" : "false"}
       >
         {PRIMARY.map((item) => {
           const active = isActive(item.href);
           const Icon = item.icon;
+          const raised = "emphasis" in item && item.emphasis;
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center justify-center gap-1 px-2.5 min-w-[54px] min-h-[48px] rounded-2xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)] ${
-                active ? "bg-[var(--brand-soft)]" : "hover:bg-[var(--surface-elevated)]"
-              }`}
               aria-current={active ? "page" : undefined}
+              className={`flex min-h-[48px] min-w-[54px] flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)] ${
+                raised
+                  ? "kp-nav-send"
+                  : active
+                    ? "bg-[var(--brand-soft)]"
+                    : "hover:bg-[var(--surface-elevated)]"
+              }`}
             >
-              <span className={`rounded-xl p-1 ${active ? "bg-[var(--brand-soft-strong)]" : ""}`} aria-hidden="true">
-                <Icon className={`h-[21px] w-[21px] ${active ? "text-[var(--brand-primary)] stroke-[2.4]" : "text-[var(--foreground-muted)]"}`} />
+              <span
+                className={`rounded-xl p-1 ${active && !raised ? "bg-[var(--brand-soft-strong)]" : ""}`}
+                aria-hidden="true"
+              >
+                <Icon
+                  className={`h-[20px] w-[20px] ${
+                    raised ? "text-white" : active ? "text-[var(--brand-primary)]" : "text-[var(--foreground-muted)]"
+                  } ${active || raised ? "stroke-[2.4]" : ""}`}
+                />
               </span>
-              <span className={`text-[10px] leading-tight font-semibold ${active ? "text-[var(--brand-primary)]" : "text-[var(--foreground-muted)]"}`}>
+              <span
+                className={`text-[10px] font-semibold leading-tight ${
+                  raised ? "text-white" : active ? "text-[var(--brand-primary)]" : "text-[var(--foreground-muted)]"
+                }`}
+              >
                 {t(item.labelKey)}
               </span>
             </Link>
@@ -220,68 +146,37 @@ export const FloatingMobileNav: React.FC = () => {
         <button
           ref={triggerRef}
           type="button"
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={open}
+          onClick={() => setMoreOpen((v) => !v)}
+          aria-expanded={moreOpen}
           aria-haspopup="dialog"
-          className={`relative flex flex-col items-center justify-center gap-1 px-2.5 min-w-[54px] min-h-[48px] rounded-2xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)] ${
+          className={`relative flex min-h-[48px] min-w-[54px] flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)] ${
             moreActive ? "bg-[var(--brand-soft)]" : "hover:bg-[var(--surface-elevated)]"
           }`}
         >
           <span className={`rounded-xl p-1 ${moreActive ? "bg-[var(--brand-soft-strong)]" : ""}`} aria-hidden="true">
-            <Ellipsis className={`h-[21px] w-[21px] ${moreActive ? "text-[var(--brand-primary)] stroke-[2.4]" : "text-[var(--foreground-muted)]"}`} />
+            {/* The icon stays `Ellipsis`: More is More. Alert volume is already
+                carried by the pip, and swapping the glyph to a bell made the
+                destination read as two different things depending on state. */}
+            <Ellipsis className={`h-[20px] w-[20px] ${moreActive ? "text-[var(--brand-primary)] stroke-[2.4]" : "text-[var(--foreground-muted)]"}`} />
           </span>
-          <span className={`text-[10px] leading-tight font-semibold ${moreActive ? "text-[var(--brand-primary)]" : "text-[var(--foreground-muted)]"}`}>
+          <span className={`text-[10px] font-semibold leading-tight ${moreActive ? "text-[var(--brand-primary)]" : "text-[var(--foreground-muted)]"}`}>
             {t("nav.more")}
           </span>
           {(notificationsCount > 0 || notificationsPhase === "loading") && (
-            <span className="absolute top-1 right-1.5 flex items-center justify-center">
-              {notificationsPhase === "loading" && sheetPhase === "idle" ? (
+            <span className="absolute right-1.5 top-1 grid place-items-center">
+              {notificationsPhase === "loading" ? (
                 <KpayInlineLoader size="xs" label={t("customer.more.loadingAlerts")} />
               ) : (
-                <span className="h-2 w-2 rounded-full bg-[var(--brand-primary)]" aria-hidden="true" />
+                <span className="h-2 w-2 rounded-full bg-[var(--brand-gold)]" aria-hidden="true" />
               )}
               {notificationsCount > 0 && (
-                <span className="sr-only">
-                  {t("customer.more.alertsCount", { count: notificationsCount })}
-                </span>
+                <span className="sr-only">{t("customer.more.alertsCount", { count: notificationsCount })}</span>
               )}
             </span>
           )}
         </button>
       </nav>
     </>
-  );
-};
-
-/**
- * Verification prompt inside More. The brief forbids making a customer hunt
- * through Settings to discover a KYC problem, so the actionable state is
- * surfaced on the sheet that is always one tap away.
- */
-const VerificationPrompt: React.FC = () => {
-  const { customer, t } = useCustomer();
-  if (!customer) return null;
-  if (customer.kycStatus === "VERIFIED") return null;
-
-  const urgent = customer.kycStatus === "REJECTED";
-  return (
-    <Link
-      href="/customer/kyc"
-      className={`m-2 mb-0 flex items-center gap-3 rounded-2xl border p-3 ${
-        urgent
-          ? "border-[var(--danger-soft)] bg-[var(--danger-soft)]/50"
-          : "border-[var(--brand-border)] bg-[var(--brand-soft)]/60"
-      }`}
-    >
-      <Bell className={`h-4 w-4 shrink-0 ${urgent ? "text-[var(--danger)]" : "text-[var(--brand-primary)]"}`} aria-hidden="true" />
-      <span className="min-w-0 flex-1">
-        <span className="block text-xs font-bold text-[var(--foreground)]">
-          {t(urgent ? "customer.more.verificationRejected" : "customer.more.verificationPending")}
-        </span>
-        <span className="block text-[11px] text-[var(--foreground-muted)]">{t("customer.more.verificationCta")}</span>
-      </span>
-      <ChevronRight className="h-4 w-4 text-[var(--foreground-muted)]" aria-hidden="true" />
-    </Link>
   );
 };
 

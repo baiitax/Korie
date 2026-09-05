@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Camera, Upload, CheckCircle2, AlertTriangle, X, RefreshCw, ShieldCheck } from "lucide-react";
+import { Camera, Check, CheckCircle2, AlertTriangle, X, RefreshCw, ShieldCheck, Upload } from "lucide-react";
 import { getPortalBearer } from "@/lib/customerPortalClient";
 
 /**
@@ -34,6 +34,12 @@ export interface UploadedDocument {
 }
 
 const ACCEPT = "image/jpeg,image/png,image/webp,application/pdf";
+const GUIDE_KEYS = [
+  "verification.guideCorners",
+  "verification.guideReadable",
+  "verification.guideNoGlare",
+] as const;
+
 const MAX_BYTES = 8 * 1024 * 1024;
 const MIN_BYTES = 10 * 1024;
 
@@ -161,7 +167,32 @@ export const DocumentUploader: React.FC<{
   return (
     <div className="space-y-2.5">
       {!file ? (
-        <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-2.5">
+          {/* §34 — tell the customer what a good capture looks like *before* they
+              take it. These are the three reasons documents bounce in review, so
+              the checklist is a real reduction in resubmissions, not decoration.
+              The frame is CSS geometry, not a KYC vendor's UI, and no internal
+              rule ("we check the MRZ zone") is exposed. */}
+          <div className="relative overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
+            <div className="flex items-center gap-3">
+              <span
+                className="relative grid h-12 w-[68px] shrink-0 place-items-center rounded-lg border-2 border-dashed border-[var(--brand-border)] bg-[var(--surface)]"
+                aria-hidden="true"
+              >
+                <span className="h-[2px] w-8 rounded bg-[var(--border-strong)]" />
+              </span>
+              <ul className="min-w-0 space-y-1">
+                {GUIDE_KEYS.map((k) => (
+                  <li key={k} className="flex items-start gap-1.5 text-[11px] leading-snug text-[var(--foreground-muted)]">
+                    <Check className="mt-0.5 h-3 w-3 shrink-0 text-[var(--brand-primary)]" aria-hidden="true" />
+                    <span>{t(k)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={() => cameraRef.current?.click()}
@@ -180,6 +211,7 @@ export const DocumentUploader: React.FC<{
             <span className="text-[11px] font-bold text-[var(--foreground)]">{t("verification.chooseFile")}</span>
             <span className="text-[10px] text-[var(--foreground-muted)]">{t("verification.fileHint", { limit: MAX_BYTES / (1024 * 1024) })}</span>
           </button>
+          </div>
         </div>
       ) : (
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-elevated)] p-3 space-y-2.5">
@@ -271,7 +303,7 @@ export const DocumentUploader: React.FC<{
           type="button"
           onClick={submit}
           disabled={busy}
-          className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-[var(--brand-primary)] text-white text-xs font-bold py-3 min-h-[44px] disabled:opacity-60 transition-opacity"
+          className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-[var(--brand-primary)] text-[var(--brand-on-primary)] text-xs font-bold py-3 min-h-[44px] disabled:opacity-60 transition-opacity"
         >
           {state === "error" ? <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" /> : null}
           {state === "error" ? t("verification.retryUpload") : t("kyc.uploadDocument")}

@@ -1024,3 +1024,327 @@
     margin: 12mm;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   KORIEPAY CUSTOMER PORTAL — BRAND LAYER
+   ═══════════════════════════════════════════════════════════════════════════
+   Scoped to `.kp-portal` (the customer shell) on purpose. The same token NAMES
+   are used by admin/agent/compliance/merchant surfaces, so changing `:root`
+   would repaint those portals underneath their own teams. Inside the customer
+   portal these values win because a descendant declaration is what every
+   `var(--…)` under the shell resolves to.
+
+   Where the values come from
+   --------------------------
+   Measured from the brand asset in this repo — `public/brand/koriepay-logo-full.png`
+   (4226×934), by sampling every opaque pixel:
+
+     navy wordmark      #20273a   48.3% of the mark
+     emerald head       #29b475    (chevron, top)
+     teal tail          #158987    (chevron, bottom)
+     gold               #ebc844
+     orange             #f88d25
+
+   WCAG 2.2 AA (§62) then forced two adjustments, and the directive explicitly
+   allows them ("adjust according to accessibility and actual logo rendering"):
+
+     #29b475 on white = 2.67:1  → fails even the 3:1 UI minimum, so the literal
+                                   logo emerald is used only as FILL / geometry,
+                                   never as text or icon stroke.
+     #0b7a63 on white = 5.28:1  → hue-matched emerald, used for interactive text,
+     white on #0b7a63 = 5.28:1    labels, links, active nav, primary buttons.
+     #ebc844 1.63:1 / #f88d25 2.38:1 → gold and orange are accents on light fills;
+                                   their readable inks (#8a6d10, #a3490a) are what
+                                   appears as text.
+     #20273a on white = 14.86:1 → the logo navy is the text/structure colour.
+
+   Distribution, per the brief's 60 / 25 / 10 / 5 ratio: neutral foundation
+   (#f7f9fb + white surfaces) ≈60%, navy text and structure ≈25%, emerald
+   interactive ≈10%, gold/orange accent ≈5% and only where it means something
+   (primary account marker, positive highlight, one attention state). No rainbow
+   gradients, no glowing cards, no gradient buttons everywhere.
+   ───────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* Layering — one ladder, so a sheet can never sit under a scrim or the nav
+     over a dialog. Everything customer-facing uses these instead of ad-hoc
+     z-30/z-40/z-50 guesses. */
+  --z-page: 0;
+  --z-nav: 40;          /* floating capsule + desktop header */
+  --z-sheet: 50;        /* bottom sheets (filters, more, notifications, detail) */
+  --z-scrim: 45;        /* sheet backdrop — always below its sheet */
+  --z-modal: 60;        /* dialogs (PIN, dispute, receipt) */
+  --z-toast: 70;
+  --z-loader: 90;       /* app preloader, page/section loaders */
+
+  /* Floating navigation geometry (mobile-first: 390×844) */
+  --kp-nav-height: 62px;
+  --kp-nav-inset: 14px;             /* 12–20px bottom breathing room */
+  --kp-nav-radius: 26px;            /* 24–30px */
+  --kp-nav-max-width: 430px;
+  --kp-nav-width: 92%;               /* 90–94% of the viewport */
+  /* §29 content clearance: nav height + safe area + 24px, so nothing on any
+     page can hide behind the capsule — including the last row and each CTA. */
+  --kp-on-gold: #3c2f02;        /* legible ink for text on the logo gold */
+  --kp-content-clearance: calc(var(--kp-nav-height) + var(--kp-nav-inset) + env(safe-area-inset-bottom, 0px) + 24px);
+}
+
+.kp-portal {
+  /* Neutral foundation */
+  --background: #f7f9fb;
+  --background-secondary: #eff3f9;
+  --surface: #ffffff;
+  --surface-2: #f4f7fb;
+  --surface-3: #e9eff7;
+  --surface-elevated: #ffffff;
+  --card-bg: rgba(255, 255, 255, 0.86);
+  --card-border: rgba(32, 39, 58, 0.08);
+
+  /* Navy: text and structure (measured #20273a) */
+  --foreground: #20273a;
+  --foreground-muted: #4e5c72;
+  --muted: #64728a;
+  --border: rgba(32, 39, 58, 0.10);
+  --border-strong: rgba(32, 39, 58, 0.20);
+  --nav-fg: #20273a;
+  --nav-muted: #4e5c72;
+  --footer-bg: #f7f9fb;
+  --footer-surface: #ffffff;
+  --footer-fg: #20273a;
+  --footer-muted: #5a6a80;
+  --input-bg: rgba(255, 255, 255, 0.94);
+
+  /* Emerald / teal: interactions (AA-safe emerald + literal logo teal) */
+  /* Label colour for anything painted on --brand-primary. White works on the
+     light-mode emerald (5.3:1); in dark mode the brand turns mint and white
+     collapses to 2.1:1, so the ink swaps to a near-black green instead of
+     dimming the fill. */
+  --brand-on-primary: #ffffff;
+  --brand-primary: #0b7a63;
+  --brand-primary-hover: #096553;
+  --brand-primary-active: #075343;
+  --brand-accent: #158987;          /* literal logo teal, ≥3:1 for UI parts */
+  --brand-emerald: #29b475;         /* literal logo emerald — fills/geometry only */
+  --brand-soft: rgba(11, 122, 99, 0.08);
+  --brand-soft-strong: rgba(11, 122, 99, 0.15);
+  --brand-border: rgba(11, 122, 99, 0.30);
+  --brand-muted: rgba(11, 122, 99, 0.55);
+  --accent-border: rgba(11, 122, 99, 0.38);
+  /* Two-stop, same family, no rainbow (§3). */
+  --kp-on-vault: #ffffff;          /* the vault surface is dark in both themes */
+  --brand-gradient-start: #0b7a63;
+  --brand-gradient-end: #12776f;      /* the logo teal #158987 left white text at 4.23:1 */
+
+  /* Gold / orange: sparse accents + readable inks */
+  --brand-gold: #ebc844;
+  --brand-gold-ink: #8a6d10;
+  --brand-gold-soft: rgba(235, 200, 68, 0.20);
+  --brand-orange: #f88d25;
+  --brand-orange-ink: #a3490a;
+  --brand-orange-soft: rgba(248, 141, 37, 0.14);
+  --brand-secondary: #a3490a;       /* was amber-600; now the orange ink, for text */
+
+  /* Glass: kept, but restrained so blur never costs a frame on a mid-range
+     Android (§61) — one blur level for panels, one for the nav. */
+  --glass-blur-01: 8px;
+  --glass-blur-02: 12px;
+  --glass-blur-03: 16px;
+  --glass-blur-modal: 20px;
+  --nav-blur: 16px;
+  --nav-bg: rgba(255, 255, 255, 0.86);
+
+  color-scheme: light;
+}
+
+/* Dark mode is designed, not inverted (§39): deep navy rather than black, an
+   explicit elevation ladder, and the gold/orange turned DOWN rather than up. */
+.dark .kp-portal {
+  --background: #0b1220;
+  --background-secondary: #0e1626;
+  --surface: #111c2f;
+  --surface-2: #16233a;
+  --surface-3: #1c2c46;
+  --surface-elevated: #18263e;
+  --card-bg: rgba(17, 28, 47, 0.9);
+  --card-border: rgba(150, 180, 220, 0.12);
+
+  --foreground: #e8eef7;          /* 15.4:1 on #0b1220 */
+  --foreground-muted: #a9b8cc;    /* 8.4:1 */
+  --muted: #93a4bb;
+  --border: rgba(160, 190, 225, 0.14);
+  --border-strong: rgba(160, 190, 225, 0.26);
+  --nav-fg: #e8eef7;
+  --nav-muted: #a9b8cc;
+  --footer-bg: #0b1220;
+  --footer-surface: #111c2f;
+  --footer-fg: #dbe5f2;
+  --footer-muted: #93a4bb;
+  --input-bg: rgba(13, 22, 38, 0.92);
+
+  --brand-primary: #35c9a8;       /* 8.6:1 on the page, 8.3:1 on a card */
+  --brand-on-primary: #04231c;    /* 8.0:1 on the mint fill (white was 2.1:1) */
+  --brand-primary-hover: #55d8bb;
+  --brand-primary-active: #7ee4cd;
+  --brand-accent: #2dd4bf;
+  --brand-emerald: #29b475;
+  --brand-soft: rgba(53, 201, 168, 0.14);
+  --brand-soft-strong: rgba(53, 201, 168, 0.22);
+  --brand-border: rgba(53, 201, 168, 0.34);
+  --brand-muted: rgba(53, 201, 168, 0.6);
+  --accent-border: rgba(53, 201, 168, 0.4);
+  --brand-gradient-start: #0f6f5c;
+  --brand-gradient-end: #14806c;
+
+  --brand-gold: #d9bd57;          /* reduced intensity (§39) */
+  --brand-gold-ink: #f0cf6a;
+  --brand-gold-soft: rgba(217, 189, 87, 0.14);
+  --brand-orange: #e08a3c;
+  --brand-orange-ink: #fba94f;
+  --brand-orange-soft: rgba(224, 138, 60, 0.14);
+  --brand-secondary: #fba94f;
+
+  --nav-bg: rgba(17, 28, 47, 0.9);
+  color-scheme: dark;
+}
+
+/* ── Floating navigation capsule ─────────────────────────────────────────── */
+
+.kp-nav {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(var(--kp-nav-inset) + env(safe-area-inset-bottom, 0px));
+  width: var(--kp-nav-width);
+  max-width: var(--kp-nav-max-width);
+  min-height: var(--kp-nav-height);
+  z-index: var(--z-nav);
+  border-radius: var(--kp-nav-radius);
+  background: var(--nav-bg);
+  -webkit-backdrop-filter: blur(var(--nav-blur)) saturate(1.5);
+  backdrop-filter: blur(var(--nav-blur)) saturate(1.5);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+  /* §27 "subtle motion only": prominence, not disappearance. */
+  transition: opacity 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+  contain: paint;
+}
+
+/* The capsule belongs to the mobile composition. From lg up, the sidebar is the
+   navigation — showing both is the duplicate-primary-action defect, so the
+   floating bar is removed, not restyled. (Print already hides it.) */
+@media (min-width: 1024px) {
+  .kp-nav {
+    display: none;
+  }
+}
+
+/* Scrolled down → slightly quieter. Scrolled up → restored. The nav is NEVER
+   removed, because a customer mid-transfer must always be able to leave. */
+.kp-nav[data-condensed="true"] {
+  opacity: 0.9;
+  box-shadow: var(--shadow-sm);
+  transform: translateX(-50%) translateY(2px) scale(0.995);
+}
+
+/* §25 Send: the strongest destination, raised — but still part of the capsule,
+   not a floating action button bolted on top of it. */
+.kp-nav-send {
+  background: linear-gradient(160deg, var(--brand-gradient-start), var(--brand-gradient-end));
+  color: #fff; /* the pill's gradient is dark in both themes — see .kp-on-vault */
+  box-shadow: 0 6px 16px rgba(11, 122, 99, 0.28);
+  border-top-left-radius: 18px;
+  border-top-right-radius: 18px;
+  margin-top: -10px;
+  padding-top: 10px;
+  padding-bottom: 6px;
+}
+.dark .kp-nav-send { box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); }
+.kp-nav-send:active { transform: translateY(1px); }
+
+/* Sheets: bottom-anchored on mobile, and always above the nav, never below it. */
+.kp-sheet {
+  z-index: var(--z-sheet);
+  border-radius: 26px 26px 0 0;
+  background: var(--glass-modal-bg, var(--surface));
+  -webkit-backdrop-filter: blur(var(--glass-blur-modal));
+  backdrop-filter: blur(var(--glass-blur-modal));
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  box-shadow: var(--shadow-xl);
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+  animation: kpSheetRise 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.kp-sheet-scrim { z-index: var(--z-scrim); }
+
+/* A sheet that is really a dialog (transaction detail): same surface, but it sits
+   on the modal rung so the receipt it opens can cover it, and it keeps a bottom
+   border once it is a floating panel rather than an edge-anchored sheet. */
+.kp-sheet--dialog {
+  z-index: var(--z-modal);
+  border-bottom: 1px solid var(--border);
+  animation: kpSheetRise 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes kpSheetRise {
+  from { transform: translateY(14px); opacity: 0.6; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* ── Primary balance surface ─────────────────────────────────────────────── */
+/* Flat brand field with one light direction change. The old version added a
+   blurred white blob (a "glowing card") and a three-stop teal gradient; §3
+   rules both out. */
+/* The gradient is painted on the card itself, not on an absolutely positioned
+   sibling layer: that pattern needs the utility layer to agree with the brand
+   layer on `position`, and when it didn't the layer collapsed to 0px tall and
+   the card rendered white ink on white paper. Owning the background here means
+   there is nothing for the cascade to get wrong — and anything reading the
+   card's computed style (the audit, a test, a screen-reader bridge) sees the
+   real surface. */
+.kp-balance-surface {
+  background: linear-gradient(150deg, var(--brand-gradient-start) 0%, var(--brand-gradient-end) 100%);
+}
+.kp-balance-surface[data-currency="NGN"] {
+  background: linear-gradient(150deg, #1d2a3f 0%, #2c4763 100%);
+}
+.dark .kp-balance-surface { background: linear-gradient(150deg, #0a5546 0%, #10705c 100%); }
+.dark .kp-balance-surface[data-currency="NGN"] { background: linear-gradient(150deg, #16233a 0%, #24405c 100%); }
+
+/* Ink on a saturated brand fill. Two problems answer here.
+   (1) The app-wide `.light .text-white` normalisation rewrites white ink to page
+   ink with `!important`, so dark-first screens stay legible on light surfaces. It
+   cannot tell a light surface from a deliberately dark brand fill, and on the
+   balance card it turned every figure navy-on-emerald.
+   (2) White at 60–85% alpha *looks* right but measures 2.9–4.3:1 on the
+   light-mode emerald — under AA for the sizes these captions use.
+   So the vault declares its own ink: `!important` to answer the legacy rule, and
+   a 92% floor to answer the arithmetic. Hierarchy comes from size and weight. */
+.kp-portal .kp-on-vault {
+  color: #ffffff !important;
+}
+.kp-portal .kp-on-vault-soft {
+  color: rgba(255, 255, 255, 0.92) !important;
+}
+
+/* Subtle brand geometry from the logo's chevron angle — a hairline, not a
+   watermark, and never a giant logo repeated on every card (§11). */
+.kp-balance-surface::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(115deg, transparent 62%, rgba(255, 255, 255, 0.10) 62%, rgba(255, 255, 255, 0.10) 68%, transparent 68%),
+    linear-gradient(115deg, transparent 72%, rgba(235, 200, 68, 0.16) 72%, rgba(235, 200, 68, 0.16) 75%, transparent 75%);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kp-sheet { animation: none; }
+  .kp-nav, .kp-nav[data-condensed="true"] { transition: none; transform: translateX(-50%); opacity: 1; }
+  .kp-nav-send:active { transform: none; }
+}
+
+/* Print keeps the receipt legible on paper regardless of theme. */
+@media print {
+  .kp-nav, .kp-sheet, .kp-sheet-scrim { display: none !important; }
+}

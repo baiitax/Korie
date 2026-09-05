@@ -13,6 +13,15 @@ import {
 import { transactionStatusLabelKey } from "@/components/customer/ui/TransactionStatusBadge";
 import { isLiveStatus } from "@/components/customer/ui/TransactionStatusBadge";
 import { CustomerTransaction, CustomerTransactionStatus } from "@/types/customer";
+import { maskAccountNumber } from "@/lib/money";
+import {
+  TransactionFiltersSheet,
+  TransactionFiltersButton,
+  CURRENCY_OPTIONS,
+  CATEGORY_OPTIONS,
+  STATUS_OPTIONS,
+  countActiveFilters,
+} from "@/components/customer/ui/TransactionFilters";
 import { ArrowLeft, Search, Download, ChevronRight, X } from "lucide-react";
 
 /**
@@ -30,39 +39,66 @@ import { ArrowLeft, Search, Download, ChevronRight, X } from "lucide-react";
  * live-refresh affordance appears only when a non-terminal row exists.
  */
 
-const CURRENCY_OPTIONS = [
-  { id: "ALL", labelKey: "transactions.accountAll" },
-  { id: "XOF", labelKey: "transactions.accountXof" },
-  { id: "NGN", labelKey: "transactions.accountNgn" },
-] as const;
+/* Filter options and the sheet itself live in
+   `@/components/customer/ui/TransactionFilters` so the chip row above and the
+   sheet can never disagree about what the legal values are. */
 
-const CATEGORY_OPTIONS = [
-  { id: "ALL", labelKey: "transactions.filterAll" },
-  { id: "TRANSFERS", labelKey: "transactions.filterTransfers" },
-  { id: "FUNDING", labelKey: "transactions.filterFunding" },
-  { id: "FX", labelKey: "transactions.filterFx" },
-  { id: "BILLS", labelKey: "transactions.filterBills" },
-] as const;
+/** "Today" / "Yesterday" / a dated label — grouping the list the way a bank
+ *  statement does, from the row's own timestamp in the customer's locale. */
+function groupRowsByDay(
+  rows: CustomerTransaction[],
+  language: string,
+  t: (key: string, params?: Record<string, string | number>) => string,
+): { key: string; label: string; rows: CustomerTransaction[] }[] {
+  const locale = language === "fr" ? "fr-FR" : language === "ha" ? "ha" : "en-GB";
+  const groups: { key: string; label: string; rows: CustomerTransaction[] }[] = [];
+  const now = new Date();
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  for (const tx of rows) {
+    const d = new Date(tx.createdAt);
+    const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    const offsetDays = Math.round((startOfDay - dayStart) / 86_400_000);
+    let label: string;
+    let key: string;
+    if (offsetDays === 0) {
+      label = t("transactions.groupToday");
+      key = "today";
+    } else if (offsetDays === 1) {
+      label = t("transactions.groupYesterday");
+      key = "yesterday";
+    } else {
+      label = new Date(dayStart).toLocaleDateString(locale, { day: "2-digit", month: "long", year: "numeric" });
+      key = String(dayStart);
+    }
+    const last = groups[groups.length - 1];
+    if (last && last.key === key) last.rows.push(tx);
+    else groups.push({ key, label, rows: [tx] });
+  }
+  return groups;
+}
 
-const STATUS_OPTIONS: { id: "ALL" | CustomerTransactionStatus; labelKey: string }[] = [
-  { id: "ALL", labelKey: "transactions.statusAll" },
-  { id: "SUCCESSFUL", labelKey: "transactions.statusSuccess" },
-  { id: "PENDING", labelKey: "transactions.statusPending" },
-  { id: "PROCESSING", labelKey: "transactions.statusProcessing" },
-  { id: "FAILED", labelKey: "transactions.statusFailed" },
-  { id: "REVERSED", labelKey: "transactions.statusReversed" },
-  { id: "DISPUTED", labelKey: "transactions.statusDisputed" },
-];
+function filterLabel(
+  id: string,
+  options: readonly { id: string; labelKey: string }[],
+  t: (key: string) => string,
+): string {
+  return t(options.find((o) => o.id === id)?.labelKey ?? "transactions.filterAll");
+}
 
-const RANGE_OPTIONS = [
-  { id: "ALL", labelKey: "transactions.rangeAll" },
-  { id: "TODAY", labelKey: "transactions.rangeToday" },
-  { id: "WEEK", labelKey: "transactions.rangeWeek" },
-  { id: "MONTH", labelKey: "transactions.rangeMonth" },
-] as const;
+const ActiveChip: React.FC<{ label: string; onRemove: () => void; removeLabel: string }> = ({ label, onRemove, removeLabel }) => (
+  <span className="inline-flex min-h-[30px] items-center gap-1 rounded-lg border border-[var(--brand-border)] bg-[var(--brand-soft)] pl-2.5 pr-1 text-[11px] font-bold text-[var(--brand-primary)]">
+    {label}
+    <button
+      type="button"
+      onClick={onRemove}
+      className="grid h-5 w-5 place-items-center rounded-md hover:bg-[var(--brand-soft-strong)]"
+      aria-label={`${removeLabel}: ${label}`}
+    >
+      <X className="h-3 w-3" aria-hidden="true" />
+    </button>
+  </span>
+);
 
-/** Only offer statuses the backend can actually produce for this customer. */
-const CARDS_ENABLED = false;
 
 export default function CustomerTransactionsPage() {
   const {
@@ -87,6 +123,7 @@ export default function CustomerTransactionsPage() {
   const [searchDraft, setSearchDraft] = useState(historyFilters.search);
   const [detail, setDetail] = useState<CustomerTransaction | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const searchTimer = useRef<ReturnType<typeof setTimeout>>();
 
   /* Debounced search → server, not a client filter over whatever happens to be loaded. */
@@ -118,6 +155,10 @@ export default function CustomerTransactionsPage() {
 
   const liveRows = historyItems.filter((tx) => isLiveStatus(tx.status));
 
+  /* No rows yet and no answer yet — those are the same screen, and neither one is
+     "empty". */
+  const showHistorySkeleton = historyItems.length === 0 && (historyPhase === "loading" || historyPhase === "idle");
+
   /* Controlled refresh: manual + a single follow-up when something is pending. */
   const handleRefresh = useCallback(() => {
     void loadHistory({ silent: true });
@@ -136,7 +177,6 @@ export default function CustomerTransactionsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveRows.length, historyUpdatedAt]);
 
-  const showCardsCategory = isServiceAvailable("cards") && CARDS_ENABLED;
 
   const exportCsv = () => {
     setIsExporting(true);
@@ -177,26 +217,32 @@ export default function CustomerTransactionsPage() {
             <h1 className="text-xl sm:text-2xl font-extrabold text-[var(--foreground)] tracking-tight truncate">
               {t("transactions.title")}
             </h1>
-            <p className="text-xs text-[var(--foreground-muted)] truncate">
+            {/* Two readable lines beat one ellipsized mid-word (§9: financial page
+                titles are short, their explanations are not). */}
+            <p className="line-clamp-2 text-xs text-[var(--foreground-muted)] sm:line-clamp-none">
               {historyPhase === "ready"
                 ? t("transactions.subtitle", { count: historyTotalCount })
                 : t("transactions.subtitleLoading")}
             </p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={exportCsv}
+        <div className="flex shrink-0 items-center gap-1.5">
+          <TransactionFiltersButton onOpen={() => setFiltersOpen(true)} />
+          <button
+            type="button"
+            onClick={exportCsv}
           disabled={historyPhase !== "ready" || historyItems.length === 0 || isExporting}
           className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2 text-[11px] font-bold text-[var(--foreground)] hover:bg-[var(--surface-elevated)] disabled:opacity-50 transition-colors shrink-0"
           aria-label={t("transactions.exportCsv")}
         >
           <Download className="w-3.5 h-3.5" aria-hidden="true" />
           <span className="hidden sm:inline">{t("transactions.exportCsv")}</span>
-        </button>
+          </button>
+        </div>
       </div>
 
-      {/* Search */}
+      {/* Search stays on the surface: it is the one control customers use while
+          scrolling. Everything narrower lives behind the sheet (§20). */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--foreground-muted)]" aria-hidden="true" />
         <input
@@ -205,13 +251,13 @@ export default function CustomerTransactionsPage() {
           onChange={(e) => setSearchDraft(e.target.value)}
           placeholder={t("transactions.searchPlaceholder")}
           aria-label={t("transactions.searchLabel")}
-          className="w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)] pl-9 pr-9 py-2.5 text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]"
+          className="w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)] py-2.5 pl-9 pr-9 text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]"
         />
         {searchDraft && (
           <button
             type="button"
             onClick={() => setSearchDraft("")}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-md text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
             aria-label={t("transactions.clearSearch")}
           >
             <X className="w-3.5 h-3.5" />
@@ -219,75 +265,28 @@ export default function CustomerTransactionsPage() {
         )}
       </div>
 
-      {/* Filters — XOF first, always */}
-      <div className="space-y-2.5">
-        <FilterRow label={t("transactions.filterAccount")} accent>
-          {CURRENCY_OPTIONS.map((o) => (
-            <Chip
-              key={o.id}
-              active={historyFilters.currency === o.id}
-              onClick={() => setHistoryFilters({ currency: o.id as HistoryFilters["currency"] })}
-            >
-              {t(o.labelKey)}
-            </Chip>
-          ))}
-        </FilterRow>
-
-        <FilterRow label={t("transactions.filterType")}>
-          {CATEGORY_OPTIONS.map((o) => (
-            <Chip
-              key={o.id}
-              active={historyFilters.category === o.id}
-              onClick={() => setHistoryFilters({ category: o.id as HistoryFilters["category"] })}
-            >
-              {t(o.labelKey)}
-            </Chip>
-          ))}
-          {showCardsCategory && (
-            <Chip
-              active={historyFilters.category === "CARDS"}
-              onClick={() => setHistoryFilters({ category: "CARDS" })}
-            >
-              {t("transactions.filterCards")}
-            </Chip>
+      {/* What is currently applied, without needing to open anything. The chips
+          are read-only summaries plus one clear — the choosing happens in the
+          sheet, so there is one source of truth for the filter state. */}
+      {countActiveFilters(historyFilters) > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={t("transactions.appliedFilters")}>
+          <ActiveChip label={filterLabel(historyFilters.currency, CURRENCY_OPTIONS, t)} onRemove={() => setHistoryFilters({ currency: "ALL" })} removeLabel={t("transactions.removeFilter")} />
+          {historyFilters.category !== "ALL" && (
+            <ActiveChip label={filterLabel(historyFilters.category, CATEGORY_OPTIONS, t)} onRemove={() => setHistoryFilters({ category: "ALL" })} removeLabel={t("transactions.removeFilter")} />
           )}
-        </FilterRow>
-
-        <FilterRow label={t("transactions.filterStatus")}>
-          {STATUS_OPTIONS.map((o) => (
-            <Chip
-              key={o.id}
-              active={historyFilters.status === o.id}
-              onClick={() => setHistoryFilters({ status: o.id as HistoryFilters["status"] })}
-            >
-              {t(o.labelKey)}
-            </Chip>
-          ))}
-        </FilterRow>
-
-        <FilterRow label={t("transactions.filterDate")}>
-          {RANGE_OPTIONS.map((o) => (
-            <Chip
-              key={o.id}
-              active={historyFilters.range === o.id}
-              onClick={() => setHistoryFilters({ range: o.id as HistoryFilters["range"] })}
-            >
-              {t(o.labelKey)}
-            </Chip>
-          ))}
-        </FilterRow>
-
-        {hasFilters && (
+          {historyFilters.status !== "ALL" && (
+            <ActiveChip label={filterLabel(historyFilters.status, STATUS_OPTIONS, t)} onRemove={() => setHistoryFilters({ status: "ALL" })} removeLabel={t("transactions.removeFilter")} />
+          )}
           <button
             type="button"
             onClick={clearFilters}
-            className="text-[11px] font-bold text-[var(--brand-primary)] hover:underline inline-flex items-center gap-1"
+            className="ml-auto inline-flex min-h-[30px] items-center gap-1 rounded-lg px-1.5 text-[11px] font-bold text-[var(--brand-primary)] hover:underline"
           >
-            <X className="w-3 h-3" aria-hidden="true" />
+            <X className="h-3 w-3" aria-hidden="true" />
             {t("transactions.clearFilters")}
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       <DataFreshnessBar
         updatedAt={historyUpdatedAt}
@@ -304,8 +303,11 @@ export default function CustomerTransactionsPage() {
         </p>
       )}
 
-      {/* Body: exactly one of skeleton / error / empty / rows */}
-      {historyPhase === "loading" && historyItems.length === 0 ? (
+      {/* Body: exactly one of skeleton / error / empty / rows.
+          "idle" counts as loading: the first read has not been answered yet, and
+          rendering the empty state in that window tells the customer they have no
+          transactions when the truth is "we do not know yet". */}
+      {showHistorySkeleton ? (
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-3.5 overflow-hidden">
           <TransactionHistorySkeleton rows={6} label={t("transactions.loading")} />
         </div>
@@ -316,25 +318,35 @@ export default function CustomerTransactionsPage() {
           retryLabel={t("common.tryAgain")}
           surface="transactions"
         />
-      ) : historyItems.length === 0 ? (
+      ) : historyItems.length === 0 && historyPhase === "ready" ? (
         <DataEmptyState
           title={hasFilters ? t("transactions.emptyFiltered") : t("transactions.empty")}
           hint={hasFilters ? t("transactions.emptyFilteredHint") : t("transactions.emptyHint")}
           action={hasFilters ? { label: t("transactions.clearFilters"), onClick: clearFilters } : undefined}
         />
       ) : (
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
-          {historyItems.map((tx) => (
-            <TransactionRow
-              key={tx.id}
-              tx={tx}
-              t={t}
-              lang={language}
-              isBalanceHidden={isBalanceHidden}
-              onToggleMask={toggleHideBalance}
-              showMaskControl
-              onOpen={setDetail}
-            />
+        <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
+          {groupRowsByDay(historyItems, language, t).map((group) => (
+            <section key={group.key} aria-label={group.label}>
+              <h2 className="sticky top-0 z-[1] bg-[var(--surface-2)] px-4 py-1.5 text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--foreground-muted)]">
+                {group.label}
+              </h2>
+              <ul className="divide-y divide-[var(--border)]">
+                {group.rows.map((tx) => (
+                  <li key={tx.id}>
+                    <TransactionRow
+                      tx={tx}
+                      t={t}
+                      lang={language}
+                      isBalanceHidden={isBalanceHidden}
+                      onToggleMask={toggleHideBalance}
+                      showMaskControl
+                      onOpen={setDetail}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </section>
           ))}
 
           {historyHasMore && (
@@ -351,6 +363,8 @@ export default function CustomerTransactionsPage() {
         </div>
       )}
 
+      <TransactionFiltersSheet open={filtersOpen} onClose={() => setFiltersOpen(false)} />
+
       {detail && (
         <TransactionDetailSheet
           tx={detail}
@@ -366,44 +380,6 @@ export default function CustomerTransactionsPage() {
 }
 
 /* ------------------------------------------------------------------ bits */
-
-const FilterRow: React.FC<{
-  label: string;
-  accent?: boolean;
-  children: React.ReactNode;
-}> = ({ label, accent, children }) => (
-  <div className="flex items-center gap-2 min-w-0">
-    <span
-      className={`text-[10px] font-mono uppercase tracking-wider shrink-0 w-[52px] ${
-        accent ? "text-[var(--brand-primary)] font-bold" : "text-[var(--foreground-muted)]"
-      }`}
-    >
-      {label}
-    </span>
-    <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide pb-0.5 -mx-0.5 px-0.5">
-      {children}
-    </div>
-  </div>
-);
-
-const Chip: React.FC<{ active: boolean; onClick: () => void; children: React.ReactNode }> = ({
-  active,
-  onClick,
-  children,
-}) => (
-  <button
-    type="button"
-    onClick={onClick}
-    aria-pressed={active}
-    className={`shrink-0 rounded-xl border px-2.5 py-1.5 text-[11px] font-semibold transition-colors min-h-[32px] ${
-      active
-        ? "border-[var(--brand-border)] bg-[var(--brand-soft)] text-[var(--brand-primary)]"
-        : "border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
-    }`}
-  >
-    {children}
-  </button>
-);
 
 /**
  * Detail sheet. Renders the row the customer selected immediately (so there is
@@ -430,7 +406,13 @@ const TransactionDetailSheet: React.FC<{
     { label: t("detail.type"), value: t(`transactions.cat.${tx.category}`) },
     { label: t("detail.sender"), value: tx.senderName || "KoriePay" },
     { label: t("detail.recipient"), value: tx.recipientName || "—" },
-    { label: t("detail.account"), value: `${tx.currency} • ${isBalanceHidden ? "••••" : tx.currency}` },
+    // The list payload carries the destination account only; showing the currency
+    // twice ("XOF • XOF") was a row that said nothing. When the account is known
+    // it is masked like every other number in this portal, and when it is not,
+    // the row is absent rather than padded with a placeholder.
+    ...(tx.recipientAccount
+      ? [{ label: t("detail.toAccount"), value: maskAccountNumber(tx.recipientAccount), mono: true }]
+      : []),
     { label: t("detail.reference"), value: tx.reference, mono: true },
     { label: t("detail.date"), value: new Date(tx.createdAt).toLocaleDateString(language === "fr" ? "fr-FR" : "en-GB", { dateStyle: "medium" }) },
     { label: t("detail.time"), value: new Date(tx.createdAt).toLocaleTimeString(language === "fr" ? "fr-FR" : "en-GB", { timeStyle: "short" }) },
@@ -453,12 +435,16 @@ const TransactionDetailSheet: React.FC<{
 
   return (
     <>
-      <div className="fixed inset-0 z-[60] bg-black/30 backdrop-blur-[2px]" onClick={onClose} aria-hidden="true" />
+      <div
+        className="kp-sheet-scrim fixed inset-0 bg-black/30 backdrop-blur-[2px]"
+        onClick={onClose}
+        aria-hidden="true"
+      />
       <div
         role="dialog"
         aria-modal="true"
         aria-label={t("detail.title")}
-        className="fixed z-[61] inset-x-0 bottom-0 sm:inset-auto sm:right-6 sm:bottom-6 sm:max-w-md rounded-t-3xl sm:rounded-3xl glass-modal border border-[var(--border)] shadow-[var(--shadow-lg)] max-h-[82vh] overflow-y-auto overscroll-contain"
+        className="kp-sheet kp-sheet--dialog fixed inset-x-0 bottom-0 max-h-[82vh] overflow-y-auto overscroll-contain sm:inset-auto sm:right-6 sm:bottom-6 sm:max-w-md sm:rounded-b-[26px]"
       >
         <div className="sticky top-0 glass-modal px-4 py-3 flex items-center justify-between border-b border-[var(--border)]">
           <h2 className="text-sm font-extrabold text-[var(--foreground)]">{t("detail.title")}</h2>
@@ -500,7 +486,7 @@ const TransactionDetailSheet: React.FC<{
             <button
               type="button"
               onClick={onOpenReceipt}
-              className="flex-1 rounded-xl bg-[var(--brand-primary)] text-white text-xs font-bold py-2.5 min-h-[44px]"
+              className="flex-1 rounded-xl bg-[var(--brand-primary)] text-[var(--brand-on-primary)] text-xs font-bold py-2.5 min-h-[44px]"
             >
               {t("detail.receipt")}
             </button>

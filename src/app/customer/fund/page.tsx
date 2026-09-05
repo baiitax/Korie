@@ -30,7 +30,7 @@ type Step = 1 | 2 | 3;
  * authorised agent or the bank statement), not by a fake in-app success.
  */
 export default function CustomerFundPage() {
-  const { wallets, t } = useCustomer();
+  const { wallets, t, isBalanceHidden } = useCustomer();
   const [step, setStep] = useState<Step>(1);
   const [source, setSource] = useState<Source>("AGENT");
   const [destCurrency, setDestCurrency] = useState<CustomerCurrency>("XOF");
@@ -89,7 +89,7 @@ export default function CustomerFundPage() {
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${active ? "bg-[var(--brand-primary)] text-white" : "bg-[var(--surface-elevated)] text-[var(--foreground-muted)]"}`}>
+                      <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${active ? "bg-[var(--brand-primary)] text-[var(--brand-on-primary)]" : "bg-[var(--surface-elevated)] text-[var(--foreground-muted)]"}`}>
                         <Icon className="h-4.5 w-4.5" />
                       </div>
                       <div>
@@ -127,7 +127,9 @@ export default function CustomerFundPage() {
                         <div className="text-[10px] font-mono text-[var(--foreground-muted)]">{maskAccountNumber(w.accountNumber)}</div>
                       </div>
                     </div>
-                    <span className="text-sm font-mono font-extrabold text-[var(--foreground)]">{formatMoney(w.availableBalance, w.currency)}</span>
+                    <span className="font-mono text-sm font-extrabold text-[var(--foreground)]">
+                      {isBalanceHidden ? `${w.symbol} ••••••••` : formatMoney(w.availableBalance, w.currency)}
+                    </span>
                   </button>
                 );
               })}
@@ -156,7 +158,7 @@ export default function CustomerFundPage() {
             </div>
           )}
 
-          <button type="submit" disabled={amount <= 0} className="w-full py-4 rounded-2xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] disabled:opacity-50 text-white font-extrabold text-sm transition-all shadow-[var(--shadow-md)]">
+          <button type="submit" disabled={amount <= 0} className="w-full py-4 rounded-2xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] disabled:opacity-50 text-[var(--brand-on-primary)] font-extrabold text-sm transition-all shadow-[var(--shadow-md)]">
             {t("common.continue")}
           </button>
         </form>
@@ -179,7 +181,7 @@ export default function CustomerFundPage() {
 
             <div className="flex items-center gap-3 pt-2">
               <button type="button" onClick={() => setStep(1)} className="w-1/2 py-3.5 rounded-2xl bg-[var(--surface)] hover:bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground)] font-semibold text-xs transition-colors">{t("common.back")}</button>
-              <button type="button" onClick={() => setStep(3)} className="w-1/2 py-3.5 rounded-2xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-bold text-xs transition-colors shadow-[var(--shadow-md)]">{t("common.continue")}</button>
+              <button type="button" onClick={() => setStep(3)} className="w-1/2 py-3.5 rounded-2xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-on-primary)] font-bold text-xs transition-colors shadow-[var(--shadow-md)]">{t("common.continue")}</button>
             </div>
           </div>
         </div>
@@ -207,7 +209,7 @@ export default function CustomerFundPage() {
             </div>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-              <button onClick={() => window.print()} className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-bold text-xs transition-colors shadow-[var(--shadow-md)]">{t("fund.printInstructions")}</button>
+              <button onClick={() => window.print()} className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-on-primary)] font-bold text-xs transition-colors shadow-[var(--shadow-md)]">{t("fund.printInstructions")}</button>
               <Link href="/customer" className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-[var(--surface)] hover:bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground)] font-semibold text-xs transition-colors">{t("common.done")}</Link>
             </div>
           </div>

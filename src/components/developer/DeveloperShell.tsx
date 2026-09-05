@@ -158,7 +158,7 @@ export const DeveloperShell: React.FC<{ children: React.ReactNode }> = ({ childr
           {/* Logo & Portal Identity */}
           <div className="flex items-center gap-3 sm:gap-6">
             <Link href="/developers" className="flex items-center gap-2.5 group">
-              <KorieLogo variant="icon" height={30} />
+              <KorieLogo variant="icon" height={30} linkHref="" />
               <div className="flex flex-col">
                 <span className="font-black tracking-tight text-white text-sm sm:text-base flex items-center gap-1.5">
                   KoriePay <span className="text-emerald-400 font-mono font-bold text-xs px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">DEV</span>

@@ -60,7 +60,7 @@ export default function CustomerBeneficiariesPage() {
         </div>
 
         <button onClick={() => setIsAddModalOpen(true)}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-bold text-xs transition-colors shadow-[var(--shadow-md)]">
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-on-primary)] font-bold text-xs transition-colors shadow-[var(--shadow-md)]">
           <Plus className="w-4 h-4" /><span>{t("customer.beneficiaries.addRecipient")}</span>
         </button>
       </div>
@@ -154,7 +154,7 @@ export default function CustomerBeneficiariesPage() {
                   className="w-full p-3 rounded-xl bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground)] focus:outline-none" />
               </div>
 
-              <button type="submit" className="w-full py-3 rounded-xl bg-[var(--brand-primary)] text-white font-bold text-xs hover:bg-[var(--brand-primary-hover)] transition-colors shadow-[var(--shadow-md)]">
+              <button type="submit" className="w-full py-3 rounded-xl bg-[var(--brand-primary)] text-[var(--brand-on-primary)] font-bold text-xs hover:bg-[var(--brand-primary-hover)] transition-colors shadow-[var(--shadow-md)]">
                 {t("customer.beneficiaries.saveBeneficiary")}
               </button>
             </form>

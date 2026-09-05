@@ -76,7 +76,7 @@ export default function CustomerFxPage() {
           </div>
           <Link
             href="/customer/send-money"
-            className="w-full inline-flex items-center justify-center py-3.5 rounded-2xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-bold text-xs transition-colors shadow-[var(--shadow-md)]"
+            className="w-full inline-flex items-center justify-center py-3.5 rounded-2xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-on-primary)] font-bold text-xs transition-colors shadow-[var(--shadow-md)]"
           >
             {t("fx.proceedToSend")}
           </Link>
@@ -123,7 +123,7 @@ export default function CustomerFxPage() {
           {/* Swap Currency Invert Button */}
           <div className="flex justify-center -my-2 relative z-10">
             <button type="button" onClick={handleSwapCurrencies}
-              className="p-3 rounded-full bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white shadow-[var(--shadow-md)] transition-transform active:rotate-180 duration-200"
+              className="p-3 rounded-full bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-on-primary)] shadow-[var(--shadow-md)] transition-transform active:rotate-180 duration-200"
               title={t("fx.swapCurrencies")}>
               <Repeat2 className="w-5 h-5 stroke-[2.5]" />
             </button>
@@ -164,7 +164,7 @@ export default function CustomerFxPage() {
           </div>
 
           <button type="submit" disabled={parsedFromAmount <= 0}
-            className="w-full py-4 rounded-2xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-extrabold text-sm transition-all shadow-[var(--shadow-md)] disabled:opacity-50">
+            className="w-full py-4 rounded-2xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-on-primary)] font-extrabold text-sm transition-all shadow-[var(--shadow-md)] disabled:opacity-50">
             {t("fx.instantSwapBtn")}
           </button>
         </form>

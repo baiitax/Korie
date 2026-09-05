@@ -72,7 +72,7 @@ export const ReportDisputeModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[var(--z-modal)] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm">
       <div
         role="dialog"
         aria-modal="true"
@@ -109,7 +109,7 @@ export const ReportDisputeModal: React.FC = () => {
             <p className="text-[11px] text-[var(--foreground-muted)]">{t("support.disputeNextStep")}</p>
             <button
               onClick={handleClose}
-              className="w-full py-3 rounded-xl bg-[var(--brand-primary)] text-white font-bold text-xs hover:bg-[var(--brand-primary-hover)] transition-colors min-h-[44px]"
+              className="w-full py-3 rounded-xl bg-[var(--brand-primary)] text-[var(--brand-on-primary)] font-bold text-xs hover:bg-[var(--brand-primary-hover)] transition-colors min-h-[44px]"
             >
               {t("common.close")}
             </button>
@@ -193,7 +193,7 @@ export const ReportDisputeModal: React.FC = () => {
               <button
                 type="submit"
                 disabled={isSubmitting || description.trim().length < 10}
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-bold text-xs transition-colors disabled:opacity-50 min-h-[44px]"
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-on-primary)] font-bold text-xs transition-colors disabled:opacity-50 min-h-[44px]"
               >
                 <Send className="w-3.5 h-3.5" aria-hidden="true" />
                 <span>{isSubmitting ? t("support.submitting") : t("support.submitTicket")}</span>

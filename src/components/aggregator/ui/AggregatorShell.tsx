@@ -153,7 +153,7 @@ export const AggregatorShell: React.FC<{ children: React.ReactNode }> = ({ child
             {/* Header Brand */}
             <div className="p-4 border-b border-white/10 flex items-center justify-between">
               <Link href="/aggregator" className="flex items-center gap-2">
-                <KorieLogo variant="compact" theme="dark" height={28} />
+                <KorieLogo variant="compact" theme="dark" height={28} linkHref="" />
               </Link>
               <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase bg-amber-500/10 text-amber-400 border border-amber-500/20">
                 AGGREGATOR TIER-1
@@ -262,7 +262,7 @@ export const AggregatorShell: React.FC<{ children: React.ReactNode }> = ({ child
           <header className="sticky top-0 z-30 glass-nav px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <Link href="/aggregator" className="lg:hidden flex items-center">
-                <KorieLogo variant="compact" theme="dark" height={26} />
+                <KorieLogo variant="compact" theme="dark" height={26} linkHref="" />
               </Link>
               <div className="hidden lg:block">
                 <div className="text-sm font-bold text-white flex items-center gap-2">

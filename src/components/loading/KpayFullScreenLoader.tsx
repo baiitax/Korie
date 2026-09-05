@@ -86,7 +86,7 @@ export const KpayFullScreenLoader: React.FC<KpayFullScreenLoaderProps> = ({
 
   return (
     <div
-      className={`fixed inset-0 z-[100] flex items-center justify-center p-4 transition-opacity duration-300 ease-out ${
+      className={`fixed inset-0 z-[var(--z-loader)] flex items-center justify-center p-4 transition-opacity duration-300 ease-out ${
         shown && !exiting ? "opacity-100" : "opacity-0"
       }`}
       style={{ transitionTimingFunction: "cubic-bezier(0.16,1,0.3,1)" }}

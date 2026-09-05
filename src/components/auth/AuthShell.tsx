@@ -37,7 +37,7 @@ export const AuthShell: React.FC<AuthShellProps> = ({
       {/* Top Bar: Brand, Jurisdiction & Language Switcher */}
       <header className="flex items-center justify-between w-full max-w-5xl mx-auto relative z-10 py-2">
         <Link href="/" className="flex items-center group transition-transform duration-200 hover:scale-[1.01]" aria-label="KoriePay Home">
-          <KorieLogo variant="full" theme={theme === "light" ? "light" : "dark"} height={34} />
+          <KorieLogo variant="full" theme={theme === "light" ? "light" : "dark"} height={34} linkHref="" />
         </Link>
 
         <div className="flex items-center gap-2.5 sm:gap-4">
