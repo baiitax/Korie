@@ -1,129 +1,134 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useCompliance } from '@/components/compliance/ComplianceContext';
-import { Eye, Search, ShieldCheck, UserCheck, AlertTriangle } from 'lucide-react';
+/**
+ * PEP register — the AML profiles that carry a PEP flag.
+ *
+ * The register is a filter over aml_customer_profiles (is_pep). With no
+ * flagged profiles it is an honest empty state — not a demo list of
+ * fictional politicians, which is what the previous mock screen showed.
+ */
 
-export default function PepScreeningPage() {
-  const { selectedJurisdiction, formatDate } = useCompliance();
-  const [searchQuery, setSearchQuery] = useState('');
+import React, { useMemo, useState } from 'react';
+import { RefreshCw, Search } from 'lucide-react';
+import { useComplianceResource } from '@/services/compliance/hooks';
+import { formatDate, humanizeEnum } from '@/services/compliance/format';
+import type { AmlProfileRow } from '@/services/compliance/types';
+import { useCompliancePortal } from '@/components/compliance/CompliancePortal';
+import { Button, Chip, PageHead, SourceNotes, StatusChip } from '@/components/compliance/ui';
+import { ResourceState } from '@/components/compliance/ui';
+import { ComplianceTable, TableToolbar, makeTableLabels } from '@/components/compliance/ui';
 
-  const mockPepList = [
-    {
-      id: 'PEP-NG-001',
-      fullName: 'Hon. Bello Sani Garba',
-      designation: 'Former State Commissioner for Trade & Investment',
-      jurisdiction: 'NG' as const,
-      category: 'DOMESTIC_PEP',
-      tier: 'HIGH_RISK',
-      associatedEntities: ['Kano Commodity Hub', 'Garba Logistics'],
-      lastScreened: '2026-08-20',
-      eddRequirement: 'ANNUAL_MANDATORY',
-    },
-    {
-      id: 'PEP-NE-002',
-      fullName: 'Dr. Mariam Soumana',
-      designation: 'Senior Director, Ministry of Petroleum & Energy',
-      jurisdiction: 'NE' as const,
-      category: 'DOMESTIC_PEP',
-      tier: 'HIGH_RISK',
-      associatedEntities: ['Société Pétrolière du Sahel'],
-      lastScreened: '2026-08-25',
-      eddRequirement: 'ANNUAL_MANDATORY',
-    },
-    {
-      id: 'PEP-NG-003',
-      fullName: 'Tariq Al-Mansoor',
-      designation: 'Foreign Diplomatic Envoy / Embassy Commercial Attaché',
-      jurisdiction: 'NG' as const,
-      category: 'FOREIGN_PEP',
-      tier: 'MEDIUM_RISK',
-      associatedEntities: ['Middle East Trade Desk'],
-      lastScreened: '2026-09-01',
-      eddRequirement: 'BIANNUAL_MANDATORY',
-    },
-  ];
+export default function PepPage() {
+  const { t } = useCompliancePortal();
+  const profiles = useComplianceResource('amlProfiles');
+  const [term, setTerm] = useState('');
 
-  const filtered = mockPepList.filter((p) => {
-    if (selectedJurisdiction !== 'ALL' && p.jurisdiction !== selectedJurisdiction) return false;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      return p.id.toLowerCase().includes(q) || p.fullName.toLowerCase().includes(q) || p.designation.toLowerCase().includes(q);
-    }
-    return true;
-  });
+  const flagged = useMemo(() => {
+    const q = term.trim().toLowerCase();
+    return profiles.resource.data
+      .filter((row: AmlProfileRow) => row.isPep)
+      .filter((row: AmlProfileRow) => !q || row.customerId.toLowerCase().includes(q));
+  }, [profiles.resource.data, term]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-mono font-bold text-teal-400 uppercase tracking-wider mb-1">
-            <Eye className="w-4 h-4" />
-            POLITICALLY EXPOSED PERSONS REGISTER
-          </div>
-          <h1 className="text-2xl font-extrabold text-white">PEP Watchlist & Family Associates</h1>
-          <p className="text-xs text-slate-400">
-            Monitoring of domestic and foreign politically exposed persons, family members, and close business associates.
-          </p>
-        </div>
-      </div>
+    <>
+      <PageHead
+        title={t('compliance.pep.title')}
+        description={t('compliance.pep.subtitle')}
+        resource={profiles.resource}
+        actions={
+          <Button icon={<RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />} onClick={profiles.reload} pending={profiles.isLoading || profiles.isRefreshing}>
+            {profiles.isRefreshing ? t('compliance.states.refreshing') : t('compliance.states.refresh')}
+          </Button>
+        }
+      />
 
-      <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-4 flex items-center justify-between gap-4">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search PEP records by official name, position, or associated business..."
-            className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-500"
-          />
-        </div>
-      </div>
+      <ResourceState
+        resource={profiles.resource}
+        isLoading={profiles.isLoading}
+        loadingLabel={t('compliance.pep.loading')}
+        emptyTitle={t('compliance.pep.empty')}
+        emptyBody={t('compliance.pep.emptyBody')}
+        filtered={term !== ''}
+        onClearFilters={() => setTerm('')}
+        clearLabel={t('compliance.states.clearFilters')}
+        unauthorizedTitle={t('compliance.states.unauthorizedTitle')}
+        unauthorizedBody={t('compliance.pep.unauthorized')}
+        unavailableTitle={t('compliance.states.unavailableTitle')}
+        unavailableBody={t('compliance.pep.unavailable')}
+        retryLabel={t('compliance.states.retry')}
+        onRetry={profiles.reload}
+      >
+        <ComplianceTable
+          rows={flagged}
+          getRowId={(row: AmlProfileRow) => row.id}
+          labels={makeTableLabels(t, t('compliance.pep.tableCaption'))}
+          toolbar={
+            <TableToolbar
+              searchValue={term}
+              onSearch={setTerm}
+              searchLabel={t('compliance.pep.searchLabel')}
+              searchPlaceholder={t('compliance.pep.searchPlaceholder')}
+            />
+          }
+          columns={[
+            {
+              key: 'customer',
+              header: t('compliance.common.subject'),
+              primary: true,
+              mobileLabel: t('compliance.common.subject'),
+              sortValue: (row: AmlProfileRow) => row.customerId,
+              render: (row: AmlProfileRow) => (
+                <div className="min-w-0">
+                  <div className="cmp-ref truncate">{row.customerId}</div>
+                  <div className="cmp-ref truncate">{row.id.slice(0, 8)}</div>
+                </div>
+              ),
+            },
+            {
+              key: 'jurisdiction',
+              header: t('compliance.common.jurisdiction'),
+              mobileLabel: t('compliance.common.jurisdiction'),
+              sortValue: (row: AmlProfileRow) => row.jurisdiction,
+              render: (row: AmlProfileRow) => <Chip tone="neutral">{row.jurisdiction}</Chip>,
+            },
+            {
+              key: 'category',
+              header: t('compliance.pep.col.category'),
+              mobileLabel: t('compliance.pep.col.category'),
+              sortValue: (row: AmlProfileRow) => row.pepCategory ?? '',
+              render: (row: AmlProfileRow) => <span className="cmp-ref">{row.pepCategory ? humanizeEnum(row.pepCategory) : '—'}</span>,
+            },
+            {
+              key: 'tier',
+              header: t('compliance.common.risk'),
+              mobileLabel: t('compliance.common.risk'),
+              sortValue: (row: AmlProfileRow) => row.riskTier,
+              render: (row: AmlProfileRow) => <StatusChip status={row.riskTier} label={humanizeEnum(row.riskTier)} severity={row.riskTier === 'HIGH' || row.riskTier === 'CRITICAL'} />,
+            },
+            {
+              key: 'evaluated',
+              header: t('compliance.pep.col.evaluated'),
+              mobileLabel: t('compliance.pep.col.evaluated'),
+              hideBelow: 'lg',
+              sortValue: (row: AmlProfileRow) => Date.parse(row.lastEvaluatedAt ?? '') || 0,
+              render: (row: AmlProfileRow) => <span className="cmp-ref">{row.lastEvaluatedAt ? formatDate(row.lastEvaluatedAt) : '—'}</span>,
+            },
+          ]}
+        />
+      </ResourceState>
 
-      <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl overflow-hidden shadow-xl">
-        <table className="w-full text-left text-xs">
-          <thead className="bg-slate-950/80 border-b border-slate-800 text-slate-400 uppercase font-mono text-[10px]">
-            <tr>
-              <th className="p-3.5">PEP Official & ID</th>
-              <th className="p-3.5">Public Designation / Office</th>
-              <th className="p-3.5">PEP Category</th>
-              <th className="p-3.5">Associated Entities</th>
-              <th className="p-3.5">EDD Schedule</th>
-              <th className="p-3.5 text-right">Last Verified</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-800/60">
-            {filtered.map((pep) => (
-              <tr key={pep.id} className="hover:bg-slate-800/40">
-                <td className="p-3.5">
-                  <div className="font-bold text-white text-sm">{pep.fullName}</div>
-                  <div className="text-[11px] text-slate-400 font-mono">
-                    {pep.id} • {pep.jurisdiction === 'NG' ? '🇳🇬 Nigeria' : '🇳🇪 Niger'}
-                  </div>
-                </td>
-                <td className="p-3.5 text-slate-300 font-medium">{pep.designation}</td>
-                <td className="p-3.5">
-                  <span className="font-mono text-teal-400 font-bold bg-teal-950/60 px-2 py-0.5 rounded border border-teal-800/40 text-[11px]">
-                    {pep.category.replace(/_/g, ' ')}
-                  </span>
-                </td>
-                <td className="p-3.5 text-slate-300">
-                  {pep.associatedEntities.join(', ')}
-                </td>
-                <td className="p-3.5">
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase bg-amber-500/20 text-amber-300">
-                    {pep.eddRequirement.replace(/_/g, ' ')}
-                  </span>
-                </td>
-                <td className="p-3.5 text-right font-mono text-slate-400 text-[11px]">
-                  {pep.lastScreened}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+      <SourceNotes
+        title={t('compliance.pep.sourcesTitle')}
+        rows={[
+          {
+            section: t('compliance.pep.sourcesRows'),
+            source: 'GET /api/compliance/data/aml-customer-profiles',
+            note: t('compliance.pep.sourcesNote'),
+            mode: 'live',
+          },
+        ]}
+      />
+    </>
   );
 }

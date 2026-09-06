@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS webhook_subscriptions (
 
 CREATE TABLE IF NOT EXISTS webhook_delivery_attempts (
     id TEXT PRIMARY KEY,
-    subscription_id TEXT NOT NULL REFERENCES webhook_subscriptions(id),
+    subscription_id UUID NOT NULL REFERENCES webhook_subscriptions(id),
     event_id TEXT NOT NULL,
     event_type TEXT NOT NULL,
     target_url TEXT NOT NULL,

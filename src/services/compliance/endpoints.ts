@@ -6,6 +6,12 @@
  * service either has a live source for it or it does not. When it does not,
  * the caller gets `unavailable` (live builds) or a badged demo record — never
  * silently fabricated numbers dressed up as production state.
+ *
+ * LIVE REWIRE: every list source now points at the compliance data plane
+ * (`/api/compliance/data/*`), which reads the Supabase database through the
+ * same resource registry the admin portal uses, gated by real officer
+ * sessions. The previous sources were the engine's in-memory HTTP endpoints,
+ * which answered with whatever the process happened to hold in RAM.
  */
 
 import type { ComplianceResourceKey } from './types';
@@ -24,50 +30,58 @@ export interface LiveSource {
 }
 
 /**
- * `live` = there is a real route serving real engine state.
+ * `live` = there is a real route serving real database state.
  * `derived` = computed on the client from other live resources (no new endpoint invented).
  * `demo` = no backend contract exists yet; only the demo store can fill this.
  */
 export type ComplianceWiring = 'live' | 'derived' | 'demo';
 
+const DATA = '/api/compliance/data';
+
 export const LIVE_SOURCES: Partial<Record<ComplianceResourceKey, LiveSource>> = {
   /* ── Financial crime queues ─────────────────────────────────────────── */
-  alerts: { path: '/api/aml/alerts', listKey: 'alerts', totalKey: 'total' },
-  cases: { path: '/api/aml/cases', listKey: 'cases', totalKey: 'total' },
-  /* AML rules are exposed as monitoring scenarios; read-only in the UI. */
-  telemetry: { path: '/api/core/v1/risk/decisions', listKey: 'decisions', totalKey: 'count' },
-  /* Monitoring scenarios are the deployed AML rules. The engine exposes no
-     write route for them, so the console renders them read-only. */
-  scenarios: { path: '/api/aml/scenarios', listKey: 'scenarios', totalKey: 'total' },
-  network: { path: '/api/aml/network' },
-  /* Security posture is the platform's own scorecard; the settings screen shows
-     it read-only because no endpoint lets the console change it. */
-  posture: { path: '/api/security/posture' },
+  alerts: { path: `${DATA}/aml-alerts`, listKey: 'rows', totalKey: 'count' },
+  cases: { path: `${DATA}/aml-cases`, listKey: 'rows', totalKey: 'count' },
+  caseNotes: { path: `${DATA}/aml-case-notes`, listKey: 'rows', totalKey: 'count' },
+  amlProfiles: { path: `${DATA}/aml-customer-profiles`, listKey: 'rows', totalKey: 'count', sensitive: true },
+  agentRegister: { path: `${DATA}/agents`, listKey: 'rows', totalKey: 'count' },
+  merchantProfiles: { path: `${DATA}/merchant-profiles`, listKey: 'rows', totalKey: 'count' },
+  /* The monitoring feed is the risk engine's persisted decision log. */
+  telemetry: { path: `${DATA}/risk-decisions`, listKey: 'rows', totalKey: 'count' },
+  transactions: { path: `${DATA}/risk-decisions`, listKey: 'rows', totalKey: 'count' },
+  /* Monitoring scenarios are the deployed AML rules; read-only in the UI. */
+  scenarios: { path: `${DATA}/aml-scenarios`, listKey: 'rows', totalKey: 'count' },
 
-  /* ── Due diligence (master identity is the source of truth) ─────────── */
-  customers: { path: '/api/core/v1/identity/persons', listKey: 'persons', totalKey: 'count', sensitive: true },
-  kyc: { path: '/api/core/v1/identity/persons', listKey: 'persons', totalKey: 'count', sensitive: true },
-  kyb: { path: '/api/core/v1/identity/organizations', listKey: 'organizations', totalKey: 'count', sensitive: true },
-  /* Requires the kyc:verify scope; the route ignores any identity it is not
-     allowed to read, so an unauthorized response here is shown as such. */
-  documents: { path: '/api/core/v1/identity/documents', listKey: 'documents', totalKey: 'count', sensitive: true },
+  /* ── Due diligence (master identity tables) ─────────────────────────── */
+  customers: { path: `${DATA}/identity-persons`, listKey: 'rows', totalKey: 'count', sensitive: true },
+  kyc: { path: `${DATA}/identity-persons`, listKey: 'rows', totalKey: 'count', sensitive: true },
+  kyb: { path: `${DATA}/identity-organizations`, listKey: 'rows', totalKey: 'count', sensitive: true },
+  documents: { path: `${DATA}/identity-documents`, listKey: 'rows', totalKey: 'count', sensitive: true },
 
   /* ── Governance ─────────────────────────────────────────────────────── */
-  reports: { path: '/api/v1/regulatory/reports' },
-  restatements: { path: '/api/v1/regulatory/restatements' },
-  calendar: { path: '/api/v1/regulatory/obligations' },
-  approvals: { path: '/api/security/pam/requests', listKey: 'requests' },
-  escalations: { path: '/api/complaints', listKey: 'complaints' },
+  reports: { path: `${DATA}/regulatory-reports`, listKey: 'rows', totalKey: 'count' },
+  restatements: { path: `${DATA}/regulatory-restatements`, listKey: 'rows', totalKey: 'count' },
+  calendar: { path: `${DATA}/regulatory-obligations`, listKey: 'rows', totalKey: 'count' },
+  approvals: { path: `${DATA}/pam-requests`, listKey: 'rows', totalKey: 'count' },
+  escalations: { path: `${DATA}/complaints`, listKey: 'rows', totalKey: 'count' },
+  policies: { path: `${DATA}/risk-rules`, listKey: 'rows', totalKey: 'count' },
+  audit: { path: `${DATA}/audit-events`, listKey: 'rows', totalKey: 'count' },
+  officers: { path: `${DATA}/workforce-identities`, listKey: 'rows', totalKey: 'count' },
+  restrictions: { path: `${DATA}/customer-restrictions`, listKey: 'rows', totalKey: 'count' },
 
   /* ── Platform ────────────────────────────────────────────────────────── */
-  integrations: { path: '/api/health/providers', listKey: 'providers', totalKey: 'count' },
-  systemHealth: { path: '/api/health' },
+  integrations: { path: `${DATA}/provider-nodes`, listKey: 'rows', totalKey: 'count' },
+  /* Computed server-side from real tables; the old in-memory engines are not
+     consulted because they asserted states nobody had configured. */
+  posture: { path: '/api/compliance/posture' },
+  systemHealth: { path: '/api/compliance/health' },
 };
 
 /** Non-list live calls (detail views, single objects). */
 export const LIVE_DETAIL_PATHS: Partial<Record<ComplianceResourceKey, string>> = {
-  alertDetail: '/api/aml/alerts',
-  caseDetail: '/api/aml/cases',
+  alertDetail: `${DATA}/aml-alerts`,
+  caseDetail: `${DATA}/aml-cases`,
+  caseNotes: `${DATA}/aml-case-notes`,
 };
 
 export const WIRING: Record<ComplianceResourceKey, ComplianceWiring> = {
@@ -80,22 +94,26 @@ export const WIRING: Record<ComplianceResourceKey, ComplianceWiring> = {
   alertDetail: 'live',
   cases: 'live',
   caseDetail: 'live',
-  transactions: 'derived',
-  /* The list has no read endpoint; only POST /api/aml/screening is live, and the
-     UI treats a screening run as a real action with a real result. */
+  caseNotes: 'live',
+  amlProfiles: 'live',
+  agentRegister: 'live',
+  merchantProfiles: 'live',
+  transactions: 'live',
+  /* The list has no read endpoint; only the screening call itself is real, and
+     the UI treats a screening run as a real action with a real result. */
   sanctions: 'demo',
   watchlists: 'demo',
-  restrictions: 'demo',
+  restrictions: 'live',
   telemetry: 'live',
   reports: 'live',
   restatements: 'live',
   scenarios: 'live',
   posture: 'live',
   network: 'live',
-  policies: 'demo',
+  policies: 'live',
   calendar: 'live',
-  audit: 'demo',
-  officers: 'demo',
+  audit: 'live',
+  officers: 'live',
   tasks: 'derived',
   approvals: 'live',
   escalations: 'live',
@@ -105,19 +123,24 @@ export const WIRING: Record<ComplianceResourceKey, ComplianceWiring> = {
 };
 
 /** Sanctions screening has no read endpoint — only the screening call itself. */
-export const SCREENING_PATH = '/api/aml/screening';
-export const DOCUMENTS_PATH = '/api/core/v1/identity/documents';
+export const SCREENING_PATH = '/api/compliance/actions/screening';
+export const DOCUMENTS_PATH = `${DATA}/identity-documents`;
 export const TRACE_PATH = '/api/audit/trace';
 
 /**
- * Mutations that reach a real engine. Anything not listed here cannot write in
- * a live build, and the UI must not offer it as if it could (§88).
+ * Mutations that reach a real, audited endpoint. Anything not listed here
+ * cannot write in a live build, and the UI must not offer it as if it could.
+ *
+ * `patch` actions go through the registry-whitelisted PATCH route (columns are
+ * whitelisted per resource, actor fields are stamped server-side, every write
+ * lands in audit_events). `post` actions are the workflow transitions that are
+ * more than a column update (case opening, note append).
  */
 export const LIVE_ACTIONS = {
-  'alerts.status': { path: '/api/aml/alerts', method: 'POST', action: 'UPDATE_STATUS' },
-  'alerts.convert': { path: '/api/aml/alerts', method: 'POST', action: 'CONVERT_TO_CASE' },
-  'cases.note': { path: '/api/aml/cases', method: 'POST', action: 'ADD_NOTE' },
-  'cases.decision': { path: '/api/aml/cases', method: 'POST', action: 'SUBMIT_DECISION' },
+  'alerts.status': { kind: 'patch', path: `${DATA}/aml-alerts` },
+  'alerts.convert': { kind: 'post', path: '/api/compliance/actions/alert-convert' },
+  'cases.note': { kind: 'post', path: '/api/compliance/actions/case-note' },
+  'cases.decision': { kind: 'patch', path: `${DATA}/aml-cases` },
 } as const;
 
 export type LiveActionKey = keyof typeof LIVE_ACTIONS;

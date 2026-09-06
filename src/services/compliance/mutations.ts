@@ -14,7 +14,7 @@ import { LIVE_ACTIONS } from './endpoints';
 import { clearComplianceCache, demoAllowed } from './service';
 import { applyDemoMutation } from './demo/store';
 import type { ComplianceMutationResult } from './types';
-import { mapAlert, mapApproval, mapCase, mapDecision, mapEscalation } from './normalizers';
+import { camelRow, mapAlert, mapApproval, mapCase, mapDecision, mapEscalation } from './normalizers';
 import type { MonitoringRow } from './types';
 import type { AlertRow, ApprovalRow, CaseRow, EscalationRow } from './types';
 
@@ -44,15 +44,42 @@ async function post(
     } catch {
       payload = null;
     }
-    return { ok: res.ok && payload?.success !== false, status: res.status, payload, requestId: payload?.meta?.request_id };
+    return { ok: res.ok && payload?.success !== false && payload?.status !== 'error', status: res.status, payload, requestId: payload?.meta?.request_id };
+  } catch {
+    return { ok: false, status: 0, payload: null };
+  }
+}
+
+async function patch(
+  path: string,
+  body: Record<string, unknown>,
+): Promise<{ ok: boolean; status: number; payload: any; requestId?: string }> {
+  try {
+    const res = await complianceFetch(path, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+      headers: { 'Idempotency-Key': newIdempotencyKey('cmp') },
+    });
+    let payload: any = null;
+    try {
+      payload = await res.json();
+    } catch {
+      payload = null;
+    }
+    return { ok: res.ok && payload?.success !== false && payload?.status !== 'error', status: res.status, payload, requestId: payload?.meta?.request_id };
   } catch {
     return { ok: false, status: 0, payload: null };
   }
 }
 
 /**
- * Run a wired action against the real engine.
+ * Run a wired action against the audited compliance API.
  * `id` is the alert/case id — never a client-computed reference.
+ *
+ * `patch` actions update registry-whitelisted columns on one record; the
+ * server stamps actor identity and writes an audit_events row. `post` actions
+ * are the workflow transitions (alert→case conversion, case note) whose
+ * endpoints do more than update a column.
  */
 export async function runLiveAction<K extends LiveActionKey>(
   key: K,
@@ -60,18 +87,48 @@ export async function runLiveAction<K extends LiveActionKey>(
   body: Record<string, unknown>,
 ): Promise<ComplianceMutationResult<AlertRow | CaseRow>> {
   const spec = LIVE_ACTIONS[key];
-  const res = await post(`${spec.path}/${encodeURIComponent(id)}`, { action: spec.action, ...body });
+  let res: { ok: boolean; status: number; payload: any; requestId?: string };
+  try {
+    const response =
+      spec.kind === 'patch'
+        ? await complianceFetch(`${spec.path}/${encodeURIComponent(id)}`, {
+            method: 'PATCH',
+            body: JSON.stringify(body),
+            headers: { 'Idempotency-Key': newIdempotencyKey('cmp') },
+          })
+        : await complianceFetch(spec.path, {
+            method: 'POST',
+            body: JSON.stringify(
+              key === 'alerts.convert'
+                ? { alertId: id, rationale: body.rationale ?? body.investigatorEmail, priority: body.priority }
+                : { caseId: id, content: body.content ?? body.note, noteType: body.noteType ?? (body.isConfidential ? 'CONFIDENTIAL' : 'INVESTIGATION') },
+            ),
+            headers: { 'Idempotency-Key': newIdempotencyKey('cmp') },
+          });
+    let payload: any = null;
+    try {
+      payload = await response.json();
+    } catch {
+      payload = null;
+    }
+    res = { ok: response.ok && payload?.status !== 'error', status: response.status, payload, requestId: payload?.meta?.request_id };
+  } catch {
+    res = { ok: false, status: 0, payload: null };
+  }
   // A write invalidates the read cache: an officer must not stare at a queue
   // that was refreshed for somebody else a second ago.
   clearComplianceCacheAfterWrite();
 
   if (!res.ok) {
+    const errObj = res.payload?.error;
     const message =
-      typeof res.payload?.error === 'string'
-        ? res.payload.error
-        : res.status === 404
-          ? 'The record is no longer in the engine, so nothing was changed.'
-          : 'The compliance service refused the request.';
+      typeof errObj === 'string'
+        ? errObj
+        : typeof errObj?.message === 'string'
+          ? errObj.message
+          : res.status === 404
+            ? 'The record is no longer in the database, so nothing was changed.'
+            : 'The compliance service refused the request.';
     return {
       ok: false,
       recorded: false,
@@ -87,8 +144,8 @@ export async function runLiveAction<K extends LiveActionKey>(
     };
   }
 
-  const record = res.payload?.alert ?? res.payload?.case ?? res.payload?.data ?? res.payload;
-  const value = key.startsWith('alerts') ? mapAlert(record ?? {}) : mapCase(record ?? {});
+  const record = res.payload?.record ?? res.payload?.case ?? res.payload?.note ?? res.payload?.alert ?? res.payload?.data ?? res.payload;
+  const value = key.startsWith('alerts') ? mapAlert(camelRow(record ?? {})) : mapCase(camelRow(record ?? {}));
   return { ok: true, recorded: true, source: 'live', value, error: undefined };
 }
 
@@ -143,7 +200,7 @@ export async function runRiskEvaluation(body: {
   entityType?: string;
   transactionType?: string;
 }): Promise<ComplianceMutationResult<MonitoringRow>> {
-  const res = await post('/api/core/v1/risk/evaluate', body);
+  const res = await post('/api/compliance/actions/risk-evaluate', body);
   if (!res.ok) {
     return {
       ok: false,
@@ -159,20 +216,25 @@ export async function runRiskEvaluation(body: {
       },
     };
   }
-  const record = res.payload?.data ?? res.payload;
-  return { ok: true, recorded: true, source: 'live', value: mapDecision(record ?? {}) };
+  const record = res.payload?.decision ?? res.payload?.data ?? res.payload;
+  return { ok: true, recorded: true, source: 'live', value: mapDecision(camelRow(record ?? {})) };
 }
 
 /**
  * Approving a privileged-access request is a real dual-authorization write:
- * `POST /api/security/pam/requests/:id/approve` records the checker, flips the
- * request to APPROVED and opens the lease window in `PrivilegedAccessEngine`.
- * There is no reject endpoint in the deployment, so this module deliberately
- * offers no "deny" button — the request is declined out of band, and the page
- * says so rather than simulating a decision no system would store.
+ * `PATCH /api/compliance/data/pam-requests/:id` flips the request to APPROVED,
+ * stamps the checker from the verified session and writes an audit row with
+ * before/after state. There is no reject endpoint in the deployment, so this
+ * module deliberately offers no "deny" button — the request is declined out of
+ * band, and the page says so rather than simulating a decision no system would
+ * store.
  */
 export async function approvePamRequest(id: string, checkerEmail: string): Promise<ComplianceMutationResult<ApprovalRow>> {
-  const res = await post(`/api/security/pam/requests/${encodeURIComponent(id)}/approve`, { checkerEmail });
+  // The checker is stamped from the verified session server-side; the
+  // client-passed email is ignored by the API (kept in the signature for the
+  // UI contract, which labels who is approving).
+  void checkerEmail;
+  const res = await patch(`/api/compliance/data/pam-requests/${encodeURIComponent(id)}`, { status: 'APPROVED' });
   clearComplianceCacheAfterWrite();
   if (!res.ok) {
     const code = typeof res.payload?.error === 'string' ? res.payload.error : `HTTP_${res.status || 'NETWORK'}`;
@@ -194,7 +256,7 @@ export async function approvePamRequest(id: string, checkerEmail: string): Promi
       },
     };
   }
-  return { ok: true, recorded: true, source: 'live', value: mapApproval(res.payload?.request ?? res.payload?.data ?? {}) };
+  return { ok: true, recorded: true, source: 'live', value: mapApproval(camelRow(res.payload?.record ?? res.payload?.request ?? res.payload?.data ?? {})) };
 }
 
 /** Screening is a real POST with a real engine result — and writes nothing. */
@@ -202,7 +264,7 @@ export async function runScreening(input: {
   name: string;
   jurisdiction: 'NG' | 'NE';
 }): Promise<ComplianceMutationResult<any>> {
-  const res = await post('/api/aml/screening', { name: input.name, jurisdiction: input.jurisdiction });
+  const res = await post('/api/compliance/actions/screening', { name: input.name, jurisdiction: input.jurisdiction });
   clearComplianceCache();
   if (!res.ok) {
     return {
@@ -215,7 +277,7 @@ export async function runScreening(input: {
       },
     };
   }
-  return { ok: true, recorded: true, source: 'live', value: res.payload?.data ?? res.payload };
+  return { ok: true, recorded: true, source: 'live', value: res.payload?.screening ?? res.payload?.data ?? res.payload };
 }
 
 /**
@@ -240,9 +302,9 @@ export async function transitionEscalation(
 ): Promise<ComplianceMutationResult<EscalationRow>> {
   let res: { ok: boolean; status: number; payload: any };
   try {
-    const response = await complianceFetch(`/api/complaints/${encodeURIComponent(id)}`, {
+    const response = await complianceFetch(`/api/compliance/data/complaints/${encodeURIComponent(id)}`, {
       method: 'PATCH',
-      body: JSON.stringify({ action: 'TRANSITION_STATUS', status, ...(assignedToEmail ? { assignedToEmail } : {}) }),
+      body: JSON.stringify({ status, ...(assignedToEmail ? { assigned_to_email: assignedToEmail } : {}) }),
       headers: { 'Idempotency-Key': newIdempotencyKey('esc') },
     });
     let payload: any = null;
@@ -251,7 +313,7 @@ export async function transitionEscalation(
     } catch {
       payload = null;
     }
-    res = { ok: response.ok && payload?.success !== false, status: response.status, payload };
+    res = { ok: response.ok && payload?.success !== false && payload?.status !== 'error', status: response.status, payload };
   } catch {
     res = { ok: false, status: 0, payload: null };
   }
@@ -270,5 +332,5 @@ export async function transitionEscalation(
       },
     };
   }
-  return { ok: true, recorded: true, source: 'live', value: mapEscalation(res.payload?.complaint ?? res.payload?.data ?? {}) };
+  return { ok: true, recorded: true, source: 'live', value: mapEscalation(camelRow(res.payload?.record ?? res.payload?.complaint ?? res.payload?.data ?? {})) };
 }

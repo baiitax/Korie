@@ -457,8 +457,14 @@ CREATE TABLE IF NOT EXISTS public.support_incidents (
 );
 ALTER TABLE public.support_incidents ENABLE ROW LEVEL SECURITY;
 
-ALTER TABLE public.support_tickets
-  ADD CONSTRAINT support_tickets_incident_id_fkey FOREIGN KEY (incident_id) REFERENCES public.support_incidents(id) ON DELETE SET NULL;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'support_tickets_incident_id_fkey') THEN
+    ALTER TABLE public.support_tickets
+      ADD CONSTRAINT support_tickets_incident_id_fkey FOREIGN KEY (incident_id) REFERENCES public.support_incidents(id) ON DELETE SET NULL;
+  END IF;
+END;
+$$;
 
 CREATE TABLE IF NOT EXISTS public.support_automation_rules (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

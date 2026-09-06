@@ -538,7 +538,9 @@ export const RESOURCES: Record<string, ResourceDef> = {
       priority: { column: "priority", op: "eq" },
       jurisdiction: { column: "jurisdiction", op: "eq" },
     },
-    mutations: { columns: ["status"] },
+    mutations: {
+      columns: ["status", "final_decision", "decision_notes", "decided_at"],
+    },
   },
   "regulatory-reports": {
     table: "regulatory_reports",
@@ -551,8 +553,24 @@ export const RESOURCES: Record<string, ResourceDef> = {
       columns: ["status", "preparer_email", "reviewer_email", "approver_email"],
     },
   },
+  "regulatory-restatements": {
+    table: "regulatory_restatements",
+    orderBy: "created_at",
+    search: ["restatement_reason", "approved_by"],
+  },
+  "provider-nodes": {
+    table: "provider_nodes",
+    orderBy: "created_at",
+    search: ["code", "name"],
+    filters: {
+      country: { column: "country", op: "eq" },
+      status: { column: "status", op: "eq" },
+      is_active: { column: "is_active", op: "eq", boolean: true },
+    },
+  },
   "regulatory-obligations": {
     table: "regulatory_obligations",
+    mutations: { columns: ["status"] },
     orderBy: "created_at",
     search: ["obligation_code", "regulator_name"],
     filters: {
@@ -621,7 +639,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
     filters: {
       status: { column: "status", op: "eq" },
     },
-    mutations: { columns: ["status", "decided_at"] },
+    mutations: { columns: ["status", "checker_email", "decided_at"] },
   },
 
   /* ── Support ─────────────────────────────────────────────────────── */
@@ -845,6 +863,104 @@ export const RESOURCES: Record<string, ResourceDef> = {
     search: ["full_name", "phone"],
     filters: { status: { column: "status", op: "eq" }, country: { column: "country", op: "eq" } },
   },
+  /* ── Compliance portal domain (identity, AML, complaints, network) ── */
+  "identity-persons": {
+    table: "identity_persons",
+    orderBy: "created_at",
+    search: ["identity_reference", "first_name", "middle_name", "last_name", "email_primary", "phone_primary"],
+    filters: {
+      country_code: { column: "country_code", op: "eq" },
+      kyc_tier: { column: "kyc_tier", op: "eq" },
+      kyc_status: { column: "kyc_status", op: "eq" },
+      identity_status: { column: "identity_status", op: "eq" },
+      risk_level: { column: "risk_level", op: "eq" },
+    },
+  },
+  "identity-documents": {
+    table: "identity_documents",
+    orderBy: "uploaded_at",
+    search: ["document_type", "identity_id"],
+    filters: { verification_status: { column: "verification_status", op: "eq" }, identity_id: { column: "identity_id", op: "eq" } },
+  },
+  "identity-verifications": {
+    table: "identity_verifications",
+    orderBy: "created_at",
+    search: ["provider_code", "verification_type"],
+    filters: { status: { column: "status", op: "eq" }, identity_id: { column: "identity_id", op: "eq" } },
+  },
+  "aml-scenarios": {
+    table: "aml_scenarios",
+    orderBy: "scenario_code",
+    search: ["scenario_code", "description"],
+    filters: { is_active: { column: "is_active", op: "eq", boolean: true }, jurisdiction: { column: "jurisdiction", op: "eq" }, severity: { column: "severity", op: "eq" } },
+  },
+  "aml-customer-profiles": {
+    table: "aml_customer_profiles",
+    orderBy: "updated_at",
+    search: ["customer_id"],
+    filters: { aml_risk_tier: { column: "aml_risk_tier", op: "eq" } },
+  },
+  "aml-case-notes": {
+    table: "aml_case_notes",
+    orderBy: "created_at",
+    search: ["author_email", "content"],
+    filters: { case_id: { column: "case_id", op: "eq" }, note_type: { column: "note_type", op: "eq" } },
+  },
+  "risk-decisions": {
+    table: "risk_decisions",
+    select: "id,transaction_reference,entity_id,composite_score,risk_band,decision,decision_reason,policy_version,model_version,execution_latency_ms,rule_hits,created_at",
+    orderBy: "created_at",
+    search: ["transaction_reference", "entity_id"],
+    filters: { risk_band: { column: "risk_band", op: "eq" }, decision: { column: "decision", op: "eq" } },
+  },
+  "complaints": {
+    table: "complaints",
+    orderBy: "created_at",
+    search: ["complaint_reference", "customer_name", "customer_phone", "description"],
+    filters: {
+      status: { column: "status", op: "eq" },
+      priority: { column: "priority", op: "eq" },
+      country: { column: "country", op: "eq" },
+      category: { column: "category", op: "eq" },
+    },
+    mutations: {
+      columns: ["status", "assigned_to", "assigned_to_email", "resolution_notes", "resolution_type"],
+    },
+  },
+  "customer-restrictions": {
+    table: "customer_account_restrictions",
+    orderBy: "applied_at",
+    search: ["reason_code", "notes", "account_id"],
+    filters: { is_active: { column: "is_active", op: "eq", boolean: true }, restriction_type: { column: "restriction_type", op: "eq" } },
+    mutations: {
+      columns: ["is_active", "lifted_by", "notes"],
+    },
+  },
+  "network-nodes": {
+    table: "network_graph_nodes",
+    orderBy: "node_key",
+    search: ["node_key"],
+    filters: { node_type: { column: "node_type", op: "eq" }, risk_rating: { column: "risk_rating", op: "eq" } },
+  },
+  "network-edges": {
+    table: "network_graph_edges",
+    orderBy: "created_at",
+    filters: { relationship_type: { column: "relationship_type", op: "eq" } },
+  },
+  "risk-issues": {
+    table: "risk_issues",
+    orderBy: "created_at",
+    search: ["issue_code", "title"],
+    filters: { status: { column: "status", op: "eq" }, severity: { column: "severity", op: "eq" } },
+  },
+  "risk-controls": {
+    table: "risk_controls",
+    orderBy: "created_at",
+    search: ["control_code", "name"],
+    filters: { control_type: { column: "control_type", op: "eq" }, effectiveness: { column: "effectiveness", op: "eq" } },
+  },
+
+  /* ── Compliance portal: officer directory ─────────────────────────── */
   "roles": {
     table: "roles",
     orderBy: "name",

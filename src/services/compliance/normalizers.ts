@@ -40,6 +40,25 @@ export function isPast(iso?: string): boolean {
   return !Number.isNaN(t) && t < Date.now();
 }
 
+/**
+ * Database rows arrive in snake_case; the portal's mappers speak the engine's
+ * camelCase vocabulary. This converts keys (one object level deep, so joined
+ * rows like `customers(full_name)` also normalize) without touching values —
+ * a jsonb payload keeps its own shape.
+ */
+export function camelRow<T extends Json>(raw: T): Json {
+  const out: Json = {};
+  for (const [k, v] of Object.entries(raw)) {
+    const camelKey = k.replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase());
+    if (v && typeof v === "object" && !Array.isArray(v) && !(v instanceof Date)) {
+      out[camelKey] = camelRow(v as Json);
+    } else {
+      out[camelKey] = v;
+    }
+  }
+  return out;
+}
+
 /* ── AML ────────────────────────────────────────────────────────────────── */
 
 export function mapAlert(raw: Json): AlertRow {
@@ -54,7 +73,7 @@ export function mapAlert(raw: Json): AlertRow {
     status: String(raw.status ?? 'NEW'),
     amount: Number(raw.disputedOrTriggeredAmount ?? 0),
     currency: String(raw.currency ?? 'NGN'),
-    jurisdiction: raw.currency === 'XOF' ? 'NE' : 'NG',
+    jurisdiction: raw.jurisdiction ?? (raw.currency === 'XOF' ? 'NE' : 'NG'),
     transactionReference: raw.transactionReference,
     whatHappened: raw.whatHappened,
     whySuspicious: raw.whySuspicious,
@@ -70,6 +89,9 @@ export function mapAlert(raw: Json): AlertRow {
 
 const CASE_STATUS_BY_ENGINE: Record<string, string> = {
   OPEN: 'OPEN',
+  UNDER_REVIEW: 'UNDER_REVIEW',
+  PENDING_DECISION: 'PENDING_DECISION',
+  WAITING_FOR_INFO: 'WAITING_FOR_INFO',
   TRIAGE: 'UNDER_REVIEW',
   INVESTIGATION: 'UNDER_REVIEW',
   INFORMATION_REQUESTED: 'WAITING_FOR_INFO',
@@ -188,7 +210,7 @@ export function mapDecision(raw: Json): MonitoringRow {
     decision: String(raw.decision ?? ''),
     riskScore: typeof raw.compositeScore === 'number' ? raw.compositeScore : undefined,
     signals: hits.map((h: Json) => ({
-      code: String(h.ruleCode ?? h.code ?? h.id ?? 'signal'),
+      code: String(h.ruleCode ?? h.rule_code ?? h.code ?? h.id ?? 'signal'),
       weight: typeof h.weight === 'number' ? h.weight : undefined,
       description: h.description ?? h.reason,
     })),
@@ -203,7 +225,7 @@ export function mapDecision(raw: Json): MonitoringRow {
 /* ── Governance ─────────────────────────────────────────────────────────── */
 
 /**
- * `/api/v1/regulatory/reports` serves filing snapshots, whose vocabulary is
+ * The regulatory reports table serves filing snapshots, whose vocabulary is
  * `reportTitle` / `periodCode` / `makerPreparer` / `checkerApprover` — not the
  * generic names the old page assumed. Every field below is read from a key that
  * exists on the wire.
@@ -217,17 +239,17 @@ export function mapReport(raw: Json): ReportRow {
   return {
     id: String(raw.id ?? raw.reportReference ?? ''),
     reference: String(raw.reportReference ?? raw.obligationCode ?? raw.id ?? ''),
-    reportType: String(raw.reportTitle ?? raw.reportType ?? raw.code ?? ''),
-    regulator: String(raw.regulator ?? raw.regulatorName ?? ''),
+    reportType: String(raw.reportTitle ?? raw.reportType ?? raw.obligations?.title ?? raw.code ?? ''),
+    regulator: String(raw.regulator ?? raw.regulatorName ?? raw.obligations?.regulatorName ?? ''),
     period: String(raw.periodCode ?? raw.reportingPeriod ?? raw.period ?? ''),
     dueDate: String(raw.nextDueDate ?? raw.dueDate ?? ''),
     status: String(raw.status ?? raw.filingStatus ?? ''),
     submittedAt: raw.submittedAt ?? raw.submissionDate,
     approvedAt: raw.approvedAt,
-    acknowledgement: raw.acknowledgementToken ?? raw.acknowledgementRef,
+    acknowledgement: raw.acknowledgementToken ?? raw.acknowledgementRef ?? raw.submissionReceiptHash,
     recordCount: typeof raw.recordCount === 'number' ? raw.recordCount : undefined,
-    maker: raw.makerPreparer ?? raw.preparedBy,
-    checker: raw.checkerApprover ?? raw.approvedBy,
+    maker: raw.makerPreparer ?? raw.preparedBy ?? raw.preparerEmail,
+    checker: raw.checkerApprover ?? raw.approvedBy ?? raw.reviewerEmail ?? raw.approverEmail,
     reconciliation: raw.reconciliationStatus,
     snapshotHash: raw.snapshotHashSha256,
     financials: financials.length ? financials : undefined,
@@ -242,7 +264,7 @@ export function mapObligation(raw: Json): ObligationRow {
   return {
     id: String(raw.id ?? raw.obligationCode ?? ''),
     title: String(raw.reportTitle ?? raw.title ?? raw.obligationCode ?? ''),
-    regulator: String(raw.regulator ?? raw.regulatorName ?? ''),
+    regulator: String(raw.regulator ?? raw.regulatorName ?? raw.obligations?.regulatorName ?? ''),
     dueDate: String(raw.nextDueDate ?? raw.dueDate ?? ''),
     frequency: raw.frequency,
     status: String(raw.status ?? ''),
@@ -307,13 +329,24 @@ export function mapApproval(raw: Json): import('./types').ApprovalRow {
 /* ── Platform ───────────────────────────────────────────────────────────── */
 
 export function mapProvider(raw: Json): ProviderRow {
+  const code = String(raw.code ?? raw.providerCode ?? '');
+  const status =
+    raw.status === 'CONNECTED' || raw.status === 'DEGRADED' || raw.status === 'OFFLINE'
+      ? raw.status
+      : raw.healthStatus === 'CONNECTED' || raw.healthStatus === 'DEGRADED' || raw.healthStatus === 'OFFLINE'
+        ? raw.healthStatus
+        : raw.isActive === false
+          ? 'OFFLINE'
+          : raw.status === 'ACTIVE' || raw.healthStatus === 'ACTIVE'
+            ? 'CONNECTED'
+            : 'OFFLINE';
   return {
-    code: String(raw.code ?? ''),
-    name: String(raw.name ?? raw.code ?? ''),
+    code,
+    name: String(raw.name ?? code),
     country: raw.country === 'NE' ? 'NE' : 'NG',
-    status: raw.status === 'CONNECTED' || raw.status === 'DEGRADED' || raw.status === 'OFFLINE' ? raw.status : 'OFFLINE',
-    circuitBreaker: String(raw.circuitBreaker ?? 'UNKNOWN'),
-    latencyMs: Number(raw.latencyMs ?? 0),
+    status,
+    circuitBreaker: String(raw.circuitBreaker ?? raw.circuitBreakerState ?? 'UNKNOWN'),
+    latencyMs: Number(raw.latencyMs ?? raw.avgLatencyMs ?? 0),
   };
 }
 
@@ -450,5 +483,69 @@ export function mapDocument(raw: Json): DocumentRow {
     verificationStatus: String(raw.verificationStatus ?? raw.status ?? 'PENDING'),
     expiresAt: raw.expiresAt ? String(raw.expiresAt) : undefined,
     uploadedAt: String(raw.uploadedAt ?? raw.createdAt ?? ''),
+  };
+}
+
+
+/* ── Database-row projections (compliance data plane) ───────────────────── */
+
+/** risk_rules → the policy register. Version is not tracked per rule yet. */
+export function mapPolicy(raw: Json): import('./types').PolicyRow {
+  return {
+    id: String(raw.id ?? ''),
+    title: String(raw.ruleName ?? raw.rule_name ?? raw.ruleCode ?? raw.id ?? ''),
+    category: String(raw.scope ?? ''),
+    version: raw.version !== undefined && raw.version !== null ? String(raw.version) : '',
+    status: raw.isActive === false || raw.is_active === false ? 'INACTIVE' : 'ACTIVE',
+    effectiveDate: raw.effectiveFrom ?? raw.effective_from ?? raw.createdAt ?? raw.created_at,
+    nextReviewDate: raw.nextReviewDate ?? raw.next_review_date,
+    owner: raw.ownerRole ?? raw.owner_role ?? raw.ownerEmail ?? raw.owner_email,
+  };
+}
+
+/** audit_events → the audit trail. Integrity is 'HASHED' only when the row
+ *  carries a hash; the compliance API does not assert one it cannot verify. */
+export function mapAuditEvent(raw: Json): import('./types').AuditRow {
+  return {
+    id: String(raw.id ?? ''),
+    action: String(raw.action ?? ''),
+    actor: String(raw.actorEmail ?? raw.actor_email ?? raw.actorRole ?? raw.actor_role ?? raw.actorId ?? raw.actor_id ?? 'unknown'),
+    entityType: String(raw.resourceType ?? raw.resource_type ?? ''),
+    entityId: String(raw.resourceId ?? raw.resource_id ?? ''),
+    at: String(raw.createdAt ?? raw.created_at ?? ''),
+    ip: raw.ipAddress ?? raw.ip_address,
+    integrity: raw.hash ? 'HASHED' : undefined,
+    summary: raw.details ? JSON.stringify(raw.details) : undefined,
+  };
+}
+
+/** workforce_identities → the officer register. */
+export function mapOfficer(raw: Json): import('./types').OfficerRow {
+  return {
+    id: String(raw.id ?? ''),
+    name: String(raw.fullName ?? raw.full_name ?? raw.email ?? ''),
+    email: String(raw.email ?? ''),
+    role: String(raw.department ?? raw.role ?? 'Compliance'),
+    jurisdiction: String(raw.country ?? 'NG'),
+    status: String(raw.lifecycleStatus ?? raw.lifecycle_status ?? 'UNKNOWN'),
+  };
+}
+
+/** customer_account_restrictions → the enforcement register. */
+export function mapRestriction(raw: Json): import('./types').RestrictionRow {
+  const active = raw.isActive ?? raw.is_active;
+  return {
+    id: String(raw.id ?? ''),
+    subjectType: 'ACCOUNT',
+    subjectId: String(raw.accountId ?? raw.account_id ?? ''),
+    subjectName: String(raw.accountId ?? raw.account_id ?? ''),
+    type: String(raw.restrictionType ?? raw.restriction_type ?? ''),
+    reason: String(raw.reasonCode ?? raw.reason_code ?? raw.notes ?? ''),
+    status: active ? 'ACTIVE' : 'LIFTED',
+    appliedAt: raw.appliedAt ?? raw.applied_at,
+    expiresAt: raw.liftedAt ?? raw.lifted_at,
+    makerName: raw.appliedBy ?? raw.applied_by,
+    checkerName: raw.liftedBy ?? raw.lifted_by,
+    courtOrderReference: raw.courtOrderReference ?? raw.court_order_reference,
   };
 }

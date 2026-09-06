@@ -40,9 +40,11 @@ import type {
   ReportRow,
 } from './types';
 import {
+  camelRow,
   mapDocument,
   mapAlert,
   mapApproval,
+  mapAuditEvent,
   mapCase,
   mapCustomer,
   mapDecision,
@@ -51,9 +53,12 @@ import {
   mapKyc,
   mapKyb,
   mapObligation,
+  mapOfficer,
+  mapPolicy,
   mapProvider,
   mapReport,
   mapRestatement,
+  mapRestriction,
   mapNetwork,
   mapScenario,
   mapPosture,
@@ -110,23 +115,85 @@ type RowKey = keyof ComplianceResourceMap;
 /* ── per-resource mapping + demo fallback tables ────────────────────────── */
 
 const MAPPERS: { [K in RowKey]?: (raw: AnyJson) => ComplianceResourceMap[K] } = {
-  customers: (raw) => mapCustomer(raw),
-  kyc: (raw) => mapKyc(raw),
-  kyb: (raw) => mapKyb(raw),
-  alerts: (raw) => mapAlert(raw),
-  alertDetail: (raw) => mapAlert(raw),
-  documents: (raw) => mapDocument(raw),
-  cases: (raw) => mapCase(raw),
-  caseDetail: (raw) => mapCase(raw),
-  telemetry: (raw) => mapDecision(raw),
-  transactions: (raw) => mapDecision(raw),
-  reports: (raw) => mapReport(raw),
-  restatements: (raw) => mapRestatement(raw),
-  scenarios: (raw) => mapScenario(raw),
-  calendar: (raw) => mapObligation(raw),
-  approvals: (raw) => mapApproval(raw),
-  escalations: (raw) => mapEscalation(raw),
-  integrations: (raw) => mapProvider(raw),
+  /* Raw rows come from the database in snake_case; `camelRow` normalizes keys
+     (one level deep, so joined relations normalize too) before the engine
+     vocabulary mappers read them. */
+  customers: (raw) => mapCustomer(camelRow(raw)),
+  kyc: (raw) => mapKyc(camelRow(raw)),
+  kyb: (raw) => mapKyb(camelRow(raw)),
+  alerts: (raw) => mapAlert(camelRow(raw)),
+  alertDetail: (raw) => mapAlert(camelRow(raw)),
+  documents: (raw) => mapDocument(camelRow(raw)),
+  cases: (raw) => mapCase(camelRow(raw)),
+  caseDetail: (raw) => mapCase(camelRow(raw)),
+  caseNotes: (raw) => {
+    const r = camelRow(raw);
+    return {
+      id: String(r.id ?? ''),
+      caseId: String(r.caseId ?? ''),
+      author: String(r.authorEmail ?? r.author ?? 'unknown'),
+      noteType: String(r.noteType ?? 'INVESTIGATION'),
+      content: String(r.content ?? ''),
+      createdAt: String(r.createdAt ?? ''),
+    };
+  },
+  telemetry: (raw) => mapDecision(camelRow(raw)),
+  transactions: (raw) => mapDecision(camelRow(raw)),
+  reports: (raw) => mapReport(camelRow(raw)),
+  restatements: (raw) => mapRestatement(camelRow(raw)),
+  scenarios: (raw) => mapScenario(camelRow(raw)),
+  calendar: (raw) => mapObligation(camelRow(raw)),
+  approvals: (raw) => mapApproval(camelRow(raw)),
+  escalations: (raw) => mapEscalation(camelRow(raw)),
+  integrations: (raw) => mapProvider(camelRow(raw)),
+  policies: (raw) => mapPolicy(camelRow(raw)),
+  audit: (raw) => mapAuditEvent(camelRow(raw)),
+  officers: (raw) => mapOfficer(camelRow(raw)),
+  restrictions: (raw) => mapRestriction(camelRow(raw)),
+  amlProfiles: (raw) => {
+    const r = camelRow(raw);
+    return {
+      id: String(r.id ?? ''),
+      customerId: String(r.customerId ?? ''),
+      jurisdiction: String(r.jurisdiction ?? ''),
+      riskTier: String(r.amlRiskTier ?? ''),
+      riskScore: typeof r.amlRiskScore === 'number' ? r.amlRiskScore : undefined,
+      isPep: Boolean(r.isPep),
+      pepCategory: r.pepCategory,
+      isSanctionFlagged: Boolean(r.isSanctionFlagged),
+      hasAdverseMedia: Boolean(r.hasAdverseMedia),
+      lastEvaluatedAt: r.lastEvaluatedAt,
+    };
+  },
+  agentRegister: (raw) => {
+    const r = camelRow(raw);
+    return {
+      id: String(r.id ?? ''),
+      agentCode: String(r.agentCode ?? r.id ?? ''),
+      agentName: String(r.agentName ?? ''),
+      businessName: r.businessName,
+      email: r.email,
+      phone: r.phone,
+      country: String(r.country ?? ''),
+      tier: r.tier,
+      status: String(r.status ?? ''),
+      kycStatus: r.kycStatus,
+      createdAt: r.createdAt,
+    };
+  },
+  merchantProfiles: (raw) => {
+    const r = camelRow(raw);
+    return {
+      id: String(r.id ?? ''),
+      businessName: String(r.businessName ?? ''),
+      monthlyGmv: typeof r.monthlyGmvNgn === 'number' ? r.monthlyGmvNgn : undefined,
+      processingMarginPct: typeof r.processingMarginPct === 'number' ? r.processingMarginPct : undefined,
+      disputeRatioPct: typeof r.disputeRatioPct === 'number' ? r.disputeRatioPct : undefined,
+      growthTrendPct: typeof r.growthTrendPct === 'number' ? r.growthTrendPct : undefined,
+      status: r.status,
+      updatedAt: r.updatedAt,
+    };
+  },
 };
 
 const DEMO_FALLBACKS: { [K in RowKey]?: () => ComplianceResourceMap[K][] } = {
@@ -337,7 +404,7 @@ async function loadList<K extends RowKey>(key: K, opts: LoadOptions = {}): Promi
   return readyResource(rows, fetched, 'live', typeof totalRaw === 'number' ? totalRaw : rows.length);
 }
 
-/** Single-record endpoints (`/api/aml/alerts/:id`) return an object, not a list. */
+/** Single-record endpoints (`/api/compliance/data/aml-alerts/:id`) return an object, not a list. */
 async function loadDetail<K extends 'alertDetail' | 'caseDetail'>(
   key: K,
   opts: LoadOptions,
@@ -352,7 +419,7 @@ async function loadDetail<K extends 'alertDetail' | 'caseDetail'>(
   const fetched = await getJson(`${path}/${encodeURIComponent(opts.id)}`, { signal: opts.signal });
   if (!fetched.ok) return failedResource(fetched);
   const data = unwrap(fetched.payload) as AnyJson | null;
-  const record = (data?.[wrapperKey] ?? data) as AnyJson | null;
+  const record = (data?.[wrapperKey] ?? data?.record ?? data) as AnyJson | null;
   if (!record || typeof record !== 'object' || !record.id) {
     return {
       status: 'empty',
@@ -374,16 +441,16 @@ const SETTLED_ALERTS = ['CLOSED', 'FALSE_POSITIVE', 'DISMISSED'];
 
 async function loadCustomers(opts: LoadOptions): Promise<ComplianceResource<CustomerRow>> {
   const [persons, alerts, cases] = await Promise.all([
-    getJson('/api/core/v1/identity/persons', { signal: opts.signal }),
-    getJson('/api/aml/alerts', { signal: opts.signal }),
-    getJson('/api/aml/cases', { signal: opts.signal }),
+    getJson('/api/compliance/data/identity-persons', { signal: opts.signal }),
+    getJson('/api/compliance/data/aml-alerts', { signal: opts.signal }),
+    getJson('/api/compliance/data/aml-cases', { signal: opts.signal }),
   ]);
   if (!persons.ok) return failedResource(persons);
 
-  const alertRows = alerts.ok ? (listFrom(alerts, 'alerts') ?? []).map(mapAlert) : null;
-  const caseRows = cases.ok ? (listFrom(cases, 'cases') ?? []).map(mapCase) : null;
+  const alertRows = alerts.ok ? (listFrom(alerts, 'rows') ?? []).map((r) => mapAlert(camelRow(r))) : null;
+  const caseRows = cases.ok ? (listFrom(cases, 'rows') ?? []).map((r) => mapCase(camelRow(r))) : null;
 
-  const rows = (listFrom(persons, 'persons') ?? []).map((p) => {
+  const rows = (listFrom(persons, 'rows') ?? []).map((p) => {
     const openAlerts = alertRows
       ? alertRows.filter((a) => a.subjectId === p.id && !SETTLED_ALERTS.includes(String(a.status)))
       : [];
@@ -401,7 +468,7 @@ async function loadCustomers(opts: LoadOptions): Promise<ComplianceResource<Cust
 }
 
 async function loadKyc(opts: LoadOptions): Promise<ComplianceResource<KycRow>> {
-  const persons = await getJson('/api/core/v1/identity/persons', { signal: opts.signal });
+  const persons = await getJson('/api/compliance/data/identity-persons', { signal: opts.signal });
   if (!persons.ok) {
     if (demoAllowed() && DEMO_FALLBACKS.kyc) return readyResource(DEMO_FALLBACKS.kyc(), persons, 'demo');
     return failedResource(persons);
@@ -409,7 +476,7 @@ async function loadKyc(opts: LoadOptions): Promise<ComplianceResource<KycRow>> {
   // No document read here on purpose. The vault route answers only for one
   // `identityId` at a time, so a queue-wide count cannot be fetched honestly;
   // the review workspace asks per identity when an officer opens a file.
-  const rows = (listFrom(persons, 'persons') ?? []).map((p) => mapKyc(p, null));
+  const rows = (listFrom(persons, 'rows') ?? []).map((p) => mapKyc(camelRow(p), null));
   return readyResource(rows, persons, 'live');
 }
 
@@ -426,22 +493,27 @@ async function loadSingleMapped<T>(
 }
 
 async function loadNetwork(opts: LoadOptions): Promise<ComplianceResource<import('./types').NetworkRow>> {
+  /* The graph is stored as two tables (nodes and edges); the screen wants one
+     network. Both reads go through the data plane; an empty graph renders as
+     an honest empty, not a synthesized example network. */
   const entityId = opts.query?.entityId;
-  const fetched = await getJson('/api/aml/network', {
-    signal: opts.signal,
-    query: entityId ? { entityId: String(entityId) } : undefined,
-  });
-  if (!fetched.ok) return failedResource(fetched);
-  const payload = unwrap(fetched.payload) ?? {};
+  const [nodesRes, edgesRes] = await Promise.all([
+    getJson('/api/compliance/data/network-nodes', { signal: opts.signal, query: { limit: '200' } }),
+    getJson('/api/compliance/data/network-edges', { signal: opts.signal, query: { limit: '500' } }),
+  ]);
+  if (!nodesRes.ok) return failedResource(nodesRes);
+  const nodes = (listFrom(nodesRes, 'rows') ?? []).map(camelRow);
+  const edges = edgesRes.ok ? (listFrom(edgesRes, 'rows') ?? []).map(camelRow) : [];
+  const payload = { nodes, edges };
   const row = mapNetwork(payload, String(entityId ?? ''));
   if (row.nodes.length === 0) {
-    return { status: 'empty', data: [], total: 0, source: 'live', demoFallback: false, latencyMs: fetched.latencyMs, requestId: fetched.requestId };
+    return { status: 'empty', data: [], total: 0, source: 'live', demoFallback: false, latencyMs: nodesRes.latencyMs, requestId: nodesRes.requestId };
   }
-  return readyResource([row], fetched, 'live', 1);
+  return readyResource([row], nodesRes, 'live', 1);
 }
 
 async function loadSystemHealth(opts: LoadOptions): Promise<ComplianceResource<HealthRow>> {
-  const fetched = await getJson('/api/health', { signal: opts.signal });
+  const fetched = await getJson('/api/compliance/health', { signal: opts.signal });
   if (!fetched.ok) {
     // Deliberate: platform status is never simulated, not even in the demo.
     return failedResource(fetched);
@@ -450,16 +522,16 @@ async function loadSystemHealth(opts: LoadOptions): Promise<ComplianceResource<H
 }
 
 async function loadProviders(opts: LoadOptions): Promise<ComplianceResource<ProviderRow>> {
-  const fetched = await getJson('/api/health/providers', { signal: opts.signal });
+  const fetched = await getJson('/api/compliance/data/provider-nodes', { signal: opts.signal });
   if (!fetched.ok) return failedResource(fetched);
-  const rows = (listFrom(fetched, 'providers') ?? []).map(mapProvider);
+  const rows = (listFrom(fetched, 'rows') ?? []).map((r) => mapProvider(camelRow(r)));
   return readyResource(rows, fetched, 'live');
 }
 
 /* ── derived screens ────────────────────────────────────────────────────── */
 
 async function loadDerived(
-  key: 'dashboard' | 'tasks' | 'notifications' | 'transactions',
+  key: 'dashboard' | 'tasks' | 'notifications',
   opts: LoadOptions,
 ) {
   const [alertsRes, casesRes, decisionsRes, obligationsRes, approvalsRes, kycRes, kybRes, healthRes] =
@@ -481,8 +553,6 @@ async function loadDerived(
     (r) => r.status === 'error' || r.status === 'unauthorized' || r.status === 'unavailable',
   );
 
-  if (key === 'transactions') return decisionsRes;
-
   if (coreUnavailable) {
     return {
       status: 'unavailable',
@@ -494,7 +564,7 @@ async function loadDerived(
       error: {
         code: 'QUEUES_UNREACHABLE',
         message: 'Neither the AML alert engine nor the case engine answered, so no queue state can be reported.',
-        hint: 'Check /api/aml/alerts and /api/aml/cases, then retry. The dashboard does not display estimates.',
+        hint: 'Check /api/compliance/data/aml-alerts and /api/compliance/data/aml-cases, then retry. The dashboard does not display estimates.',
       },
     };
   }
@@ -558,7 +628,7 @@ export async function loadComplianceResource<K extends ComplianceResourceKey>(
     case 'integrations':
       return loadProviders(opts) as unknown as Promise<ComplianceResource<ComplianceResourceMap[K]>>;
     case 'posture':
-      return loadSingleMapped('posture', '/api/security/posture', mapPosture, opts) as unknown as Promise<ComplianceResource<ComplianceResourceMap[K]>>;
+      return loadSingleMapped('posture', '/api/compliance/posture', mapPosture, opts) as unknown as Promise<ComplianceResource<ComplianceResourceMap[K]>>;
     case 'network':
       return loadNetwork(opts) as unknown as Promise<ComplianceResource<ComplianceResourceMap[K]>>;
     case 'alertDetail':
@@ -587,7 +657,6 @@ export async function loadComplianceResource<K extends ComplianceResourceKey>(
     case 'dashboard':
     case 'tasks':
     case 'notifications':
-    case 'transactions':
       return loadDerived(key, opts) as unknown as Promise<ComplianceResource<ComplianceResourceMap[K]>>;
     default:
       return loadList(key as RowKey, opts) as unknown as Promise<ComplianceResource<ComplianceResourceMap[K]>>;

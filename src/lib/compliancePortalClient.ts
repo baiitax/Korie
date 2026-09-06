@@ -1,30 +1,40 @@
 /**
  * Compliance portal API helper.
  *
- * Same shape as `customerPortalClient` on purpose: the two portals should not
- * invent two different conventions for attaching a credential, and a reviewer
- * comparing them should find one rule — the credential is attached centrally,
- * never per page. (Dropping it on one call is exactly how the customer portal
- * ended up with screens that "worked" in the mock and 401'd in production.)
+ * SECURITY CHANGE: this client used to attach a hardcoded sandbox token
+ * (`kp_test_...`) to every compliance request. That token was a mock
+ * credential — nothing on the server verified an officer identity, and the
+ * value was readable by anyone who opened the JavaScript bundle. It is gone.
  *
- * SECURITY NOTE: the value below is the documented KoriePay *test* key. It is
- * a mock credential for sandbox/demo builds and must never be a production
- * secret. In a real deployment the officer session token replaces it by setting
- * NEXT_PUBLIC_KP_COMPLIANCE_TOKEN, and `authenticateApiRequest` on the server
- * remains the only thing that decides what the caller may read.
+ * Every request now carries the officer's REAL Supabase access token
+ * (mirroring src/lib/admin/adminSession.ts). `/api/compliance/*` resolves
+ * the officer + RBAC from the token on the server; the client never
+ * asserts an identity or a role.
  */
 
-const SANDBOX_TOKEN = "kp_test_cdb3db2b9b22a98c9c1b";
+import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 
-function getComplianceToken(): string {
-  if (typeof process !== "undefined" && process.env.NEXT_PUBLIC_KP_COMPLIANCE_TOKEN) {
-    return process.env.NEXT_PUBLIC_KP_COMPLIANCE_TOKEN;
-  }
-  return SANDBOX_TOKEN;
+export async function getComplianceAccessToken(): Promise<string | null> {
+  const supabase = getSupabaseBrowserClient();
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token ?? null;
 }
 
-export function getComplianceBearer(): string {
-  return `Bearer ${getComplianceToken()}`;
+export async function signInCompliance(
+  email: string,
+  password: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const supabase = getSupabaseBrowserClient();
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error || !data.session) {
+    return { ok: false, message: error?.message || 'Could not sign in with those credentials.' };
+  }
+  return { ok: true };
+}
+
+export async function signOutCompliance(): Promise<void> {
+  const supabase = getSupabaseBrowserClient();
+  await supabase.auth.signOut();
 }
 
 /** Trace id for one portal action, so an officer can quote it in an incident. */
@@ -37,16 +47,17 @@ export async function complianceFetch(
   init: RequestInit = {},
 ): Promise<Response> {
   const headers = new Headers(init.headers || {});
-  if (!headers.has("Authorization")) {
-    headers.set("Authorization", getComplianceBearer());
+  const token = await getComplianceAccessToken();
+  if (token && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`);
   }
-  if (!headers.has("X-Request-Id")) {
-    headers.set("X-Request-Id", newRequestId());
+  if (!headers.has('X-Request-Id')) {
+    headers.set('X-Request-Id', newRequestId());
   }
-  if (init.body && !headers.has("Content-Type")) {
-    headers.set("Content-Type", "application/json");
+  if (init.body && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
   }
-  return fetch(input, { ...init, headers });
+  return fetch(input, { ...init, headers, cache: 'no-store' });
 }
 
 export default complianceFetch;

@@ -71,7 +71,7 @@ export default function CustomerFilePage() {
   const alerts = useComplianceResource('alerts');
   const cases = useComplianceResource('cases');
   const decisions = useComplianceResource('telemetry');
-  const documents = useComplianceResource('documents', { query: { identityId: personId } });
+  const documents = useComplianceResource('documents', { query: { identity_id: personId } });
   const escalations = useComplianceResource('escalations');
   const kyb = useComplianceResource('kyb');
   const approvals = useComplianceResource('approvals');
@@ -455,7 +455,7 @@ export default function CustomerFilePage() {
         title={t('compliance.dashboard.sourcesTitle')}
         rows={[
           { section: t('compliance.customer.tab.identity'), source: 'GET /api/core/v1/identity/persons → MasterIdentityEngine', note: t('compliance.customer.sourceNoteIdentity'), mode: 'live' },
-          { section: t('compliance.customer.tab.documents'), source: 'GET /api/core/v1/identity/documents?identityId= → DocumentVaultEngine', note: t('compliance.customer.sourceNoteDocuments'), mode: documents.resource.source === 'demo' ? 'demo' : 'live' },
+          { section: t('compliance.customer.tab.documents'), source: 'GET /api/compliance/data/identity-documents?identity_id=…', note: t('compliance.customer.sourceNoteDocuments'), mode: documents.resource.source === 'demo' ? 'demo' : 'live' },
           { section: t('compliance.customer.tab.alerts'), source: 'GET /api/aml/alerts, joined on subject id', note: t('compliance.customer.sourceNoteQueues'), mode: 'live' },
           { section: t('compliance.customer.tab.activity'), source: 'GET /api/core/v1/risk/decisions, joined on subject id', note: t('compliance.customer.sourceNoteActivity'), mode: 'live' },
           { section: t('compliance.customer.tab.screening'), source: 'POST /api/aml/screening (an action, not a stored list)', note: t('compliance.customer.sourceNoteScreening'), mode: 'live' },

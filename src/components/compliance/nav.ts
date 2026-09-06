@@ -102,7 +102,7 @@ export const COMPLIANCE_NAV: ComplianceNavGroup[] = [
   {
     key: 'enforcement',
     items: [
-      { key: 'restrictions', label: 'restrictions', href: '/compliance/restrictions', icon: KeyRound, note: 'demo' },
+      { key: 'restrictions', label: 'restrictions', href: '/compliance/restrictions', icon: KeyRound },
       { key: 'approvals', label: 'approvals', href: '/compliance/approvals', icon: ClipboardCheck, badge: 'approvals' },
       { key: 'escalations', label: 'escalations', href: '/compliance/escalations', icon: Flag, badge: 'escalations' },
     ],
@@ -114,7 +114,7 @@ export const COMPLIANCE_NAV: ComplianceNavGroup[] = [
       { key: 'analytics', label: 'analytics', href: '/compliance/analytics', icon: Activity },
       { key: 'audit', label: 'audit', href: '/compliance/audit', icon: History },
       { key: 'calendar', label: 'calendar', href: '/compliance/calendar', icon: CalendarDays },
-      { key: 'policies', label: 'policies', href: '/compliance/policies', icon: FileText, note: 'demo' },
+      { key: 'policies', label: 'policies', href: '/compliance/policies', icon: FileText },
     ],
   },
   {
@@ -122,7 +122,7 @@ export const COMPLIANCE_NAV: ComplianceNavGroup[] = [
     items: [
       { key: 'integrations', label: 'integrations', href: '/compliance/integrations', icon: Wifi },
       { key: 'system-health', label: 'systemHealth', href: '/compliance/system-health', icon: Cpu },
-      { key: 'team', label: 'team', href: '/compliance/team', icon: Users, note: 'demo' },
+      { key: 'team', label: 'team', href: '/compliance/team', icon: Users },
       { key: 'settings', label: 'settings', href: '/compliance/settings', icon: SlidersHorizontal },
     ],
   },

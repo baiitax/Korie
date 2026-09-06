@@ -1,100 +1,150 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useCompliance } from '@/components/compliance/ComplianceContext';
-import { History, Search, ShieldCheck, Filter, Download } from 'lucide-react';
+/**
+ * Audit trail — live from audit_events.
+ *
+ * The previous version of this screen printed mock entries with a hard-coded
+ * "VERIFIED SHA-256" integrity badge on every row. This version reads the real
+ * append-only audit_events table (every compliance and admin mutation lands
+ * there with before/after state), and the integrity column says what is
+ * actually recorded: an event hash when the row carries one, nothing
+ * otherwise. No badge is printed that the database cannot back.
+ */
+
+import React, { useMemo, useState } from 'react';
+import { RefreshCw } from 'lucide-react';
+import { useComplianceResource } from '@/services/compliance/hooks';
+import { formatDate, humanizeEnum } from '@/services/compliance/format';
+import type { AuditRow } from '@/services/compliance/types';
+import { useCompliancePortal } from '@/components/compliance/CompliancePortal';
+import { Button, Chip, PageHead, SourceNotes, StatusChip } from '@/components/compliance/ui';
+import { ResourceState } from '@/components/compliance/ui';
+import { ComplianceTable, TableToolbar, makeTableLabels } from '@/components/compliance/ui';
 
 export default function ComplianceAuditPage() {
-  const { auditLogs, selectedJurisdiction, formatDate } = useCompliance();
-  const [searchQuery, setSearchQuery] = useState('');
+  const { t } = useCompliancePortal();
+  const audit = useComplianceResource('audit', { query: { limit: '200' } });
+  const [term, setTerm] = useState('');
 
-  const filtered = auditLogs.filter((l) => {
-    if (selectedJurisdiction !== 'ALL' && l.jurisdiction !== selectedJurisdiction && l.jurisdiction !== 'CROSS_BORDER') return false;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      return (
-        l.id.toLowerCase().includes(q) ||
-        l.action.toLowerCase().includes(q) ||
-        l.officerName.toLowerCase().includes(q) ||
-        l.details.toLowerCase().includes(q)
-      );
-    }
-    return true;
-  });
+  const filtered = useMemo(() => {
+    const q = term.trim().toLowerCase();
+    if (!q) return audit.resource.data;
+    return audit.resource.data.filter((row: AuditRow) =>
+      `${row.action} ${row.actor} ${row.entityType} ${row.entityId} ${row.summary ?? ''}`.toLowerCase().includes(q),
+    );
+  }, [audit.resource.data, term]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-mono font-bold text-emerald-400 uppercase tracking-wider mb-1">
-            <History className="w-4 h-4" />
-            IMMUTABLE COMPLIANCE LEDGER
-          </div>
-          <h1 className="text-2xl font-extrabold text-white">Immutable Compliance Audit Log</h1>
-          <p className="text-xs text-slate-400">
-            Append-only audit trail recording every investigation disposition, KYC review, and restriction action.
-          </p>
-        </div>
-      </div>
+    <>
+      <PageHead
+        title={t('compliance.audit.title')}
+        description={t('compliance.audit.subtitle')}
+        resource={audit.resource}
+        actions={
+          <Button
+            icon={<RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />}
+            onClick={audit.reload}
+            pending={audit.isLoading || audit.isRefreshing}
+          >
+            {audit.isRefreshing ? t('compliance.states.refreshing') : t('compliance.states.refresh')}
+          </Button>
+        }
+      />
 
-      <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-4 flex items-center justify-between gap-4">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search audit trail by officer, action code, or entity reference..."
-            className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
-          />
-        </div>
-      </div>
+      <ResourceState
+        resource={audit.resource}
+        isLoading={audit.isLoading}
+        loadingLabel={t('compliance.audit.loading')}
+        emptyTitle={t('compliance.audit.empty')}
+        emptyBody={t('compliance.audit.emptyBody')}
+        filtered={term !== ''}
+        onClearFilters={() => setTerm('')}
+        clearLabel={t('compliance.states.clearFilters')}
+        unauthorizedTitle={t('compliance.states.unauthorizedTitle')}
+        unauthorizedBody={t('compliance.audit.unauthorized')}
+        unavailableTitle={t('compliance.states.unavailableTitle')}
+        unavailableBody={t('compliance.audit.unavailable')}
+        retryLabel={t('compliance.states.retry')}
+        onRetry={audit.reload}
+      >
+        <ComplianceTable
+          rows={filtered}
+          getRowId={(row: AuditRow) => row.id}
+          labels={makeTableLabels(t, t('compliance.audit.tableCaption'))}
+          toolbar={
+            <TableToolbar
+              searchValue={term}
+              onSearch={setTerm}
+              searchLabel={t('compliance.audit.searchLabel')}
+              searchPlaceholder={t('compliance.audit.searchPlaceholder')}
+            />
+          }
+          columns={[
+            {
+              key: 'at',
+              header: t('compliance.audit.col.at'),
+              primary: true,
+              mobileLabel: t('compliance.audit.col.at'),
+              sortValue: (row: AuditRow) => Date.parse(row.at) || 0,
+              render: (row: AuditRow) => (
+                <div className="min-w-0">
+                  <div className="cmp-cell-strong">{formatDate(row.at)}</div>
+                  <div className="cmp-ref truncate">{row.id.slice(0, 8)}</div>
+                </div>
+              ),
+            },
+            {
+              key: 'action',
+              header: t('compliance.audit.col.action'),
+              mobileLabel: t('compliance.audit.col.action'),
+              sortValue: (row: AuditRow) => row.action,
+              render: (row: AuditRow) => <Chip tone="neutral">{row.action}</Chip>,
+            },
+            {
+              key: 'actor',
+              header: t('compliance.audit.col.actor'),
+              mobileLabel: t('compliance.audit.col.actor'),
+              hideBelow: 'md',
+              sortValue: (row: AuditRow) => row.actor,
+              render: (row: AuditRow) => <span className="cmp-ref truncate">{row.actor}</span>,
+            },
+            {
+              key: 'entity',
+              header: t('compliance.audit.col.entity'),
+              mobileLabel: t('compliance.audit.col.entity'),
+              hideBelow: 'md',
+              sortValue: (row: AuditRow) => `${row.entityType}${row.entityId}`,
+              render: (row: AuditRow) => (
+                <div className="min-w-0">
+                  <div className="cmp-ref truncate">{row.entityType}</div>
+                  <div className="cmp-ref truncate">{row.entityId}</div>
+                </div>
+              ),
+            },
+            {
+              key: 'integrity',
+              header: t('compliance.audit.col.integrity'),
+              mobileLabel: t('compliance.audit.col.integrity'),
+              hideBelow: 'lg',
+              sortValue: (row: AuditRow) => row.integrity ?? '',
+              render: (row: AuditRow) =>
+                row.integrity ? <StatusChip status="VERIFIED" label={row.integrity} /> : <span className="cmp-ref">{t('compliance.audit.noHash')}</span>,
+            },
+          ]}
+        />
+      </ResourceState>
 
-      <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl overflow-hidden shadow-xl">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-950/80 border-b border-slate-800 text-slate-400 uppercase font-mono text-[10px]">
-              <tr>
-                <th className="p-3.5">Log ID & Timestamp</th>
-                <th className="p-3.5">Action Executed</th>
-                <th className="p-3.5">Target Entity Ref</th>
-                <th className="p-3.5">Officer & Role</th>
-                <th className="p-3.5">Audit Narrative</th>
-                <th className="p-3.5 text-right">Integrity</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60 font-mono">
-              {filtered.map((log) => (
-                <tr key={log.id} className="hover:bg-slate-800/40">
-                  <td className="p-3.5">
-                    <div className="font-bold text-slate-200">{log.id}</div>
-                    <div className="text-[10px] text-slate-400">{formatDate(log.timestamp)}</div>
-                  </td>
-                  <td className="p-3.5 font-sans">
-                    <span className="font-mono text-emerald-400 font-bold bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/40 text-[11px]">
-                      {log.action}
-                    </span>
-                  </td>
-                  <td className="p-3.5 text-slate-300">
-                    <div>{log.entityId}</div>
-                    <div className="text-[10px] text-slate-500 font-sans">{log.entityType}</div>
-                  </td>
-                  <td className="p-3.5 font-sans">
-                    <div className="font-bold text-white">{log.officerName}</div>
-                    <div className="text-[10px] text-slate-400 font-mono">{log.officerRole.replace(/_/g, ' ')}</div>
-                  </td>
-                  <td className="p-3.5 font-sans text-slate-300 max-w-xs">{log.details}</td>
-                  <td className="p-3.5 text-right font-sans">
-                    <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/40 font-bold">
-                      VERIFIED SHA-256
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+      <SourceNotes
+        title={t('compliance.audit.sourcesTitle')}
+        rows={[
+          {
+            section: t('compliance.audit.sourcesRows'),
+            source: 'GET /api/compliance/data/audit-events',
+            note: t('compliance.audit.sourcesNote'),
+            mode: 'live',
+          },
+        ]}
+      />
+    </>
   );
 }

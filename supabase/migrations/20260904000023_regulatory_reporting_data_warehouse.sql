@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS regulatory_obligations (
 
 CREATE TABLE IF NOT EXISTS regulatory_report_definitions (
     id TEXT PRIMARY KEY,
-    obligation_id TEXT NOT NULL REFERENCES regulatory_obligations(id),
+    obligation_id UUID NOT NULL REFERENCES regulatory_obligations(id),
     definition_code TEXT NOT NULL UNIQUE,
     version TEXT NOT NULL DEFAULT 'v1.0',
     template_schema JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -105,7 +105,7 @@ CREATE TABLE IF NOT EXISTS regulatory_report_definitions (
 
 CREATE TABLE IF NOT EXISTS regulatory_report_snapshots (
     id TEXT PRIMARY KEY,
-    obligation_id TEXT NOT NULL REFERENCES regulatory_obligations(id),
+    obligation_id UUID NOT NULL REFERENCES regulatory_obligations(id),
     definition_id TEXT NOT NULL REFERENCES regulatory_report_definitions(id),
     period_code TEXT NOT NULL, -- e.g. 2026-M08, 2026-Q3
     snapshot_hash_sha256 TEXT NOT NULL,

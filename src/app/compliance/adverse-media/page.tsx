@@ -1,127 +1,134 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useCompliance } from '@/components/compliance/ComplianceContext';
-import { Globe, Search, ExternalLink, AlertTriangle, Newspaper, ShieldAlert } from 'lucide-react';
+/**
+ * Adverse-media register — the AML profiles flagged for adverse media.
+ *
+ * The register is a filter over aml_customer_profiles (has_adverse_media). With no
+ * flagged profiles it is an honest empty state — not a demo list of
+ * fictional media hits, which is what the previous mock screen showed.
+ */
+
+import React, { useMemo, useState } from 'react';
+import { RefreshCw, Search } from 'lucide-react';
+import { useComplianceResource } from '@/services/compliance/hooks';
+import { formatDate, humanizeEnum } from '@/services/compliance/format';
+import type { AmlProfileRow } from '@/services/compliance/types';
+import { useCompliancePortal } from '@/components/compliance/CompliancePortal';
+import { Button, Chip, PageHead, SourceNotes, StatusChip } from '@/components/compliance/ui';
+import { ResourceState } from '@/components/compliance/ui';
+import { ComplianceTable, TableToolbar, makeTableLabels } from '@/components/compliance/ui';
 
 export default function AdverseMediaPage() {
-  const { selectedJurisdiction, formatDate } = useCompliance();
-  const [searchQuery, setSearchQuery] = useState('');
+  const { t } = useCompliancePortal();
+  const profiles = useComplianceResource('amlProfiles');
+  const [term, setTerm] = useState('');
 
-  const mockNews = [
-    {
-      id: 'MED-2026-801',
-      title: 'EFCC probes unlicensed FX arbitrage operators in Northern Nigeria corridor',
-      source: 'BusinessDay Nigeria / Daily Trust',
-      date: '2026-08-29',
-      jurisdiction: 'NG' as const,
-      sentiment: 'HIGH_RISK_FINANCIAL_CRIME',
-      matchedEntities: ['Danladi FX Hub', 'Kano FX Arbitrage Desk'],
-      summary: 'Special enforcement actions conducted targeting unrecorded cross-border settlement desks operating parallel liquidity channels.',
-    },
-    {
-      id: 'MED-2026-802',
-      title: 'CENTIF Niger issues advisory on gold export payment laundering typologies',
-      source: 'Le Sahel / Journal Officiel du Niger',
-      date: '2026-08-22',
-      jurisdiction: 'NE' as const,
-      sentiment: 'REGULATORY_ALERT',
-      matchedEntities: ['Société Minière de Tillabéri'],
-      summary: 'Financial Intelligence Unit issues guidance warning banks regarding artisanal bullion trade structuring.',
-    },
-    {
-      id: 'MED-2026-803',
-      title: 'Interpol and NFIU issue joint notice on international identity cloning networks',
-      source: 'Punch News / NFIU Intelligence Bulletin',
-      date: '2026-08-14',
-      jurisdiction: 'NG' as const,
-      sentiment: 'HIGH_RISK_IDENTITY_FRAUD',
-      matchedEntities: ['Unspecified Cyber Gang Syndicate'],
-      summary: 'Syndicate forging National Identity Numbers (NIN) to bypass Tier-2 fintech digital onboarding.',
-    },
-  ];
-
-  const filtered = mockNews.filter((n) => {
-    if (selectedJurisdiction !== 'ALL' && n.jurisdiction !== selectedJurisdiction) return false;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      return n.title.toLowerCase().includes(q) || n.source.toLowerCase().includes(q) || n.summary.toLowerCase().includes(q);
-    }
-    return true;
-  });
+  const flagged = useMemo(() => {
+    const q = term.trim().toLowerCase();
+    return profiles.resource.data
+      .filter((row: AmlProfileRow) => row.hasAdverseMedia)
+      .filter((row: AmlProfileRow) => !q || row.customerId.toLowerCase().includes(q));
+  }, [profiles.resource.data, term]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-mono font-bold text-teal-400 uppercase tracking-wider mb-1">
-            <Globe className="w-4 h-4" />
-            GLOBAL ADVERSE MEDIA & NEWS MONITORING
-          </div>
-          <h1 className="text-2xl font-extrabold text-white">Adverse Media & Negative News Desk</h1>
-          <p className="text-xs text-slate-400">
-            Real-time sentiment screening across global press, regulatory circulars, and investigative disclosures.
-          </p>
-        </div>
-      </div>
+    <>
+      <PageHead
+        title={t('compliance.adverseMedia.title')}
+        description={t('compliance.adverseMedia.subtitle')}
+        resource={profiles.resource}
+        actions={
+          <Button icon={<RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />} onClick={profiles.reload} pending={profiles.isLoading || profiles.isRefreshing}>
+            {profiles.isRefreshing ? t('compliance.states.refreshing') : t('compliance.states.refresh')}
+          </Button>
+        }
+      />
 
-      <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-4 flex items-center justify-between gap-4">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search adverse news articles by headline, keywords, or publication..."
-            className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-500"
-          />
-        </div>
-      </div>
+      <ResourceState
+        resource={profiles.resource}
+        isLoading={profiles.isLoading}
+        loadingLabel={t('compliance.adverseMedia.loading')}
+        emptyTitle={t('compliance.adverseMedia.empty')}
+        emptyBody={t('compliance.adverseMedia.emptyBody')}
+        filtered={term !== ''}
+        onClearFilters={() => setTerm('')}
+        clearLabel={t('compliance.states.clearFilters')}
+        unauthorizedTitle={t('compliance.states.unauthorizedTitle')}
+        unauthorizedBody={t('compliance.adverseMedia.unauthorized')}
+        unavailableTitle={t('compliance.states.unavailableTitle')}
+        unavailableBody={t('compliance.adverseMedia.unavailable')}
+        retryLabel={t('compliance.states.retry')}
+        onRetry={profiles.reload}
+      >
+        <ComplianceTable
+          rows={flagged}
+          getRowId={(row: AmlProfileRow) => row.id}
+          labels={makeTableLabels(t, t('compliance.adverseMedia.tableCaption'))}
+          toolbar={
+            <TableToolbar
+              searchValue={term}
+              onSearch={setTerm}
+              searchLabel={t('compliance.adverseMedia.searchLabel')}
+              searchPlaceholder={t('compliance.adverseMedia.searchPlaceholder')}
+            />
+          }
+          columns={[
+            {
+              key: 'customer',
+              header: t('compliance.common.subject'),
+              primary: true,
+              mobileLabel: t('compliance.common.subject'),
+              sortValue: (row: AmlProfileRow) => row.customerId,
+              render: (row: AmlProfileRow) => (
+                <div className="min-w-0">
+                  <div className="cmp-ref truncate">{row.customerId}</div>
+                  <div className="cmp-ref truncate">{row.id.slice(0, 8)}</div>
+                </div>
+              ),
+            },
+            {
+              key: 'jurisdiction',
+              header: t('compliance.common.jurisdiction'),
+              mobileLabel: t('compliance.common.jurisdiction'),
+              sortValue: (row: AmlProfileRow) => row.jurisdiction,
+              render: (row: AmlProfileRow) => <Chip tone="neutral">{row.jurisdiction}</Chip>,
+            },
+            {
+              key: 'category',
+              header: t('compliance.adverseMedia.col.category'),
+              mobileLabel: t('compliance.adverseMedia.col.category'),
+              sortValue: (row: AmlProfileRow) => row.pepCategory ?? '',
+              render: (row: AmlProfileRow) => <span className="cmp-ref">{row.pepCategory ? humanizeEnum(row.pepCategory) : '—'}</span>,
+            },
+            {
+              key: 'tier',
+              header: t('compliance.common.risk'),
+              mobileLabel: t('compliance.common.risk'),
+              sortValue: (row: AmlProfileRow) => row.riskTier,
+              render: (row: AmlProfileRow) => <StatusChip status={row.riskTier} label={humanizeEnum(row.riskTier)} severity={row.riskTier === 'HIGH' || row.riskTier === 'CRITICAL'} />,
+            },
+            {
+              key: 'evaluated',
+              header: t('compliance.adverseMedia.col.evaluated'),
+              mobileLabel: t('compliance.adverseMedia.col.evaluated'),
+              hideBelow: 'lg',
+              sortValue: (row: AmlProfileRow) => Date.parse(row.lastEvaluatedAt ?? '') || 0,
+              render: (row: AmlProfileRow) => <span className="cmp-ref">{row.lastEvaluatedAt ? formatDate(row.lastEvaluatedAt) : '—'}</span>,
+            },
+          ]}
+        />
+      </ResourceState>
 
-      <div className="space-y-4">
-        {filtered.map((item) => (
-          <div
-            key={item.id}
-            className="p-5 bg-slate-900/60 border border-slate-800/80 rounded-2xl flex flex-col justify-between space-y-3 shadow-xl"
-          >
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <span className="p-1.5 bg-slate-800 text-teal-400 rounded-lg">
-                  <Newspaper className="w-4 h-4" />
-                </span>
-                <span className="font-bold text-white text-base">{item.title}</span>
-              </div>
-              <span
-                className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase font-mono ${
-                  item.sentiment.includes('HIGH_RISK')
-                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
-                    : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                }`}
-              >
-                {item.sentiment.replace(/_/g, ' ')}
-              </span>
-            </div>
-
-            <p className="text-xs text-slate-300 bg-slate-950/60 p-3 rounded-xl border border-slate-800/60 leading-relaxed">
-              {item.summary}
-            </p>
-
-            <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400 pt-2 border-t border-slate-800/80">
-              <div className="flex items-center gap-2">
-                <span>Source: <strong className="text-slate-200">{item.source}</strong></span>
-                <span>•</span>
-                <span>Region: {item.jurisdiction === 'NG' ? '🇳🇬 Nigeria' : '🇳🇪 Niger'}</span>
-                <span>•</span>
-                <span>Date: {item.date}</span>
-              </div>
-              <div className="flex items-center gap-1.5 text-slate-300">
-                <span className="text-slate-500">Entities flagged:</span>
-                <span className="text-emerald-400 font-semibold">{item.matchedEntities.join(', ')}</span>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
+      <SourceNotes
+        title={t('compliance.adverseMedia.sourcesTitle')}
+        rows={[
+          {
+            section: t('compliance.adverseMedia.sourcesRows'),
+            source: 'GET /api/compliance/data/aml-customer-profiles',
+            note: t('compliance.adverseMedia.sourcesNote'),
+            mode: 'live',
+          },
+        ]}
+      />
+    </>
   );
 }

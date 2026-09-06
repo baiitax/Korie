@@ -33,6 +33,10 @@ export type ComplianceResourceKey =
   | 'alertDetail'
   | 'cases'
   | 'caseDetail'
+  | 'caseNotes'
+  | 'amlProfiles'
+  | 'agentRegister'
+  | 'merchantProfiles'
   | 'transactions'
   | 'sanctions'
   | 'watchlists'
@@ -184,6 +188,53 @@ export interface AlertRow {
   slaBreached: boolean;
   triggeredAt: string;
   caseId?: string;
+}
+
+export interface AmlProfileRow {
+  id: string;
+  customerId: string;
+  jurisdiction: string;
+  riskTier: string;
+  riskScore?: number;
+  isPep: boolean;
+  pepCategory?: string;
+  isSanctionFlagged: boolean;
+  hasAdverseMedia: boolean;
+  lastEvaluatedAt?: string;
+}
+
+export interface AgentRegisterRow {
+  id: string;
+  agentCode: string;
+  agentName: string;
+  businessName?: string;
+  email?: string;
+  phone?: string;
+  country: string;
+  tier?: string;
+  status: string;
+  kycStatus?: string;
+  createdAt?: string;
+}
+
+export interface MerchantProfileRow {
+  id: string;
+  businessName: string;
+  monthlyGmv?: number;
+  processingMarginPct?: number;
+  disputeRatioPct?: number;
+  growthTrendPct?: number;
+  status?: string;
+  updatedAt?: string;
+}
+
+export interface CaseNoteRow {
+  id: string;
+  caseId: string;
+  author: string;
+  noteType: string;
+  content: string;
+  createdAt: string;
 }
 
 export interface CaseRow {
@@ -545,6 +596,10 @@ export interface ComplianceResourceMap {
   alertDetail: AlertRow;
   cases: CaseRow;
   caseDetail: CaseRow;
+  caseNotes: CaseNoteRow;
+  amlProfiles: AmlProfileRow;
+  agentRegister: AgentRegisterRow;
+  merchantProfiles: MerchantProfileRow;
   telemetry: MonitoringRow;
   transactions: MonitoringRow;
   restrictions: RestrictionRow;

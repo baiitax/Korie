@@ -1,209 +1,222 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useCompliance } from '@/components/compliance/ComplianceContext';
-import { RestrictionModal } from '@/components/compliance/RestrictionModal';
-import { AccountRestriction, RestrictionType } from '@/types/compliance';
-import {
-  Lock,
-  Plus,
-  Search,
-  CheckCircle2,
-  XCircle,
-  AlertTriangle,
-  ShieldCheck,
-  Clock,
-  Unlock,
-} from 'lucide-react';
+/**
+ * Account restrictions — live from customer_account_restrictions, with a real
+ * lift action.
+ *
+ * The previous screen listed the mock store's restrictions. This one reads the
+ * enforcement register: every ACTIVE restriction on a customer account, who
+ * applied it, and whether it has been lifted and by whom. "Lift restriction"
+ * is a real, audited PATCH (is_active=false, lifted_by stamped from the
+ * verified session, before/after state written to audit_events) — it is
+ * offered only for restrictions that are currently active.
+ */
 
-export default function RestrictionsPage() {
-  const {
-    restrictions,
-    currentOfficer,
-    selectedJurisdiction,
-    approveAccountRestriction,
-    liftAccountRestriction,
-    formatCurrency,
-    formatDate,
-  } = useCompliance();
+import React, { useMemo, useState } from 'react';
+import { RefreshCw, ShieldOff } from 'lucide-react';
+import { useComplianceResource, useComplianceAction } from '@/services/compliance/hooks';
+import { formatDate, humanizeEnum } from '@/services/compliance/format';
+import type { RestrictionRow } from '@/services/compliance/types';
+import { useCompliancePortal } from '@/components/compliance/CompliancePortal';
+import { complianceFetch } from '@/lib/compliancePortalClient';
+import { Button, Chip, PageHead, SourceNotes, StatusChip, Modal } from '@/components/compliance/ui';
+import { ResourceState, InlineNotice } from '@/components/compliance/ui';
+import { ComplianceTable, TableToolbar, makeTableLabels } from '@/components/compliance/ui';
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [liftModalRestrictionId, setLiftModalRestrictionId] = useState<string | null>(null);
-  const [liftReason, setLiftReason] = useState('');
+export default function ComplianceRestrictionsPage() {
+  const { t } = useCompliancePortal();
+  const restrictions = useComplianceResource('restrictions');
+  const action = useComplianceAction();
+  const [term, setTerm] = useState('');
+  const [lifting, setLifting] = useState<RestrictionRow | null>(null);
 
-  const filtered = restrictions.filter((r) => {
-    if (selectedJurisdiction !== 'ALL' && r.jurisdiction !== selectedJurisdiction) return false;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      return (
-        r.id.toLowerCase().includes(q) ||
-        r.targetEntityName.toLowerCase().includes(q) ||
-        r.reason.toLowerCase().includes(q)
-      );
+  const filtered = useMemo(() => {
+    const q = term.trim().toLowerCase();
+    if (!q) return restrictions.resource.data;
+    return restrictions.resource.data.filter((row: RestrictionRow) =>
+      `${row.subjectId} ${row.type} ${row.reason}`.toLowerCase().includes(q),
+    );
+  }, [restrictions.resource.data, term]);
+
+  const confirmLift = async () => {
+    if (!lifting) return;
+    const out = await action.run(async () => {
+      const res = await complianceFetch(`/api/compliance/data/customer-restrictions/${encodeURIComponent(lifting.id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ is_active: false, notes: `Lifted from the compliance console. Original reason: ${lifting.reason}` }),
+      });
+      const payload = await res.json().catch(() => null);
+      if (!res.ok || payload?.status === 'error') {
+        return {
+          ok: false,
+          recorded: false,
+          source: 'live' as const,
+          error: { code: `HTTP_${res.status}`, message: payload?.error?.message ?? 'The lift was refused.' },
+        };
+      }
+      return { ok: true, recorded: true, source: 'live' as const, value: payload?.record, error: undefined };
+    });
+    if (out.ok) {
+      setLifting(null);
+      restrictions.reload();
     }
-    return true;
-  });
-
-  const handleLiftSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!liftModalRestrictionId || !liftReason.trim()) return;
-    liftAccountRestriction(liftModalRestrictionId, liftReason);
-    setLiftModalRestrictionId(null);
-    setLiftReason('');
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-mono font-bold text-rose-400 uppercase tracking-wider mb-1">
-            <Lock className="w-4 h-4" />
-            ENFORCEMENT & DUAL-CONTROL RESTRICTIONS
-          </div>
-          <h1 className="text-2xl font-extrabold text-white">Account Restrictions & Freezes</h1>
-          <p className="text-xs text-slate-400">
-            Maker-checker enforced controls for Total Asset Freezes, Debit Suspensions (Post-No-Debit), and Settlement Holds.
-          </p>
-        </div>
-
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white text-xs font-bold transition shadow-lg shadow-rose-900/30"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Apply New Restriction</span>
-        </button>
-      </div>
-
-      <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-4 flex items-center justify-between gap-4">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search restrictions by entity name, ID, or legal rationale..."
-            className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-rose-500"
-          />
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        {filtered.map((r) => (
-          <div
-            key={r.id}
-            className={`p-5 rounded-2xl border flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-xl ${
-              r.status === 'ACTIVE'
-                ? 'bg-rose-950/20 border-rose-900/60'
-                : r.status === 'PENDING_MAKER_CHECKER'
-                ? 'bg-amber-950/20 border-amber-900/60'
-                : 'bg-slate-900/40 border-slate-800/60'
-            }`}
+    <>
+      <PageHead
+        title={t('compliance.restrictions.title')}
+        description={t('compliance.restrictions.subtitle')}
+        resource={restrictions.resource}
+        actions={
+          <Button
+            icon={<RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />}
+            onClick={restrictions.reload}
+            pending={restrictions.isLoading || restrictions.isRefreshing}
           >
-            <div className="space-y-2 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-mono text-xs font-bold text-rose-400 bg-rose-950/60 px-2 py-0.5 rounded border border-rose-800/40">
-                  {r.id}
-                </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase font-mono bg-rose-500/20 text-rose-300">
-                  {r.restrictionType.replace(/_/g, ' ')}
-                </span>
-                <span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-300 font-bold">
-                  {r.jurisdiction === 'NG' ? '🇳🇬 NIGERIA' : '🇳🇪 NIGER'}
-                </span>
-                <h3 className="text-sm font-bold text-white">{r.targetEntityName}</h3>
-              </div>
+            {restrictions.isRefreshing ? t('compliance.states.refreshing') : t('compliance.states.refresh')}
+          </Button>
+        }
+      />
 
-              <div className="p-3 bg-slate-950/70 rounded-xl border border-slate-800/60 text-xs space-y-1">
-                <div>
-                  <strong className="text-slate-200">Legal/Policy Ground: </strong>
-                  <span className="text-slate-300">{r.reason.replace(/_/g, ' ')}</span>
-                  {r.courtOrderReference && (
-                    <span className="text-amber-400 font-mono ml-2">({r.courtOrderReference})</span>
-                  )}
-                </div>
-                <div className="text-slate-400 pt-0.5">
-                  Rationale: <span className="text-slate-300">{r.rationale}</span>
-                </div>
-              </div>
+      {action.result?.error ? (
+        <InlineNotice tone="danger">{action.result.error.message}</InlineNotice>
+      ) : null}
+      {action.result?.ok ? <InlineNotice tone="info">{t('compliance.actions.liveOutcome')}</InlineNotice> : null}
 
-              <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400 font-mono">
-                <span>Maker: <strong className="text-slate-200">{r.makerOfficerName}</strong></span>
-                <span>•</span>
-                <span>Checker: <strong className="text-slate-200">{r.checkerOfficerName || 'PENDING DUAL-APPROVAL'}</strong></span>
-                <span>•</span>
-                <span>Applied: {formatDate(r.appliedAt)}</span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 border-t lg:border-t-0 pt-3 lg:pt-0 border-slate-800">
-              {r.status === 'PENDING_MAKER_CHECKER' && (
-                <button
-                  onClick={() => approveAccountRestriction(r.id)}
-                  className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl shadow-lg transition flex items-center gap-1.5"
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  Dual-Authorize (Checker)
-                </button>
-              )}
-
-              {r.status === 'ACTIVE' && (
-                <button
-                  onClick={() => setLiftModalRestrictionId(r.id)}
-                  className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl border border-slate-700 transition flex items-center gap-1.5"
-                >
-                  <Unlock className="w-4 h-4" />
-                  Lift Restriction
-                </button>
-              )}
-
-              {r.status === 'LIFTED' && (
-                <div className="text-xs font-mono text-slate-500">
-                  LIFTED • {r.liftReason}
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Lift Restriction Reason Prompt */}
-      {liftModalRestrictionId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
-          <form onSubmit={handleLiftSubmit} className="bg-[#090E1A] border border-slate-800 rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl">
-            <h3 className="text-sm font-bold text-white">Lift Account Restriction</h3>
-            <p className="text-xs text-slate-400">
-              Provide formal audit rationale for unfreezing this account and restoring full ledger debit/credit capability.
-            </p>
-            <textarea
-              rows={3}
-              value={liftReason}
-              onChange={(e) => setLiftReason(e.target.value)}
-              placeholder="e.g. Court order vacated, source of funds fully substantiated..."
-              className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
-              required
+      <ResourceState
+        resource={restrictions.resource}
+        isLoading={restrictions.isLoading}
+        loadingLabel={t('compliance.restrictions.loading')}
+        emptyTitle={t('compliance.restrictions.empty')}
+        emptyBody={t('compliance.restrictions.emptyBody')}
+        filtered={term !== ''}
+        onClearFilters={() => setTerm('')}
+        clearLabel={t('compliance.states.clearFilters')}
+        unauthorizedTitle={t('compliance.states.unauthorizedTitle')}
+        unauthorizedBody={t('compliance.restrictions.unauthorized')}
+        unavailableTitle={t('compliance.states.unavailableTitle')}
+        unavailableBody={t('compliance.restrictions.unavailable')}
+        retryLabel={t('compliance.states.retry')}
+        onRetry={restrictions.reload}
+      >
+        <ComplianceTable
+          rows={filtered}
+          getRowId={(row: RestrictionRow) => row.id}
+          getRowTone={(row: RestrictionRow) => (row.status === 'ACTIVE' && (row.type.includes('FREEZE') || row.type.includes('BLOCK')) ? 'critical' : undefined)}
+          labels={makeTableLabels(t, t('compliance.restrictions.tableCaption'))}
+          toolbar={
+            <TableToolbar
+              searchValue={term}
+              onSearch={setTerm}
+              searchLabel={t('compliance.restrictions.searchLabel')}
+              searchPlaceholder={t('compliance.restrictions.searchPlaceholder')}
             />
-            <div className="flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setLiftModalRestrictionId(null)}
-                className="px-3 py-1.5 bg-slate-800 text-slate-300 font-semibold text-xs rounded-lg"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-lg transition"
-              >
-                Confirm Lift
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+          }
+          columns={[
+            {
+              key: 'account',
+              header: t('compliance.restrictions.col.account'),
+              primary: true,
+              mobileLabel: t('compliance.restrictions.col.account'),
+              sortValue: (row: RestrictionRow) => row.subjectId,
+              render: (row: RestrictionRow) => (
+                <div className="min-w-0">
+                  <div className="cmp-ref truncate">{row.subjectId}</div>
+                  <div className="cmp-ref truncate">{row.id.slice(0, 8)}</div>
+                </div>
+              ),
+            },
+            {
+              key: 'type',
+              header: t('compliance.restrictions.col.type'),
+              mobileLabel: t('compliance.restrictions.col.type'),
+              sortValue: (row: RestrictionRow) => row.type,
+              render: (row: RestrictionRow) => <Chip tone="neutral">{humanizeEnum(row.type)}</Chip>,
+            },
+            {
+              key: 'reason',
+              header: t('compliance.restrictions.col.reason'),
+              mobileLabel: t('compliance.restrictions.col.reason'),
+              hideBelow: 'md',
+              sortValue: (row: RestrictionRow) => row.reason,
+              render: (row: RestrictionRow) => <span className="text-[12px] text-[var(--foreground-muted)]">{row.reason || '—'}</span>,
+            },
+            {
+              key: 'status',
+              header: t('compliance.common.status'),
+              mobileLabel: t('compliance.common.status'),
+              sortValue: (row: RestrictionRow) => row.status,
+              render: (row: RestrictionRow) => <StatusChip status={row.status} label={humanizeEnum(row.status)} severity={row.status === 'ACTIVE'} />,
+            },
+            {
+              key: 'applied',
+              header: t('compliance.restrictions.col.applied'),
+              mobileLabel: t('compliance.restrictions.col.applied'),
+              hideBelow: 'lg',
+              sortValue: (row: RestrictionRow) => Date.parse(row.appliedAt ?? '') || 0,
+              render: (row: RestrictionRow) => (
+                <div className="min-w-0">
+                  <div className="cmp-ref">{row.appliedAt ? formatDate(row.appliedAt) : '—'}</div>
+                  <div className="cmp-ref truncate">{row.makerName ?? ''}</div>
+                </div>
+              ),
+            },
+            {
+              key: 'lift',
+              header: '',
+              render: (row: RestrictionRow) =>
+                row.status === 'ACTIVE' ? (
+                  <Button variant="danger" icon={<ShieldOff className="h-3.5 w-3.5" aria-hidden="true" />} onClick={() => setLifting(row)}>
+                    {t('compliance.restrictions.lift')}
+                  </Button>
+                ) : (
+                  <span className="cmp-ref">{row.checkerName ? `${t('compliance.restrictions.liftedBy')} ${row.checkerName}` : ''}</span>
+                ),
+            },
+          ]}
+        />
+      </ResourceState>
 
-      <RestrictionModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
-    </div>
+      <Modal
+        open={lifting !== null}
+        onClose={() => setLifting(null)}
+        title={t('compliance.restrictions.liftConfirmTitle')}
+        closeLabel={t('compliance.actions.cancel')}
+        footer={
+          <>
+            <Button onClick={() => setLifting(null)}>{t('compliance.actions.cancel')}</Button>
+            <Button variant="danger" pending={action.showPending} onClick={confirmLift}>
+              {action.showPending ? t('compliance.actions.saving') : t('compliance.restrictions.liftConfirm')}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-[13px] leading-relaxed text-[var(--foreground-muted)]">
+          {t('compliance.restrictions.liftConfirmBody', {
+            type: lifting ? humanizeEnum(lifting.type) : '',
+            account: lifting?.subjectId ?? '',
+          })}
+        </p>
+      </Modal>
+
+      <SourceNotes
+        title={t('compliance.restrictions.sourcesTitle')}
+        rows={[
+          {
+            section: t('compliance.restrictions.sourcesRows'),
+            source: 'GET /api/compliance/data/customer-restrictions',
+            note: t('compliance.restrictions.sourcesNote'),
+            mode: 'live',
+          },
+          {
+            section: t('compliance.restrictions.sourcesLift'),
+            source: 'PATCH /api/compliance/data/customer-restrictions/:id',
+            note: t('compliance.restrictions.sourcesLiftNote'),
+            mode: 'live',
+          },
+        ]}
+      />
+    </>
   );
 }

@@ -1,147 +1,147 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useCompliance } from '@/components/compliance/ComplianceContext';
-import { FileText, Search, ShieldAlert, CheckCircle, AlertCircle, Clock, ExternalLink } from 'lucide-react';
+/**
+ * Enhanced due diligence — the high-risk tail of the AML profile register.
+ *
+ * EDD applies to profiles whose AML tier is HIGH or CRITICAL. The queue is a
+ * filter over aml_customer_profiles; with no high-risk profiles it is an
+ * honest empty state, and the full register behind it stays readable from the
+ * customer file.
+ */
 
-export default function EnhancedDueDiligencePage() {
-  const { selectedJurisdiction, formatCurrency, formatDate } = useCompliance();
-  const [searchQuery, setSearchQuery] = useState('');
+import Link from 'next/link';
+import React, { useMemo, useState } from 'react';
+import { ArrowRight, RefreshCw, Search } from 'lucide-react';
+import { useComplianceResource } from '@/services/compliance/hooks';
+import { formatDate, humanizeEnum } from '@/services/compliance/format';
+import type { AmlProfileRow } from '@/services/compliance/types';
+import { useCompliancePortal } from '@/components/compliance/CompliancePortal';
+import { Button, Chip, PageHead, SourceNotes, StatusChip } from '@/components/compliance/ui';
+import { ResourceState } from '@/components/compliance/ui';
+import { ComplianceTable, TableToolbar, makeTableLabels } from '@/components/compliance/ui';
 
-  const mockEddFiles = [
-    {
-      id: 'EDD-2026-001',
-      entityName: 'Sahel Grain Trading Consortium',
-      entityType: 'MERCHANT',
-      jurisdiction: 'NG' as const,
-      sourceOfWealth: 'West African Agricultural Commodity Arbitrage & Import/Export',
-      turnoverEstimate: 1200000000,
-      assignedMlro: 'Amina Bello, CAMS',
-      status: 'APPROVED',
-      nextReviewDate: '2027-02-15',
-      documentsCount: 6,
-    },
-    {
-      id: 'EDD-2026-002',
-      entityName: 'Hon. Al-Hassan Mamane (PEP Associate)',
-      entityType: 'CUSTOMER',
-      jurisdiction: 'NE' as const,
-      sourceOfWealth: 'Real Estate Development & Civil Engineering Contracts',
-      turnoverEstimate: 450000000,
-      assignedMlro: 'Mamadou Ousmane',
-      status: 'IN_REVIEW',
-      nextReviewDate: '2026-10-01',
-      documentsCount: 4,
-    },
-    {
-      id: 'EDD-2026-003',
-      entityName: 'Apex Virtual Asset Brokerage',
-      entityType: 'MERCHANT',
-      jurisdiction: 'NG' as const,
-      sourceOfWealth: 'Cryptocurrency Market Making & Liquidity Provision',
-      turnoverEstimate: 3500000000,
-      assignedMlro: 'Amina Bello, CAMS',
-      status: 'ADDITIONAL_DOCS_REQUIRED',
-      nextReviewDate: '2026-09-15',
-      documentsCount: 8,
-    },
-  ];
+export default function EddPage() {
+  const { t } = useCompliancePortal();
+  const profiles = useComplianceResource('amlProfiles');
+  const [term, setTerm] = useState('');
 
-  const filtered = mockEddFiles.filter((e) => {
-    if (selectedJurisdiction !== 'ALL' && e.jurisdiction !== selectedJurisdiction) return false;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      return e.id.toLowerCase().includes(q) || e.entityName.toLowerCase().includes(q) || e.sourceOfWealth.toLowerCase().includes(q);
-    }
-    return true;
-  });
+  const queue = useMemo(() => {
+    const q = term.trim().toLowerCase();
+    return profiles.resource.data
+      .filter((row: AmlProfileRow) => row.riskTier === 'HIGH' || row.riskTier === 'CRITICAL' || row.isPep || row.hasAdverseMedia)
+      .filter((row: AmlProfileRow) => !q || row.customerId.toLowerCase().includes(q));
+  }, [profiles.resource.data, term]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-mono font-bold text-teal-400 uppercase tracking-wider mb-1">
-            <FileText className="w-4 h-4" />
-            ENHANCED DUE DILIGENCE (EDD)
-          </div>
-          <h1 className="text-2xl font-extrabold text-white">Enhanced Due Diligence & Source of Wealth</h1>
-          <p className="text-xs text-slate-400">
-            Deep background investigation, ultimate beneficial ownership unmasking, and wealth source verification.
-          </p>
-        </div>
-      </div>
+    <>
+      <PageHead
+        title={t('compliance.edd.title')}
+        description={t('compliance.edd.subtitle')}
+        resource={profiles.resource}
+        actions={
+          <Button icon={<RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />} onClick={profiles.reload} pending={profiles.isLoading || profiles.isRefreshing}>
+            {profiles.isRefreshing ? t('compliance.states.refreshing') : t('compliance.states.refresh')}
+          </Button>
+        }
+      />
 
-      <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-4 flex items-center justify-between gap-4">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search EDD files by entity, wealth source, or MLRO..."
-            className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-500"
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filtered.map((edd) => (
-          <div
-            key={edd.id}
-            className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 flex flex-col justify-between space-y-4 shadow-xl"
-          >
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="font-mono text-xs font-bold text-teal-400 bg-teal-950/60 px-2 py-0.5 rounded border border-teal-800/40">
-                  {edd.id}
-                </span>
-                <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
-                    edd.status === 'APPROVED'
-                      ? 'bg-emerald-500/20 text-emerald-300'
-                      : edd.status === 'IN_REVIEW'
-                      ? 'bg-amber-500/20 text-amber-300'
-                      : 'bg-rose-500/20 text-rose-300'
-                  }`}
-                >
-                  {edd.status.replace(/_/g, ' ')}
-                </span>
-              </div>
-
-              <div>
-                <h3 className="text-sm font-bold text-white">{edd.entityName}</h3>
-                <div className="text-[11px] text-slate-400 font-mono mt-0.5">
-                  {edd.jurisdiction === 'NG' ? '🇳🇬 Nigeria' : '🇳🇪 Niger'} • {edd.entityType}
+      <ResourceState
+        resource={profiles.resource}
+        isLoading={profiles.isLoading}
+        loadingLabel={t('compliance.edd.loading')}
+        emptyTitle={t('compliance.edd.empty')}
+        emptyBody={t('compliance.edd.emptyBody')}
+        filtered={term !== ''}
+        onClearFilters={() => setTerm('')}
+        clearLabel={t('compliance.states.clearFilters')}
+        unauthorizedTitle={t('compliance.states.unauthorizedTitle')}
+        unauthorizedBody={t('compliance.edd.unauthorized')}
+        unavailableTitle={t('compliance.states.unavailableTitle')}
+        unavailableBody={t('compliance.edd.unavailable')}
+        retryLabel={t('compliance.states.retry')}
+        onRetry={profiles.reload}
+      >
+        <ComplianceTable
+          rows={queue}
+          getRowId={(row: AmlProfileRow) => row.id}
+          getRowHref={(row: AmlProfileRow) => `/compliance/customers/${row.customerId}`}
+          labels={makeTableLabels(t, t('compliance.edd.tableCaption'))}
+          toolbar={
+            <TableToolbar
+              searchValue={term}
+              onSearch={setTerm}
+              searchLabel={t('compliance.edd.searchLabel')}
+              searchPlaceholder={t('compliance.edd.searchPlaceholder')}
+            />
+          }
+          columns={[
+            {
+              key: 'customer',
+              header: t('compliance.common.subject'),
+              primary: true,
+              mobileLabel: t('compliance.common.subject'),
+              sortValue: (row: AmlProfileRow) => row.customerId,
+              render: (row: AmlProfileRow) => (
+                <div className="min-w-0">
+                  <div className="cmp-ref truncate">{row.customerId}</div>
+                  <div className="cmp-ref truncate">{row.jurisdiction}</div>
                 </div>
-              </div>
+              ),
+            },
+            {
+              key: 'tier',
+              header: t('compliance.common.risk'),
+              mobileLabel: t('compliance.common.risk'),
+              sortValue: (row: AmlProfileRow) => row.riskTier,
+              render: (row: AmlProfileRow) => (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <StatusChip status={row.riskTier} label={humanizeEnum(row.riskTier)} severity={row.riskTier === 'HIGH' || row.riskTier === 'CRITICAL'} />
+                  {row.isPep ? <Chip tone="high">PEP</Chip> : null}
+                  {row.hasAdverseMedia ? <Chip tone="medium">{t('compliance.edd.adverseMedia')}</Chip> : null}
+                </div>
+              ),
+            },
+            {
+              key: 'score',
+              header: t('compliance.edd.col.score'),
+              mobileLabel: t('compliance.edd.col.score'),
+              hideBelow: 'md',
+              sortValue: (row: AmlProfileRow) => row.riskScore ?? -1,
+              render: (row: AmlProfileRow) => <span className="tabular">{typeof row.riskScore === 'number' ? row.riskScore : '—'}</span>,
+            },
+            {
+              key: 'evaluated',
+              header: t('compliance.edd.col.evaluated'),
+              mobileLabel: t('compliance.edd.col.evaluated'),
+              hideBelow: 'lg',
+              sortValue: (row: AmlProfileRow) => Date.parse(row.lastEvaluatedAt ?? '') || 0,
+              render: (row: AmlProfileRow) => <span className="cmp-ref">{row.lastEvaluatedAt ? formatDate(row.lastEvaluatedAt) : '—'}</span>,
+            },
+            {
+              key: 'open',
+              header: '',
+              render: (row: AmlProfileRow) => (
+                <Link href={`/compliance/customers/${row.customerId}`} className="cmp-btn inline-flex">
+                  {t('compliance.edd.openFile')}
+                  <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                </Link>
+              ),
+            },
+          ]}
+        />
+      </ResourceState>
 
-              <div className="p-3 bg-slate-950/80 rounded-xl space-y-1.5 text-xs">
-                <div>
-                  <span className="text-slate-500 block text-[10px] uppercase font-bold">Documented Source of Wealth:</span>
-                  <span className="text-slate-200 text-xs font-medium">{edd.sourceOfWealth}</span>
-                </div>
-                <div className="flex justify-between pt-1 border-t border-slate-800/80">
-                  <span className="text-slate-500">Annual Turnover:</span>
-                  <span className="font-bold text-emerald-400 font-mono">
-                    {formatCurrency(edd.turnoverEstimate, edd.jurisdiction === 'NG' ? 'NGN' : 'XOF')}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Assigned MLRO:</span>
-                  <span className="text-slate-300 font-semibold">{edd.assignedMlro}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs">
-              <span className="text-slate-500 font-mono text-[11px]">Next Audit: {edd.nextReviewDate}</span>
-              <span className="text-teal-400 font-bold font-mono text-[11px] bg-teal-950/40 px-2 py-0.5 rounded border border-teal-800/30">
-                {edd.documentsCount} Vault Exhibits
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
+      <SourceNotes
+        title={t('compliance.edd.sourcesTitle')}
+        rows={[
+          {
+            section: t('compliance.edd.sourcesRows'),
+            source: 'GET /api/compliance/data/aml-customer-profiles',
+            note: t('compliance.edd.sourcesNote'),
+            mode: 'live',
+          },
+        ]}
+      />
+    </>
   );
 }

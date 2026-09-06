@@ -1,188 +1,210 @@
 'use client';
 
-import React, { useState } from 'react';
+/**
+ * Cases — live from aml_cases.
+ *
+ * Replaces the mock-store list. Cases come from the case table (reference,
+ * subject, priority, status, exposure, lead investigator); the detail
+ * workspace (notes, decision) is /compliance/cases/[id], which is also
+ * DB-backed. "Open a case" happens from an alert through the audited
+ * convert-to-case action — a case born without an alert behind it is not a
+ * workflow this deployment records, so the button does not exist here.
+ */
+
 import Link from 'next/link';
-import { useCompliance } from '@/components/compliance/ComplianceContext';
-import { CaseInvestigationDrawer } from '@/components/compliance/CaseInvestigationDrawer';
-import { CreateCaseModal } from '@/components/compliance/CreateCaseModal';
-import { ComplianceCase, CaseStatus, RiskLevel } from '@/types/compliance';
-import {
-  FileSearch,
-  Plus,
-  Search,
-  Filter,
-  Clock,
-  ShieldAlert,
-  ArrowRight,
-  ChevronRight,
-  AlertOctagon,
-  CheckCircle2,
-} from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { ArrowRight, RefreshCw } from 'lucide-react';
+import { useComplianceResource } from '@/services/compliance/hooks';
+import { formatDate, formatMoney, fromMinor, humanizeEnum } from '@/services/compliance/format';
+import type { CaseRow } from '@/services/compliance/types';
+import { useCompliancePortal } from '@/components/compliance/CompliancePortal';
+import { Button, Chip, PageHead, SourceNotes, StatusChip } from '@/components/compliance/ui';
+import { ResourceState } from '@/components/compliance/ui';
+import { ComplianceTable, TableToolbar, makeTableLabels } from '@/components/compliance/ui';
+
+const CASE_STATUSES = ['OPEN', 'UNDER_REVIEW', 'ESCALATED', 'PENDING_DECISION', 'CLOSED'] as const;
+const PRIORITIES = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'] as const;
 
 export default function CasesPage() {
-  const { cases, selectedJurisdiction, formatCurrency, formatDate } = useCompliance();
-  const [selectedCase, setSelectedCase] = useState<ComplianceCase | null>(null);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | CaseStatus>('ALL');
-  const [riskFilter, setRiskFilter] = useState<'ALL' | RiskLevel>('ALL');
+  const { t } = useCompliancePortal();
+  const cases = useComplianceResource('cases');
+  const [term, setTerm] = useState('');
+  const [status, setStatus] = useState<string>('ALL');
+  const [priority, setPriority] = useState<string>('ALL');
 
-  const filteredCases = cases.filter((c) => {
-    if (selectedJurisdiction !== 'ALL' && c.jurisdiction !== selectedJurisdiction) return false;
-    if (statusFilter !== 'ALL' && c.status !== statusFilter) return false;
-    if (riskFilter !== 'ALL' && c.riskLevel !== riskFilter) return false;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      return (
-        c.caseNumber.toLowerCase().includes(q) ||
-        c.title.toLowerCase().includes(q) ||
-        c.targetEntityName.toLowerCase().includes(q)
-      );
-    }
-    return true;
-  });
+  const filtered = useMemo(() => {
+    const q = term.trim().toLowerCase();
+    return cases.resource.data.filter((row: CaseRow) => {
+      if (status !== 'ALL' && row.status !== status) return false;
+      if (priority !== 'ALL' && row.priority !== priority) return false;
+      if (!q) return true;
+      return `${row.reference} ${row.title} ${row.subjectId} ${row.leadInvestigator}`.toLowerCase().includes(q);
+    });
+  }, [cases.resource.data, term, status, priority]);
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-mono font-bold text-emerald-400 uppercase tracking-wider mb-1">
-            <FileSearch className="w-4 h-4" />
-            INVESTIGATION LIFECYCLE MANAGEMENT
-          </div>
-          <h1 className="text-2xl font-extrabold text-white">Compliance Cases</h1>
-          <p className="text-xs text-slate-400">
-            End-to-end investigation workspace with immutable audit trails, evidence vaults, and STR/CTR filings.
-          </p>
-        </div>
-
-        <button
-          onClick={() => setIsCreateModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold transition shadow-lg shadow-emerald-900/30"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Open New Case</span>
-        </button>
-      </div>
-
-      {/* Toolbar & Filters */}
-      <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="relative flex-1 w-full">
-          <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by case #, entity name, or subject..."
-            className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
-          />
-        </div>
-
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+    <>
+      <PageHead
+        title={t('compliance.cases.title')}
+        description={t('compliance.cases.subtitle')}
+        resource={cases.resource}
+        actions={
+          <Button
+            icon={<RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />}
+            onClick={cases.reload}
+            pending={cases.isLoading || cases.isRefreshing}
           >
-            <option value="ALL">All Statuses</option>
-            <option value="OPEN">OPEN</option>
-            <option value="UNDER_REVIEW">UNDER REVIEW</option>
-            <option value="ESCALATED">ESCALATED</option>
-            <option value="RESOLVED">RESOLVED</option>
-            <option value="CLOSED">CLOSED</option>
-          </select>
+            {cases.isRefreshing ? t('compliance.states.refreshing') : t('compliance.states.refresh')}
+          </Button>
+        }
+      />
 
-          <select
-            value={riskFilter}
-            onChange={(e) => setRiskFilter(e.target.value as any)}
-            className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
-          >
-            <option value="ALL">All Risk Levels</option>
-            <option value="LOW">LOW</option>
-            <option value="MEDIUM">MEDIUM</option>
-            <option value="HIGH">HIGH</option>
-            <option value="CRITICAL">CRITICAL</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Case Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredCases.map((c) => (
-          <div
-            key={c.id}
-            className="bg-slate-900/60 hover:bg-slate-800/60 border border-slate-800/80 rounded-2xl p-5 flex flex-col justify-between space-y-4 transition group shadow-lg"
-          >
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="font-mono text-xs font-bold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/40">
-                  {c.caseNumber}
+      <ResourceState
+        resource={cases.resource}
+        isLoading={cases.isLoading}
+        loadingLabel={t('compliance.cases.loading')}
+        emptyTitle={t('compliance.cases.empty')}
+        emptyBody={t('compliance.cases.emptyBody')}
+        filtered={term !== '' || status !== 'ALL' || priority !== 'ALL'}
+        onClearFilters={() => {
+          setTerm('');
+          setStatus('ALL');
+          setPriority('ALL');
+        }}
+        clearLabel={t('compliance.states.clearFilters')}
+        unauthorizedTitle={t('compliance.states.unauthorizedTitle')}
+        unauthorizedBody={t('compliance.cases.unauthorized')}
+        unavailableTitle={t('compliance.states.unavailableTitle')}
+        unavailableBody={t('compliance.cases.unavailable')}
+        retryLabel={t('compliance.states.retry')}
+        onRetry={cases.reload}
+      >
+        <ComplianceTable
+          rows={filtered}
+          getRowId={(row: CaseRow) => row.id}
+          getRowHref={(row: CaseRow) => `/compliance/cases/${row.id}`}
+          getRowTone={(row: CaseRow) => (row.priority === 'CRITICAL' ? 'critical' : row.priority === 'HIGH' ? 'high' : undefined)}
+          labels={makeTableLabels(t, t('compliance.cases.tableCaption'))}
+          toolbar={
+            <TableToolbar
+              searchValue={term}
+              onSearch={setTerm}
+              searchLabel={t('compliance.cases.searchLabel')}
+              searchPlaceholder={t('compliance.cases.searchPlaceholder')}
+            >
+              <select
+                aria-label={t('compliance.common.status')}
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                className="cmp-input max-w-[200px]"
+              >
+                <option value="ALL">{t('compliance.cases.allStatuses')}</option>
+                {CASE_STATUSES.map((s) => (
+                  <option key={s} value={s}>{humanizeEnum(s)}</option>
+                ))}
+              </select>
+              <select
+                aria-label={t('compliance.cases.col.priority')}
+                value={priority}
+                onChange={(e) => setPriority(e.target.value)}
+                className="cmp-input max-w-[170px]"
+              >
+                <option value="ALL">{t('compliance.cases.allPriorities')}</option>
+                {PRIORITIES.map((s) => (
+                  <option key={s} value={s}>{humanizeEnum(s)}</option>
+                ))}
+              </select>
+            </TableToolbar>
+          }
+          columns={[
+            {
+              key: 'reference',
+              header: t('compliance.cases.col.reference'),
+              primary: true,
+              mobileLabel: t('compliance.cases.col.reference'),
+              sortValue: (row: CaseRow) => row.reference,
+              render: (row: CaseRow) => (
+                <div className="min-w-0">
+                  <div className="cmp-cell-strong truncate">{row.reference}</div>
+                  <div className="cmp-ref truncate">{row.title}</div>
+                </div>
+              ),
+            },
+            {
+              key: 'subject',
+              header: t('compliance.cases.col.subject'),
+              mobileLabel: t('compliance.cases.col.subject'),
+              hideBelow: 'md',
+              sortValue: (row: CaseRow) => row.subjectId,
+              render: (row: CaseRow) => <span className="cmp-ref truncate">{row.subjectId}</span>,
+            },
+            {
+              key: 'priority',
+              header: t('compliance.cases.col.priority'),
+              mobileLabel: t('compliance.cases.col.priority'),
+              sortValue: (row: CaseRow) => row.priority,
+              render: (row: CaseRow) => <StatusChip status={row.priority} label={humanizeEnum(row.priority)} severity={row.priority === 'CRITICAL' || row.priority === 'HIGH'} />,
+            },
+            {
+              key: 'status',
+              header: t('compliance.common.status'),
+              mobileLabel: t('compliance.common.status'),
+              sortValue: (row: CaseRow) => row.status,
+              render: (row: CaseRow) => <StatusChip status={row.status} label={humanizeEnum(row.status)} />,
+            },
+            {
+              key: 'exposure',
+              header: t('compliance.common.exposure'),
+              mobileLabel: t('compliance.common.exposure'),
+              hideBelow: 'lg',
+              sortValue: (row: CaseRow) => row.exposureAmount,
+              render: (row: CaseRow) => (
+                <span className="tabular">
+                  {formatMoney(fromMinor(row.exposureAmount), row.currency)}
                 </span>
-                <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
-                    c.status === 'RESOLVED' || c.status === 'CLOSED'
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                      : c.status === 'ESCALATED'
-                      ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
-                      : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                  }`}
-                >
-                  {c.status.replace(/_/g, ' ')}
-                </span>
-              </div>
-
-              <div>
-                <h3 className="text-sm font-bold text-white group-hover:text-emerald-300 transition line-clamp-1">
-                  {c.title}
-                </h3>
-                <p className="text-xs text-slate-400 mt-1 line-clamp-2">{c.summary}</p>
-              </div>
-
-              <div className="p-3 bg-slate-950/80 rounded-xl space-y-1.5 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Target Entity:</span>
-                  <span className="font-semibold text-slate-200">{c.targetEntityName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Involved Value:</span>
-                  <span className="font-bold text-emerald-400 font-mono">
-                    {formatCurrency(c.involvedAmount, c.currency)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Assigned MLRO:</span>
-                  <span className="text-slate-300">{c.assignedOfficerName}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs">
-              <div className="text-[11px] text-amber-400 font-mono flex items-center gap-1">
-                <Clock className="w-3 h-3" />
-                SLA: {formatDate(c.deadlineSla).slice(0, 12)}
-              </div>
-              <div className="flex items-center gap-2">
-                <Link
-                  href={`/compliance/cases/${c.id}`}
-                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded text-[11px] transition"
-                >
-                  Deep Dive
+              ),
+            },
+            {
+              key: 'investigator',
+              header: t('compliance.cases.col.investigator'),
+              mobileLabel: t('compliance.cases.col.investigator'),
+              hideBelow: 'lg',
+              sortValue: (row: CaseRow) => row.leadInvestigator,
+              render: (row: CaseRow) => <span className="cmp-ref truncate">{row.leadInvestigator}</span>,
+            },
+            {
+              key: 'created',
+              header: t('compliance.cases.col.created'),
+              mobileLabel: t('compliance.cases.col.created'),
+              hideBelow: 'lg',
+              sortValue: (row: CaseRow) => Date.parse(row.createdAt) || 0,
+              render: (row: CaseRow) => <span className="cmp-ref">{formatDate(row.createdAt)}</span>,
+            },
+            {
+              key: 'open',
+              header: '',
+              render: (row: CaseRow) => (
+                <Link href={`/compliance/cases/${row.id}`} className="cmp-btn inline-flex">
+                  {t('compliance.cases.openCase')}
+                  <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                 </Link>
-                <button
-                  onClick={() => setSelectedCase(c)}
-                  className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded text-[11px] transition shadow"
-                >
-                  Investigate
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+              ),
+            },
+          ]}
+        />
+      </ResourceState>
 
-      <CaseInvestigationDrawer caseItem={selectedCase} onClose={() => setSelectedCase(null)} />
-      <CreateCaseModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} />
-    </div>
+      <SourceNotes
+        title={t('compliance.cases.sourcesTitle')}
+        rows={[
+          {
+            section: t('compliance.cases.sourcesRows'),
+            source: 'GET /api/compliance/data/aml-cases',
+            note: t('compliance.cases.sourcesNote'),
+            mode: 'live',
+          },
+        ]}
+      />
+    </>
   );
 }

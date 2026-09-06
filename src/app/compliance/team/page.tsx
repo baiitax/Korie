@@ -1,99 +1,138 @@
 'use client';
 
-import React from 'react';
-import { useCompliance } from '@/components/compliance/ComplianceContext';
-import { Users, ShieldCheck, Mail, Phone, MapPin, UserCheck } from 'lucide-react';
+/**
+ * Officer register — live from workforce_identities.
+ *
+ * The previous version of this screen offered a "Switch Session to this
+ * Officer" button over mock officers: a frontend-only permission model that
+ * taught officers roles are cosmetic. That control is gone. What remains is
+ * the real register — who holds a workforce identity, in which department and
+ * country, whether MFA is enforced, and their lifecycle status — read from
+ * the database. Access itself is decided exclusively by the server on every
+ * request.
+ */
+
+import React, { useMemo, useState } from 'react';
+import { RefreshCw, Search } from 'lucide-react';
+import { useComplianceResource } from '@/services/compliance/hooks';
+import { humanizeEnum } from '@/services/compliance/format';
+import type { OfficerRow } from '@/services/compliance/types';
+import { useCompliancePortal } from '@/components/compliance/CompliancePortal';
+import { Button, Chip, PageHead, SourceNotes, StatusChip } from '@/components/compliance/ui';
+import { ResourceState, InlineNotice } from '@/components/compliance/ui';
+import { ComplianceTable, TableToolbar, makeTableLabels } from '@/components/compliance/ui';
 
 export default function ComplianceTeamPage() {
-  const { officers, currentOfficer, setCurrentOfficer } = useCompliance();
+  const { t } = useCompliancePortal();
+  const officers = useComplianceResource('officers');
+  const [term, setTerm] = useState('');
+
+  const filtered = useMemo(() => {
+    const q = term.trim().toLowerCase();
+    if (!q) return officers.resource.data;
+    return officers.resource.data.filter((row: OfficerRow) =>
+      `${row.name} ${row.email} ${row.role} ${row.jurisdiction}`.toLowerCase().includes(q),
+    );
+  }, [officers.resource.data, term]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-mono font-bold text-emerald-400 uppercase tracking-wider mb-1">
-            <Users className="w-4 h-4" />
-            COMPLIANCE RBAC & ACCESS CONTROL
-          </div>
-          <h1 className="text-2xl font-extrabold text-white">Compliance Officers & Role Matrix</h1>
-          <p className="text-xs text-slate-400">
-            MLRO authorizations, dual-control clearance levels, and active jurisdictional assignments.
-          </p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {officers.map((officer) => (
-          <div
-            key={officer.id}
-            className={`p-5 rounded-2xl border flex flex-col justify-between space-y-4 shadow-xl transition ${
-              currentOfficer.id === officer.id
-                ? 'bg-emerald-950/30 border-emerald-500/50 ring-1 ring-emerald-500/30'
-                : 'bg-slate-900/60 border-slate-800/80'
-            }`}
+    <>
+      <PageHead
+        title={t('compliance.officers.title')}
+        description={t('compliance.officers.subtitle')}
+        resource={officers.resource}
+        actions={
+          <Button
+            icon={<RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />}
+            onClick={officers.reload}
+            pending={officers.isLoading || officers.isRefreshing}
           >
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm border border-emerald-500/30">
-                  {officer.fullName.slice(0, 2).toUpperCase()}
-                </div>
-                <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded font-mono uppercase ${
-                    officer.status === 'ACTIVE'
-                      ? 'bg-emerald-500/20 text-emerald-300'
-                      : 'bg-amber-500/20 text-amber-300'
-                  }`}
-                >
-                  {officer.status}
-                </span>
-              </div>
+            {officers.isRefreshing ? t('compliance.states.refreshing') : t('compliance.states.refresh')}
+          </Button>
+        }
+      />
 
-              <div>
-                <h3 className="text-base font-bold text-white">{officer.fullName}</h3>
-                <div className="text-xs font-mono text-emerald-400 mt-0.5">
-                  {officer.role.replace(/_/g, ' ')}
-                </div>
-              </div>
+      <InlineNotice tone="info">{t('compliance.officers.noSwitchNotice')}</InlineNotice>
 
-              <div className="p-3 bg-slate-950/80 rounded-xl space-y-1.5 text-xs">
-                <div className="flex items-center gap-2 text-slate-300">
-                  <Mail className="w-3.5 h-3.5 text-slate-500" />
-                  <span>{officer.email}</span>
+      <ResourceState
+        resource={officers.resource}
+        isLoading={officers.isLoading}
+        loadingLabel={t('compliance.officers.loading')}
+        emptyTitle={t('compliance.officers.empty')}
+        emptyBody={t('compliance.officers.emptyBody')}
+        filtered={term !== ''}
+        onClearFilters={() => setTerm('')}
+        clearLabel={t('compliance.states.clearFilters')}
+        unauthorizedTitle={t('compliance.states.unauthorizedTitle')}
+        unauthorizedBody={t('compliance.officers.unauthorized')}
+        unavailableTitle={t('compliance.states.unavailableTitle')}
+        unavailableBody={t('compliance.officers.unavailable')}
+        retryLabel={t('compliance.states.retry')}
+        onRetry={officers.reload}
+      >
+        <ComplianceTable
+          rows={filtered}
+          getRowId={(row: OfficerRow) => row.id}
+          labels={makeTableLabels(t, t('compliance.officers.tableCaption'))}
+          toolbar={
+            <TableToolbar
+              searchValue={term}
+              onSearch={setTerm}
+              searchLabel={t('compliance.officers.searchLabel')}
+              searchPlaceholder={t('compliance.officers.searchPlaceholder')}
+            />
+          }
+          columns={[
+            {
+              key: 'officer',
+              header: t('compliance.officers.col.officer'),
+              primary: true,
+              mobileLabel: t('compliance.officers.col.officer'),
+              sortValue: (row: OfficerRow) => row.name,
+              render: (row: OfficerRow) => (
+                <div className="min-w-0">
+                  <div className="cmp-cell-strong truncate">{row.name}</div>
+                  <div className="cmp-ref truncate">{row.email}</div>
                 </div>
-                <div className="flex items-center gap-2 text-slate-300">
-                  <MapPin className="w-3.5 h-3.5 text-slate-500" />
-                  <span>
-                    {officer.jurisdiction === 'NG'
-                      ? '🇳🇬 Nigeria (CBN/NFIU Station)'
-                      : officer.jurisdiction === 'NE'
-                      ? '🇳🇪 Niger (BCEAO/CENTIF Station)'
-                      : '🌍 Cross-Border Central'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between pt-1 border-t border-slate-800 text-slate-400">
-                  <span>Assigned Active Cases:</span>
-                  <span className="font-bold text-white">{officer.assignedCasesCount}</span>
-                </div>
-              </div>
-            </div>
+              ),
+            },
+            {
+              key: 'department',
+              header: t('compliance.officers.col.department'),
+              mobileLabel: t('compliance.officers.col.department'),
+              sortValue: (row: OfficerRow) => row.role,
+              render: (row: OfficerRow) => <Chip tone="neutral">{humanizeEnum(row.role)}</Chip>,
+            },
+            {
+              key: 'jurisdiction',
+              header: t('compliance.common.jurisdiction'),
+              mobileLabel: t('compliance.common.jurisdiction'),
+              hideBelow: 'md',
+              sortValue: (row: OfficerRow) => row.jurisdiction,
+              render: (row: OfficerRow) => <span className="cmp-ref">{row.jurisdiction}</span>,
+            },
+            {
+              key: 'status',
+              header: t('compliance.common.status'),
+              mobileLabel: t('compliance.common.status'),
+              sortValue: (row: OfficerRow) => row.status,
+              render: (row: OfficerRow) => <StatusChip status={row.status} label={humanizeEnum(row.status)} />,
+            },
+          ]}
+        />
+      </ResourceState>
 
-            <div className="pt-3 border-t border-slate-800/80">
-              {currentOfficer.id === officer.id ? (
-                <div className="text-center text-xs font-bold text-emerald-400 py-1.5 bg-emerald-950/60 rounded-lg border border-emerald-800/40">
-                  CURRENTLY ACTIVE SESSION
-                </div>
-              ) : (
-                <button
-                  onClick={() => setCurrentOfficer(officer)}
-                  className="w-full py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-lg transition"
-                >
-                  Switch Session to this Officer
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
+      <SourceNotes
+        title={t('compliance.officers.sourcesTitle')}
+        rows={[
+          {
+            section: t('compliance.officers.sourcesRows'),
+            source: 'GET /api/compliance/data/workforce-identities',
+            note: t('compliance.officers.sourcesNote'),
+            mode: 'live',
+          },
+        ]}
+      />
+    </>
   );
 }

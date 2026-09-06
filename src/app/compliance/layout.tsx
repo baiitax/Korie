@@ -2,6 +2,7 @@ import React from 'react';
 import { ComplianceProvider } from '@/components/compliance/ComplianceContext';
 import { CompliancePortalProvider } from '@/components/compliance/CompliancePortal';
 import { CompliancePortalShell } from '@/components/compliance/PortalShell';
+import { ComplianceSessionGate } from '@/components/compliance/ComplianceSessionGate';
 
 export const metadata = {
   title: 'Compliance & Financial Crime Portal | KoriePay',
@@ -17,12 +18,18 @@ export const metadata = {
  * legacy mock store that the not-yet-rebuilt screens still read from; it is
  * deleted as soon as the last of them moves onto `@/services/compliance`, and
  * no rebuilt screen is allowed to touch it.
+ *
+ * `ComplianceSessionGate` wraps everything: no compliance UI renders until a
+ * real officer session is verified server-side (401/403 gate the portal;
+ * backend failures are surfaced per-screen instead of blanketed over).
  */
 export default function ComplianceLayout({ children }: { children: React.ReactNode }) {
   return (
     <ComplianceProvider>
       <CompliancePortalProvider>
-        <CompliancePortalShell>{children}</CompliancePortalShell>
+        <ComplianceSessionGate>
+          <CompliancePortalShell>{children}</CompliancePortalShell>
+        </ComplianceSessionGate>
       </CompliancePortalProvider>
     </ComplianceProvider>
   );
