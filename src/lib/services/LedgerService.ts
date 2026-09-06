@@ -19,9 +19,7 @@ const ledgerEntriesStore = new Map<string, LedgerEntry[]>();
 const walletHoldsStore = new Map<string, WalletHold>();
 
 // Initialize Chart of Accounts (Asset, Liability, Equity, Revenue, Expense)
-function initializeDefaultChartOfAccounts() {
-  if (ledgerAccountsStore.size > 0) return;
-
+function buildDefaultChartAccounts(): LedgerAccount[] {
   const defaultAccounts: LedgerAccount[] = [
     // 1. Assets (Providus Bank Nigeria Reserve Node & Coris Bank Niger Reserve Node)
     {
@@ -148,9 +146,56 @@ function initializeDefaultChartOfAccounts() {
       createdAt: '2026-01-01T00:00:00Z',
       updatedAt: '2026-09-03T12:00:00Z',
     },
+    // 6. Agent Cash Collections in Transit (offline agent Adashi collections)
+    {
+      id: 'acc_asset_agent_cash_ngn',
+      orgId: 'org_kor_99182',
+      accountNumber: '1030-AGENT-CASH-NGN',
+      name: 'Agent Cash Collections in Transit (NGN)',
+      type: 'ASSET',
+      currency: 'NGN',
+      country: 'NG',
+      balance: 0,
+      lockedBalance: 0,
+      availableBalance: 0,
+      status: 'ACTIVE',
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-09-03T12:00:00Z',
+    },
+    {
+      id: 'acc_asset_agent_cash_xof',
+      orgId: 'org_kor_99182',
+      accountNumber: '1031-AGENT-CASH-XOF',
+      name: 'Agent Cash Collections in Transit (XOF)',
+      type: 'ASSET',
+      currency: 'XOF',
+      country: 'NE',
+      balance: 0,
+      lockedBalance: 0,
+      availableBalance: 0,
+      status: 'ACTIVE',
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-09-03T12:00:00Z',
+    },
   ];
 
-  defaultAccounts.forEach(acc => ledgerAccountsStore.set(acc.id, acc));
+  return defaultAccounts;
+}
+
+function ensureChartAccountsPresent() {
+  for (const acc of buildDefaultChartAccounts()) {
+    if (!ledgerAccountsStore.has(acc.id)) ledgerAccountsStore.set(acc.id, acc);
+  }
+}
+
+function initializeDefaultChartOfAccounts() {
+  if (ledgerAccountsStore.size === 0) {
+    for (const acc of buildDefaultChartAccounts()) {
+      ledgerAccountsStore.set(acc.id, acc);
+    }
+  } else {
+    ensureChartAccountsPresent();
+  }
 }
 
 function hydrateLedgerStore() {
