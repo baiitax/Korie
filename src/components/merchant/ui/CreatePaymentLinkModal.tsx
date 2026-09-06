@@ -18,22 +18,22 @@ export const CreatePaymentLinkModal: React.FC = () => {
 
   if (!isCreateLinkModalOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
 
     setIsSubmitting(true);
-    setTimeout(() => {
-      const link = createPaymentLink({
-        title,
-        description,
-        type,
-        amount: amount && Number(amount) > 0 ? Number(amount) : undefined,
-        redirectUrl: redirectUrl || undefined,
-      });
+    const link = await createPaymentLink({
+      title,
+      description,
+      type,
+      amount: amount && Number(amount) > 0 ? Number(amount) : undefined,
+      redirectUrl: redirectUrl || undefined,
+    });
+    setIsSubmitting(false);
+    if (link) {
       setCreatedUrl(link.url);
-      setIsSubmitting(false);
-    }, 600);
+    }
   };
 
   const handleCopy = () => {

@@ -9,7 +9,7 @@ import { createSuccessResponse, createErrorResponse } from '@/lib/security/apiRe
  * trigger and any future ops-authored notices — never client-fabricated).
  */
 export async function GET(req: NextRequest) {
-  const auth = await authenticateAgentRequest(req);
+  const auth = await authenticateAgentRequest(req, { requireActiveStatus: false });
   if (!auth.isAuthenticated || !auth.agent) {
     return createErrorResponse({ code: auth.errorCode || 'UNAUTHORIZED', message: auth.errorMessage || 'Unauthorized', requestId: `KP-REQ-${Date.now()}`, httpStatus: auth.httpStatus || 401 });
   }
@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
  * agent_id filter, never a client-supplied id list without ownership check).
  */
 export async function PATCH(req: NextRequest) {
-  const auth = await authenticateAgentRequest(req);
+  const auth = await authenticateAgentRequest(req, { requireActiveStatus: false });
   if (!auth.isAuthenticated || !auth.agent) {
     return createErrorResponse({ code: auth.errorCode || 'UNAUTHORIZED', message: auth.errorMessage || 'Unauthorized', requestId: `KP-REQ-${Date.now()}`, httpStatus: auth.httpStatus || 401 });
   }

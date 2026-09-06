@@ -14,7 +14,7 @@ import { createSuccessResponse, createErrorResponse } from '@/lib/security/apiRe
  * Query params: limit (default 20, max 100), before (ISO timestamp cursor)
  */
 export async function GET(req: NextRequest) {
-  const auth = await authenticateAgentRequest(req);
+  const auth = await authenticateAgentRequest(req, { requireActiveStatus: false });
   if (!auth.isAuthenticated || !auth.agent) {
     return createErrorResponse({
       code: auth.errorCode || 'UNAUTHORIZED',

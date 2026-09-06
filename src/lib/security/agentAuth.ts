@@ -29,11 +29,22 @@ export interface AgentAuthResult {
  * matching public.agents row. It does NOT accept a bare "well-formed string"
  * as proof of identity the way the legacy format-only authMiddleware does.
  *
- * An agent whose backend status is not ACTIVE is rejected outright — the UI
- * must never be able to transact on behalf of a PENDING/SUSPENDED/RESTRICTED
- * agent no matter what the frontend believes.
+ * Self-registered agents start life as `status: PENDING` (see
+ * /api/auth/agent/register) — they can sign in and see their own dashboard
+ * on HOLD immediately, but must not be able to move real cash or float until
+ * an ops reviewer sets them ACTIVE. `requireActiveStatus` (default `true`)
+ * is the enforcement point for that: every money-moving endpoint
+ * (cash-in/cash-out/transfer) must keep the default, so a PENDING agent is
+ * rejected outright there. Identity/read endpoints (me, float, kyc
+ * documents, notifications, support tickets, transaction history) pass
+ * `requireActiveStatus: false` so the agent can see their own hold status
+ * and finish KYC while waiting for review.
  */
-export async function authenticateAgentRequest(request: NextRequest): Promise<AgentAuthResult> {
+export async function authenticateAgentRequest(
+  request: NextRequest,
+  options: { requireActiveStatus?: boolean } = {},
+): Promise<AgentAuthResult> {
+  const requireActiveStatus = options.requireActiveStatus ?? true;
   const requestId = request.headers.get('x-request-id') || `KP-REQ-${Date.now().toString(16)}-${Math.random().toString(36).slice(2, 6)}`;
 
   const authHeader = request.headers.get('authorization') || request.headers.get('Authorization');
@@ -96,11 +107,14 @@ export async function authenticateAgentRequest(request: NextRequest): Promise<Ag
     };
   }
 
-  if (agentRow.status !== 'ACTIVE') {
+  if (requireActiveStatus && agentRow.status !== 'ACTIVE') {
     return {
       isAuthenticated: false,
       errorCode: 'AGENT_NOT_ACTIVE',
-      errorMessage: `Your agent account is currently ${agentRow.status}. Transactions are disabled until this is resolved.`,
+      errorMessage:
+        agentRow.status === 'PENDING'
+          ? 'Your agent account is pending verification review. Transactions are disabled until an administrator approves your account.'
+          : `Your agent account is currently ${agentRow.status}. Transactions are disabled until this is resolved.`,
       httpStatus: 403,
     };
   }

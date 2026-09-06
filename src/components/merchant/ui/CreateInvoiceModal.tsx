@@ -65,28 +65,28 @@ export const CreateInvoiceModal: React.FC = () => {
   const discount = subtotal * (discountPercent / 100);
   const total = subtotal + tax - discount;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!customerName.trim() || lineItems.length === 0) return;
 
     setIsSubmitting(true);
-    setTimeout(() => {
-      const inv = createInvoice({
-        customerName,
-        customerEmail: customerEmail || undefined,
-        customerPhone: customerPhone || undefined,
-        customerAddress: customerAddress || undefined,
-        items: lineItems,
-        subtotal,
-        tax,
-        discount,
-        total,
-        dueDate,
-        notes,
-      });
+    const inv = await createInvoice({
+      customerName,
+      customerEmail: customerEmail || undefined,
+      customerPhone: customerPhone || undefined,
+      customerAddress: customerAddress || undefined,
+      items: lineItems,
+      subtotal,
+      tax,
+      discount,
+      total,
+      dueDate,
+      notes,
+    });
+    setIsSubmitting(false);
+    if (inv) {
       setCreatedInvoiceNumber(inv.invoiceNumber);
-      setIsSubmitting(false);
-    }, 600);
+    }
   };
 
   const handleClose = () => {

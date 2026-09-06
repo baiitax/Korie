@@ -13,7 +13,7 @@ const ALLOWED_CATEGORIES = ['TRANSACTION_DISPUTE', 'FLOAT_ISSUE', 'TERMINAL_ISSU
  * an ownership check, never trusted from the client blindly).
  */
 export async function GET(req: NextRequest) {
-  const auth = await authenticateAgentRequest(req);
+  const auth = await authenticateAgentRequest(req, { requireActiveStatus: false });
   if (!auth.isAuthenticated || !auth.agent) {
     return createErrorResponse({ code: auth.errorCode || 'UNAUTHORIZED', message: auth.errorMessage || 'Unauthorized', requestId: `KP-REQ-${Date.now()}`, httpStatus: auth.httpStatus || 401 });
   }
@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await authenticateAgentRequest(req);
+  const auth = await authenticateAgentRequest(req, { requireActiveStatus: false });
   if (!auth.isAuthenticated || !auth.agent) {
     return createErrorResponse({ code: auth.errorCode || 'UNAUTHORIZED', message: auth.errorMessage || 'Unauthorized', requestId: `KP-REQ-${Date.now()}`, httpStatus: auth.httpStatus || 401 });
   }

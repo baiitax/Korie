@@ -5,6 +5,34 @@ import { useRouter } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { AuthUser, UserRole, JurisdictionCode, AuthResult, LoginParams, RegisterParams } from "@/lib/auth/authService";
 
+export interface AgentRegisterParams {
+  country: JurisdictionCode;
+  fullName: string;
+  businessName: string;
+  phone: string;
+  email: string;
+  password: string;
+  stateOrRegion?: string;
+  cityOrLga?: string;
+  agreeTerms: boolean;
+  agreeAml: boolean;
+}
+
+export interface MerchantRegisterParams {
+  country: JurisdictionCode;
+  businessName: string;
+  tradingName?: string;
+  ownerFullName: string;
+  phone: string;
+  email: string;
+  password: string;
+  category?: string;
+  cacNumber?: string;
+  tinNumber?: string;
+  agreeTerms: boolean;
+  agreeAml: boolean;
+}
+
 /**
  * Real Supabase-backed customer authentication.
  * ---------------------------------------------------------------------------
@@ -35,6 +63,8 @@ interface AuthContextType {
   setActiveRole: (role: UserRole) => void;
   login: (params: LoginParams) => Promise<AuthResult>;
   register: (params: RegisterParams) => Promise<AuthResult>;
+  registerAgent: (params: AgentRegisterParams) => Promise<AuthResult>;
+  registerMerchant: (params: MerchantRegisterParams) => Promise<AuthResult>;
   logout: () => Promise<void>;
   verifyOtp: (code: string) => Promise<{ success: boolean; error?: string }>;
   verifyMfa: (code: string) => Promise<{ success: boolean; error?: string }>;
@@ -157,6 +187,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
       }
 
+      // A single login form serves all three self-serve personas
+      // (Customer/Agent/Business). Ask the backend which real profile this
+      // Auth user actually has — never assume CUSTOMER — then route to the
+      // matching dashboard. Non-customer personas load their own profile
+      // via their own context (AgentContext/MerchantContext), so we don't
+      // duplicate that fetch here.
+      const resolveRes = await fetch("/api/auth/session/resolve", {
+        headers: { Authorization: `Bearer ${data.session.access_token}` },
+      });
+      const resolveJson = await resolveRes.json();
+
+      if (!resolveRes.ok || !resolveJson?.data?.role) {
+        await supabase.auth.signOut();
+        return {
+          success: false,
+          errorCode: resolveJson?.error?.code || "PROFILE_NOT_FOUND",
+          errorMessage: resolveJson?.error?.message || "No KoriePay profile is associated with this account.",
+        };
+      }
+
+      const { role, redirectTo } = resolveJson.data;
+
+      if (role === "AGENT") {
+        setActiveRoleState("AGENT");
+        router.push(redirectTo);
+        return { success: true, redirectTo };
+      }
+      if (role === "MERCHANT") {
+        setActiveRoleState("MERCHANT");
+        router.push(redirectTo);
+        return { success: true, redirectTo };
+      }
+
       const res = await fetch("/api/customer/me", {
         headers: { Authorization: `Bearer ${data.session.access_token}` },
       });
@@ -193,10 +256,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setActiveRoleState("CUSTOMER");
       setJurisdiction(authUser.country);
 
-      const redirectTo = "/customer";
-      router.push(redirectTo);
+      router.push("/customer");
 
-      return { success: true, user: authUser, redirectTo };
+      return { success: true, user: authUser, redirectTo: "/customer" };
     } finally {
       setIsLoading(false);
     }
@@ -236,6 +298,78 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsAuthenticated(true);
       router.push("/customer");
       return { success: true, redirectTo: "/customer" };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const registerAgent = async (params: AgentRegisterParams): Promise<AuthResult> => {
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/auth/agent/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(params),
+      });
+      const json = await res.json();
+
+      if (!res.ok || !json?.data?.registered) {
+        return {
+          success: false,
+          errorCode: json?.error?.code || "REGISTRATION_FAILED",
+          errorMessage: json?.error?.message || "Unable to complete agent registration.",
+        };
+      }
+
+      const supabase = getSupabaseBrowserClient();
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: params.email.trim().toLowerCase(),
+        password: params.password,
+      });
+      if (error || !data.session) {
+        router.push("/login");
+        return { success: true, redirectTo: "/login" };
+      }
+
+      setActiveRoleState("AGENT");
+      router.push("/agent");
+      return { success: true, redirectTo: "/agent" };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const registerMerchant = async (params: MerchantRegisterParams): Promise<AuthResult> => {
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/auth/merchant/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(params),
+      });
+      const json = await res.json();
+
+      if (!res.ok || !json?.data?.registered) {
+        return {
+          success: false,
+          errorCode: json?.error?.code || "REGISTRATION_FAILED",
+          errorMessage: json?.error?.message || "Unable to complete business registration.",
+        };
+      }
+
+      const supabase = getSupabaseBrowserClient();
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: params.email.trim().toLowerCase(),
+        password: params.password,
+      });
+      if (error || !data.session) {
+        router.push("/login");
+        return { success: true, redirectTo: "/login" };
+      }
+
+      setActiveRoleState("MERCHANT");
+      router.push("/merchant");
+      return { success: true, redirectTo: "/merchant" };
     } finally {
       setIsLoading(false);
     }
@@ -292,6 +426,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setActiveRole: (role) => setActiveRoleState(role),
         login,
         register,
+        registerAgent,
+        registerMerchant,
         logout,
         verifyOtp,
         verifyMfa,

@@ -13,7 +13,7 @@ import { createSuccessResponse, createErrorResponse } from '@/lib/security/apiRe
  * this directly rather than deriving its own limit math.
  */
 export async function GET(req: NextRequest) {
-  const auth = await authenticateAgentRequest(req);
+  const auth = await authenticateAgentRequest(req, { requireActiveStatus: false });
   if (!auth.isAuthenticated || !auth.agent) {
     return createErrorResponse({ code: auth.errorCode || 'UNAUTHORIZED', message: auth.errorMessage || 'Unauthorized', requestId: `KP-REQ-${Date.now()}`, httpStatus: auth.httpStatus || 401 });
   }

@@ -113,6 +113,24 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
         </div>
       )}
 
+      {agent.status === "PENDING" && (
+        <div className="bg-amber-500 text-slate-950 text-xs font-bold px-4 py-2 flex items-center justify-center gap-2 sticky top-0 z-40 text-center">
+          <ShieldCheck className="w-4 h-4" />
+          <span>
+            Account under review — complete KYC verification to unlock cash-in, cash-out and transfers.{" "}
+            <Link href="/agent/kyc" className="underline underline-offset-2">
+              Upload documents
+            </Link>
+          </span>
+        </div>
+      )}
+      {(agent.status === "SUSPENDED" || agent.status === "RESTRICTED" || agent.status === "DEACTIVATED") && (
+        <div className="bg-rose-600 text-white text-xs font-bold px-4 py-2 flex items-center justify-center gap-2 sticky top-0 z-40 text-center">
+          <ShieldCheck className="w-4 h-4" />
+          <span>Account {String(agent.status).toLowerCase()} — transactions are disabled. Contact support.</span>
+        </div>
+      )}
+
       <div className="flex flex-1">
         {/* Desktop Sidebar */}
         <aside className="hidden lg:flex flex-col justify-between w-64 bg-[var(--surface)]/80 border-r border-[var(--border)] sticky top-0 shadow-[var(--shadow-sm)] h-screen overflow-y-auto z-40 shrink-0">

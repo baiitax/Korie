@@ -1,6 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   MerchantOrganization,
   MerchantBranch,
@@ -16,23 +17,49 @@ import {
   MerchantCurrency,
 } from "@/types/merchant";
 import { SupportedLanguage } from "@/types/customer";
-import {
-  CURRENT_MERCHANT,
-  MERCHANT_BRANCHES,
-  MERCHANT_STAFF,
-  MERCHANT_PAYMENTS,
-  MERCHANT_PAYMENT_LINKS,
-  MERCHANT_INVOICES,
-  MERCHANT_CUSTOMERS_CRM,
-  MERCHANT_SETTLEMENTS,
-  MERCHANT_DISPUTES,
-  MERCHANT_API_KEYS,
-  MERCHANT_WEBHOOKS,
-} from "@/services/merchantDataService";
 import { translateMerchant } from "@/locales/merchant";
+import { merchantApiFetch, getMerchantAccessToken } from "@/lib/merchant/merchantSession";
+
+/**
+ * Real, Supabase-backed Merchant Portal state. Replaces the fixture-driven
+ * context (CURRENT_MERCHANT / MERCHANT_* arrays from merchantDataService)
+ * with live fetches against /api/v1/merchant/*, following the exact same
+ * pattern as AgentContext.tsx: every field the UI renders comes from a real
+ * database row, a freshly self-registered PENDING business simply starts
+ * with zero balances/empty lists until real activity occurs — nothing here
+ * fabricates numbers.
+ */
+
+const EMPTY_MERCHANT: MerchantOrganization = {
+  id: "",
+  businessName: "",
+  tradingName: "",
+  merchantCode: "",
+  cacNumber: "",
+  tinNumber: "",
+  email: "",
+  phone: "",
+  country: "NG",
+  currency: "NGN",
+  category: "",
+  tier: "TIER_1",
+  kybStatus: "PENDING",
+  availableBalance: 0,
+  pendingSettlement: 0,
+  totalGrossSalesToday: 0,
+  totalGrossVolume: 0,
+  settlementBank: "",
+  settlementAccountMasked: "",
+  activeQRCodesCount: 0,
+  activePOSCount: 0,
+  branchesCount: 0,
+  createdAt: new Date().toISOString(),
+};
 
 interface MerchantContextType {
   merchant: MerchantOrganization;
+  merchantStatus: "PENDING" | "ACTIVE" | "SUSPENDED" | "RESTRICTED" | "DEACTIVATED";
+  isLoadingProfile: boolean;
   branches: MerchantBranch[];
   selectedBranchId: string;
   setSelectedBranchId: (id: string) => void;
@@ -57,7 +84,6 @@ interface MerchantContextType {
   webhooks: MerchantWebhookEndpoint[];
   isOffline: boolean;
 
-  // Modal open states
   isReceiveModalOpen: boolean;
   setIsReceiveModalOpen: (open: boolean) => void;
   isCreateLinkModalOpen: boolean;
@@ -65,14 +91,13 @@ interface MerchantContextType {
   isCreateInvoiceModalOpen: boolean;
   setIsCreateInvoiceModalOpen: (open: boolean) => void;
 
-  // Actions
   createPaymentLink: (data: {
     title: string;
     description: string;
     type: "SINGLE" | "REUSABLE" | "SUBSCRIPTION";
     amount?: number;
     redirectUrl?: string;
-  }) => MerchantPaymentLink;
+  }) => Promise<MerchantPaymentLink | null>;
 
   createInvoice: (data: {
     customerName: string;
@@ -86,51 +111,215 @@ interface MerchantContextType {
     total: number;
     dueDate: string;
     notes?: string;
-  }) => MerchantInvoice;
+  }) => Promise<MerchantInvoice | null>;
 
-  refundTransaction: (txId: string, reason: string) => void;
-  markInvoicePaid: (invoiceId: string) => void;
-  rotateApiKey: (keyId: string) => void;
+  refundTransaction: (txId: string, reason: string) => Promise<boolean>;
+  markInvoicePaid: (invoiceId: string) => Promise<boolean>;
+  rotateApiKey: (keyId: string) => Promise<{ secretKey: string } | null>;
 
   notificationsCount: number;
+  refreshAll: () => Promise<void>;
 }
 
 const MerchantContext = createContext<MerchantContextType | undefined>(undefined);
 
 export function MerchantProvider({ children }: { children: React.ReactNode }) {
-  const [merchant, setMerchant] = useState<MerchantOrganization>(CURRENT_MERCHANT);
-  const [branches, setBranches] = useState<MerchantBranch[]>(MERCHANT_BRANCHES);
+  const router = useRouter();
+  const [merchant, setMerchant] = useState<MerchantOrganization>(EMPTY_MERCHANT);
+  const [merchantStatus, setMerchantStatus] = useState<MerchantContextType["merchantStatus"]>("PENDING");
+  const [isLoadingProfile, setIsLoadingProfile] = useState<boolean>(true);
+  const [branches, setBranches] = useState<MerchantBranch[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<string>("ALL");
   const [currency, setCurrency] = useState<MerchantCurrency>("NGN");
   const [isBalanceHidden, setIsBalanceHidden] = useState<boolean>(false);
   const [language, setLanguageState] = useState<SupportedLanguage>("en");
-  const [transactions, setTransactions] = useState<MerchantPaymentTransaction[]>(MERCHANT_PAYMENTS);
-  const [paymentLinks, setPaymentLinks] = useState<MerchantPaymentLink[]>(MERCHANT_PAYMENT_LINKS);
-  const [invoices, setInvoices] = useState<MerchantInvoice[]>(MERCHANT_INVOICES);
-  const [customers, setCustomers] = useState<MerchantCustomerCRM[]>(MERCHANT_CUSTOMERS_CRM);
-  const [settlementBatches, setSettlementBatches] = useState<MerchantSettlementBatch[]>(MERCHANT_SETTLEMENTS);
-  const [disputes, setDisputes] = useState<MerchantDisputeRecord[]>(MERCHANT_DISPUTES);
-  const [staff, setStaff] = useState<MerchantStaffUser[]>(MERCHANT_STAFF);
-  const [apiKeys, setApiKeys] = useState<MerchantApiKey[]>(MERCHANT_API_KEYS);
-  const [webhooks, setWebhooks] = useState<MerchantWebhookEndpoint[]>(MERCHANT_WEBHOOKS);
+  const [transactions, setTransactions] = useState<MerchantPaymentTransaction[]>([]);
+  const [paymentLinks, setPaymentLinks] = useState<MerchantPaymentLink[]>([]);
+  const [invoices, setInvoices] = useState<MerchantInvoice[]>([]);
+  const [customers, setCustomers] = useState<MerchantCustomerCRM[]>([]);
+  const [settlementBatches, setSettlementBatches] = useState<MerchantSettlementBatch[]>([]);
+  const [disputes, setDisputes] = useState<MerchantDisputeRecord[]>([]);
+  const [staff, setStaff] = useState<MerchantStaffUser[]>([]);
+  const [apiKeys, setApiKeys] = useState<MerchantApiKey[]>([]);
+  const [webhooks, setWebhooks] = useState<MerchantWebhookEndpoint[]>([]);
   const [isOffline, setIsOffline] = useState<boolean>(false);
-  const [notificationsCount, setNotificationsCount] = useState<number>(3);
+  const [notificationsCount, setNotificationsCount] = useState<number>(0);
 
-  // Modals state
   const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false);
   const [isCreateLinkModalOpen, setIsCreateLinkModalOpen] = useState(false);
   const [isCreateInvoiceModalOpen, setIsCreateInvoiceModalOpen] = useState(false);
 
+  const refreshProfile = useCallback(async () => {
+    try {
+      const res = await merchantApiFetch("/api/v1/merchant/me");
+      const json = await res.json();
+      if (res.ok && json.status === "success") {
+        const d = json.data;
+        setMerchant({
+          id: d.id,
+          businessName: d.businessName,
+          tradingName: d.tradingName,
+          merchantCode: d.merchantCode,
+          cacNumber: d.cacNumber || "",
+          tinNumber: d.tinNumber || "",
+          email: d.email,
+          phone: d.phone,
+          country: d.country,
+          currency: d.currency,
+          category: d.category,
+          tier: d.tier,
+          kybStatus: d.kybStatus,
+          availableBalance: d.availableBalance,
+          pendingSettlement: d.pendingSettlement,
+          totalGrossSalesToday: d.totalGrossSalesToday,
+          totalGrossVolume: d.totalGrossVolume,
+          settlementBank: d.settlementBank || "Not yet configured",
+          settlementAccountMasked: d.settlementAccountMasked || "—",
+          activeQRCodesCount: 0,
+          activePOSCount: 0,
+          branchesCount: d.branchesCount,
+          createdAt: d.createdAt,
+        });
+        setMerchantStatus(d.status);
+        setCurrency(d.currency);
+      } else if (res.status === 401 || res.status === 403) {
+        router.push("/login");
+      }
+    } catch {
+      // leave prior known-good state on network failure
+    } finally {
+      setIsLoadingProfile(false);
+    }
+  }, [router]);
+
+  const refreshBranches = useCallback(async () => {
+    try {
+      const res = await merchantApiFetch("/api/v1/merchant/branches");
+      const json = await res.json();
+      if (res.ok && json.status === "success") setBranches(json.data.branches);
+    } catch {}
+  }, []);
+
+  const refreshTransactions = useCallback(async () => {
+    try {
+      const res = await merchantApiFetch("/api/v1/merchant/transactions?limit=100");
+      const json = await res.json();
+      if (res.ok && json.status === "success") setTransactions(json.data.transactions);
+    } catch {}
+  }, []);
+
+  const refreshPaymentLinks = useCallback(async () => {
+    try {
+      const res = await merchantApiFetch("/api/v1/merchant/payment-links");
+      const json = await res.json();
+      if (res.ok && json.status === "success") setPaymentLinks(json.data.paymentLinks);
+    } catch {}
+  }, []);
+
+  const refreshInvoices = useCallback(async () => {
+    try {
+      const res = await merchantApiFetch("/api/v1/merchant/invoices");
+      const json = await res.json();
+      if (res.ok && json.status === "success") setInvoices(json.data.invoices);
+    } catch {}
+  }, []);
+
+  const refreshCustomers = useCallback(async () => {
+    try {
+      const res = await merchantApiFetch("/api/v1/merchant/customers");
+      const json = await res.json();
+      if (res.ok && json.status === "success") setCustomers(json.data.customers);
+    } catch {}
+  }, []);
+
+  const refreshSettlements = useCallback(async () => {
+    try {
+      const res = await merchantApiFetch("/api/v1/merchant/settlements");
+      const json = await res.json();
+      if (res.ok && json.status === "success") setSettlementBatches(json.data.settlements);
+    } catch {}
+  }, []);
+
+  const refreshDisputes = useCallback(async () => {
+    try {
+      const res = await merchantApiFetch("/api/v1/merchant/disputes");
+      const json = await res.json();
+      if (res.ok && json.status === "success") setDisputes(json.data.disputes);
+    } catch {}
+  }, []);
+
+  const refreshStaff = useCallback(async () => {
+    try {
+      const res = await merchantApiFetch("/api/v1/merchant/staff");
+      const json = await res.json();
+      if (res.ok && json.status === "success") setStaff(json.data.staff);
+    } catch {}
+  }, []);
+
+  const refreshApiKeys = useCallback(async () => {
+    try {
+      const res = await merchantApiFetch("/api/v1/merchant/keys");
+      const json = await res.json();
+      if (res.ok && json.status === "success") setApiKeys(json.data.apiKeys);
+    } catch {}
+  }, []);
+
+  const refreshNotifications = useCallback(async () => {
+    try {
+      const res = await merchantApiFetch("/api/v1/merchant/notifications?limit=30");
+      const json = await res.json();
+      if (res.ok && json.status === "success") {
+        setNotificationsCount((json.data.notifications || []).filter((n: any) => !n.is_read).length);
+      }
+    } catch {}
+  }, []);
+
+  const refreshAll = useCallback(async () => {
+    await Promise.all([
+      refreshProfile(),
+      refreshBranches(),
+      refreshTransactions(),
+      refreshPaymentLinks(),
+      refreshInvoices(),
+      refreshCustomers(),
+      refreshSettlements(),
+      refreshDisputes(),
+      refreshStaff(),
+      refreshApiKeys(),
+      refreshNotifications(),
+    ]);
+  }, [
+    refreshProfile,
+    refreshBranches,
+    refreshTransactions,
+    refreshPaymentLinks,
+    refreshInvoices,
+    refreshCustomers,
+    refreshSettlements,
+    refreshDisputes,
+    refreshStaff,
+    refreshApiKeys,
+    refreshNotifications,
+  ]);
+
+  useEffect(() => {
+    (async () => {
+      const token = await getMerchantAccessToken();
+      if (!token) {
+        router.push("/login");
+        return;
+      }
+      refreshAll();
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedLang = localStorage.getItem("koriepay_merchant_lang") as SupportedLanguage;
-      if (savedLang) {
-        setLanguageState(savedLang);
-      }
+      if (savedLang) setLanguageState(savedLang);
       const savedHide = localStorage.getItem("koriepay_merchant_hide_balance");
-      if (savedHide) {
-        setIsBalanceHidden(savedHide === "true");
-      }
+      if (savedHide) setIsBalanceHidden(savedHide === "true");
 
       const handleOnline = () => setIsOffline(false);
       const handleOffline = () => setIsOffline(true);
@@ -147,163 +336,108 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
 
   const setLanguage = (lang: SupportedLanguage) => {
     setLanguageState(lang);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("koriepay_merchant_lang", lang);
-    }
+    if (typeof window !== "undefined") localStorage.setItem("koriepay_merchant_lang", lang);
   };
 
   const toggleHideBalance = () => {
     setIsBalanceHidden((prev) => {
       const next = !prev;
-      if (typeof window !== "undefined") {
-        localStorage.setItem("koriepay_merchant_hide_balance", String(next));
-      }
+      if (typeof window !== "undefined") localStorage.setItem("koriepay_merchant_hide_balance", String(next));
       return next;
     });
   };
 
-  const t = (key: string, params?: Record<string, string | number>): string => {
-    return translateMerchant(language, key, params);
-  };
+  const t = (key: string, params?: Record<string, string | number>): string => translateMerchant(language, key, params);
 
   const formatCurrency = (amount: number): string => {
     if (merchant.currency === "XOF") {
       return `${Math.round(amount).toLocaleString("fr-FR")} CFA`;
     }
-    return `₦${Number(amount || 0).toLocaleString("en-NG", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })}`;
+    return `₦${Number(amount || 0).toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   const formatDate = (dateString?: string): string => {
     if (!dateString) return "—";
     try {
       const d = new Date(dateString);
-      return d.toLocaleDateString("en-NG", {
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+      return d.toLocaleDateString("en-NG", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
     } catch {
       return dateString;
     }
   };
 
-  const createPaymentLink = (data: {
-    title: string;
-    description: string;
-    type: "SINGLE" | "REUSABLE" | "SUBSCRIPTION";
-    amount?: number;
-    redirectUrl?: string;
-  }): MerchantPaymentLink => {
-    const slug = data.title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-    const newLink: MerchantPaymentLink = {
-      id: `lnk-${Date.now()}`,
-      title: data.title,
-      description: data.description,
-      slug,
-      url: `https://pay.koriepay.com/m/${slug}-${Math.floor(100 + Math.random() * 900)}`,
-      amount: data.amount,
-      currency: merchant.currency,
-      type: data.type,
-      status: "ACTIVE",
-      totalCollected: 0,
-      successfulPaymentsCount: 0,
-      redirectUrl: data.redirectUrl,
-      createdAt: new Date().toISOString(),
-    };
-
-    setPaymentLinks((prev) => [newLink, ...prev]);
-    return newLink;
+  const createPaymentLink: MerchantContextType["createPaymentLink"] = async (data) => {
+    try {
+      const res = await merchantApiFetch("/api/v1/merchant/payment-links", { method: "POST", body: JSON.stringify(data) });
+      const json = await res.json();
+      if (!res.ok || json.status !== "success") return null;
+      const link: MerchantPaymentLink = json.data;
+      setPaymentLinks((prev) => [link, ...prev]);
+      return link;
+    } catch {
+      return null;
+    }
   };
 
-  const createInvoice = (data: {
-    customerName: string;
-    customerEmail?: string;
-    customerPhone?: string;
-    customerAddress?: string;
-    items: any[];
-    subtotal: number;
-    tax: number;
-    discount: number;
-    total: number;
-    dueDate: string;
-    notes?: string;
-  }): MerchantInvoice => {
-    const invNum = `INV-2026-${Math.floor(1000 + Math.random() * 9000)}`;
-    const newInv: MerchantInvoice = {
-      id: `inv-${Date.now()}`,
-      invoiceNumber: invNum,
-      customerName: data.customerName,
-      customerEmail: data.customerEmail,
-      customerPhone: data.customerPhone,
-      customerAddress: data.customerAddress,
-      items: data.items,
-      subtotal: data.subtotal,
-      tax: data.tax,
-      discount: data.discount,
-      total: data.total,
-      currency: merchant.currency,
-      dueDate: data.dueDate,
-      status: "SENT",
-      virtualAccountNuban: "9928193820",
-      virtualAccountBank: "Providus Bank",
-      notes: data.notes,
-      createdAt: new Date().toISOString(),
-    };
-
-    setInvoices((prev) => [newInv, ...prev]);
-    return newInv;
+  const createInvoice: MerchantContextType["createInvoice"] = async (data) => {
+    try {
+      const res = await merchantApiFetch("/api/v1/merchant/invoices", { method: "POST", body: JSON.stringify(data) });
+      const json = await res.json();
+      if (!res.ok || json.status !== "success") return null;
+      const inv: MerchantInvoice = json.data;
+      setInvoices((prev) => [inv, ...prev]);
+      return inv;
+    } catch {
+      return null;
+    }
   };
 
-  const refundTransaction = (txId: string, reason: string) => {
-    setTransactions((prev) =>
-      prev.map((tx) =>
-        tx.id === txId
-          ? {
-              ...tx,
-              status: "REFUNDED",
-              narration: `Refunded: ${reason}`,
-            }
-          : tx
-      )
-    );
+  const refundTransaction = async (txId: string, reason: string): Promise<boolean> => {
+    try {
+      const res = await merchantApiFetch(`/api/v1/merchant/transactions/${txId}/refund`, { method: "POST", body: JSON.stringify({ reason }) });
+      const json = await res.json();
+      if (!res.ok || json.status !== "success") return false;
+      setTransactions((prev) => prev.map((tx) => (tx.id === txId ? { ...tx, status: "REFUNDED", narration: `Refunded: ${reason}` } : tx)));
+      return true;
+    } catch {
+      return false;
+    }
   };
 
-  const markInvoicePaid = (invoiceId: string) => {
-    setInvoices((prev) =>
-      prev.map((inv) =>
-        inv.id === invoiceId
-          ? {
-              ...inv,
-              status: "PAID",
-              paidAt: new Date().toISOString(),
-            }
-          : inv
-      )
-    );
+  const markInvoicePaid = async (invoiceId: string): Promise<boolean> => {
+    try {
+      const res = await merchantApiFetch(`/api/v1/merchant/invoices/${invoiceId}/mark-paid`, { method: "POST" });
+      const json = await res.json();
+      if (!res.ok || json.status !== "success") return false;
+      setInvoices((prev) =>
+        prev.map((inv) => (inv.id === invoiceId ? { ...inv, status: "PAID", paidAmount: json.data.paidAmount, paidAt: json.data.paidAt } : inv))
+      );
+      return true;
+    } catch {
+      return false;
+    }
   };
 
-  const rotateApiKey = (keyId: string) => {
-    setApiKeys((prev) =>
-      prev.map((k) =>
-        k.id === keyId
-          ? {
-              ...k,
-              secretKeyMasked: `kp_live_${Math.random().toString(36).substring(2, 10)}••••••••`,
-              lastUsedAt: new Date().toISOString(),
-            }
-          : k
-      )
-    );
+  const rotateApiKey = async (_keyId: string): Promise<{ secretKey: string } | null> => {
+    // "Rotate" issues a fresh sandbox key (production key issuance requires
+    // an ACTIVE, KYB-verified merchant — see /api/v1/merchant/keys).
+    try {
+      const res = await merchantApiFetch("/api/v1/merchant/keys", { method: "POST", body: JSON.stringify({ environment: "SANDBOX" }) });
+      const json = await res.json();
+      if (!res.ok || json.status !== "success") return null;
+      await refreshApiKeys();
+      return { secretKey: json.data.secretKey };
+    } catch {
+      return null;
+    }
   };
 
   return (
     <MerchantContext.Provider
       value={{
         merchant,
+        merchantStatus,
+        isLoadingProfile,
         branches,
         selectedBranchId,
         setSelectedBranchId,
@@ -338,6 +472,7 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
         markInvoicePaid,
         rotateApiKey,
         notificationsCount,
+        refreshAll,
       }}
     >
       {children}

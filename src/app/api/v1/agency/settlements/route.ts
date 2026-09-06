@@ -13,7 +13,7 @@ import { createSuccessResponse, createErrorResponse } from '@/lib/security/apiRe
  * public.run_daily_settlement() — never fabricated in application code.
  */
 export async function GET(req: NextRequest) {
-  const auth = await authenticateAgentRequest(req);
+  const auth = await authenticateAgentRequest(req, { requireActiveStatus: false });
   if (!auth.isAuthenticated || !auth.agent) {
     return createErrorResponse({
       code: auth.errorCode || 'UNAUTHORIZED',

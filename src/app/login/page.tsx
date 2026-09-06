@@ -68,7 +68,7 @@ export default function LoginPage() {
           titleEn="Welcome back"
           titleHa="Barka da dawowa"
           titleFr="Bienvenue de retour"
-          subtitleEn="Sign in securely to your KoriePay digital banking and settlement account."
+          subtitleEn="One sign-in for your Wallet, Agency Banking, or Business dashboard — we'll route you to the right one."
           subtitleHa="Shigar da bayanan asusunka na KoriePay don ci gaba da sarrafa kudade."
           subtitleFr="Connectez-vous à votre compte bancaire et passerelle de règlement KoriePay."
           badge="Institutional Gateway"

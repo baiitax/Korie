@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   AgentUser,
   AgentLiquidity,
@@ -30,7 +31,7 @@ import {
   calculateAgentCommission,
 } from "@/services/agentDataService";
 import { translateAgency } from "@/locales/agency";
-import { agencyApiFetch } from "@/lib/agency/agentSession";
+import { agencyApiFetch, getAgentAccessToken } from "@/lib/agency/agentSession";
 import { useAgentRealtime } from "@/lib/agency/useAgentRealtime";
 
 /**
@@ -170,6 +171,7 @@ interface AgentContextType {
 const AgentContext = createContext<AgentContextType | undefined>(undefined);
 
 export function AgentProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const [agent, setAgent] = useState<AgentUser>(CURRENT_AGENT);
   const [liquidity, setLiquidity] = useState<AgentLiquidity>(INITIAL_LIQUIDITY);
   const [currency, setCurrency] = useState<AgentCurrency>("NGN");
@@ -320,10 +322,17 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    refreshLiquidity();
-    refreshTransactions();
-    refreshProfile();
-    refreshNotifications();
+    (async () => {
+      const token = await getAgentAccessToken();
+      if (!token) {
+        router.push("/login");
+        return;
+      }
+      refreshLiquidity();
+      refreshTransactions();
+      refreshProfile();
+      refreshNotifications();
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

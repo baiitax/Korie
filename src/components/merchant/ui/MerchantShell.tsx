@@ -39,6 +39,7 @@ export const MerchantShell: React.FC<{ children: React.ReactNode }> = ({ childre
   const pathname = usePathname();
   const {
     merchant,
+    merchantStatus,
     branches,
     selectedBranchId,
     setSelectedBranchId,
@@ -101,6 +102,24 @@ export const MerchantShell: React.FC<{ children: React.ReactNode }> = ({ childre
         <div className="bg-rose-600 text-white text-xs font-semibold px-4 py-2 flex items-center justify-center gap-2 sticky top-0 z-50">
           <WifiOff className="w-4 h-4 animate-pulse" />
           <span>Offline Network: Checkout processing paused for connection safety.</span>
+        </div>
+      )}
+
+      {merchantStatus === "PENDING" && (
+        <div className="bg-amber-500 text-slate-950 text-xs font-bold px-4 py-2 flex items-center justify-center gap-2 sticky top-0 z-40 text-center">
+          <ShieldCheck className="w-4 h-4" />
+          <span>
+            Account under review — complete KYB verification to unlock live payments and settlements.{" "}
+            <Link href="/merchant/profile" className="underline underline-offset-2">
+              Upload documents
+            </Link>
+          </span>
+        </div>
+      )}
+      {(merchantStatus === "SUSPENDED" || merchantStatus === "RESTRICTED" || merchantStatus === "DEACTIVATED") && (
+        <div className="bg-rose-600 text-white text-xs font-bold px-4 py-2 flex items-center justify-center gap-2 sticky top-0 z-40 text-center">
+          <ShieldCheck className="w-4 h-4" />
+          <span>Account {merchantStatus.toLowerCase()} — payments and settlements are disabled. Contact support.</span>
         </div>
       )}
 

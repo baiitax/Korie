@@ -39,7 +39,7 @@ export interface AgentUser {
   stateOrRegion: string;
   cityOrLGA: string;
   tier: "TIER_1" | "TIER_2" | "SUPER_AGENT";
-  status: "ACTIVE" | "SUSPENDED" | "RESTRICTED";
+  status: "PENDING" | "ACTIVE" | "SUSPENDED" | "RESTRICTED" | "DEACTIVATED";
   kycStatus: "VERIFIED" | "PENDING";
   preferredLanguage: SupportedLanguage;
   terminalId: string;

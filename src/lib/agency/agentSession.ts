@@ -3,36 +3,21 @@ import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 /**
  * Ensures the browser holds a real Supabase session for the agency portal
  * and returns a fetch-ready Authorization header. This is intentionally
- * separate from the main customer AuthContext (which is still mocked) so
- * that agency banking API calls are backed by a REAL, verifiable Supabase
- * session token rather than a client-trusted role string.
+ * separate from the main customer AuthContext so that agency banking API
+ * calls are backed by a REAL, verifiable Supabase session token rather than
+ * a client-trusted role string.
  *
- * NOTE: this signs in with the seeded demo agent credentials for portal
- * demonstration purposes. In production this call is replaced by the
- * agent's real login flow (see /login) which already collects a
- * password — only the session-issuance mechanism changes.
+ * Real per-agent login is now wired: /login resolves the signed-in Auth
+ * user's role (via /api/auth/session/resolve) and routes agents to /agent,
+ * which relies on this same Supabase session. No demo credential shortcut
+ * is used here anymore — if there is no real session, callers should treat
+ * that as "not signed in" and redirect to /login rather than silently
+ * authenticating as anyone.
  */
-const DEMO_AGENT_EMAIL = 'garba.kano@korieagent.com';
-const DEMO_AGENT_PASSWORD = 'KorieAgent@2026!';
-
 export async function getAgentAccessToken(): Promise<string | null> {
   const supabase = getSupabaseBrowserClient();
-
   const { data: sessionData } = await supabase.auth.getSession();
-  if (sessionData.session?.access_token) {
-    return sessionData.session.access_token;
-  }
-
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: DEMO_AGENT_EMAIL,
-    password: DEMO_AGENT_PASSWORD,
-  });
-
-  if (error || !data.session) {
-    return null;
-  }
-
-  return data.session.access_token;
+  return sessionData.session?.access_token || null;
 }
 
 export async function agencyApiFetch(path: string, init: RequestInit = {}): Promise<Response> {
