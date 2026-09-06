@@ -147,10 +147,6 @@ const EVENT_FOR_TARGET: Partial<Record<TicketStatus, SupportEventType>> = {
 
 const AUTO_CLOSE_MS = 72 * 3600e3; // resolved → closed after 72h (sweep)
 
-function auditId(): string {
-  return `AUD-SUP-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
-}
-
 /* --------------------------------------------------------- the engine */
 
 export class SupportOpsEngine {
@@ -361,7 +357,6 @@ export class SupportOpsEngine {
     const sensitive = ["RESOLVED", "CLOSED", "REOPENED", "ESCALATED"].includes(to);
     if (sensitive) {
       await insertAuditRow({
-        id: auditId(),
         officer_id: actor.officerId,
         officer_name: actor.name,
         officer_role: actor.role,
@@ -759,7 +754,6 @@ export class SupportOpsEngine {
       payload: { disputeId: saved.id, category: params.category },
     });
     await insertAuditRow({
-      id: auditId(),
       officer_id: actor.officerId,
       officer_name: actor.name,
       officer_role: actor.role,
@@ -791,7 +785,6 @@ export class SupportOpsEngine {
     const updated = await updateDisputeRow(row.id, { status: to, timeline });
     if (!updated) return { ok: false, code: "DISPUTE_NOT_FOUND", error: "Dispute vanished." };
     await insertAuditRow({
-      id: auditId(),
       officer_id: actor.officerId,
       officer_name: actor.name,
       officer_role: actor.role,
@@ -876,7 +869,6 @@ export class SupportOpsEngine {
       payload: { disputeId: row.id, decision: params.type, recoveryCaseReference },
     });
     await insertAuditRow({
-      id: auditId(),
       officer_id: actor.officerId,
       officer_name: actor.name,
       officer_role: actor.role,
@@ -928,7 +920,6 @@ export class SupportOpsEngine {
 
     const tr = await this.transition(ticketRow.id, "ESCALATED", actor, { reason: `Escalated to ${params.destination}` });
     await insertAuditRow({
-      id: auditId(),
       officer_id: actor.officerId,
       officer_name: actor.name,
       officer_role: actor.role,
@@ -967,7 +958,6 @@ export class SupportOpsEngine {
     if (!updated) return { ok: false, code: "ESCALATION_NOT_FOUND", error: "Escalation vanished." };
     const ticketRow = await getTicketRow(row.ticket_id);
     await insertAuditRow({
-      id: auditId(),
       officer_id: actor.officerId,
       officer_name: actor.name,
       officer_role: actor.role,
