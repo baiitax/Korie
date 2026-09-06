@@ -37,21 +37,35 @@ export async function GET(request: NextRequest) {
 
   const { data: profile } = await admin
     .from("user_profiles")
-    .select("id, full_name, phone, country, mfa_enabled, mfa_enforced_at, status")
+    // NOTE: user_profiles has no mfa_enforced_at column — selecting it makes
+    // PostgREST return 400 and silently nulls the whole profile (roles went
+    // empty because of this). Only real columns may appear here.
+    .select("id, full_name, phone, country, mfa_enabled, status")
     .eq("auth_user_id", auth.userId!)
     .maybeSingle();
 
-  // Every ACTIVE membership + role for this officer.
-  const { data: memberships } = await admin
-    .from("organization_members")
-    .select("org_id, roles(name)")
-    .eq("user_id", (profile as { id: string } | null)?.id ?? "")
-    .eq("status", "ACTIVE");
+  // Every ACTIVE membership + role for this officer. The embedded roles(name)
+  // rides the organization_members.role_id -> roles.id FK; a many-to-one embed
+  // comes back as a single object, so normalize both shapes.
+  const profileId = (profile as { id: string } | null)?.id;
+  const memberships = profileId
+    ? (
+        await admin
+          .from("organization_members")
+          .select("org_id, roles(name)")
+          .eq("user_id", profileId)
+          .eq("status", "ACTIVE")
+      ).data
+    : [];
 
   const roles = Array.from(
     new Set(
-      (memberships ?? []).flatMap((m: { roles?: Array<{ name?: string }> }) =>
-        (m.roles ?? []).map((r: { name?: string }) => r.name),
+      (memberships ?? []).flatMap((m: { roles?: Array<{ name?: string }> | { name?: string } }) =>
+        Array.isArray(m.roles)
+          ? m.roles.map((r: { name?: string }) => r.name)
+          : m.roles
+            ? [m.roles.name]
+            : [],
       ),
     ),
   ).filter(Boolean) as string[];
