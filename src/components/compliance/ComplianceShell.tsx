@@ -14,7 +14,7 @@ import {
   Bell, FileSearch, FolderSearch, CheckSquare, ListTodo, ArrowUpRight, FileBarChart2, BarChart3,
   History, Activity, Lock, FileCheck2, Calendar, BookOpen, UserCog, Plug2, HeartPulse, Settings,
   Search, Menu, X, ChevronsLeft, ChevronDown, LogOut, Sun, Moon, Globe, CircleAlert, CircleCheck,
-  Clock3, Gauge, AlertOctagon, Sparkles, Home, MoreHorizontal, ScrollText, ChevronRight,
+  Clock3, Gauge, AlertOctagon, Sparkles, Home, MoreHorizontal, ScrollText, ChevronRight, ChevronsRight,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useCompliance } from './ComplianceContext';
@@ -30,34 +30,36 @@ export interface NavItem {
   href: string;
   icon: LucideIcon;
   badge?: 'kyc' | 'alerts' | 'cases' | 'tasks' | 'approvals' | 'matches';
+  /** shown in the icon-first floating rail (compact mode) */
+  rail?: boolean;
 }
 export interface NavGroup { groupKey: string; items: NavItem[] }
 
 export const NAV_GROUPS: NavGroup[] = [
   {
     groupKey: 'overview',
-    items: [{ key: 'dashboard', labelKey: 'nav.dashboard', href: '/compliance', icon: LayoutDashboard }],
+    items: [{ key: 'dashboard', labelKey: 'nav.dashboard', href: '/compliance', icon: LayoutDashboard, rail: true }],
   },
   {
     groupKey: 'customers',
     items: [
-      { key: 'customers', labelKey: 'nav.customers', href: '/compliance/customers', icon: Users },
-      { key: 'kyc', labelKey: 'nav.kyc', href: '/compliance/kyc', icon: UserCheck, badge: 'kyc' },
-      { key: 'kyb', labelKey: 'nav.kyb', href: '/compliance/kyb', icon: Building2 },
+      { key: 'customers', labelKey: 'nav.customers', href: '/compliance/customers', icon: Users, rail: true },
+      { key: 'kyc', labelKey: 'nav.kyc', href: '/compliance/kyc', icon: UserCheck, badge: 'kyc', rail: true },
+      { key: 'kyb', labelKey: 'nav.kyb', href: '/compliance/kyb', icon: Building2, rail: true },
     ],
   },
   {
     groupKey: 'monitoring',
     items: [
-      { key: 'txm', labelKey: 'nav.transactionMonitoring', href: '/compliance/transaction-monitoring', icon: Radio },
+      { key: 'txm', labelKey: 'nav.transactionMonitoring', href: '/compliance/transaction-monitoring', icon: Radio, rail: true },
       { key: 'aml', labelKey: 'nav.aml', href: '/compliance/aml', icon: ShieldAlert },
-      { key: 'risk', labelKey: 'nav.risk', href: '/compliance/risk', icon: Gauge, badge: 'matches' },
+      { key: 'risk', labelKey: 'nav.risk', href: '/compliance/risk', icon: Gauge, badge: 'matches', rail: true },
     ],
   },
   {
     groupKey: 'screening',
     items: [
-      { key: 'sanctions', labelKey: 'nav.sanctions', href: '/compliance/sanctions', icon: Fingerprint },
+      { key: 'sanctions', labelKey: 'nav.sanctions', href: '/compliance/sanctions', icon: Fingerprint, rail: true },
       { key: 'pep', labelKey: 'nav.pep', href: '/compliance/pep', icon: Eye },
       { key: 'watchlists', labelKey: 'nav.watchlists', href: '/compliance/watchlists', icon: ScrollText },
     ],
@@ -65,15 +67,15 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     groupKey: 'investigations',
     items: [
-      { key: 'alerts', labelKey: 'nav.alerts', href: '/compliance/alerts', icon: Bell, badge: 'alerts' },
-      { key: 'cases', labelKey: 'nav.cases', href: '/compliance/cases', icon: FileSearch, badge: 'cases' },
+      { key: 'alerts', labelKey: 'nav.alerts', href: '/compliance/alerts', icon: Bell, badge: 'alerts', rail: true },
+      { key: 'cases', labelKey: 'nav.cases', href: '/compliance/cases', icon: FileSearch, badge: 'cases', rail: true },
       { key: 'investigations', labelKey: 'nav.investigations', href: '/compliance/investigations', icon: FolderSearch },
     ],
   },
   {
     groupKey: 'operations',
     items: [
-      { key: 'approvals', labelKey: 'nav.approvals', href: '/compliance/approvals', icon: CheckSquare, badge: 'approvals' },
+      { key: 'approvals', labelKey: 'nav.approvals', href: '/compliance/approvals', icon: CheckSquare, badge: 'approvals', rail: true },
       { key: 'tasks', labelKey: 'nav.tasks', href: '/compliance/tasks', icon: ListTodo, badge: 'tasks' },
       { key: 'escalations', labelKey: 'nav.escalations', href: '/compliance/escalations', icon: ArrowUpRight },
     ],
@@ -158,7 +160,7 @@ export const ComplianceShell: React.FC<{ children: React.ReactNode }> = ({ child
   const legacy = useCompliance();
   const { t } = portal;
 
-  const [sidebarOpen, setSidebarOpen] = useState(true); // desktop
+  const [sidebarOpen, setSidebarOpen] = useState(false); // premium icon rail is the default; expand = labeled mode
   const [drawerOpen, setDrawerOpen] = useState(false); // mobile
   const [searchOpen, setSearchOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -244,19 +246,20 @@ export const ComplianceShell: React.FC<{ children: React.ReactNode }> = ({ child
 
   const initials = (portal.currentOfficer.fullName || 'KO').split(' ').map((s) => s[0]).slice(0, 2).join('').toUpperCase();
 
+  const navMode = 'full'; // labeled sidebar always renders fully (compact icon rail is separate)
   const renderNav = (onNavigate?: () => void) => (
     <nav className="flex-1 overflow-y-auto kpc-scroll px-2 py-2.5 space-y-3" aria-label={t.nav.main || 'Compliance navigation'}>
       {NAV_GROUPS.map((g) => {
         const badgeTotal = g.items.reduce((acc, it) => acc + badgeFor(it.badge, portal.stats), 0);
         return (
           <div key={g.groupKey}>
-            {sidebarOpen && (
+            {navMode && (
               <div className="kpc-nav-group flex items-center justify-between px-1.5">
                 {gt(t, 'groups.' + g.groupKey)}
                 {badgeTotal > 0 && <span className="kpc-nav-badge">{badgeTotal}</span>}
               </div>
             )}
-            <div className={sidebarOpen ? 'space-y-0.5' : 'space-y-1'}>
+            <div className={navMode ? 'space-y-0.5' : 'space-y-1'}>
               {g.items.map((it) => {
                 const Icon = it.icon;
                 const active = activeKey === it.key;
@@ -266,16 +269,16 @@ export const ComplianceShell: React.FC<{ children: React.ReactNode }> = ({ child
                     key={it.key}
                     href={it.href}
                     aria-current={active ? 'page' : undefined}
-                    title={!sidebarOpen ? gt(t, it.labelKey) : undefined}
+                    title={!navMode ? gt(t, it.labelKey) : undefined}
                     onClick={onNavigate}
-                    className={`kpc-nav-item${!sidebarOpen ? ' kpc-nav-item--icon' : ''}`}
+                    className={`kpc-nav-item${!navMode ? ' kpc-nav-item--icon' : ''}`}
                   >
                     <Icon className="w-[17px] h-[17px] shrink-0" strokeWidth={active ? 2.3 : 1.9} />
-                    {sidebarOpen && <span className="flex-1 truncate">{gt(t, it.labelKey)}</span>}
-                    {sidebarOpen && badge > 0 && !active && (
+                    {navMode && <span className="flex-1 truncate">{gt(t, it.labelKey)}</span>}
+                    {navMode && badge > 0 && !active && (
                       <span className={`kpc-nav-badge ${it.badge === 'alerts' || it.badge === 'matches' || it.badge === 'approvals' ? 'kpc-nav-badge-hot' : ''}`}>{badge}</span>
                     )}
-                    {sidebarOpen && active && <ChevronRight className="w-3.5 h-3.5 shrink-0 opacity-90" strokeWidth={2.6} />}
+                    {navMode && active && <ChevronRight className="w-3.5 h-3.5 shrink-0 opacity-90" strokeWidth={2.6} />}
                   </Link>
                 );
               })}
@@ -289,18 +292,18 @@ export const ComplianceShell: React.FC<{ children: React.ReactNode }> = ({ child
   const SidebarInner = () => (
     <div className="flex flex-col h-full">
       {/* brand header — logo + portal badge (Super Admin / Aggregator style) */}
-      <div className={`flex items-center gap-2.5 ${sidebarOpen ? 'px-3.5 pt-3.5 pb-2' : 'justify-center px-0 pt-3.5 pb-2'}`}>
+      <div className={`flex items-center gap-2.5 ${navMode ? 'px-3.5 pt-3.5 pb-2' : 'justify-center px-0 pt-3.5 pb-2'}`}>
         <Link href="/compliance" aria-label="KoriePay" className="flex items-center gap-2.5 min-w-0">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center shadow-md shadow-emerald-600/25 ring-1 ring-emerald-500/20 shrink-0">
             <img src="/brand/koriepay-icon-tight.png" alt="" className="w-6 h-6 rounded-[7px]" />
           </div>
-          {sidebarOpen && (
+          {navMode && (
             <span className="leading-tight min-w-0">
               <span className="block text-[0.95rem] font-extrabold tracking-tight text-[var(--kpc-ink)]">KoriePay</span>
             </span>
           )}
         </Link>
-        {sidebarOpen && (
+        {navMode && (
           <span className="ml-auto px-2 py-0.5 rounded-md text-[0.56rem] font-mono font-extrabold uppercase tracking-[0.14em] text-[var(--kpc-brand-ink)] bg-[var(--kpc-brand-ink)]/10 border border-[var(--kpc-brand-ink)]/25 shrink-0">
             Compliance
           </span>
@@ -308,7 +311,7 @@ export const ComplianceShell: React.FC<{ children: React.ReactNode }> = ({ child
       </div>
 
       {/* context strip — markets & rails + jurisdiction (rounded card like Admin/Aggregator) */}
-      {sidebarOpen ? (
+      {navMode ? (
         <div className="mx-3 my-2 rounded-2xl border border-[rgba(var(--kpc-ring),0.65)] bg-[var(--kpc-card-solid)] shadow-[var(--kpc-shadow-sm,0_1px_2px_rgba(15,23,42,.05))] p-2.5 space-y-1.5">
           <div className="flex items-center justify-between text-[0.56rem] font-mono font-extrabold uppercase tracking-[0.12em] text-[var(--kpc-ink-3)]">
             <span>{t.header.jurisdiction} &amp; Rails</span>
@@ -358,23 +361,23 @@ export const ComplianceShell: React.FC<{ children: React.ReactNode }> = ({ child
 
       {/* officer footer card — profile + public site (Super Admin style) */}
       <div className="mt-auto p-2.5 border-t border-[rgba(var(--kpc-ring),0.55)]">
-        <div className={`flex items-center gap-2 rounded-xl border border-[rgba(var(--kpc-ring),0.55)] bg-[var(--kpc-card-solid)] px-2.5 py-2 ${sidebarOpen ? '' : 'justify-center px-0 border-0 bg-transparent'}`}>
+        <div className={`flex items-center gap-2 rounded-xl border border-[rgba(var(--kpc-ring),0.55)] bg-[var(--kpc-card-solid)] px-2.5 py-2 ${navMode ? '' : 'justify-center px-0 border-0 bg-transparent'}`}>
           <Link href="/compliance/settings" className="flex items-center gap-2.5 min-w-0 flex-1" title={t.header.myProfile}>
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-teal-500 to-emerald-700 text-white flex items-center justify-center text-[0.68rem] font-extrabold shadow-sm shrink-0">{initials}</div>
-            {sidebarOpen && (
+            {navMode && (
               <span className="min-w-0 leading-tight block">
                 <span className="block text-[0.74rem] font-bold text-[var(--kpc-ink)] truncate">{portal.currentOfficer.fullName}</span>
                 <span className="block text-[0.58rem] kpc-mono font-bold text-[var(--kpc-ink-3)] truncate">{portal.currentOfficer.role.replace(/_/g, ' ')} · {portal.currentOfficer.id}</span>
               </span>
             )}
           </Link>
-          {sidebarOpen && (
+          {navMode && (
             <Link href="/" title={t.header.logout} className="text-[var(--kpc-ink-3)] hover:text-rose-600 dark:hover:text-rose-400 transition-colors shrink-0">
               <LogOut className="w-4 h-4" />
             </Link>
           )}
         </div>
-        {sidebarOpen && (
+        {navMode && (
           <p className="px-1 pt-1.5 flex items-center gap-1.5 text-[0.56rem] font-semibold text-[var(--kpc-ink-3)]">
             <span className="w-1 h-1 rounded-full bg-teal-500" />{t.header.demo} · XOF first &#x1F1F3;&#x1F1EA; · {legacy.selectedJurisdiction !== 'ALL' ? legacy.selectedJurisdiction : 'NG + NE'}
           </p>
@@ -383,6 +386,116 @@ export const ComplianceShell: React.FC<{ children: React.ReactNode }> = ({ child
     </div>
   );
 
+  /* icon-first floating rail (compact) — premium spec */
+  const RailCompact = () => {
+    const [tip, setTip] = useState<{ text: string; top: number; left: number } | null>(null);
+    const tipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const railRef = useRef<HTMLElement | null>(null);
+    const clearTip = () => { if (tipTimer.current) clearTimeout(tipTimer.current); tipTimer.current = null; setTip(null); };
+    const armTip = (e: React.SyntheticEvent<HTMLElement>, text: string) => {
+      const el = e.currentTarget;
+      if (tipTimer.current) clearTimeout(tipTimer.current);
+      tipTimer.current = setTimeout(() => {
+        const rail = railRef.current;
+        const r = el.getBoundingClientRect();
+        if (!rail) return;
+        const rr = rail.getBoundingClientRect();
+        setTip({ text, top: r.top + r.height / 2, left: rr.right + 12 });
+      }, 260);
+    };
+    const railGroups = NAV_GROUPS
+      .map((g) => ({ key: g.groupKey, items: g.items.filter((i) => i.rail) }))
+      .filter((g) => g.items.length > 0);
+    return (
+      <div className="flex flex-col items-center h-full py-3" ref={(n) => { railRef.current = n; }}>
+        {/* brand mark */}
+        <Link href="/compliance" aria-label="KoriePay — compliance home" className="kpc-rail-brand">
+          <img src="/brand/koriepay-icon-tight.png" alt="" className="w-6 h-6 rounded-[7px]" />
+          <span className="kpc-rail-brand-demo" title="Demo mode" />
+        </Link>
+
+        {/* core destinations */}
+        <div className="kpc-rail-scroll flex-1 w-full overflow-y-auto kpc-scroll mt-3 px-2.5" onScroll={clearTip}>
+          {railGroups.map((g, gi) => (
+            <div key={g.key} className={`flex flex-col items-center ${gi > 0 ? 'mt-1.5 pt-1.5 border-t border-[rgba(var(--kpc-ring),0.6)]' : ''}`}>
+              {g.items.map((it) => {
+                const Icon = it.icon;
+                const active = activeKey === it.key;
+                const b = badgeFor(it.badge, portal.stats);
+                const label = gt(t, it.labelKey);
+                const hot = it.badge === 'alerts' || it.badge === 'matches' || it.badge === 'approvals';
+                return (
+                  <Link
+                    key={it.key}
+                    href={it.href}
+                    aria-current={active ? 'page' : undefined}
+                    aria-label={b > 0 ? `${label} (${b})` : label}
+                    onMouseEnter={(ev) => armTip(ev, label)}
+                    onMouseLeave={clearTip}
+                    onFocus={(ev) => armTip(ev, label)}
+                    onBlur={clearTip}
+                    className="kpc-rail-item"
+                  >
+                    <Icon className="w-5 h-5" strokeWidth={active ? 2.2 : 1.8} />
+                    {b > 0 && <span className={`kpc-rail-dot ${hot ? 'kpc-rail-dot--hot' : ''}`} />}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+
+        {/* expand affordance */}
+        <button
+          onClick={() => setSidebarOpen(true)}
+          onMouseEnter={(ev) => armTip(ev, gt(t, 'nav.expand'))}
+          onMouseLeave={clearTip}
+          onFocus={(ev) => armTip(ev, gt(t, 'nav.expand'))}
+          onBlur={clearTip}
+          aria-label={gt(t, 'nav.expand')}
+          className="kpc-rail-item mt-1"
+        >
+          <ChevronsRight className="w-5 h-5" />
+        </button>
+
+        <div className="kpc-rail-sep w-full" />
+
+        {/* utility cluster */}
+        <div className="flex flex-col items-center gap-0.5 px-2.5 pb-1">
+          <Link
+            href="/compliance/settings"
+            aria-label={gt(t, 'nav.settings')}
+            onMouseEnter={(ev) => armTip(ev, gt(t, 'nav.settings'))}
+            onMouseLeave={clearTip}
+            onFocus={(ev) => armTip(ev, gt(t, 'nav.settings'))}
+            onBlur={clearTip}
+            className="kpc-rail-item"
+          >
+            <Settings className="w-5 h-5" strokeWidth={1.8} />
+          </Link>
+          <Link
+            href="/"
+            aria-label={gt(t, 'header.logout')}
+            onMouseEnter={(ev) => armTip(ev, gt(t, 'header.logout'))}
+            onMouseLeave={clearTip}
+            onFocus={(ev) => armTip(ev, gt(t, 'header.logout'))}
+            onBlur={clearTip}
+            className="kpc-rail-item kpc-rail-item--danger"
+          >
+            <LogOut className="w-5 h-5" strokeWidth={1.8} />
+          </Link>
+        </div>
+
+        {/* floating tooltip (viewport-anchored — never clipped) */}
+        {tip && (
+          <span role="tooltip" className="kpc-tip" style={{ top: tip.top, left: tip.left }}>
+            {tip.text}
+          </span>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="kp-c kpc-app min-h-screen flex flex-col" style={{ background: 'var(--kpc-bg)' }}>
       <div className="kpc-topline" />
@@ -390,7 +503,15 @@ export const ComplianceShell: React.FC<{ children: React.ReactNode }> = ({ child
       <header className="sticky top-0 z-40 kpc-glass border-b border-[rgba(var(--kpc-ring),0.6)]">
         <div className="flex items-center gap-2 px-3 md:px-5 h-[52px]">
           <button onClick={() => setDrawerOpen(true)} className="lg:hidden kpc-btn kpc-btn-ghost kpc-btn-icon" aria-label="Open navigation"><Menu className="w-5 h-5" /></button>
-          <button onClick={() => setSidebarOpen((v) => !v)} className="hidden lg:inline-flex kpc-btn kpc-btn-ghost kpc-btn-icon" aria-label="Collapse sidebar"><ChevronsLeft className={`w-4.5 h-4.5 transition-transform ${sidebarOpen ? '' : 'rotate-180'}`} style={{ width: 18, height: 18 }} /></button>
+          <button
+            onClick={() => setSidebarOpen((v) => !v)}
+            className="hidden lg:inline-flex kpc-btn kpc-btn-ghost kpc-btn-icon"
+            aria-label={sidebarOpen ? gt(t, 'nav.collapse') : gt(t, 'nav.expand')}
+            title={sidebarOpen ? gt(t, 'nav.collapse') : gt(t, 'nav.expand')}
+            style={{ width: 18, height: 18 }}
+          >
+            {sidebarOpen ? <ChevronsLeft className="w-[18px] h-[18px]" /> : <ChevronsRight className="w-[18px] h-[18px]" />}
+          </button>
 
           {/* breadcrumb */}
           <nav className="flex items-center gap-1.5 min-w-0 text-[0.78rem]" aria-label="Breadcrumb">
@@ -446,29 +567,63 @@ export const ComplianceShell: React.FC<{ children: React.ReactNode }> = ({ child
         </div>
       </header>
 
-      {/* ============ BODY ============ */}
-      <div className="flex flex-1 min-h-0">
-        {/* desktop sidebar */}
-        <aside className={`hidden lg:flex flex-col shrink-0 transition-[width] duration-200 border-r border-[rgba(var(--kpc-ring),0.6)] bg-[var(--kpc-card-solid)] ${sidebarOpen ? 'w-[248px]' : 'w-[64px]'}`}>
-          <SidebarInner />
+      {/* ============ BODY — premium floating canvas ============ */}
+      <div className="flex flex-1 min-h-0 items-stretch gap-2.5 px-2.5 pt-2.5 pb-2.5 lg:gap-4 lg:px-5 lg:pt-3 lg:pb-4">
+        {/* Desktop floating navigation rail */}
+        <aside
+          aria-label="Primary navigation"
+          className={`kpc-rail hidden lg:flex flex-col shrink-0 self-start sticky top-[64px] z-30 overflow-hidden transition-[width] duration-200 ease-out ${sidebarOpen ? 'w-[252px]' : 'w-[76px]'}`}
+          style={{ height: 'calc(100dvh - 84px)' }}
+        >
+          {sidebarOpen ? <SidebarInner /> : <RailCompact />}
         </aside>
-        <main className="flex-1 min-w-0 px-3 md:px-6 py-4 md:py-5 pb-24 lg:pb-8">{children}</main>
+
+        {/* Main application */}
+        <main className="flex-1 min-w-0 pb-24 lg:pb-2">{children}</main>
       </div>
 
       {/* ============ MOBILE DRAWER ============ */}
       {drawerOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm kpc-anim-fade" onClick={() => setDrawerOpen(false)} aria-hidden />
-          <div className="absolute inset-y-0 left-0 w-[290px] max-w-[85vw] bg-[var(--kpc-bg-2)] border-r border-[rgba(var(--kpc-ring),0.7)] shadow-2xl kpc-anim-rise" role="dialog" aria-label="Navigation">
+          <div className="absolute inset-y-2 left-2 w-[300px] max-w-[88vw] rounded-[24px] bg-[var(--kpc-card-solid)] shadow-2xl kpc-anim-rise overflow-hidden" role="dialog" aria-label="Navigation">
             <div className="flex justify-end p-2"><button onClick={() => setDrawerOpen(false)} className="kpc-btn kpc-btn-ghost kpc-btn-icon" aria-label="Close"><X className="w-5 h-5" /></button></div>
             <SidebarInner />
           </div>
         </div>
       )}
 
-      {/* ============ BOTTOM NAV (mobile) ============ */}
-      <div className="lg:hidden fixed bottom-0 inset-x-0 z-40 kpc-glass border-t border-[rgba(var(--kpc-ring),0.7)] pb-[env(safe-area-inset-bottom)]">
-        <div className="grid grid-cols-5">
+      {/* ============ MOBILE FLOATING DOCK ============ */}
+      <nav aria-label="Mobile navigation" className="lg:hidden fixed z-40 bottom-2.5 inset-x-2.5">
+        {moreOpen && (
+          <div className="kpc-dock kpc-anim-rise absolute bottom-full mb-2.5 left-0 right-0 overflow-hidden max-h-[62vh] flex flex-col">
+            <div className="overflow-y-auto kpc-scroll px-2 py-2">
+              {NAV_GROUPS.filter((g) => !['overview'].includes(g.groupKey)).map((g) => (
+                <div key={g.groupKey} className="mb-1.5">
+                  <div className="kpc-nav-group">{gt(t, 'groups.' + g.groupKey)}</div>
+                  <div className="grid grid-cols-2 gap-1">
+                    {g.items.map((it) => {
+                      const Icon = it.icon;
+                      const b = badgeFor(it.badge, portal.stats);
+                      return (
+                        <Link key={it.key} href={it.href} onClick={() => setMoreOpen(false)} className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-[0.72rem] font-semibold text-[var(--kpc-ink-2)] hover:bg-[rgba(var(--kpc-ring),0.5)] hover:text-[var(--kpc-ink)]">
+                          <Icon className="w-4 h-4 shrink-0" /> <span className="truncate flex-1">{gt(t, it.labelKey)}</span>
+                          {b > 0 && <span className="kpc-nav-badge">{b}</span>}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center justify-between gap-1 px-3 py-2 border-t border-[rgba(var(--kpc-ring),0.5)] text-[0.7rem]">
+              <button onClick={() => portal.setLocale(portal.locale === 'en' ? 'fr' : portal.locale === 'fr' ? 'ha' : 'en')} className="kpc-btn kpc-btn-ghost"><Globe className="w-4 h-4" /> {portal.locale.toUpperCase()}</button>
+              <button onClick={toggleTheme} className="kpc-btn kpc-btn-ghost">{dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />} {dark ? t.header.light : t.header.dark}</button>
+              <Link href="/login" className="kpc-btn kpc-btn-ghost text-rose-600 dark:text-rose-400"><LogOut className="w-4 h-4" /> {t.header.logout}</Link>
+            </div>
+          </div>
+        )}
+        <div className="kpc-dock grid grid-cols-5 items-end px-2 pt-1.5 pb-1.5 safe-area-bottom">
           {[
             { key: 'home', label: t.bottomNav.home, href: '/compliance', icon: Home },
             { key: 'customers', label: t.bottomNav.customers, href: '/compliance/customers', icon: Users },
@@ -480,47 +635,21 @@ export const ComplianceShell: React.FC<{ children: React.ReactNode }> = ({ child
             const active = b.href ? pathname === b.href || pathname.startsWith(b.href + '/') : moreOpen;
             if (b.href) {
               return (
-                <Link key={b.key} href={b.href} className="flex flex-col items-center gap-0.5 py-2 text-[0.6rem] font-bold">
-                  <Icon className={`w-5 h-5 ${active ? 'text-teal-600 dark:text-teal-400' : 'text-[var(--kpc-ink-3)]'}`} strokeWidth={active ? 2.3 : 1.9} />
-                  <span className={active ? 'text-teal-600 dark:text-teal-400' : 'text-[var(--kpc-ink-3)]'}>{b.label}</span>
+                <Link key={b.key} href={b.href} aria-current={active} className="kpc-dock-btn">
+                  <span className="kpc-dock-ico"><Icon className="w-5 h-5" strokeWidth={active ? 2.4 : 1.9} /></span>
+                  <span>{b.label}</span>
                 </Link>
               );
             }
             return (
-              <button key={b.key} onClick={() => setMoreOpen((v) => !v)} aria-expanded={moreOpen} className="flex flex-col items-center gap-0.5 py-2 text-[0.6rem] font-bold">
-                <Icon className={`w-5 h-5 ${moreOpen ? 'text-teal-600 dark:text-teal-400' : 'text-[var(--kpc-ink-3)]'}`} strokeWidth={moreOpen ? 2.3 : 1.9} />
-                <span className={moreOpen ? 'text-teal-600 dark:text-teal-400' : 'text-[var(--kpc-ink-3)]'}>{b.label}</span>
+              <button key={b.key} onClick={() => setMoreOpen((v) => !v)} aria-expanded={moreOpen} className="kpc-dock-btn kpc-active" aria-current={moreOpen}>
+                <span className="kpc-dock-ico"><Icon className="w-5 h-5" strokeWidth={moreOpen ? 2.4 : 1.9} /></span>
+                <span>{b.label}</span>
               </button>
             );
           })}
         </div>
-        {moreOpen && (
-          <div className="kpc-anim-rise border-t border-[rgba(var(--kpc-ring),0.6)] max-h-[55vh] overflow-y-auto kpc-scroll px-2 py-2">
-            {NAV_GROUPS.filter((g) => !['overview'].includes(g.groupKey)).map((g) => (
-              <div key={g.groupKey} className="mb-1.5">
-                <div className="kpc-nav-group">{gt(t, 'groups.' + g.groupKey)}</div>
-                <div className="grid grid-cols-2 gap-1">
-                  {g.items.map((it) => {
-                    const Icon = it.icon;
-                    const b = badgeFor(it.badge, portal.stats);
-                    return (
-                      <Link key={it.key} href={it.href} onClick={() => setMoreOpen(false)} className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-[0.72rem] font-semibold text-[var(--kpc-ink-2)] hover:bg-[rgba(var(--kpc-ring),0.5)] hover:text-[var(--kpc-ink)]">
-                        <Icon className="w-4 h-4 shrink-0" /> <span className="truncate flex-1">{gt(t, it.labelKey)}</span>
-                        {b > 0 && <span className="kpc-nav-badge">{b}</span>}
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-            <div className="flex items-center justify-between px-2 py-2 border-t border-[rgba(var(--kpc-ring),0.5)] mt-1">
-              <button onClick={() => portal.setLocale(portal.locale === 'en' ? 'fr' : portal.locale === 'fr' ? 'ha' : 'en')} className="kpc-btn kpc-btn-ghost text-[0.7rem]"><Globe className="w-4 h-4" /> {portal.locale.toUpperCase()}</button>
-              <button onClick={toggleTheme} className="kpc-btn kpc-btn-ghost text-[0.7rem]">{dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />} {dark ? t.header.light : t.header.dark}</button>
-              <Link href="/login" className="kpc-btn kpc-btn-ghost text-[0.7rem] text-rose-600 dark:text-rose-400"><LogOut className="w-4 h-4" /> {t.header.logout}</Link>
-            </div>
-          </div>
-        )}
-      </div>
+      </nav>
 
       {/* ============ COMMAND PALETTE ============ */}
       {searchOpen && <SearchPalette onClose={() => setSearchOpen(false)} autoFocusRef={searchRef} />}

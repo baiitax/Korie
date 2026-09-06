@@ -18,6 +18,12 @@
   --kpc-line: #e2e8f0;
   --kpc-brand: #0d9488;
   --kpc-brand-ink: #0f766e;
+  --kpc-bg: #f4f6f8;            /* off-white application canvas (premium rail spec) */
+  --kpc-rail-active: #0e7a53;   /* deep KoriePay emerald */
+  --kpc-rail-ico: #8e95a2;
+  --kpc-rail-ico-hover: #374151;
+  --kpc-rail-hover: rgba(14, 122, 83, 0.08);
+  --kpc-rail-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.06), 0 4px 10px -6px rgba(15, 23, 42, 0.08);
   color-scheme: light;
 }
 
@@ -37,6 +43,12 @@
   --kpc-line: #1e293b;
   --kpc-brand: #2dd4bf;
   --kpc-brand-ink: #5eead4;
+  --kpc-bg: #0a101d;
+  --kpc-rail-active: #10b981;
+  --kpc-rail-ico: #7d8898;
+  --kpc-rail-ico-hover: #e5eaf2;
+  --kpc-rail-hover: rgba(255, 255, 255, 0.07);
+  --kpc-rail-shadow: 0 14px 34px -12px rgba(0, 0, 0, 0.55), 0 4px 12px -6px rgba(0, 0, 0, 0.4);
   color-scheme: dark;
 }
 
@@ -229,7 +241,7 @@
 }
 .kp-c .kpc-nav-item:hover { background: rgba(var(--kpc-ring), .5); }
 .kp-c .kpc-nav-item[aria-current="page"] {
-  background: linear-gradient(135deg, #0f766e, #0d9488);
+  background: linear-gradient(135deg, var(--kpc-rail-active), #0d9488);
   color: #fff;
   border-color: transparent;
   font-weight: 800;
@@ -239,3 +251,130 @@
 .kp-c .kpc-nav-item[aria-current="page"]::before { display: none; }
 .kp-c .kpc-nav-item--icon { justify-content: center; padding: .5rem .3rem; }
 .kp-c .kpc-nav-item--icon span.kpc-nav-badge { display: none; }
+
+/* ============================================================
+   Premium floating navigation rail (design spec v1)
+   Floating + rounded + minimal + icon-first + emerald active
+   ============================================================ */
+.kp-c .kpc-rail {
+  background: var(--kpc-card-solid);
+  border-radius: 28px;
+  box-shadow: var(--kpc-rail-shadow);
+}
+.kp-c .kpc-rail-scroll { scrollbar-width: thin; }
+.kp-c .kpc-rail-item {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  width: 48px; height: 48px;
+  border-radius: 16px;
+  color: var(--kpc-rail-ico);
+  transition: background .16s ease-out, color .16s ease-out, transform .16s ease-out, box-shadow .16s ease-out;
+  flex: none;
+}
+.kp-c .kpc-rail-item:hover {
+  background: var(--kpc-rail-hover);
+  color: var(--kpc-rail-ico-hover);
+  transform: scale(1.03);
+}
+.kp-c .kpc-rail-item[aria-current="page"],
+.kp-c .kpc-rail-item.kpc-active {
+  background: var(--kpc-rail-active);
+  color: #ffffff;
+  box-shadow: 0 6px 14px -6px rgba(14, 122, 83, 0.45);
+  transform: none;
+}
+.kp-c .kpc-rail-item[aria-current="page"]:hover { color: #fff; }
+.kp-c .kpc-rail-item:focus-visible {
+  outline: 2px solid var(--kpc-rail-active);
+  outline-offset: 2px;
+}
+.kp-c .kpc-rail-item--danger:hover { color: #e11d48; background: rgba(225, 29, 72, .08); }
+.kp-c .kpc-rail-item--danger[aria-current="page"] { background: #e11d48; box-shadow: 0 6px 14px -6px rgba(225,29,72,.45); color: #fff; }
+
+/* tooltip — dark neutral, right side, 250ms delay, keyboard friendly */
+.kp-c [data-tip] { position: relative; }
+.kp-c [data-tip]::after {
+  content: attr(data-tip);
+  position: absolute; left: calc(100% + 12px); top: 50%;
+  transform: translateY(-50%);
+  background: #111827; color: #fff;
+  font-size: 12px; font-weight: 600; line-height: 1.25;
+  padding: 6px 10px; border-radius: 8px; white-space: nowrap;
+  opacity: 0; pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,.14);
+  z-index: 80;
+  transition: opacity .15s ease-out;
+  transition-delay: 0ms;
+}
+.kp-c [data-tip]:hover::after,
+.kp-c [data-tip]:focus-visible::after,
+.kp-c [data-tip]:focus::after {
+  opacity: 1;
+  transition-delay: 260ms;
+}
+
+/* notification dots — icon stays primary */
+.kp-c .kpc-rail-dot {
+  position: absolute; top: 9px; right: 9px;
+  width: 7px; height: 7px; border-radius: 999px;
+  background: var(--kpc-rail-active);
+  box-shadow: 0 0 0 2px var(--kpc-card-solid);
+}
+.kp-c .kpc-rail-dot--hot { background: #f43f5e; }
+.kp-c .kpc-rail-sep {
+  height: 1px; margin: 6px 14px;
+  background: rgba(var(--kpc-ring), .75);
+}
+.kp-c .kpc-rail-brand {
+  position: relative;
+  width: 46px; height: 46px;
+  border-radius: 15px;
+  background: linear-gradient(135deg, #059669, #0d9488);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 6px 14px -6px rgba(5, 150, 105, .5);
+}
+.kp-c .kpc-rail-brand-demo {
+  position: absolute; top: -1px; right: -1px;
+  width: 10px; height: 10px; border-radius: 999px;
+  background: #f59e0b; border: 2px solid var(--kpc-card-solid);
+}
+
+/* floating mobile dock */
+.kp-c .kpc-dock {
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--kpc-card-solid) 88%, transparent);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  border: 1px solid rgba(var(--kpc-ring), .8);
+  box-shadow: var(--kpc-rail-shadow);
+}
+.kp-c .kpc-dock-btn {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  min-height: 52px; border-radius: 16px;
+  color: var(--kpc-ink-3); font-size: 10px; font-weight: 700;
+  transition: color .15s ease, background .15s ease;
+}
+.kp-c .kpc-dock-btn .kpc-dock-ico {
+  display: flex; align-items: center; justify-content: center;
+  width: 38px; height: 30px; border-radius: 12px;
+  transition: background .15s ease, color .15s ease;
+}
+.kp-c .kpc-dock-btn[aria-current="true"],
+.kp-c .kpc-dock-btn.kpc-active { color: var(--kpc-rail-active); }
+.kp-c .kpc-dock-btn[aria-current="true"] .kpc-dock-ico,
+.kp-c .kpc-dock-btn.kpc-active .kpc-dock-ico {
+  background: var(--kpc-rail-active); color: #fff;
+  box-shadow: 0 6px 12px -6px rgba(14, 122, 83, .5);
+}
+
+/* floating rail tooltip — viewport anchored, dark neutral, never clipped */
+.kp-c .kpc-tip {
+  position: fixed;
+  transform: translateY(-50%);
+  background: #111827; color: #fff;
+  font-size: 12px; font-weight: 600; line-height: 1.25;
+  padding: 6px 10px; border-radius: 8px; white-space: nowrap;
+  pointer-events: none; z-index: 90;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .16);
+  animation: kpc-tip-in .16s ease-out;
+}
+@keyframes kpc-tip-in { from { opacity: 0; transform: translateY(-50%) translateX(-3px); } to { opacity: 1; transform: translateY(-50%) translateX(0); } }

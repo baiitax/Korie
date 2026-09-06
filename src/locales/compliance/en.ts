@@ -212,7 +212,9 @@ export const en = {
     integrations: "Integrations",
     systemHealth: "System Health",
     settings: "Settings",
-  },
+      expand: "All modules",
+    collapse: "Collapse navigation",
+},
   groups: {
     overview: "Overview",
     customers: "Customers",
