@@ -1,4 +1,6 @@
 import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
 import type {
   DeveloperApplication,
   DeveloperEnvironment,
@@ -46,6 +48,9 @@ interface StoredCredential extends ApiCredential {
   secretKeyRaw?: string;
 }
 
+const STORE_PATH =
+  process.env.DEVELOPER_WS_STORE_PATH || '/tmp/korie-developer-workspace.json';
+
 const mask = (raw: string) => {
   if (raw.length <= 12) return raw.slice(0, 4) + '…';
   return `${raw.slice(0, 8)}…${raw.slice(-4)}`;
@@ -59,6 +64,7 @@ export class DeveloperWorkspaceEngine {
   public static getInstance(): DeveloperWorkspaceEngine {
     if (!DeveloperWorkspaceEngine.instance) {
       DeveloperWorkspaceEngine.instance = new DeveloperWorkspaceEngine();
+      DeveloperWorkspaceEngine.instance.hydrate();
     }
     return DeveloperWorkspaceEngine.instance;
   }
@@ -172,6 +178,50 @@ export class DeveloperWorkspaceEngine {
     { id: 'act_004', actor: 'Moussa Seydou', action: 'webhook.created', detail: 'Registered sandbox webhook endpoint https://webhook.saheltech.io/koriepay/sandbox', timestamp: '2026-02-02T12:00:00Z' },
   ];
 
+  /* State is owned by this engine but persisted to a small JSON store so
+   * every route handler (isolated module instances) sees the same truth.
+   * DEMO runtime: the store lives in the OS temp dir and resets with the
+   * host — deliberately never in the repo. Secrets are never persisted
+   * raw; only masked previews survive restarts. */
+  private hydrate() {
+    try {
+      if (!fs.existsSync(STORE_PATH)) return;
+      const raw = fs.readFileSync(STORE_PATH, 'utf8');
+      const data = JSON.parse(raw);
+      if (data.organization) this.organization = data.organization;
+      if (data.members) this.members = data.members;
+      if (data.applications) this.applications = data.applications;
+      if (data.productionAccessStatus) this.productionAccessStatus = data.productionAccessStatus;
+      if (data.credentials) this.credentials = data.credentials;
+      if (data.webhookEndpoints) this.webhookEndpoints = data.webhookEndpoints;
+      if (data.requestLogs) this.requestLogs = data.requestLogs;
+      if (data.activity) this.activity = data.activity;
+      if (data.seq) this.seq = data.seq;
+    } catch {
+      /* corrupt or missing store — keep in-memory seeds */
+    }
+  }
+
+  private persist() {
+    try {
+      const payload = {
+        organization: this.organization,
+        members: this.members,
+        applications: this.applications,
+        productionAccessStatus: this.productionAccessStatus,
+        credentials: this.credentials.map(({ secretKeyRaw: _raw, ...c }) => ({ ...c, secretKeyRaw: undefined })),
+        webhookEndpoints: this.webhookEndpoints,
+        requestLogs: this.requestLogs,
+        activity: this.activity,
+        seq: this.seq,
+      };
+      fs.mkdirSync(path.dirname(STORE_PATH), { recursive: true });
+      fs.writeFileSync(STORE_PATH, JSON.stringify(payload));
+    } catch {
+      /* non-fatal: state stays in memory for this process */
+    }
+  }
+
   private seq = 100;
   private nextId(prefix: string) {
     this.seq += 1;
@@ -185,10 +235,12 @@ export class DeveloperWorkspaceEngine {
   private logActivity(actor: string, action: string, detail: string) {
     this.activity.unshift({ id: this.nextId('act'), actor, action, detail, timestamp: this.now() });
     if (this.activity.length > 100) this.activity.pop();
+    this.persist();
   }
 
   /* --------------------------------------------------- workspace */
   public getWorkspace() {
+    this.hydrate();
     return {
       organization: this.organization,
       members: this.members,
@@ -205,6 +257,7 @@ export class DeveloperWorkspaceEngine {
   }
 
   public getOnboardingProgress(): OnboardingStep[] {
+    this.hydrate();
     const hasActiveApp = this.applications.some(a => a.status === 'ACTIVE');
     const hasSandboxKey = this.credentials.some(c => c.status === 'ACTIVE' && c.environment === 'SANDBOX');
     const hasFirstRequest = this.requestLogs.length > 0;
@@ -222,10 +275,12 @@ export class DeveloperWorkspaceEngine {
 
   /* ------------------------------------------------- applications */
   public listApplications(): DeveloperApplication[] {
+    this.hydrate();
     return [...this.applications].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
   public getApplication(id: string): DeveloperApplication {
+    this.hydrate();
     const app = this.applications.find(a => a.id === id);
     if (!app) throw new DeveloperWorkspaceEngineError('NOT_FOUND', 'Application not found', 404);
     return app;
@@ -277,6 +332,7 @@ export class DeveloperWorkspaceEngine {
 
   /* -------------------------------------------------- credentials */
   public listCredentials(environment?: DeveloperEnvironment): ApiCredential[] {
+    this.hydrate();
     return this.credentials
       .filter(c => !environment || c.environment === environment)
       .map(({ secretKeyRaw: _raw, ...cred }) => ({ ...cred, secretKeyMasked: cred.secretKeyMasked }))
@@ -368,6 +424,7 @@ export class DeveloperWorkspaceEngine {
   }
 
   public isProductionAccessApproved(): boolean {
+    this.hydrate();
     return this.productionAccessStatus === 'APPROVED';
   }
 
@@ -419,10 +476,12 @@ export class DeveloperWorkspaceEngine {
     };
     this.requestLogs.unshift(entry);
     if (this.requestLogs.length > 500) this.requestLogs.pop();
+    this.persist();
     return entry;
   }
 
   public listRequestLogs(filter?: { environment?: DeveloperEnvironment; status?: number; appId?: string; endpoint?: string }): ApiRequestLog[] {
+    this.hydrate();
     return this.requestLogs.filter(r => {
       if (filter?.environment && r.environment !== filter.environment) return false;
       if (filter?.status && r.statusCode !== filter.status) return false;
@@ -433,11 +492,13 @@ export class DeveloperWorkspaceEngine {
   }
 
   public getRequestLog(requestId: string): ApiRequestLog | undefined {
+    this.hydrate();
     return this.requestLogs.find(r => r.requestId === requestId);
   }
 
   /* ------------------------------------------------- activity */
   public listActivity() {
+    this.hydrate();
     return [...this.activity];
   }
 
