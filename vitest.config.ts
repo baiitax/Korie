@@ -1,10 +1,14 @@
 import { defineConfig } from "vitest/config";
+import react from "@vitejs/plugin-react";
 import path from "node:path";
 
 export default defineConfig({
+  // Next's tsconfig sets jsx: "preserve", which Vite's esbuild cannot
+  // transform — plugin-react handles JSX for test-adjacent components.
+  plugins: [react()],
   test: {
     environment: "node",
-    include: ["tests/**/*.test.ts"],
+    include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
     // Legacy console suite (tests/auth_suite.test.ts) is a standalone script
     // with its own runner that calls process.exit — keep it out of vitest.
     exclude: ["**/node_modules/**", "tests/auth_suite.test.ts"],

@@ -11,7 +11,6 @@ import AdminCommandBar from "./AdminCommandBar";
 import AdminMobileNav from "./AdminMobileNav";
 import CommandPalette from "./CommandPalette";
 import EntityDrawer from "./EntityDrawer";
-import MakerCheckerModal from "./MakerCheckerModal";
 
 /**
  * AdminShell — owns the whole admin viewport and moves it between states as
@@ -90,7 +89,6 @@ export const AdminShell: React.FC<{ children: React.ReactNode }> = ({ children }
         <AdminMobileNav />
         <CommandPalette />
         <EntityDrawer />
-        <MakerCheckerModal />
       </div>
     </div>
   );

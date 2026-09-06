@@ -1,9 +1,10 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { CountryCode, MakerCheckerRequest } from "@/types/admin";
+import { CountryCode } from "@/types/admin";
 
-export type EntityDrawerType = "TRANSACTION" | "CUSTOMER" | "AGENT" | "MERCHANT" | "BDC" | "RECONCILIATION" | "LEDGER";
+/** Drawer type: legacy entity names or a resource name from the registry. */
+export type EntityDrawerType = string;
 
 export interface DrawerEntityPayload {
   type: EntityDrawerType;
@@ -13,39 +14,25 @@ export interface DrawerEntityPayload {
 interface AdminContextType {
   countryFilter: CountryCode;
   setCountryFilter: (country: CountryCode) => void;
-  environment: "PRODUCTION" | "SANDBOX";
-  setEnvironment: (env: "PRODUCTION" | "SANDBOX") => void;
-  isRealtimeActive: boolean;
-  setIsRealtimeActive: (active: boolean) => void;
   activeDrawer: DrawerEntityPayload | null;
   openDrawer: (type: EntityDrawerType, data: unknown) => void;
   closeDrawer: () => void;
-  makerCheckerModal: {
-    isOpen: boolean;
-    request?: MakerCheckerRequest;
-  };
-  openMakerChecker: (request: MakerCheckerRequest) => void;
-  closeMakerChecker: () => void;
   isSearchOpen: boolean;
   setIsSearchOpen: (open: boolean) => void;
-  notificationsCount: number;
 }
 
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
+/**
+ * Admin UI context — navigation/search/record-drawer state only. No data
+ * lives here: every number shown in the portal is fetched from the
+ * database through /api/admin/data/* (the old fake "notificationsCount"
+ * and maker-checker modal were removed with the statics rebuild).
+ */
 export function AdminProvider({ children }: { children: React.ReactNode }) {
   const [countryFilter, setCountryFilter] = useState<CountryCode>("GLOBAL");
-  const [environment, setEnvironment] = useState<"PRODUCTION" | "SANDBOX">("PRODUCTION");
-  const [isRealtimeActive, setIsRealtimeActive] = useState<boolean>(true);
   const [activeDrawer, setActiveDrawer] = useState<DrawerEntityPayload | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
-  const [notificationsCount, setNotificationsCount] = useState<number>(4);
-  const [makerCheckerModal, setMakerCheckerModal] = useState<{
-    isOpen: boolean;
-    request?: MakerCheckerRequest;
-  }>({
-    isOpen: false,
-  });
 
   // Global Admin shortcut Cmd+K or Ctrl+K
   useEffect(() => {
@@ -67,38 +54,16 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     setActiveDrawer(null);
   };
 
-  const openMakerChecker = (request: MakerCheckerRequest) => {
-    setMakerCheckerModal({
-      isOpen: true,
-      request,
-    });
-  };
-
-  const closeMakerChecker = () => {
-    setMakerCheckerModal({
-      isOpen: false,
-      request: undefined,
-    });
-  };
-
   return (
     <AdminContext.Provider
       value={{
         countryFilter,
         setCountryFilter,
-        environment,
-        setEnvironment,
-        isRealtimeActive,
-        setIsRealtimeActive,
         activeDrawer,
         openDrawer,
         closeDrawer,
-        makerCheckerModal,
-        openMakerChecker,
-        closeMakerChecker,
         isSearchOpen,
         setIsSearchOpen,
-        notificationsCount,
       }}
     >
       {children}
@@ -107,9 +72,9 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useAdmin() {
-  const context = useContext(AdminContext);
-  if (!context) {
+  const ctx = useContext(AdminContext);
+  if (!ctx) {
     throw new Error("useAdmin must be used within an AdminProvider");
   }
-  return context;
+  return ctx;
 }

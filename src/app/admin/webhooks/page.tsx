@@ -1,80 +1,69 @@
 "use client";
 
 import React from "react";
-import { Radio, CheckCircle2, RefreshCw, AlertTriangle } from "lucide-react";
+import { PageHeader, fmtDate, fmtAgo } from "@/components/admin/AdminPageUI";
+import ResourceTable, { StatusChip, ResourceColumn } from "@/components/admin/ResourceTable";
 
+/**
+ * Webhook monitoring — live views of outbound webhook_delivery_logs and
+ * inbound provider_webhook_events. The old page's "whk-091 / 84ms" rows
+ * were hardcoded; delivery attempts shown here actually happened.
+ */
 export default function WebhooksPage() {
-  const webhooks = [
-    {
-      id: "whk-091",
-      provider: "Providus Bank Nigeria",
-      event: "transfer.inward.completed",
-      status: "DELIVERED",
-      attempts: 1,
-      responseCode: 200,
-      latency: "84ms",
-      timestamp: "1 min ago",
-    },
-    {
-      id: "whk-092",
-      provider: "Coris Bank Niger Republic",
-      event: "settlement.batch.confirmed",
-      status: "DELIVERED",
-      attempts: 1,
-      responseCode: 200,
-      latency: "112ms",
-      timestamp: "3 mins ago",
-    },
+  const outboundCols: ResourceColumn[] = [
+    { key: "created_at", label: "When", render: (r) => <span className="text-[var(--foreground-muted)]">{fmtAgo(r.created_at)}</span> },
+    { key: "event_name", label: "Event", render: (r) => <span className="font-bold text-[var(--foreground)]">{r.event_name}</span> },
+    { key: "endpoint_url", label: "Endpoint", hideOnMobile: true, render: (r) => <span className="text-[var(--foreground-muted)] truncate max-w-[280px] inline-block align-bottom">{r.endpoint_url}</span> },
+    { key: "attempt_number", label: "Attempt", className: "text-right", render: (r) => <span>{r.attempt_number}/{r.max_attempts}</span> },
+    { key: "http_status", label: "HTTP", className: "text-right", render: (r) => <span className={String(r.http_status ?? "").startsWith("2") ? "text-emerald-400 font-bold" : "text-rose-400 font-bold"}>{r.http_status ?? "—"}</span> },
+    { key: "latency_ms", label: "Latency", className: "text-right", render: (r) => <span className="text-[var(--foreground-muted)]">{r.latency_ms ?? "—"}ms</span> },
+    { key: "status", label: "Status", render: (r) => <StatusChip value={r.status as string} /> },
+  ];
+
+  const inboundCols: ResourceColumn[] = [
+    { key: "created_at", label: "When", render: (r) => <span className="text-[var(--foreground-muted)]">{fmtAgo(r.created_at)}</span> },
+    { key: "provider_code", label: "Provider", render: (r) => <span className="font-bold text-[var(--foreground)]">{r.provider_code}</span> },
+    { key: "event_type", label: "Event type" },
+    { key: "is_signature_valid", label: "Signature", render: (r) => <span className={r.is_signature_valid ? "text-emerald-400" : "text-rose-400 font-bold"}>{r.is_signature_valid === null ? "—" : r.is_signature_valid ? "VALID" : "INVALID"}</span> },
+    { key: "processing_status", label: "Processing", render: (r) => <StatusChip value={r.processing_status as string} /> },
+    { key: "processed_at", label: "Processed", hideOnMobile: true, render: (r) => <span className="text-[var(--foreground-muted)]">{fmtDate(r.processed_at)}</span> },
   ];
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
-        <div>
-          <span className="px-2.5 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-blue-500/10 text-blue-400 border border-blue-500/20">
-            EVENT STREAM & WEBHOOKS
-          </span>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-white mt-1">Webhook Dispatcher & Ingest Monitor</h1>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Real-time delivery verification, exponential backoff retries, and provider payload signatures.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Banking Nodes"
+        title="Webhook Dispatcher & Ingest Monitor"
+        subtitle="Outbound delivery attempts (webhook_delivery_logs) and inbound provider events (provider_webhook_events) with real HTTP codes, latency and signature verification."
+      />
 
-      <div className="rounded-3xl bg-[#0b1324] border border-white/10 shadow-2xl overflow-hidden">
-        <table className="w-full text-left text-xs">
-          <thead>
-            <tr className="text-[10px] font-mono uppercase text-slate-400 bg-slate-950/60 border-b border-white/10">
-              <th className="p-4 font-semibold">Webhook ID</th>
-              <th className="p-4 font-semibold">Provider / Source</th>
-              <th className="p-4 font-semibold">Event Type</th>
-              <th className="p-4 font-semibold">HTTP Code</th>
-              <th className="p-4 font-semibold">Latency</th>
-              <th className="p-4 font-semibold">Attempts</th>
-              <th className="p-4 font-semibold">Status</th>
-              <th className="p-4 font-semibold text-right">Timestamp</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/5 font-mono">
-            {webhooks.map((w) => (
-              <tr key={w.id} className="hover:bg-white/5 transition-colors">
-                <td className="p-4 font-bold text-white">{w.id}</td>
-                <td className="p-4 text-emerald-400">{w.provider}</td>
-                <td className="p-4 text-slate-200">{w.event}</td>
-                <td className="p-4 text-emerald-400 font-bold">{w.responseCode}</td>
-                <td className="p-4 text-slate-400">{w.latency}</td>
-                <td className="p-4 text-slate-300">{w.attempts}</td>
-                <td className="p-4">
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-500/10 text-emerald-400">
-                    ● {w.status}
-                  </span>
-                </td>
-                <td className="p-4 text-right text-slate-500 text-[10px]">{w.timestamp}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <section className="space-y-3">
+        <h2 className="text-xs font-mono font-bold uppercase tracking-wider text-[var(--foreground-muted)]">Outbound deliveries</h2>
+        <ResourceTable
+          resource="webhook-deliveries"
+          columns={outboundCols}
+          exportName="webhook-deliveries"
+          searchPlaceholder="Search event name, endpoint URL…"
+          filters={[
+            { key: "status", label: "Status" },
+            { key: "environment", label: "Env" },
+          ]}
+        />
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-xs font-mono font-bold uppercase tracking-wider text-[var(--foreground-muted)]">Inbound provider events</h2>
+        <ResourceTable
+          resource="provider-webhooks"
+          columns={inboundCols}
+          exportName="provider-webhooks"
+          searchPlaceholder="Search provider, event type…"
+          filters={[
+            { key: "processing_status", label: "Processing" },
+            { key: "provider_code", label: "Provider" },
+          ]}
+        />
+      </section>
     </div>
   );
 }

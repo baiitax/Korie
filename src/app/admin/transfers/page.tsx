@@ -1,71 +1,62 @@
 "use client";
 
-import React from "react";
-import { ArrowRightLeft, Send, CheckCircle2 } from "lucide-react";
-import { TRANSACTIONS } from "@/services/adminDataService";
+import React, { useState } from "react";
+import { PageHeader, fmtMoney, fmtDate, TextCell, StatsFromRows } from "@/components/admin/AdminPageUI";
+import ResourceTable, { StatusChip, ResourceColumn } from "@/components/admin/ResourceTable";
 import { useAdmin } from "@/components/admin/AdminContext";
 
+/**
+ * Transfer monitoring — customer_transactions filtered to transfer types,
+ * live from the database. The old page showed a filtered slice of the
+ * invented TRANSACTIONS constant.
+ */
 export default function TransfersAdminPage() {
   const { openDrawer } = useAdmin();
-  const transfers = TRANSACTIONS.filter((t) => t.type.includes("TRANSFER"));
+  const [rows, setRows] = useState<Record<string, any>[]>([]);
+
+  const columns: ResourceColumn[] = [
+    { key: "created_at", label: "When", render: (r) => <span className="text-[var(--foreground-muted)]">{fmtDate(r.created_at)}</span> },
+    { key: "reference", label: "Reference", render: (r) => <span className="font-bold text-[var(--foreground)]">{r.reference}</span> },
+    { key: "transaction_type", label: "Rail", render: (r) => <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-[var(--brand-soft)] text-[var(--brand-primary)] border border-[var(--brand-primary)]/20">{String(r.transaction_type ?? "—").replaceAll("_", " ")}</span> },
+    { key: "recipient_name", label: "Beneficiary", render: (r) => <TextCell value={r.recipient_name} /> },
+    { key: "recipient_bank", label: "Bank", hideOnMobile: true, render: (r) => <TextCell value={r.recipient_bank} /> },
+    { key: "amount", label: "Amount", className: "text-right", render: (r) => <span className="font-bold text-[var(--foreground)]">{fmtMoney(r.amount, r.currency)}</span> },
+    { key: "destination_amount", label: "Dest. amount", hideOnMobile: true, className: "text-right", render: (r) => <span className="text-amber-400">{r.destination_amount ? fmtMoney(r.destination_amount, r.destination_currency) : "—"}</span> },
+    { key: "status", label: "Status", render: (r) => <StatusChip value={r.status} /> },
+  ];
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
-        <div>
-          <span className="px-2.5 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-            INTERBANK & CROSS-BORDER TRANSFERS
-          </span>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-white mt-1">Transfer Routing & Execution</h1>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Monitor domestic NIBSS NIP transfers and bilateral Nigeria ↔ Niger Republic cross-border rails.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Operations"
+        title="Interbank & Cross-Border Transfers"
+        subtitle="NIP and cross-border transfer legs recorded in customer_transactions — filter by rail (transaction type) to isolate a corridor."
+      />
 
-      <div className="rounded-3xl bg-[#0b1324] border border-white/10 shadow-2xl overflow-hidden">
-        <table className="w-full text-left text-xs">
-          <thead>
-            <tr className="text-[10px] font-mono uppercase text-slate-400 bg-slate-950/60 border-b border-white/10">
-              <th className="p-4 font-semibold">Reference</th>
-              <th className="p-4 font-semibold">Corridor</th>
-              <th className="p-4 font-semibold">Sender</th>
-              <th className="p-4 font-semibold">Recipient</th>
-              <th className="p-4 font-semibold">Amount</th>
-              <th className="p-4 font-semibold">Gateway</th>
-              <th className="p-4 font-semibold">Status</th>
-              <th className="p-4 font-semibold text-right">Inspect</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/5">
-            {transfers.map((tx) => (
-              <tr
-                key={tx.id}
-                onClick={() => openDrawer("TRANSACTION", tx)}
-                className="hover:bg-white/5 cursor-pointer transition-colors group"
-              >
-                <td className="p-4 font-mono font-bold text-white group-hover:text-emerald-400">{tx.reference}</td>
-                <td className="p-4 font-mono">{tx.countryCode === "NG" ? "🇳🇬 NIP" : "🇳🇪 WAEMU"}</td>
-                <td className="p-4 font-semibold text-white">{tx.sender.name}</td>
-                <td className="p-4 text-slate-300">{tx.recipient.name}</td>
-                <td className="p-4 font-mono font-bold text-emerald-400">
-                  {tx.currency === "NGN" ? "₦" : "CFA "}
-                  {tx.amount.toLocaleString()}
-                </td>
-                <td className="p-4 text-slate-400 font-mono text-[11px]">{tx.provider.name}</td>
-                <td className="p-4">
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-emerald-500/10 text-emerald-400">
-                    ● {tx.status}
-                  </span>
-                </td>
-                <td className="p-4 text-right font-mono text-emerald-400 group-hover:underline">
-                  Timeline ↗
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <StatsFromRows
+        rows={rows}
+        contextLabel="customer_transactions (current filter)"
+        stats={[
+          { label: "Loaded transfers", compute: (r) => String(r.length) },
+          { label: "NGN volume", compute: (r) => fmtMoney(r.filter((x) => x.currency === "NGN").reduce((s, x) => s + Number(x.amount ?? 0), 0), "NGN") },
+          { label: "XOF volume", compute: (r) => fmtMoney(r.filter((x) => x.currency === "XOF").reduce((s, x) => s + Number(x.amount ?? 0), 0), "XOF") },
+          { label: "Failed", compute: (r) => String(r.filter((x) => x.status === "FAILED").length) },
+        ]}
+      />
+
+      <ResourceTable
+        resource="customer-transactions"
+        columns={columns}
+        exportName="transfers"
+        searchPlaceholder="Search reference, beneficiary, bank…"
+        filters={[
+          { key: "transaction_type", label: "Rail" },
+          { key: "status", label: "Status" },
+          { key: "currency", label: "Currency" },
+        ]}
+        onRowClick={(row) => openDrawer("TRANSACTION", row)}
+        onRowsLoaded={setRows}
+      />
     </div>
   );
 }

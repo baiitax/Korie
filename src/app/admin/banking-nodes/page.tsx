@@ -1,167 +1,83 @@
 "use client";
 
 import React, { useState } from "react";
-import { useAdmin } from "@/components/admin/AdminContext";
-import { BANKING_NODES } from "@/services/adminDataService";
-import {
-  Server,
-  Zap,
-  CheckCircle2,
-  AlertTriangle,
-  RefreshCw,
-  Lock,
-  Globe2,
-  ShieldCheck,
-  ArrowRight,
-  Radio,
-  Clock,
-  Layers,
-  Database,
-} from "lucide-react";
+import { PageHeader, fmtAgo, fmtDate } from "@/components/admin/AdminPageUI";
+import ResourceTable, { StatusChip, ResourceColumn } from "@/components/admin/ResourceTable";
 
+/**
+ * Banking nodes — live provider_nodes telemetry plus circuit breaker
+ * states. The old page seeded two node cards and faked a "ping" animation;
+ * health here is whatever the telemetry pipeline last recorded (a node
+ * without telemetry says so).
+ */
 export default function BankingNodesPage() {
-  const { openMakerChecker } = useAdmin();
-  const [nodes, setNodes] = useState(BANKING_NODES);
-  const [pingingNodeId, setPingingNodeId] = useState<string | null>(null);
+  const [tab, setTab] = useState<"nodes" | "breakers">("nodes");
 
-  const handlePing = (nodeId: string) => {
-    setPingingNodeId(nodeId);
-    setTimeout(() => {
-      setPingingNodeId(null);
-    }, 800);
-  };
+  const nodeCols: ResourceColumn[] = [
+    { key: "code", label: "Node", render: (r) => <span className="font-bold text-[var(--foreground)]">{r.code}</span> },
+    { key: "name", label: "Provider" },
+    { key: "country", label: "Country" },
+    { key: "status", label: "Status", render: (r) => <StatusChip value={r.status} /> },
+    { key: "is_active", label: "Enabled", render: (r) => <span className={r.is_active ? "text-emerald-400" : "text-slate-400"}>{r.is_active ? "Yes" : "No"}</span> },
+    { key: "circuit_breaker_state", label: "Breaker", render: (r) => <StatusChip value={r.circuit_breaker_state} /> },
+    { key: "latency_ms", label: "Latency", className: "text-right", render: (r) => <span className={Number(r.latency_ms) > 1000 ? "text-amber-400" : "text-[var(--foreground-muted)]"}>{r.latency_ms ?? "—"}{r.latency_ms != null ? "ms" : ""}</span> },
+    { key: "success_rate_24h", label: "24h success", className: "text-right", render: (r) => <span className={Number(r.success_rate_24h) < 0.95 ? "text-amber-400" : "text-emerald-400"}>{r.success_rate_24h != null ? `${(Number(r.success_rate_24h) * 100).toFixed(1)}%` : "—"}</span> },
+    { key: "last_ping_at", label: "Last ping", render: (r) => <span className="text-[var(--foreground-muted)]">{r.last_ping_at ? fmtAgo(r.last_ping_at) : "no telemetry"}</span> },
+  ];
+
+  const breakerCols: ResourceColumn[] = [
+    { key: "service_key", label: "Service", render: (r) => <span className="font-bold text-[var(--foreground)]">{r.service_key}</span> },
+    { key: "service_name", label: "Name", hideOnMobile: true },
+    { key: "tier", label: "Tier" },
+    { key: "state", label: "State", render: (r) => <StatusChip value={r.state} /> },
+    { key: "failure_count", label: "Failures", className: "text-right" },
+    { key: "failure_threshold", label: "Threshold", className: "text-right" },
+    { key: "trip_reason", label: "Trip reason", hideOnMobile: true },
+    { key: "last_failure_at", label: "Last failure", render: (r) => <span className="text-[var(--foreground-muted)]">{r.last_failure_at ? fmtAgo(r.last_failure_at) : "—"}</span> },
+    { key: "updated_at", label: "Updated", hideOnMobile: true, render: (r) => <span className="text-[var(--foreground-muted)]">{fmtDate(r.updated_at)}</span> },
+  ];
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-8 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              CORE BANKING INFRASTRUCTURE
-            </span>
-          </div>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-white mt-1">
-            Financial Institution Gateway Nodes
-          </h1>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Real-time status, API latency, webhooks, and settlement clearing for Providus Bank (Nigeria) and Coris Bank (Niger Republic).
-          </p>
-        </div>
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
+      <PageHeader
+        eyebrow="Banking Nodes"
+        title="Provider Nodes & Circuit Breakers"
+        subtitle="Banking connectivity telemetry (Providus Bank NG, Coris Bank NE) and circuit breaker states, exactly as the health pipeline recorded them. Nodes without telemetry are shown as such — never assumed healthy."
+      />
 
-        <div className="flex items-center gap-2">
+      <div className="flex gap-2 text-xs font-bold">
+        {(["nodes", "breakers"] as const).map((t) => (
           <button
-            onClick={() => {
-              setPingingNodeId("all");
-              setTimeout(() => setPingingNodeId(null), 1000);
-            }}
-            className="px-3.5 py-2 rounded-xl bg-slate-900 border border-white/10 hover:border-white/20 text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+            key={t}
+            onClick={() => setTab(t)}
+            className={`px-4 py-2 rounded-xl border transition-colors ${tab === t ? "bg-[var(--brand-primary)] text-white border-[var(--brand-primary)]" : "bg-[var(--surface)] text-[var(--foreground-muted)] border-[var(--border)] hover:border-[var(--brand-primary)]"}`}
           >
-            <RefreshCw className={`w-3.5 h-3.5 text-emerald-400 ${pingingNodeId ? "animate-spin" : ""}`} />
-            <span>Health Check All Nodes</span>
+            {t === "nodes" ? "Provider nodes" : "Circuit breakers"}
           </button>
-        </div>
-      </div>
-
-      {/* Nodes Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {nodes.map((node) => (
-          <div
-            key={node.id}
-            className="p-6 rounded-3xl bg-[#0b1324] border border-white/10 shadow-2xl space-y-6 relative overflow-hidden"
-          >
-            {/* Top Node Title & Health Status */}
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xl">
-                    {node.countryCode === "NG" ? "🇳🇬" : node.countryCode === "NE" ? "🇳🇪" : "🌍"}
-                  </span>
-                  <h3 className="text-base sm:text-lg font-bold text-white">{node.name}</h3>
-                </div>
-                <div className="text-xs text-slate-400 mt-0.5">{node.institution}</div>
-              </div>
-
-              <span className="px-3 py-1 rounded-full text-xs font-mono font-bold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>{node.health}</span>
-              </span>
-            </div>
-
-            {/* Telemetry Metrics Bar */}
-            <div className="grid grid-cols-4 gap-2 text-center text-xs font-mono">
-              <div className="p-3 rounded-xl bg-slate-950/70 border border-white/5">
-                <span className="text-slate-500 block text-[9px] uppercase">Latency</span>
-                <span className="text-emerald-400 font-bold text-sm">{node.latencyMs}ms</span>
-              </div>
-              <div className="p-3 rounded-xl bg-slate-950/70 border border-white/5">
-                <span className="text-slate-500 block text-[9px] uppercase">24h Uptime</span>
-                <span className="text-white font-bold text-sm">{node.uptime24h}%</span>
-              </div>
-              <div className="p-3 rounded-xl bg-slate-950/70 border border-white/5">
-                <span className="text-slate-500 block text-[9px] uppercase">Success</span>
-                <span className="text-amber-400 font-bold text-sm">{node.successRate}%</span>
-              </div>
-              <div className="p-3 rounded-xl bg-slate-950/70 border border-white/5">
-                <span className="text-slate-500 block text-[9px] uppercase">Currency</span>
-                <span className="text-white font-bold text-sm">{node.currency}</span>
-              </div>
-            </div>
-
-            {/* Provider Technical Capabilities */}
-            <div className="space-y-2 text-xs">
-              <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider block">
-                Active Banking Rails & Features:
-              </span>
-              <div className="space-y-1.5">
-                {node.supportedServices.map((svc, i) => (
-                  <div key={i} className="flex items-center gap-2 text-slate-300">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                    <span>{svc}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Node Operations Footer */}
-            <div className="pt-4 border-t border-white/10 flex flex-wrap items-center justify-between gap-3 text-xs">
-              <div className="text-slate-400 font-mono text-[11px]">
-                Last Sync: {new Date(node.lastSuccessfulRequest).toLocaleTimeString()}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handlePing(node.id)}
-                  disabled={pingingNodeId === node.id}
-                  className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-semibold transition-colors disabled:opacity-50"
-                >
-                  {pingingNodeId === node.id ? "Pinging..." : "Test Ping"}
-                </button>
-                <button
-                  onClick={() =>
-                    openMakerChecker({
-                      id: `mc-failover-${node.id}`,
-                      actionType: "PROVIDER_FAILOVER",
-                      resourceType: "BANKING_NODE",
-                      resourceId: node.id,
-                      resourceName: node.name,
-                      countryCode: node.countryCode,
-                      requestedBy: "infrastructure.lead@koriepay.com",
-                      requestedAt: new Date().toISOString(),
-                      reason: "Scheduled provider maintenance failover verification",
-                      payload: { nodeId: node.id, activeFailover: !node.isFailoverActive },
-                      status: "PENDING",
-                    })
-                  }
-                  className="px-3 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 font-semibold transition-colors"
-                >
-                  Failover Protocol
-                </button>
-              </div>
-            </div>
-          </div>
         ))}
       </div>
+
+      {tab === "nodes" ? (
+        <ResourceTable
+          resource="banking-nodes"
+          columns={nodeCols}
+          exportName="banking-nodes"
+          searchPlaceholder="Search code, provider name…"
+          filters={[
+            { key: "status", label: "Status" },
+            { key: "country", label: "Country" },
+            { key: "circuit_breaker_state", label: "Breaker" },
+          ]}
+        />
+      ) : (
+        <ResourceTable
+          resource="circuit-breakers"
+          columns={breakerCols}
+          exportName="circuit-breakers"
+          searchPlaceholder="Search service key…"
+          filters={[{ key: "state", label: "State" }]}
+        />
+      )}
     </div>
   );
 }
