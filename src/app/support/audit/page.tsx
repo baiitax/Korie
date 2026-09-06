@@ -1,100 +1,102 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { useSupport } from '@/components/support/SupportContext';
-import { History, Search, ShieldCheck } from 'lucide-react';
+// =============================================================================
+// File: src/app/support/audit/page.tsx
+// Description: Audit Trail (spec §52/§90) — immutable support audit log.
+// view_audit capability enforced server-side (supervisor+).
+// =============================================================================
 
-export default function SupportAuditPage() {
-  const { auditLogs, selectedJurisdiction, formatDate } = useSupport();
-  const [searchQuery, setSearchQuery] = useState('');
+import React, { useCallback, useEffect, useState } from "react";
+import { useSupportOps } from "@/components/support/SupportOpsProvider";
+import { ErrorState, LoadingPanel, OfflineBanner, relTime } from "@/components/support/SupportUI";
+import { supportOps, isSupportApiError } from "@/services/supportOpsClient";
 
-  const filtered = auditLogs.filter((l) => {
-    if (selectedJurisdiction !== 'ALL' && l.jurisdiction !== selectedJurisdiction && l.jurisdiction !== 'CROSS_BORDER') return false;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      return (
-        l.id.toLowerCase().includes(q) ||
-        l.action.toLowerCase().includes(q) ||
-        l.officerName.toLowerCase().includes(q) ||
-        l.details.toLowerCase().includes(q)
-      );
+interface AuditRow {
+  id: string;
+  timestamp: string;
+  officerId: string;
+  officerName: string;
+  officerRole: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  details: string;
+  jurisdiction: string;
+}
+
+const PAGE = 50;
+
+export default function AuditPage() {
+  const { t, activeOfficer, isOnline } = useSupportOps();
+  const [rows, setRows] = useState<AuditRow[] | null>(null);
+  const [total, setTotal] = useState(0);
+  const [limit, setLimit] = useState(PAGE);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const res = await supportOps.audit({ limit: String(limit) }, activeOfficer?.id);
+    if (isSupportApiError(res)) {
+      setError(res.message);
+      setLoading(false);
+      return;
     }
-    return true;
-  });
+    setRows(res.items);
+    setTotal(res.total);
+    setLoading(false);
+  }, [limit, activeOfficer?.id]);
+
+  useEffect(() => {
+    if (isOnline) void load();
+  }, [isOnline, load]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-mono font-bold text-teal-400 uppercase tracking-wider mb-1">
-            <History className="w-4 h-4" />
-            IMMUTABLE SUPPORT ACTIONS LOG
+    <div className="mx-auto max-w-6xl space-y-4">
+      <div>
+        <h1 className="text-xl font-extrabold tracking-tight">{t("supportOps.audit.title")}</h1>
+        <p className="mt-0.5 text-[13px] text-[var(--foreground-muted)]">{loading || !rows ? "" : `${total}`}</p>
+      </div>
+
+      {!isOnline && <OfflineBanner message={t("supportOps.dashboard.offlineBanner")} />}
+      {loading && <LoadingPanel rows={8} />}
+      {error && <ErrorState message={error} onRetry={() => void load()} />}
+      {!loading && !error && rows && rows.length === 0 && (
+        <p className="py-8 text-center text-xs text-[var(--muted)]">{t("supportOps.audit.none")}</p>
+      )}
+      {!loading && !error && rows && rows.length > 0 && (
+        <>
+          <div className="overflow-hidden rounded-[var(--support-radius-card)] border border-[var(--card-border)] bg-[var(--card-bg)] backdrop-blur-[var(--glass-blur-01)]">
+            {rows.map((a) => (
+              <div key={a.id} className="flex items-start gap-3 border-b border-[var(--card-border)] px-4 py-3 last:border-b-0">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-[var(--surface-3)] px-2 py-0.5 text-[10px] font-extrabold text-[var(--foreground-muted)]">{a.action}</span>
+                    <span className="text-[10px] font-bold text-[var(--muted)]">
+                      {a.entityType} · {a.entityId} · {t(`supportOps.jurisdictions.${a.jurisdiction}`)}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs leading-relaxed text-[var(--foreground)]">{a.details}</p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-[11px] font-extrabold text-[var(--foreground)]">{a.officerName}</p>
+                  <p className="text-[10px] text-[var(--muted)]">{t(`supportOps.roles.${a.officerRole}`)}</p>
+                  <p className="mt-0.5 text-[10px] tabular-nums text-[var(--muted)]">{relTime(a.timestamp, t)}</p>
+                </div>
+              </div>
+            ))}
           </div>
-          <h1 className="text-2xl font-extrabold text-white">Support Operations Audit Trail</h1>
-          <p className="text-xs text-slate-400">
-            Cryptographically sealed audit log recording every customer reply, internal note, escalation, and float sync.
-          </p>
-        </div>
-      </div>
-
-      <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-4 flex items-center justify-between gap-4">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search audit trail by officer, action, or ticket reference..."
-            className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-500 font-mono"
-          />
-        </div>
-      </div>
-
-      <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl overflow-hidden shadow-xl">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-950/80 border-b border-slate-800 text-slate-400 uppercase font-mono text-[10px]">
-              <tr>
-                <th className="p-3.5">Log ID & Timestamp</th>
-                <th className="p-3.5">Action Code</th>
-                <th className="p-3.5">Target Entity</th>
-                <th className="p-3.5">Officer & Role</th>
-                <th className="p-3.5">Operational Details</th>
-                <th className="p-3.5 text-right">Integrity</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60 font-mono">
-              {filtered.map((log) => (
-                <tr key={log.id} className="hover:bg-slate-800/40">
-                  <td className="p-3.5">
-                    <div className="font-bold text-slate-200">{log.id}</div>
-                    <div className="text-[10px] text-slate-400">{formatDate(log.timestamp)}</div>
-                  </td>
-                  <td className="p-3.5 font-sans">
-                    <span className="font-mono text-teal-400 font-bold bg-teal-950/60 px-2 py-0.5 rounded border border-teal-800/40 text-[11px]">
-                      {log.action}
-                    </span>
-                  </td>
-                  <td className="p-3.5 text-slate-300">
-                    <div>{log.entityId}</div>
-                    <div className="text-[10px] text-slate-500 font-sans">{log.entityType}</div>
-                  </td>
-                  <td className="p-3.5 font-sans">
-                    <div className="font-bold text-white">{log.officerName}</div>
-                    <div className="text-[10px] text-slate-400 font-mono">{log.officerRole.replace(/_/g, ' ')}</div>
-                  </td>
-                  <td className="p-3.5 font-sans text-slate-300 max-w-xs">{log.details}</td>
-                  <td className="p-3.5 text-right font-sans">
-                    <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/40 font-bold">
-                      VERIFIED SHA-256
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+          {total > limit && (
+            <button
+              onClick={() => setLimit((l) => l + PAGE)}
+              className="mx-auto block rounded-[var(--support-radius-input)] border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-xs font-extrabold text-[var(--brand-primary)] hover:bg-[var(--surface-3)]"
+            >
+              {t("supportOps.common.loading").replace("…", "")} +{PAGE}
+            </button>
+          )}
+        </>
+      )}
     </div>
   );
 }

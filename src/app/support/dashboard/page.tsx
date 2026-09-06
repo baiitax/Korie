@@ -1,7 +1,8 @@
-'use client';
+// /support/dashboard — alias for the Command Center (§107).
+import { redirect } from "next/navigation";
 
-import SupportCommandCenterPage from '../page';
+export const metadata = { title: "Dashboard | KoriePay Support" };
 
-export default function SupportDashboardAlias() {
-  return <SupportCommandCenterPage />;
+export default function DashboardAliasPage() {
+  redirect("/support");
 }

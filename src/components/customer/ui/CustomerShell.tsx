@@ -26,6 +26,7 @@ import {
   
   Repeat2,
   Users,
+  Coins,
   WifiOff,
   ChevronRight,
   Download,
@@ -90,6 +91,10 @@ export const CustomerShell: React.FC<{
     { label: t("customer.fund.title"), href: "/customer/fund", icon: Download, service: "fund" },
   ];
   const serviceNav: NavDef[] = [
+    // Adashi is listed first because it is live — real circles, contribution
+    // obligations and payouts — while everything after it is COMING_SOON. A
+    // real product must not sit behind a URL nobody links to.
+    { label: t("nav.adashi"), href: "/customer/adashi", icon: Coins },
     { label: t("nav.fx"), href: "/customer/fx", icon: Repeat2, service: "fx" },
     { label: t("nav.bills"), href: "/customer/bills", icon: Zap, service: "bills" },
     { label: t("nav.cards"), href: "/customer/cards", icon: CreditCard, service: "cards" },

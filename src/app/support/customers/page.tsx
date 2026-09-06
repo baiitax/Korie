@@ -1,175 +1,109 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { useSupport } from '@/components/support/SupportContext';
-import { Customer360Context } from '@/types/support';
-import {
-  Users,
-  Search,
-  ShieldCheck,
-  CreditCard,
-  Phone,
-  Mail,
-  Lock,
-  ExternalLink,
-  ChevronRight,
-} from 'lucide-react';
+// =============================================================================
+// File: src/app/support/customers/page.tsx
+// Description: Customers — search & browse (spec §56). Server-side search;
+// results carry masked PII only.
+// =============================================================================
 
-export default function CustomersDirectoryPage() {
-  const { customer360Map, selectedJurisdiction } = useSupport();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer360Context | null>(null);
+import React, { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { Search } from "lucide-react";
+import { useSupportOps } from "@/components/support/SupportOpsProvider";
+import { EmptyState, ErrorState, LoadingPanel, OfflineBanner, RiskBadge } from "@/components/support/SupportUI";
+import { supportOps, isSupportApiError } from "@/services/supportOpsClient";
 
-  const customerList = Object.values(customer360Map);
+interface CustomerRow {
+  id: string;
+  name: string;
+  country: string;
+  status: string;
+  kycTier: string;
+  riskLevel: string;
+  source: string;
+  openTickets: number;
+}
 
-  const filtered = customerList.filter((c) => {
-    if (selectedJurisdiction !== 'ALL' && c.country !== selectedJurisdiction) return false;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      return (
-        c.customerId.toLowerCase().includes(q) ||
-        c.fullName.toLowerCase().includes(q) ||
-        c.emailMasked.toLowerCase().includes(q)
-      );
+export default function CustomersPage() {
+  const { t, activeOfficer, isOnline } = useSupportOps();
+  const router = useRouter();
+  const pathname = usePathname();
+  const [q, setQ] = useState("");
+  const [rows, setRows] = useState<CustomerRow[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const res = await supportOps.searchCustomers(q, activeOfficer?.id);
+    if (isSupportApiError(res)) {
+      setError(res.message);
+      setLoading(false);
+      return;
     }
-    return true;
-  });
+    setRows(res.items);
+    setLoading(false);
+  }, [q, activeOfficer?.id]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (isOnline) void load();
+    }, q ? 250 : 0);
+    return () => window.clearTimeout(timer);
+  }, [isOnline, load, q]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-mono font-bold text-teal-400 uppercase tracking-wider mb-1">
-            <Users className="w-4 h-4" />
-            CUSTOMER 360° CONTEXT DESK
-          </div>
-          <h1 className="text-2xl font-extrabold text-white">Customer Support Profiles</h1>
-          <p className="text-xs text-slate-400">
-            Authorized context, masked identity data, KYC status, and security telemetry for frontline officers.
-          </p>
-        </div>
+    <div className="mx-auto max-w-5xl space-y-4">
+      <div>
+        <h1 className="text-xl font-extrabold tracking-tight">{t("supportOps.nav.customers")}</h1>
+        <p className="mt-0.5 text-[13px] text-[var(--foreground-muted)]">{t("supportOps.customers.searchPlaceholder")}</p>
       </div>
 
-      <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-4 flex items-center justify-between gap-4">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search customers by ID, name, or phone..."
-            className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-500"
-          />
-        </div>
+      {!isOnline && <OfflineBanner message={t("supportOps.dashboard.offlineBanner")} />}
+
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" />
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder={t("supportOps.customers.searchPlaceholder")}
+          aria-label={t("supportOps.customers.searchPlaceholder")}
+          className="w-full rounded-[var(--support-radius-input)] border border-[var(--border)] bg-[var(--input-bg)] py-2.5 pl-10 pr-4 text-sm outline-none placeholder:text-[var(--muted)] focus:border-[var(--brand-border)]"
+        />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filtered.map((c) => (
-          <div
-            key={c.customerId}
-            onClick={() => setSelectedCustomer(c)}
-            className="bg-slate-900/60 hover:bg-slate-800/60 border border-slate-800/80 rounded-2xl p-5 cursor-pointer transition flex flex-col justify-between space-y-4 shadow-xl group"
-          >
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="font-mono text-xs font-bold text-teal-400 bg-teal-950/60 px-2 py-0.5 rounded border border-teal-800/40">
-                  {c.customerId}
-                </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase bg-emerald-500/20 text-emerald-300 font-mono">
-                  {c.kycTier}
-                </span>
-              </div>
-
-              <div>
-                <h3 className="text-base font-bold text-white group-hover:text-teal-300 transition">
-                  {c.fullName}
-                </h3>
-                <div className="text-[11px] text-slate-400 font-mono mt-0.5">
-                  {c.country === 'NG' ? '🇳🇬 Nigeria' : '🇳🇪 Niger'} • Registered {c.registrationDate}
-                </div>
-              </div>
-
-              <div className="p-3 bg-slate-950/80 rounded-xl space-y-1.5 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Wallet Balance:</span>
-                  <span className="font-mono font-bold text-emerald-400">{c.walletBalanceMasked}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Total Txns:</span>
-                  <span className="font-semibold text-slate-200">{c.totalTransactionsCount} completed</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Risk Assessment:</span>
-                  <span className="font-bold text-teal-400">{c.riskLevel} RISK</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs">
-              <span className="text-slate-400 font-mono text-[11px]">Phone: {c.phoneMasked}</span>
-              <span className="text-teal-400 font-bold group-hover:underline flex items-center gap-1">
-                Inspect 360° <ChevronRight className="w-3.5 h-3.5" />
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Customer 360 Modal Detail */}
-      {selectedCustomer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-[#090E1A] border border-slate-800 rounded-2xl w-full max-w-xl p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div>
-                <span className="text-xs font-mono font-bold text-teal-400">{selectedCustomer.customerId}</span>
-                <h2 className="text-lg font-bold text-white">{selectedCustomer.fullName}</h2>
-              </div>
-              <button
-                onClick={() => setSelectedCustomer(null)}
-                className="text-slate-400 hover:text-white text-xs font-bold"
-              >
-                ✕ Close
-              </button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="p-3 bg-slate-950/80 rounded-xl border border-slate-800">
-                <span className="text-slate-500 text-[10px] uppercase font-bold">Email (Masked)</span>
-                <div className="font-mono text-slate-200 mt-0.5">{selectedCustomer.emailMasked}</div>
-              </div>
-              <div className="p-3 bg-slate-950/80 rounded-xl border border-slate-800">
-                <span className="text-slate-500 text-[10px] uppercase font-bold">Phone (Masked)</span>
-                <div className="font-mono text-slate-200 mt-0.5">{selectedCustomer.phoneMasked}</div>
-              </div>
-              <div className="p-3 bg-slate-950/80 rounded-xl border border-slate-800">
-                <span className="text-slate-500 text-[10px] uppercase font-bold">Wallet Balance</span>
-                <div className="font-mono font-bold text-emerald-400 text-sm mt-0.5">
-                  {selectedCustomer.walletBalanceMasked}
-                </div>
-              </div>
-              <div className="p-3 bg-slate-950/80 rounded-xl border border-slate-800">
-                <span className="text-slate-500 text-[10px] uppercase font-bold">Account State</span>
-                <div className="font-bold text-teal-300 text-sm mt-0.5">{selectedCustomer.accountStatus}</div>
-              </div>
-            </div>
-
-            <div className="p-3 bg-slate-950/80 rounded-xl border border-slate-800 space-y-1.5 text-xs">
-              <div className="font-bold text-slate-300">Recent Security & Login Telemetry</div>
-              {selectedCustomer.securityEvents.map((ev, idx) => (
-                <div key={idx} className="flex items-center justify-between text-[11px] py-1 border-b border-slate-800/60 last:border-0">
-                  <span className="text-slate-300">{ev.event} ({ev.device})</span>
-                  <span className="font-mono text-slate-500">{ev.timestamp}</span>
-                </div>
-              ))}
-            </div>
-
+      {loading && <LoadingPanel rows={6} />}
+      {error && <ErrorState message={error} onRetry={() => void load()} />}
+      {!loading && !error && rows && rows.length === 0 && (
+        <EmptyState title={t("supportOps.customers.noResults")} hint={t("supportOps.customers.noResultsHint")} />
+      )}
+      {!loading && !error && rows && rows.length > 0 && (
+        <div className="overflow-hidden rounded-[var(--support-radius-card)] border border-[var(--card-border)] bg-[var(--card-bg)] backdrop-blur-[var(--glass-blur-01)]">
+          {rows.map((c) => (
             <button
-              onClick={() => setSelectedCustomer(null)}
-              className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl transition"
+              key={c.id}
+              onClick={() => router.push(`/support/customers/${c.id}`)}
+              className="flex w-full items-center gap-3 border-b border-[var(--card-border)] px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-[var(--surface-2)]"
             >
-              Done
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--brand-soft-strong)] text-xs font-extrabold text-[var(--brand-primary)]">
+                {c.name.split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("")}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[13px] font-extrabold text-[var(--foreground)]">{c.name}</p>
+                <p className="truncate text-[11px] text-[var(--muted)]">
+                  {c.id} · {t(`supportOps.jurisdictions.${c.country}`)} · {t(`supportOps.customers.kyc`)}: {c.kycTier}
+                </p>
+              </div>
+              <RiskBadge level={c.riskLevel} t={t} />
+              {c.openTickets > 0 && (
+                <span className="rounded-full bg-[var(--state-info-soft)] px-2 py-0.5 text-[10px] font-extrabold tabular-nums text-[var(--state-info)]">
+                  {c.openTickets}
+                </span>
+              )}
             </button>
-          </div>
+          ))}
         </div>
       )}
     </div>

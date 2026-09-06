@@ -1,243 +1,175 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { useSupport } from '@/components/support/SupportContext';
-import { CreateTicketModal } from '@/components/support/CreateTicketModal';
-import { TicketDetailWorkspace } from '@/components/support/TicketDetailWorkspace';
-import { EscalationModal } from '@/components/support/EscalationModal';
-import { SupportTicket, TicketStatus, TicketPriority, TicketCategory } from '@/types/support';
-import {
-  ListFilter,
-  Search,
-  Filter,
-  Plus,
-  Clock,
-  CheckCircle2,
-  AlertTriangle,
-  ArrowRight,
-  User,
-} from 'lucide-react';
+// =============================================================================
+// File: src/app/support/tickets/page.tsx
+// Description: Tickets — the full queue with search, filters, sorting and
+// pagination (the inbox is the fast working view; this is the complete list).
+// =============================================================================
 
-export default function AllTicketsPage() {
-  const {
-    tickets,
-    selectedJurisdiction,
-    currentOfficer,
-    calculateSlaRemaining,
-    assignTicket,
-  } = useSupport();
+import React, { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useSupportOps } from "@/components/support/SupportOpsProvider";
+import { EmptyState, ErrorState, LoadingPanel, OfflineBanner, PriorityBadge, SlaBadge, StatusBadge, relTime } from "@/components/support/SupportUI";
+import { supportOps, isSupportApiError, TicketDto } from "@/services/supportOpsClient";
 
-  const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | TicketStatus>('ALL');
-  const [priorityFilter, setPriorityFilter] = useState<'ALL' | TicketPriority>('ALL');
-  const [categoryFilter, setCategoryFilter] = useState<'ALL' | TicketCategory>('ALL');
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isEscalateModalOpen, setIsEscalateModalOpen] = useState(false);
+const PAGE_SIZE = 25;
 
-  const filtered = tickets.filter((t) => {
-    if (selectedJurisdiction !== 'ALL' && t.jurisdiction !== selectedJurisdiction) return false;
-    if (statusFilter !== 'ALL' && t.status !== statusFilter) return false;
-    if (priorityFilter !== 'ALL' && t.priority !== priorityFilter) return false;
-    if (categoryFilter !== 'ALL' && t.category !== categoryFilter) return false;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      return (
-        t.ticketNumber.toLowerCase().includes(q) ||
-        t.subject.toLowerCase().includes(q) ||
-        t.customerName.toLowerCase().includes(q)
-      );
+export default function TicketsPage() {
+  const { t, activeOfficer, isOnline } = useSupportOps();
+  const params = useSearchParams();
+  const [q, setQ] = useState(params.get("q") ?? "");
+  const [status, setStatus] = useState(params.get("status") ?? "");
+  const [priority, setPriority] = useState(params.get("priority") ?? "");
+  const [category, setCategory] = useState(params.get("category") ?? "");
+  const [unassigned, setUnassigned] = useState(params.get("unassigned") === "1");
+  const [openOnly, setOpenOnly] = useState(!params.get("status") && params.get("open") !== "0");
+  const [page, setPage] = useState(1);
+
+  const [rows, setRows] = useState<TicketDto[] | null>(null);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const query: Record<string, string> = { limit: String(PAGE_SIZE * 4) };
+    if (q) query.q = q;
+    if (status) query.status = status;
+    if (priority) query.priority = priority;
+    if (category) query.category = category;
+    if (unassigned) query.unassigned = "1";
+    if (openOnly && !status) query.open = "1";
+    const res = await supportOps.tickets(query, activeOfficer?.id);
+    if (isSupportApiError(res)) {
+      setError(res.message);
+      setLoading(false);
+      return;
     }
-    return true;
-  });
+    setRows(res.items);
+    setTotal(res.total);
+    setLoading(false);
+  }, [q, status, priority, category, unassigned, openOnly, activeOfficer?.id]);
+
+  useEffect(() => {
+    if (isOnline) void load();
+  }, [isOnline, load]);
+
+  useEffect(() => setPage(1), [q, status, priority, category, unassigned, openOnly]);
+
+  const pageRows = rows ? rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE) : [];
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  const selectCls =
+    "rounded-[var(--support-radius-input)] border border-[var(--border)] bg-[var(--input-bg)] px-2.5 py-2 text-xs font-semibold text-[var(--foreground)] outline-none focus:border-[var(--brand-border)]";
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-mono font-bold text-teal-400 uppercase tracking-wider mb-1">
-            <ListFilter className="w-4 h-4" />
-            OMNICHANNEL CASE REPOSITORY
+    <div className="mx-auto max-w-7xl space-y-4">
+      <div>
+        <h1 className="text-xl font-extrabold tracking-tight">{t("supportOps.nav.tickets")}</h1>
+        <p className="mt-0.5 text-[13px] text-[var(--foreground-muted)]">{loading || !rows ? "" : `${total} ${t("supportOps.nav.tickets").toLowerCase()}`}</p>
+      </div>
+
+      {!isOnline && <OfflineBanner message={t("supportOps.dashboard.offlineBanner")} />}
+
+      <div className="flex flex-wrap items-center gap-2 rounded-[var(--support-radius-card)] border border-[var(--card-border)] bg-[var(--card-bg)] p-3 backdrop-blur-[var(--glass-blur-01)]">
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder={t("supportOps.inbox.filters.searchPlaceholder")}
+          aria-label={t("supportOps.inbox.filters.searchPlaceholder")}
+          className="min-w-[200px] flex-1 rounded-[var(--support-radius-input)] border border-[var(--border)] bg-[var(--input-bg)] px-3 py-2 text-xs outline-none placeholder:text-[var(--muted)] focus:border-[var(--brand-border)]"
+        />
+        <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label={t("supportOps.inbox.filters.status")} className={selectCls}>
+          <option value="">{t("supportOps.inbox.filters.status")}: {t("supportOps.common.all")}</option>
+          {["NEW", "TRIAGED", "ASSIGNED", "IN_PROGRESS", "WAITING_FOR_CUSTOMER", "WAITING_FOR_INTERNAL_TEAM", "ESCALATED", "REOPENED", "RESOLVED", "CLOSED"].map((s) => (
+            <option key={s} value={s}>{t(`supportOps.statuses.${s}`)}</option>
+          ))}
+        </select>
+        <select value={priority} onChange={(e) => setPriority(e.target.value)} aria-label={t("supportOps.inbox.filters.priority")} className={selectCls}>
+          <option value="">{t("supportOps.inbox.filters.priority")}: {t("supportOps.common.all")}</option>
+          {["CRITICAL", "URGENT", "HIGH", "NORMAL", "LOW"].map((p) => (
+            <option key={p} value={p}>{t(`supportOps.priorities.${p}`)}</option>
+          ))}
+        </select>
+        <select value={category} onChange={(e) => setCategory(e.target.value)} aria-label={t("supportOps.inbox.filters.category")} className={selectCls}>
+          <option value="">{t("supportOps.inbox.filters.category")}: {t("supportOps.common.all")}</option>
+          {["TRANSFER", "CARD", "LOGIN_ACCESS", "PENDING_TRANSACTION", "MERCHANT_SETTLEMENT", "AGENT_FLOAT", "KYC_TIER", "FRAUD_SECURITY", "TECHNICAL_API", "FEE", "OTHER"].map((c) => (
+            <option key={c} value={c}>{t(`supportOps.categories.${c}`)}</option>
+          ))}
+        </select>
+        <label className="flex cursor-pointer items-center gap-1.5 text-xs font-semibold text-[var(--foreground-muted)]">
+          <input type="checkbox" checked={openOnly} onChange={(e) => setOpenOnly(e.target.checked)} className="h-3.5 w-3.5 accent-[var(--brand-primary)]" />
+          {t("supportOps.common.open")}
+        </label>
+        <label className="flex cursor-pointer items-center gap-1.5 text-xs font-semibold text-[var(--foreground-muted)]">
+          <input type="checkbox" checked={unassigned} onChange={(e) => setUnassigned(e.target.checked)} className="h-3.5 w-3.5 accent-[var(--brand-primary)]" />
+          {t("supportOps.inbox.filters.unassignedOnly")}
+        </label>
+      </div>
+
+      {loading && <LoadingPanel rows={8} />}
+      {error && <ErrorState message={error} onRetry={() => void load()} />}
+      {!loading && !error && rows && rows.length === 0 && <EmptyState title={t("supportOps.inbox.noTickets")} hint={t("supportOps.inbox.noTicketsHint")} />}
+      {!loading && !error && rows && rows.length > 0 && (
+        <>
+          <div className="overflow-hidden rounded-[var(--support-radius-card)] border border-[var(--card-border)] bg-[var(--card-bg)] backdrop-blur-[var(--glass-blur-01)]">
+            <div className="hidden grid-cols-[130px_1fr_120px_130px_130px_100px] gap-2 border-b border-[var(--card-border)] bg-[var(--surface-2)] px-4 py-2 text-[10px] font-extrabold uppercase tracking-wider text-[var(--muted)] lg:grid">
+              <span>{t("supportOps.inbox.ticket")}</span>
+              <span>{t("supportOps.inbox.customer")}</span>
+              <span>{t("supportOps.common.priority")}</span>
+              <span>SLA</span>
+              <span>{t("supportOps.common.status")}</span>
+              <span>{t("supportOps.inbox.updated")}</span>
+            </div>
+            {pageRows.map((ticket) => (
+              <Link
+                key={ticket.id}
+                href={`/support/tickets/${ticket.id}`}
+                className="grid grid-cols-2 gap-1.5 border-b border-[var(--card-border)] px-4 py-3 transition-colors last:border-b-0 hover:bg-[var(--surface-2)] lg:grid-cols-[130px_1fr_120px_130px_130px_100px] lg:items-center lg:gap-2"
+              >
+                <div>
+                  <p className="text-[13px] font-extrabold text-[var(--foreground)]">{ticket.ticketNumber}</p>
+                  <p className="mt-0.5 truncate text-[11px] text-[var(--muted)] lg:hidden">
+                    {t(`supportOps.priorities.${ticket.priority}`)} · {t(`supportOps.statuses.${ticket.status}`)}
+                  </p>
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-bold text-[var(--foreground)]">{ticket.subject}</p>
+                  <p className="truncate text-[11px] text-[var(--foreground-muted)]">{ticket.customerName} · {t(`supportOps.categories.${ticket.category}`)}</p>
+                </div>
+                <div className="hidden lg:block"><PriorityBadge priority={ticket.priority} t={t} /></div>
+                <div className="hidden lg:block">{ticket.sla && <SlaBadge state={ticket.sla.state} t={t} />}</div>
+                <div className="hidden lg:block"><StatusBadge status={ticket.status} t={t} /></div>
+                <span className="hidden text-[11px] font-semibold tabular-nums text-[var(--muted)] lg:block">{relTime(ticket.updatedAt, t)}</span>
+              </Link>
+            ))}
           </div>
-          <h1 className="text-2xl font-extrabold text-white">All Support Tickets</h1>
-          <p className="text-xs text-slate-400">
-            Enterprise case registry across customers, agency banking agents, and merchants.
-          </p>
-        </div>
-
-        <button
-          onClick={() => setIsCreateModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 via-teal-600 to-emerald-600 hover:from-blue-500 hover:to-emerald-500 text-white text-xs font-bold transition shadow-lg shadow-blue-900/30"
-        >
-          <Plus className="w-4 h-4" />
-          <span>New Inbound Ticket</span>
-        </button>
-      </div>
-
-      {/* Toolbar & Filters */}
-      <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="relative flex-1 w-full">
-          <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search tickets by #, subject, or customer name..."
-            className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-500"
-          />
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-teal-500"
-          >
-            <option value="ALL">All Statuses</option>
-            <option value="NEW">NEW</option>
-            <option value="TRIAGED">TRIAGED</option>
-            <option value="ASSIGNED">ASSIGNED</option>
-            <option value="IN_PROGRESS">IN PROGRESS</option>
-            <option value="ESCALATED">ESCALATED</option>
-            <option value="RESOLVED">RESOLVED</option>
-            <option value="CLOSED">CLOSED</option>
-          </select>
-
-          <select
-            value={priorityFilter}
-            onChange={(e) => setPriorityFilter(e.target.value as any)}
-            className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-teal-500"
-          >
-            <option value="ALL">All Priorities</option>
-            <option value="LOW">LOW</option>
-            <option value="NORMAL">NORMAL</option>
-            <option value="HIGH">HIGH</option>
-            <option value="URGENT">URGENT</option>
-            <option value="CRITICAL">CRITICAL</option>
-          </select>
-
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value as any)}
-            className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-teal-500"
-          >
-            <option value="ALL">All Categories</option>
-            <option value="PENDING_TRANSACTION">Pending Transfer</option>
-            <option value="FAILED_TRANSACTION">Failed Transaction</option>
-            <option value="AGENT_FLOAT">Agent POS Float</option>
-            <option value="MERCHANT_SETTLEMENT">Merchant Settlement</option>
-            <option value="CARD">Card / ATM</option>
-            <option value="KYC_TIER">KYC Limits</option>
-            <option value="LOGIN_ACCESS">Login & Access</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Tickets Table */}
-      <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl overflow-hidden shadow-xl">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-950/80 border-b border-slate-800 text-slate-400 uppercase font-mono text-[10px]">
-              <tr>
-                <th className="p-3.5">Ticket #</th>
-                <th className="p-3.5">Subject & Context</th>
-                <th className="p-3.5">Customer & Channel</th>
-                <th className="p-3.5">Category</th>
-                <th className="p-3.5">SLA Status</th>
-                <th className="p-3.5">Assignee</th>
-                <th className="p-3.5 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60">
-              {filtered.map((t) => {
-                const sla = calculateSlaRemaining(t.resolutionDueAt);
-                return (
-                  <tr key={t.id} className="hover:bg-slate-800/40 transition">
-                    <td className="p-3.5">
-                      <div className="font-mono text-teal-400 font-bold">{t.ticketNumber}</div>
-                      <div className="text-[10px] text-slate-400">
-                        {t.jurisdiction === 'NG' ? '🇳🇬 Nigeria' : '🇳🇪 Niger'}
-                      </div>
-                    </td>
-                    <td className="p-3.5">
-                      <div className="font-bold text-white text-sm line-clamp-1">{t.subject}</div>
-                      <div className="text-[11px] text-slate-400 line-clamp-1">{t.description}</div>
-                    </td>
-                    <td className="p-3.5">
-                      <div className="font-semibold text-slate-200">{t.customerName}</div>
-                      <div className="text-[10px] text-slate-400 font-mono">{t.channel}</div>
-                    </td>
-                    <td className="p-3.5">
-                      <span className="font-mono text-[11px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded">
-                        {t.category.replace(/_/g, ' ')}
-                      </span>
-                    </td>
-                    <td className="p-3.5">
-                      <div
-                        className={`font-mono text-xs font-bold flex items-center gap-1 ${
-                          sla.isBreached ? 'text-rose-400' : sla.isWarning ? 'text-amber-400' : 'text-teal-400'
-                        }`}
-                      >
-                        <Clock className="w-3 h-3" />
-                        {sla.text}
-                      </div>
-                      <div className="text-[10px] text-slate-500 uppercase font-semibold">{t.priority}</div>
-                    </td>
-                    <td className="p-3.5 text-slate-300">
-                      {t.assignedOfficerName || (
-                        <span className="text-amber-400 font-mono text-[11px]">Unassigned</span>
-                      )}
-                    </td>
-                    <td className="p-3.5 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Link
-                          href={`/support/tickets/${t.id}`}
-                          className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded text-[11px] transition"
-                        >
-                          Full Screen
-                        </Link>
-                        <button
-                          onClick={() => setSelectedTicket(t)}
-                          className="px-3 py-1 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-bold rounded text-[11px] transition shadow"
-                        >
-                          Inspect
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {selectedTicket && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-white">Investigation Cockpit ({selectedTicket.ticketNumber})</h3>
-            <button
-              onClick={() => setSelectedTicket(null)}
-              className="text-xs text-slate-400 hover:text-white"
-            >
-              ✕ Close
-            </button>
-          </div>
-          <TicketDetailWorkspace
-            ticket={selectedTicket}
-            onOpenEscalate={() => setIsEscalateModalOpen(true)}
-          />
-        </div>
+          {pages > 1 && (
+            <div className="flex items-center justify-center gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                aria-label={t("supportOps.common.back")}
+                className="grid h-8 w-8 place-items-center rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-muted)] disabled:opacity-40"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <span className="text-xs font-bold text-[var(--foreground-muted)]">{page} / {pages}</span>
+              <button
+                onClick={() => setPage((p) => Math.min(pages, p + 1))}
+                disabled={page === pages}
+                aria-label={t("supportOps.common.actions")}
+                className="grid h-8 w-8 place-items-center rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-muted)] disabled:opacity-40"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+        </>
       )}
-
-      <CreateTicketModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} />
-      <EscalationModal
-        ticket={selectedTicket}
-        isOpen={isEscalateModalOpen}
-        onClose={() => setIsEscalateModalOpen(false)}
-      />
     </div>
   );
 }

@@ -1,20 +1,17 @@
-import React from 'react';
-import { SupportProvider } from '@/components/support/SupportContext';
-import { SupportShell } from '@/components/support/SupportShell';
+import React from "react";
+import { SupportOpsProvider } from "@/components/support/SupportOpsProvider";
+import { SupportShell } from "@/components/support/SupportShell";
 
 export const metadata = {
-  title: 'Support Operations & Automation Portal | KoriePay',
-  description: 'Enterprise Customer Support Workforce, Ticketing, Automation & Service Intelligence Platform for Nigeria and Niger Republic.',
+  title: "Support Operations | KoriePay",
+  description:
+    "KoriePay Support Operating System — queue, SLA, disputes, escalations and governance for Nigeria and Niger Republic.",
 };
 
-export default function SupportLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function SupportLayout({ children }: { children: React.ReactNode }) {
   return (
-    <SupportProvider>
+    <SupportOpsProvider>
       <SupportShell>{children}</SupportShell>
-    </SupportProvider>
+    </SupportOpsProvider>
   );
 }

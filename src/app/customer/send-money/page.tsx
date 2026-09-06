@@ -94,7 +94,11 @@ export default function SendMoneyPage() {
   const rate = isCrossBorder && engineRate ? engineRate.rate : 0;
   const fee = isCrossBorder ? Math.round(parsesAmount * 0.005) : sourceCurrency === "NGN" ? 50 : 0;
   const recipientReceives = isCrossBorder ? Math.round((parsesAmount - fee) * rate) : parsesAmount - fee;
-  const totalDebit = parsesAmount + fee;
+  // The engine debits the wallet subledger for `parsesAmount` exactly — the
+  // fee is taken from within the amount (recipient gets (amount − fee) × rate;
+  // GL: amount → netAmount onward + fee to revenue). Adding the fee here made
+  // the review screen promise a larger debit than the balance ever showed.
+  const totalDebit = parsesAmount;
   const destCurrency: CustomerCurrency = isCrossBorder
     ? (recipient?.currency ?? (selectedBank?.currency as CustomerCurrency))
     : sourceCurrency;
@@ -151,7 +155,7 @@ export default function SendMoneyPage() {
       summary: [
         { label: t("transfers.recipient"), value: recipientName },
         { label: t("transfers.selectBank"), value: selectedBank?.name || "—" },
-        { label: t("transfers.transferFee"), value: formatMoney(fee, sourceCurrency) },
+        { label: t("transfers.feeIncluded"), value: formatMoney(fee, sourceCurrency) },
         { label: t("transfers.totalDebit"), value: formatMoney(totalDebit, sourceCurrency) },
       ],
       status: "PROCESSING",
@@ -362,7 +366,7 @@ export default function SendMoneyPage() {
                   </>
                 )}
                 <div className="flex items-center justify-between">
-                  <span className="text-[var(--foreground-muted)]">{t("transfers.transferFee")}</span>
+                  <span className="text-[var(--foreground-muted)]">{t("transfers.feeIncluded")}</span>
                   <span className="font-mono font-bold text-[var(--foreground)]">{sourceCurrency === "XOF" ? "CFA" : "₦"} {fee.toLocaleString()}</span>
                 </div>
               </div>
@@ -406,7 +410,7 @@ export default function SendMoneyPage() {
               <Row label={t("transfers.destinationBank")} value={selectedBank?.name} />
               <Row label={t("transfers.accountNumberLabel")} value={maskAccountNumber(accountNumber)} mono accent />
               {isCrossBorder && <Row label={t("transfers.exchangeRate")} value={`1 ${sourceCurrency} = ${rate} ${destCurrency}`} mono />}
-              <Row label={t("transfers.transferFee")} value={formatMoney(fee, sourceCurrency)} mono />
+              <Row label={t("transfers.feeIncluded")} value={formatMoney(fee, sourceCurrency)} mono />
               <div className="flex items-center justify-between p-3.5 bg-[var(--brand-soft)]">
                 <span className="text-[var(--foreground)] font-bold">{t("transfers.totalDebit")}</span>
                 <span className="text-[var(--brand-primary)] font-mono font-bold text-sm">{formatMoney(totalDebit, sourceCurrency)}</span>
