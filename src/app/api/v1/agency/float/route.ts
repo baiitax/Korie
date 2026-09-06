@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
 
   const { data: floatAccounts, error } = await admin
     .from('agent_float_accounts')
-    .select('account_kind, currency, cash_threshold_min, ledger_accounts(balance)')
+    .select('account_kind, currency, cash_threshold_min, ledger_account_id, ledger_accounts(balance)')
     .eq('agent_id', agent.agentId);
 
   if (error) {
@@ -73,6 +73,7 @@ export async function GET(req: NextRequest) {
       total_liquidity: totalLiquidity,
       cash_threshold_min: cashThresholdMin,
       health,
+      ledger_account_ids: [walletFloatRow?.ledger_account_id, cashHandRow?.ledger_account_id].filter(Boolean),
     },
     {
       code: 'FLOAT_RETRIEVED',

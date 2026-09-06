@@ -19,6 +19,7 @@ export type AgencyTransactionType =
 export type AgencyTransactionStatus =
   | "INITIATED"
   | "PENDING"
+  | "PENDING_PROVIDER_INTEGRATION"
   | "PROCESSING"
   | "SUCCESSFUL"
   | "FAILED"

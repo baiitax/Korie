@@ -122,6 +122,22 @@ export async function POST(req: NextRequest) {
         httpStatus: 409,
       });
     }
+    if (message.includes('SINGLE_TRANSACTION_LIMIT_EXCEEDED')) {
+      return createErrorResponse({
+        code: 'SINGLE_TRANSACTION_LIMIT_EXCEEDED',
+        message: 'This amount exceeds your single-transaction limit.',
+        requestId: agent.requestId,
+        httpStatus: 422,
+      });
+    }
+    if (message.includes('DAILY_CASH_LIMIT_EXCEEDED')) {
+      return createErrorResponse({
+        code: 'DAILY_CASH_LIMIT_EXCEEDED',
+        message: 'This transaction would exceed your daily cash limit.',
+        requestId: agent.requestId,
+        httpStatus: 422,
+      });
+    }
 
     return createErrorResponse({
       code: 'CASH_OUT_FAILED',

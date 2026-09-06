@@ -15,7 +15,11 @@ export interface CommissionQuote {
  */
 export async function quoteAgencyCommission(
   admin: SupabaseClient,
-  params: { transactionType: 'CASH_IN' | 'CASH_OUT'; currency: 'NGN' | 'XOF'; amount: number }
+  params: {
+    transactionType: 'CASH_IN' | 'CASH_OUT' | 'TRANSFER_NIP' | 'TRANSFER_CROSS_BORDER';
+    currency: 'NGN' | 'XOF';
+    amount: number;
+  }
 ): Promise<CommissionQuote> {
   const { transactionType, currency, amount } = params;
 

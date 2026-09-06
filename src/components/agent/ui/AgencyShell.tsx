@@ -250,6 +250,19 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
                 </button>
               </div>
 
+              {/* Notifications Bell */}
+              <Link
+                href="/agent/notifications"
+                className="relative w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-slate-300 transition-colors"
+              >
+                <Bell className="w-4 h-4" />
+                {notificationsCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center">
+                    {notificationsCount > 9 ? "9+" : notificationsCount}
+                  </span>
+                )}
+              </Link>
+
               {/* Profile Avatar */}
               <Link
                 href="/agent/profile"

@@ -180,8 +180,18 @@ export default function AgentDashboardPage() {
                   </div>
 
                   <div className="min-w-0">
-                    <div className="text-xs sm:text-sm font-bold text-white truncate">
-                      {tx.title}
+                    <div className="text-xs sm:text-sm font-bold text-white truncate flex items-center gap-1.5">
+                      <span className="truncate">{tx.title}</span>
+                      {tx.status === "PENDING_PROVIDER_INTEGRATION" && (
+                        <span className="shrink-0 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                          Pending
+                        </span>
+                      )}
+                      {(tx.status === "FAILED" || tx.status === "REVERSED") && (
+                        <span className="shrink-0 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase bg-rose-500/15 text-rose-400 border border-rose-500/30">
+                          {tx.status}
+                        </span>
+                      )}
                     </div>
                     <div className="text-[11px] text-slate-400 truncate flex items-center gap-2 mt-0.5">
                       <span>{tx.customerName}</span>

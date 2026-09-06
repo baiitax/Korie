@@ -9,6 +9,8 @@ import {
   Printer,
   Share2,
   CheckCircle2,
+  Clock,
+  XCircle,
   Copy,
   Building2,
   Smartphone,
@@ -93,21 +95,45 @@ export const AgentReceiptModal: React.FC = () => {
         {/* Scrollable Receipt Body */}
         <div className="p-6 overflow-y-auto space-y-5 text-xs">
           {/* Status & Amount */}
-          <div className="text-center space-y-1 py-1">
-            <div className="w-12 h-12 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mx-auto mb-2">
-              <CheckCircle2 className="w-7 h-7" />
-            </div>
+          {(() => {
+            const isPending = tx.status === "PENDING_PROVIDER_INTEGRATION" || tx.status === "PENDING";
+            const isFailed = tx.status === "FAILED" || tx.status === "REVERSED" || tx.status === "CANCELLED" || tx.status === "DISPUTED";
+            const statusColor = isPending
+              ? "bg-amber-500/15 border-amber-500/30 text-amber-400"
+              : isFailed
+              ? "bg-rose-500/15 border-rose-500/30 text-rose-400"
+              : "bg-emerald-500/15 border-emerald-500/30 text-emerald-400";
+            const badgeColor = isPending
+              ? "bg-amber-500/15 text-amber-300 border-amber-500/30"
+              : isFailed
+              ? "bg-rose-500/15 text-rose-300 border-rose-500/30"
+              : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30";
+            const Icon = isPending ? Clock : isFailed ? XCircle : CheckCircle2;
+            return (
+              <div className="text-center space-y-1 py-1">
+                <div className={`w-12 h-12 rounded-full border flex items-center justify-center mx-auto mb-2 ${statusColor}`}>
+                  <Icon className="w-7 h-7" />
+                </div>
 
-            <div className="text-3xl font-extrabold text-white font-mono tracking-tight">
-              ₦{tx.amount.toLocaleString()}
-            </div>
+                <div className="text-3xl font-extrabold text-white font-mono tracking-tight">
+                  ₦{tx.amount.toLocaleString()}
+                </div>
 
-            <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-              ● {tx.status}
-            </div>
+                <div className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase border ${badgeColor}`}>
+                  ● {tx.status.replace(/_/g, " ")}
+                </div>
 
-            <p className="text-xs text-slate-400 pt-1">{tx.title}</p>
-          </div>
+                {isPending && (
+                  <p className="text-[11px] text-amber-400/90 font-semibold pt-1 max-w-xs mx-auto">
+                    Ledger debited. Payout to the receiving bank is queued and awaiting live provider
+                    settlement — this has not yet reached the beneficiary.
+                  </p>
+                )}
+
+                <p className="text-xs text-slate-400 pt-1">{tx.title}</p>
+              </div>
+            );
+          })()}
 
           {/* Vended Token if Electricity */}
           {tx.billerToken && (

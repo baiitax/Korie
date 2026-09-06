@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useAgent } from "@/components/agent/AgentContext";
 import { LiquidityAmount } from "@/components/agent/ui/LiquidityAmount";
+import { useTransactionQuote } from "@/lib/agency/useTransactionQuote";
 import { BANK_DIRECTORY } from "@/services/customerDataService";
 import {
   ArrowLeft,
@@ -28,8 +29,15 @@ export default function AgentTransferPage() {
 
   const selectedBank = BANK_DIRECTORY.find((b) => b.code === bankCode) || BANK_DIRECTORY[0];
   const parsedAmount = parseFloat(amount) || 0;
-  const fee = 50;
-  const agentCommission = 15;
+  const isCrossBorder = selectedBank.currency === "XOF";
+  const quoteCurrency: "NGN" | "XOF" = isCrossBorder ? "XOF" : "NGN";
+  const { quote, isLoading: isQuoteLoading } = useTransactionQuote(
+    isCrossBorder ? "TRANSFER_CROSS_BORDER" : "TRANSFER_NIP",
+    quoteCurrency,
+    parsedAmount
+  );
+  const fee = quote?.customerFee ?? 0;
+  const agentCommission = quote?.agentCommission ?? 0;
 
   const handleAccountChange = (val: string) => {
     const cleaned = val.replace(/\D/g, "").slice(0, 10);
@@ -177,11 +185,13 @@ export default function AgentTransferPage() {
           <div className="p-4 rounded-2xl bg-slate-950/70 border border-white/5 space-y-1.5 font-mono">
             <div className="flex items-center justify-between text-slate-400">
               <span>Transfer Fee:</span>
-              <span className="text-slate-200">₦{fee}</span>
+              <span className="text-slate-200">
+                {isQuoteLoading && !quote ? "Calculating..." : `₦${fee.toLocaleString()}`}
+              </span>
             </div>
             <div className="flex items-center justify-between text-emerald-400 font-bold">
               <span>Agent Commission:</span>
-              <span>+₦{agentCommission}</span>
+              <span>{isQuoteLoading && !quote ? "Calculating..." : `+₦${agentCommission.toLocaleString()}`}</span>
             </div>
             <div className="flex items-center justify-between text-white font-bold border-t border-white/5 pt-1.5">
               <span>Total Debit to Float:</span>
@@ -189,6 +199,15 @@ export default function AgentTransferPage() {
             </div>
           </div>
         )}
+
+        <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-300 flex items-start gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>
+            Live bank payout provider integration is pending. Your float will be debited and the
+            transaction recorded immediately, but the receiving bank leg will show as{" "}
+            <strong>Pending Provider Integration</strong> until settlement is wired up.
+          </span>
+        </div>
 
         {executionError && (
           <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-400 flex items-center gap-2">

@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useAgent } from "@/components/agent/AgentContext";
 import { LiquidityAmount } from "@/components/agent/ui/LiquidityAmount";
+import { useTransactionQuote } from "@/lib/agency/useTransactionQuote";
 import { BANK_DIRECTORY } from "@/services/customerDataService";
 import {
   ArrowLeft,
@@ -32,9 +33,10 @@ export default function AgentCashOutPage() {
 
   const selectedBank = BANK_DIRECTORY.find((b) => b.code === bankCode) || BANK_DIRECTORY[0];
   const parsedAmount = parseFloat(amount) || 0;
-  const customerFee = 100;
+  const { quote, isLoading: isQuoteLoading } = useTransactionQuote("CASH_OUT", "NGN", parsedAmount);
+  const customerFee = quote?.customerFee ?? 0;
   const totalDebit = parsedAmount + customerFee;
-  const agentCommission = 25;
+  const agentCommission = quote?.agentCommission ?? 0;
 
   const handleAccountChange = (val: string) => {
     const cleaned = val.replace(/\D/g, "").slice(0, 10);
@@ -250,11 +252,13 @@ export default function AgentCashOutPage() {
             </div>
             <div className="flex items-center justify-between text-slate-400">
               <span>Customer Convenience Fee:</span>
-              <span className="text-slate-200">₦{customerFee}</span>
+              <span className="text-slate-200">
+                {isQuoteLoading && !quote ? "Calculating..." : `₦${customerFee.toLocaleString()}`}
+              </span>
             </div>
             <div className="flex items-center justify-between text-emerald-400 font-bold border-t border-white/5 pt-2">
               <span>Agent Commission Earned:</span>
-              <span>+₦{agentCommission}</span>
+              <span>{isQuoteLoading && !quote ? "Calculating..." : `+₦${agentCommission.toLocaleString()}`}</span>
             </div>
             <div className="flex items-center justify-between text-white font-bold bg-white/[0.02] p-2 rounded-xl">
               <span>Total Customer Debit:</span>

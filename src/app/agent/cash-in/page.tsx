@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useAgent } from "@/components/agent/AgentContext";
 import { LiquidityAmount } from "@/components/agent/ui/LiquidityAmount";
+import { useTransactionQuote } from "@/lib/agency/useTransactionQuote";
 import { BANK_DIRECTORY } from "@/services/customerDataService";
 import {
   ArrowLeft,
@@ -31,7 +32,7 @@ export default function AgentCashInPage() {
 
   const selectedBank = BANK_DIRECTORY.find((b) => b.code === bankCode) || BANK_DIRECTORY[0];
   const parsedAmount = parseFloat(amount) || 0;
-  const commission = parsedAmount > 0 ? (parsedAmount >= 50000 ? 35 : 20) : 0;
+  const { quote, isLoading: isQuoteLoading } = useTransactionQuote("CASH_IN", "NGN", parsedAmount);
 
   const handleAccountChange = (val: string) => {
     const cleaned = val.replace(/\D/g, "").slice(0, 10);
@@ -215,7 +216,13 @@ export default function AgentCashInPage() {
         {parsedAmount > 0 && (
           <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 flex items-center justify-between font-mono">
             <span>Agent Commission:</span>
-            <span className="font-bold text-sm text-emerald-400">+₦{commission}</span>
+            <span className="font-bold text-sm text-emerald-400">
+              {isQuoteLoading && !quote
+                ? "Calculating..."
+                : quote
+                ? `+₦${quote.agentCommission.toLocaleString()}`
+                : "—"}
+            </span>
           </div>
         )}
 

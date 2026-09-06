@@ -31,6 +31,7 @@ import {
 } from "@/services/agentDataService";
 import { translateAgency } from "@/locales/agency";
 import { agencyApiFetch } from "@/lib/agency/agentSession";
+import { useAgentRealtime } from "@/lib/agency/useAgentRealtime";
 
 /**
  * Maps the wire shape returned by /api/v1/agency/cash-in|cash-out|transactions
@@ -98,6 +99,7 @@ interface AgentContextType {
   isTransactionsLoading: boolean;
   refreshLiquidity: () => Promise<void>;
   refreshTransactions: () => Promise<void>;
+  refreshNotifications: () => Promise<void>;
 
   // Modals & Sheets
   isReceiptModalOpen: boolean;
@@ -180,9 +182,11 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   const [alerts, setAlerts] = useState<AgencyRiskAlert[]>(AGENCY_ALERTS);
   const [reconciliations, setReconciliations] = useState<DailyCashReconciliation[]>(DAILY_RECONCILIATIONS);
   const [isOffline, setIsOffline] = useState<boolean>(false);
-  const [notificationsCount, setNotificationsCount] = useState<number>(2);
+  const [notificationsCount, setNotificationsCount] = useState<number>(0);
   const [isLiquidityLoading, setIsLiquidityLoading] = useState<boolean>(true);
   const [isTransactionsLoading, setIsTransactionsLoading] = useState<boolean>(true);
+  const [realAgentId, setRealAgentId] = useState<string | null>(null);
+  const [ledgerAccountIds, setLedgerAccountIds] = useState<string[]>([]);
   const [floatTopUpRequests, setFloatTopUpRequests] = useState<FloatTopUpRequest[]>(FLOAT_TOPUP_REQUESTS);
   const [subAgents, setSubAgents] = useState<SubAgent[]>(SUB_AGENTS);
   const [floatAllocations, setFloatAllocations] = useState<FloatAllocationRecord[]>(FLOAT_ALLOCATIONS);
@@ -236,12 +240,27 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
           currency: d.currency,
           health: d.health,
         }));
+        if (Array.isArray(d.ledger_account_ids)) {
+          setLedgerAccountIds(d.ledger_account_ids);
+        }
       }
     } catch {
       // Network/session failure: leave prior known-good state in place
       // rather than silently zeroing out real balances.
     } finally {
       setIsLiquidityLoading(false);
+    }
+  }, []);
+
+  const refreshNotifications = React.useCallback(async () => {
+    try {
+      const res = await agencyApiFetch("/api/v1/agency/notifications?limit=30");
+      const json = await res.json();
+      if (res.ok && json.status === "success") {
+        setNotificationsCount(json.data.unread_count || 0);
+      }
+    } catch {
+      // leave prior known count as-is on network failure
     }
   }, []);
 
@@ -269,11 +288,63 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     }
   }, [terminal.terminalId]);
 
+  const refreshProfile = React.useCallback(async () => {
+    try {
+      const res = await agencyApiFetch("/api/v1/agency/me");
+      const json = await res.json();
+      if (res.ok && json.status === "success") {
+        const d = json.data;
+        setRealAgentId(d.id);
+        setAgent((prev) => ({
+          ...prev,
+          id: d.id,
+          agentCode: d.agent_code,
+          agentName: d.agent_name,
+          businessName: d.business_name,
+          phone: d.phone,
+          email: d.email,
+          country: d.country,
+          stateOrRegion: d.state_or_region || prev.stateOrRegion,
+          cityOrLGA: d.city_or_lga || prev.cityOrLGA,
+          tier: d.tier,
+          status: d.status,
+          kycStatus: d.kyc_status === "VERIFIED" ? "VERIFIED" : "PENDING",
+          dailyCashLimit: d.daily_cash_limit,
+          dailyCashSpent: d.daily_cash_spent,
+          commissionBalance: d.commission_balance,
+        }));
+      }
+    } catch {
+      // leave prior known-good identity state as-is on network failure
+    }
+  }, []);
+
   useEffect(() => {
     refreshLiquidity();
     refreshTransactions();
+    refreshProfile();
+    refreshNotifications();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Real Supabase Realtime subscription — keeps liquidity, transaction
+  // history and the notification badge live without polling, scoped
+  // strictly to this agent's own rows (see useAgentRealtime for the
+  // per-agent row filter).
+  useAgentRealtime({
+    agentId: realAgentId,
+    ledgerAccountIds,
+    onTransactionChange: () => {
+      refreshTransactions();
+      refreshLiquidity();
+    },
+    onNotification: () => {
+      refreshNotifications();
+    },
+    onBalanceChange: () => {
+      refreshLiquidity();
+    },
+  });
 
   const setLanguage = (lang: SupportedLanguage) => {
     setLanguageState(lang);
@@ -433,6 +504,11 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // TRANSFER (NIP domestic / cross-border): real ledger debit via
+  // /api/v1/agency/transfer. The backend never claims this is SUCCESSFUL —
+  // it returns PENDING_PROVIDER_INTEGRATION because no live Providus/Coris
+  // payout integration exists yet. The UI must reflect that honestly
+  // (see mapApiTransaction's title/status handling and the transfer page).
   const executeTransfer = async (params: {
     recipientName: string;
     recipientBank: string;
@@ -440,49 +516,65 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     amount: number;
   }) => {
     if (isOffline) {
-      return { success: false, error: "Network offline." };
+      return { success: false, error: "Network offline. Transaction blocked for safety." };
     }
 
-    if (liquidity.walletFloat < params.amount + 50) {
-      return { success: false, error: "Insufficient wallet float." };
+    const idempotencyKey =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `xfer-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    try {
+      const res = await agencyApiFetch("/api/v1/agency/transfer", {
+        method: "POST",
+        headers: { "Idempotency-Key": idempotencyKey },
+        body: JSON.stringify({
+          recipient_name: params.recipientName,
+          recipient_account: params.recipientAccount,
+          recipient_bank: params.recipientBank,
+          amount: params.amount,
+          currency: "NGN",
+          transfer_type: "TRANSFER_NIP",
+        }),
+      });
+
+      const json = await res.json().catch(() => null);
+
+      if (!res.ok || !json || json.status !== "success") {
+        const message = json?.error?.message || "Transfer could not be confirmed by the backend.";
+        return { success: false, error: message };
+      }
+
+      const d = json.data;
+      const newTx: AgencyTransaction = {
+        id: d.id,
+        reference: d.reference,
+        type: d.type,
+        title: `Transfer to ${d.recipient_name} — pending ${d.provider_name || "bank"} confirmation`,
+        amount: d.amount,
+        customerFee: d.customer_fee,
+        agentCommission: d.agent_commission,
+        totalAmount: d.amount + d.customer_fee,
+        currency: d.currency,
+        status: d.status,
+        customerName: d.recipient_name,
+        customerAccount: d.recipient_account,
+        customerBank: d.recipient_bank,
+        terminalId: terminal.terminalId,
+        agentId: agent.id,
+        createdAt: d.created_at,
+      };
+
+      setTransactions((prev) => [newTx, ...prev]);
+      await refreshLiquidity();
+
+      return { success: true, transaction: newTx };
+    } catch {
+      return {
+        success: false,
+        error: "Could not confirm this transfer with the server. Do not retry — check transaction history before trying again.",
+      };
     }
-
-    const { customerFee, agentCommission } = calculateAgentCommission("TRANSFER_NIP", params.amount);
-
-    setLiquidity((prev) => ({
-      ...prev,
-      walletFloat: prev.walletFloat - (params.amount + 50),
-      totalLiquidity: prev.totalLiquidity - 50,
-    }));
-
-    setAgent((prev) => ({
-      ...prev,
-      commissionBalance: prev.commissionBalance + agentCommission,
-    }));
-
-    const newTx: AgencyTransaction = {
-      id: `ag-tx-${Date.now()}`,
-      reference: `KP-2026-XFER-${Math.floor(10000 + Math.random() * 90000)}`,
-      type: "TRANSFER_NIP",
-      title: `Transfer to ${params.recipientName}`,
-      amount: params.amount,
-      customerFee,
-      agentCommission,
-      totalAmount: params.amount + customerFee,
-      currency: "NGN",
-      status: "SUCCESSFUL",
-      customerName: params.recipientName,
-      customerAccount: params.recipientAccount,
-      customerBank: params.recipientBank,
-      terminalId: terminal.terminalId,
-      agentId: agent.id,
-      createdAt: new Date().toISOString(),
-      completedAt: new Date().toISOString(),
-    };
-
-    setTransactions((prev) => [newTx, ...prev]);
-
-    return { success: true, transaction: newTx };
   };
 
   const submitReconciliation = async (actualPhysicalCash: number, notes?: string) => {
@@ -696,6 +788,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         isTransactionsLoading,
         refreshLiquidity,
         refreshTransactions,
+        refreshNotifications,
         isReceiptModalOpen,
         selectedReceiptTx,
         receiptLanguage,

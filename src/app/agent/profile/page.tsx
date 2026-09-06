@@ -1,8 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAgent } from "@/components/agent/AgentContext";
+import { agencyApiFetch } from "@/lib/agency/agentSession";
 import {
   ArrowLeft,
   Building2,
@@ -11,10 +12,32 @@ import {
   MapPin,
   Phone,
   Mail,
+  Gauge,
 } from "lucide-react";
+
+interface EffectiveLimits {
+  daily_cash_limit: number;
+  single_transaction_limit: number;
+  today_spent: number;
+  remaining_today: number;
+  transaction_count_today: number;
+}
 
 export default function AgentProfilePage() {
   const { agent, terminal, t } = useAgent();
+  const [limits, setLimits] = useState<EffectiveLimits | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await agencyApiFetch("/api/v1/agency/limits");
+        const json = await res.json();
+        if (res.ok && json.status === "success") setLimits(json.data);
+      } catch {
+        /* limits card degrades gracefully if unavailable */
+      }
+    })();
+  }, []);
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-2xl mx-auto">
@@ -62,12 +85,65 @@ export default function AgentProfilePage() {
             <span className="text-slate-400">Compliance & KYC</span>
             <span className="text-emerald-400 font-bold">● {agent.kycStatus}</span>
           </div>
-          <div className="py-2.5 flex items-center justify-between">
-            <span className="text-slate-400">Sovereign Node</span>
-            <span className="text-white font-bold">Providus Bank Nigeria (NIP Gateway)</span>
+        </div>
+
+        <Link
+          href="/agent/kyc"
+          className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-400 font-bold text-xs transition-colors"
+        >
+          <ShieldCheck className="w-4 h-4" />
+          <span>Manage KYC Documents</span>
+        </Link>
+      </div>
+
+      {/* Effective Transaction Limits — server-computed, never client-derived */}
+      {limits && (
+        <div className="rounded-3xl bg-[#090f1e] border border-white/10 p-6 space-y-4 shadow-xl">
+          <div className="flex items-center gap-2 text-sm font-bold text-white">
+            <Gauge className="w-4 h-4 text-amber-400" />
+            <span>Transaction Limits ({agent.tier})</span>
+          </div>
+
+          <div className="space-y-3 text-xs font-mono">
+            <div>
+              <div className="flex items-center justify-between text-slate-400 mb-1">
+                <span>Daily Cash Usage</span>
+                <span className="text-white font-bold">
+                  ₦{limits.today_spent.toLocaleString()} / ₦{limits.daily_cash_limit.toLocaleString()}
+                </span>
+              </div>
+              <div className="h-2 rounded-full bg-white/5 overflow-hidden">
+                <div
+                  className="h-full bg-amber-500 rounded-full"
+                  style={{
+                    width: `${Math.min(
+                      (limits.today_spent / Math.max(limits.daily_cash_limit, 1)) * 100,
+                      100
+                    )}%`,
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between py-1.5 border-t border-white/5 pt-3">
+              <span className="text-slate-400">Per-Transaction Limit</span>
+              <span className="text-white font-bold">
+                ₦{limits.single_transaction_limit.toLocaleString()}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Remaining Today</span>
+              <span className="text-emerald-400 font-bold">
+                ₦{limits.remaining_today.toLocaleString()}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Transactions Today</span>
+              <span className="text-white font-bold">{limits.transaction_count_today}</span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
