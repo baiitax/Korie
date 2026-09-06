@@ -106,6 +106,11 @@ export default function AgentDashboardPage() {
         </div>
 
         {/* Customer Mini Cards */}
+        {customers.length === 0 ? (
+          <p className="text-xs text-slate-500 text-center py-4">
+            No customers yet — your directory fills in automatically after your first cash-in or cash-out.
+          </p>
+        ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {customers.slice(0, 4).map((cust) => (
             <div
@@ -141,6 +146,7 @@ export default function AgentDashboardPage() {
             </div>
           ))}
         </div>
+        )}
       </div>
 
       {/* 5. Recent Agency Transactions Stream */}

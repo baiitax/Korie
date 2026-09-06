@@ -98,17 +98,6 @@ export interface AgencyTransaction {
   completedAt?: string;
 }
 
-export interface AgentCommissionRecord {
-  id: string;
-  transactionReference: string;
-  serviceType: AgencyTransactionType;
-  transactionAmount: number;
-  commissionEarned: number;
-  currency: AgentCurrency;
-  status: "EARNED" | "PENDING_SETTLEMENT" | "PAID";
-  timestamp: string;
-}
-
 export interface DailyCashReconciliation {
   id: string;
   reconciliationDate: string;
@@ -134,16 +123,6 @@ export interface AgentTerminalInfo {
   signalStrength: number;
   lastSyncTime: string;
   appVersion: string;
-}
-
-export interface AgencyRiskAlert {
-  id: string;
-  severity: "INFO" | "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
-  title: string;
-  description: string;
-  transactionReference?: string;
-  timestamp: string;
-  isResolved: boolean;
 }
 
 // ==========================================

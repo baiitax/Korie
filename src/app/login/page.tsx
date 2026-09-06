@@ -142,6 +142,16 @@ export default function LoginPage() {
               amadou.seydou@test.ne · fatima.oumarou@test.ne<br />
               Password: KorieCustomer@2026!
             </div>
+            <div className="text-[11px] font-semibold text-slate-300 pt-2">Demo agent account</div>
+            <div className="text-[11px] text-slate-400 font-mono leading-relaxed">
+              garba.kano@korieagent.com<br />
+              Password: KorieAgent@2026!
+            </div>
+            <div className="text-[11px] font-semibold text-slate-300 pt-2">Demo business account</div>
+            <div className="text-[11px] text-slate-400 font-mono leading-relaxed">
+              amaka.owner@koriemerchant.com<br />
+              Password: KorieMerchant@2026!
+            </div>
           </div>
         </AuthCard>
 

@@ -16,17 +16,29 @@ export const DailyReconciliationModal: React.FC = () => {
     isReconciliationModalOpen,
     closeReconciliation,
     liquidity,
+    reconciliations,
     submitReconciliation,
     t,
   } = useAgent();
 
-  const openingCash = 500000;
+  // Best-effort live preview of opening cash, mirroring the server's own
+  // computation in submit_agent_cash_reconciliation(): yesterday's real
+  // physical count if one was submitted, otherwise the real CASH_IN_HAND
+  // ledger balance backed out by today's net cash movement. The server is
+  // still the sole source of truth for the actually-recorded figures —
+  // this is only shown so the agent isn't typing blind.
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const priorDay = reconciliations.find((r) => r.reconciliationDate === yesterday);
+  const openingCash = priorDay
+    ? priorDay.actualPhysicalCash
+    : Math.max(0, liquidity.cashInHand - liquidity.todayCashInVolume + liquidity.todayCashOutVolume);
   const expectedClosingCash = openingCash + liquidity.todayCashInVolume - liquidity.todayCashOutVolume;
 
   const [physicalCashInput, setPhysicalCashInput] = useState<string>(String(expectedClosingCash));
   const [notes, setNotes] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (!isReconciliationModalOpen) return null;
 
@@ -37,8 +49,13 @@ export const DailyReconciliationModal: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    await submitReconciliation(parsedActual, notes);
+    setError(null);
+    const result = await submitReconciliation(parsedActual, notes);
     setIsSubmitting(false);
+    if (!result.success) {
+      setError(result.error || "Could not submit reconciliation. Please try again.");
+      return;
+    }
     setIsSuccess(true);
     setTimeout(() => {
       setIsSuccess(false);
@@ -75,6 +92,12 @@ export const DailyReconciliationModal: React.FC = () => {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+            {error && (
+              <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-[11px] text-rose-300 flex items-center gap-2">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
             {/* Calculation Breakdown Card */}
             <div className="rounded-2xl bg-slate-950/70 border border-white/5 divide-y divide-white/5 font-mono">
               <div className="flex items-center justify-between p-3">

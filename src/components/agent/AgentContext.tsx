@@ -9,7 +9,6 @@ import {
   AgencyTransaction,
   DailyCashReconciliation,
   AgentTerminalInfo,
-  AgencyRiskAlert,
   AgentCurrency,
   FloatTopUpRequest,
   FloatTopUpMethod,
@@ -20,14 +19,6 @@ import { SupportedLanguage } from "@/types/customer";
 import {
   CURRENT_AGENT,
   INITIAL_LIQUIDITY,
-  AGENT_CUSTOMERS,
-  AGENCY_TRANSACTIONS,
-  DAILY_RECONCILIATIONS,
-  ACTIVE_TERMINAL,
-  AGENCY_ALERTS,
-  FLOAT_TOPUP_REQUESTS,
-  SUB_AGENTS,
-  FLOAT_ALLOCATIONS,
   calculateAgentCommission,
 } from "@/services/agentDataService";
 import { translateAgency } from "@/locales/agency";
@@ -41,22 +32,28 @@ import { useAgentRealtime } from "@/lib/agency/useAgentRealtime";
  * nothing here invents amounts, fees, commissions, or a SUCCESSFUL status.
  */
 function mapApiTransaction(tx: any, terminalId: string): AgencyTransaction {
+  const titleByType: Record<string, string> = {
+    CASH_IN: "Customer Cash-In Deposit",
+    CASH_OUT: "Customer Cash-Out Withdrawal",
+    TRANSFER_NIP: `Transfer to ${tx.recipient_name || "recipient"}`,
+    TRANSFER_CROSS_BORDER: `Cross-Border Transfer to ${tx.recipient_name || "recipient"}`,
+  };
+
   return {
     id: tx.id,
     reference: tx.reference,
     type: tx.type,
-    title:
-      tx.type === "CASH_IN" ? "Customer Cash-In Deposit" : "Customer Cash-Out Withdrawal",
+    title: titleByType[tx.type] || tx.type,
     amount: tx.amount,
     customerFee: tx.customer_fee,
     agentCommission: tx.agent_commission,
-    totalAmount: tx.type === "CASH_OUT" ? tx.amount + tx.customer_fee : tx.amount,
+    totalAmount: tx.type === "CASH_OUT" || tx.type === "TRANSFER_NIP" || tx.type === "TRANSFER_CROSS_BORDER" ? tx.amount + tx.customer_fee : tx.amount,
     currency: tx.currency,
     status: tx.status,
-    customerName: tx.customer_name,
+    customerName: tx.customer_name || tx.recipient_name,
     customerPhone: tx.customer_phone || undefined,
-    customerAccount: tx.customer_account || undefined,
-    customerBank: tx.customer_bank || undefined,
+    customerAccount: tx.customer_account || tx.recipient_account || undefined,
+    customerBank: tx.customer_bank || tx.recipient_bank || undefined,
     terminalId,
     agentId: "",
     createdAt: tx.created_at,
@@ -91,10 +88,14 @@ interface AgentContextType {
   setLanguage: (lang: SupportedLanguage) => void;
   t: (key: string, params?: Record<string, string | number>) => string;
   customers: AgentCustomer[];
+  isCustomersLoading: boolean;
+  refreshCustomers: () => Promise<void>;
   transactions: AgencyTransaction[];
-  terminal: AgentTerminalInfo;
-  alerts: AgencyRiskAlert[];
+  terminal: AgentTerminalInfo | null;
+  isTerminalLoading: boolean;
   reconciliations: DailyCashReconciliation[];
+  isReconciliationsLoading: boolean;
+  refreshReconciliations: () => Promise<void>;
   isOffline: boolean;
   isLiquidityLoading: boolean;
   isTransactionsLoading: boolean;
@@ -141,10 +142,13 @@ interface AgentContextType {
   submitReconciliation: (actualPhysicalCash: number, notes?: string) => Promise<{
     success: boolean;
     record?: DailyCashReconciliation;
+    error?: string;
   }>;
 
   // Float Top-Up Requests
   floatTopUpRequests: FloatTopUpRequest[];
+  isFloatTopUpLoading: boolean;
+  refreshFloatTopUpRequests: () => Promise<void>;
   submitFloatTopUpRequest: (params: {
     amount: number;
     method: FloatTopUpMethod;
@@ -154,6 +158,8 @@ interface AgentContextType {
   // Sub-Agent / Team Management (SUPER_AGENT tier)
   subAgents: SubAgent[];
   floatAllocations: FloatAllocationRecord[];
+  isSubAgentsLoading: boolean;
+  refreshSubAgents: () => Promise<void>;
   allocateFloatToSubAgent: (params: {
     subAgentId: string;
     amount: number;
@@ -178,20 +184,24 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   const [isBalanceHidden, setIsBalanceHidden] = useState<boolean>(false);
   const [language, setLanguageState] = useState<SupportedLanguage>("ha");
   const [receiptLanguage, setReceiptLanguage] = useState<SupportedLanguage>("ha");
-  const [customers, setCustomers] = useState<AgentCustomer[]>(AGENT_CUSTOMERS);
-  const [transactions, setTransactions] = useState<AgencyTransaction[]>(AGENCY_TRANSACTIONS);
-  const [terminal, setTerminal] = useState<AgentTerminalInfo>(ACTIVE_TERMINAL);
-  const [alerts, setAlerts] = useState<AgencyRiskAlert[]>(AGENCY_ALERTS);
-  const [reconciliations, setReconciliations] = useState<DailyCashReconciliation[]>(DAILY_RECONCILIATIONS);
+  const [customers, setCustomers] = useState<AgentCustomer[]>([]);
+  const [isCustomersLoading, setIsCustomersLoading] = useState<boolean>(true);
+  const [transactions, setTransactions] = useState<AgencyTransaction[]>([]);
+  const [terminal, setTerminal] = useState<AgentTerminalInfo | null>(null);
+  const [isTerminalLoading, setIsTerminalLoading] = useState<boolean>(true);
+  const [reconciliations, setReconciliations] = useState<DailyCashReconciliation[]>([]);
+  const [isReconciliationsLoading, setIsReconciliationsLoading] = useState<boolean>(true);
   const [isOffline, setIsOffline] = useState<boolean>(false);
   const [notificationsCount, setNotificationsCount] = useState<number>(0);
   const [isLiquidityLoading, setIsLiquidityLoading] = useState<boolean>(true);
   const [isTransactionsLoading, setIsTransactionsLoading] = useState<boolean>(true);
   const [realAgentId, setRealAgentId] = useState<string | null>(null);
   const [ledgerAccountIds, setLedgerAccountIds] = useState<string[]>([]);
-  const [floatTopUpRequests, setFloatTopUpRequests] = useState<FloatTopUpRequest[]>(FLOAT_TOPUP_REQUESTS);
-  const [subAgents, setSubAgents] = useState<SubAgent[]>(SUB_AGENTS);
-  const [floatAllocations, setFloatAllocations] = useState<FloatAllocationRecord[]>(FLOAT_ALLOCATIONS);
+  const [floatTopUpRequests, setFloatTopUpRequests] = useState<FloatTopUpRequest[]>([]);
+  const [isFloatTopUpLoading, setIsFloatTopUpLoading] = useState<boolean>(true);
+  const [subAgents, setSubAgents] = useState<SubAgent[]>([]);
+  const [floatAllocations, setFloatAllocations] = useState<FloatAllocationRecord[]>([]);
+  const [isSubAgentsLoading, setIsSubAgentsLoading] = useState<boolean>(true);
 
   // Modals
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
@@ -271,24 +281,22 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       const res = await agencyApiFetch("/api/v1/agency/transactions?limit=50");
       const json = await res.json();
       if (res.ok && json.status === "success") {
-        setTransactions((prev) => {
-          const mapped: AgencyTransaction[] = json.data.transactions.map((tx: any) =>
-            mapApiTransaction(tx, terminal.terminalId)
-          );
-          // Keep demo/seed transactions that are not CASH_IN/CASH_OUT (e.g. bills,
-          // transfers) alongside the real, backend-confirmed cash transactions.
-          const nonCash = prev.filter((t) => t.type !== "CASH_IN" && t.type !== "CASH_OUT");
-          return [...mapped, ...nonCash].sort(
-            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          );
-        });
+        // The API returns every transaction type recorded for this agent
+        // (cash-in/out and transfers), so it fully replaces local state.
+        const mapped: AgencyTransaction[] = json.data.transactions.map((tx: any) =>
+          mapApiTransaction(tx, terminal?.terminalId || agent.terminalId)
+        );
+        setTransactions(
+          mapped.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        );
       }
     } catch {
       // leave existing transaction list as-is on network failure
     } finally {
       setIsTransactionsLoading(false);
     }
-  }, [terminal.terminalId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [terminal?.terminalId, agent.terminalId]);
 
   const refreshProfile = React.useCallback(async () => {
     try {
@@ -321,6 +329,173 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Loads the agent's real customer directory (public.agency_customers),
+  // auto-populated by every SUCCESSFUL cash-in/cash-out. An empty list for a
+  // brand new agent is correct and expected — never backfilled with fixtures.
+  const refreshCustomers = React.useCallback(async () => {
+    try {
+      const res = await agencyApiFetch("/api/v1/agency/customers");
+      const json = await res.json();
+      if (res.ok && json.status === "success") {
+        setCustomers(
+          (json.data.customers || []).map((c: any) => ({
+            id: c.id,
+            fullName: c.full_name,
+            phone: c.phone,
+            accountNumberMasked: c.account_number_masked || "",
+            bankName: c.bank_name || "",
+            bankCode: c.bank_code || "",
+            kycTier: c.kyc_tier,
+            isVerified: c.is_verified,
+            totalTransactionsCount: c.total_transactions_count,
+            lastActivityDate: c.last_activity_at || "",
+          }))
+        );
+      }
+    } catch {
+      // leave prior known-good list as-is on network failure
+    } finally {
+      setIsCustomersLoading(false);
+    }
+  }, []);
+
+  // Loads the agent's real assigned terminal (public.agent_terminals).
+  const refreshTerminal = React.useCallback(async () => {
+    try {
+      const res = await agencyApiFetch("/api/v1/agency/terminal");
+      const json = await res.json();
+      if (res.ok && json.status === "success") {
+        const d = json.data;
+        setTerminal({
+          terminalId: d.terminal_id,
+          model: d.model,
+          serialNumber: d.serial_number || "",
+          status: d.status,
+          batteryLevel: 0,
+          networkType: d.network_type,
+          signalStrength: 0,
+          lastSyncTime: d.last_sync_at,
+          appVersion: d.app_version,
+        });
+      }
+    } catch {
+      // leave prior known-good terminal state as-is on network failure
+    } finally {
+      setIsTerminalLoading(false);
+    }
+  }, []);
+
+  // Loads the agent's real end-of-day reconciliation history
+  // (public.agent_cash_reconciliations).
+  const refreshReconciliations = React.useCallback(async () => {
+    try {
+      const res = await agencyApiFetch("/api/v1/agency/reconciliation");
+      const json = await res.json();
+      if (res.ok && json.status === "success") {
+        setReconciliations(
+          (json.data.reconciliations || []).map((r: any) => ({
+            id: r.id,
+            reconciliationDate: r.reconciliation_date,
+            openingCash: r.opening_cash,
+            todayCashIn: r.today_cash_in,
+            todayCashOut: r.today_cash_out,
+            expectedClosingCash: r.expected_closing_cash,
+            actualPhysicalCash: r.actual_physical_cash,
+            difference: r.difference,
+            status: r.status,
+            notes: r.notes,
+            submittedAt: r.submitted_at,
+          }))
+        );
+      }
+    } catch {
+      // leave prior known-good history as-is on network failure
+    } finally {
+      setIsReconciliationsLoading(false);
+    }
+  }, []);
+
+  // Loads the agent's real float top-up request history
+  // (public.agent_float_topup_requests).
+  const refreshFloatTopUpRequests = React.useCallback(async () => {
+    try {
+      const res = await agencyApiFetch("/api/v1/agency/float-topup");
+      const json = await res.json();
+      if (res.ok && json.status === "success") {
+        setFloatTopUpRequests(
+          (json.data.requests || []).map((r: any) => ({
+            id: r.id,
+            agentId: realAgentId || "",
+            amount: r.amount,
+            currency: r.currency,
+            method: r.method,
+            proofReference: r.proof_reference || undefined,
+            status: r.status,
+            requestedAt: r.requested_at,
+            reviewedAt: r.reviewed_at || undefined,
+            notes: r.notes || undefined,
+          }))
+        );
+      }
+    } catch {
+      // leave prior known-good list as-is on network failure
+    } finally {
+      setIsFloatTopUpLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [realAgentId]);
+
+  // Loads the SUPER_AGENT's real downline (public.agents where
+  // supervisor_agent_id = this agent) plus real float allocation history.
+  // Non-super-agent tiers correctly get an empty list from the API.
+  const refreshSubAgents = React.useCallback(async () => {
+    try {
+      const res = await agencyApiFetch("/api/v1/agency/sub-agents");
+      const json = await res.json();
+      if (res.ok && json.status === "success") {
+        setSubAgents(
+          (json.data.sub_agents || []).map((s: any) => ({
+            id: s.id,
+            agentCode: s.agent_code,
+            agentName: s.agent_name,
+            businessName: s.business_name,
+            phone: s.phone,
+            country: s.country,
+            cityOrLGA: s.city_or_lga || "",
+            status: s.status,
+            walletFloat: s.wallet_float,
+            cashInHand: s.cash_in_hand,
+            currency: s.currency,
+            cashThresholdMin: s.cash_threshold_min,
+            health: s.health,
+            dailyCashLimit: s.daily_cash_limit,
+            dailyCashSpent: 0,
+            todayTransactionCount: s.today_transaction_count,
+            todayVolume: s.today_volume,
+            onboardedAt: s.onboarded_at,
+            lastActiveAt: s.onboarded_at,
+          }))
+        );
+        setFloatAllocations(
+          (json.data.allocations || []).map((a: any) => ({
+            id: a.id,
+            subAgentId: "",
+            subAgentName: a.sub_agent_name,
+            direction: a.direction,
+            amount: a.amount,
+            currency: a.currency,
+            timestamp: a.timestamp,
+            note: a.note || undefined,
+          }))
+        );
+      }
+    } catch {
+      // leave prior known-good list as-is on network failure
+    } finally {
+      setIsSubAgentsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     (async () => {
       const token = await getAgentAccessToken();
@@ -332,6 +507,11 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       refreshTransactions();
       refreshProfile();
       refreshNotifications();
+      refreshCustomers();
+      refreshTerminal();
+      refreshReconciliations();
+      refreshFloatTopUpRequests();
+      refreshSubAgents();
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -429,7 +609,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         return { success: false, error: message };
       }
 
-      const newTx = mapApiTransaction(json.data, terminal.terminalId);
+      const newTx = mapApiTransaction(json.data, terminal?.terminalId || agent.terminalId);
       setTransactions((prev) => [newTx, ...prev]);
 
       // Re-sync from the backend rather than locally computing the new
@@ -493,7 +673,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         return { success: false, error: message };
       }
 
-      const newTx = mapApiTransaction(json.data, terminal.terminalId);
+      const newTx = mapApiTransaction(json.data, terminal?.terminalId || agent.terminalId);
       setTransactions((prev) => [newTx, ...prev]);
 
       await refreshLiquidity();
@@ -569,7 +749,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         customerName: d.recipient_name,
         customerAccount: d.recipient_account,
         customerBank: d.recipient_bank,
-        terminalId: terminal.terminalId,
+        terminalId: terminal?.terminalId || agent.terminalId,
         agentId: agent.id,
         createdAt: d.created_at,
       };
@@ -586,35 +766,48 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Submits today's real end-of-day cash reconciliation via
+  // POST /api/v1/agency/reconciliation, which derives opening cash and
+  // today's cash movement server-side from the ledger — the client never
+  // fabricates an opening balance or a reviewer name.
   const submitReconciliation = async (actualPhysicalCash: number, notes?: string) => {
-    const openingCash = 500000;
-    const expectedClosingCash = openingCash + liquidity.todayCashInVolume - liquidity.todayCashOutVolume;
-    const difference = actualPhysicalCash - expectedClosingCash;
-    const status = difference === 0 ? "BALANCED" : "DISCREPANCY";
-
-    const record: DailyCashReconciliation = {
-      id: `rec-${Date.now()}`,
-      reconciliationDate: new Date().toISOString().slice(0, 10),
-      openingCash,
-      todayCashIn: liquidity.todayCashInVolume,
-      todayCashOut: liquidity.todayCashOutVolume,
-      expectedClosingCash,
-      actualPhysicalCash,
-      difference,
-      status: status === "BALANCED" ? "APPROVED" : "DISCREPANCY",
-      notes: notes || (status === "BALANCED" ? "Vault balanced with internal ledger." : "Cash variance recorded for supervisor review."),
-      submittedAt: new Date().toISOString(),
-      reviewedBy: "Kano Central Agency Lead",
-    };
-
-    setReconciliations((prev) => [record, ...prev]);
-    closeReconciliation();
-
-    return { success: true, record };
+    if (isOffline) {
+      return { success: false, error: "Offline network. Please reconnect to submit a reconciliation." };
+    }
+    try {
+      const res = await agencyApiFetch("/api/v1/agency/reconciliation", {
+        method: "POST",
+        body: JSON.stringify({ actual_physical_cash: actualPhysicalCash, notes }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.status !== "success") {
+        return { success: false, error: json?.error?.message || "Could not submit reconciliation." };
+      }
+      const d = json.data;
+      const record: DailyCashReconciliation = {
+        id: d.id,
+        reconciliationDate: d.reconciliation_date,
+        openingCash: d.opening_cash,
+        todayCashIn: d.today_cash_in,
+        todayCashOut: d.today_cash_out,
+        expectedClosingCash: d.expected_closing_cash,
+        actualPhysicalCash: d.actual_physical_cash,
+        difference: d.difference,
+        status: d.status,
+        notes: d.notes,
+        submittedAt: d.submitted_at,
+      };
+      setReconciliations((prev) => [record, ...prev.filter((r) => r.id !== record.id)]);
+      closeReconciliation();
+      return { success: true, record };
+    } catch {
+      return { success: false, error: "Could not reach the server. Please try again." };
+    }
   };
 
-  // FLOAT TOP-UP: agent submits a request, it enters a PENDING approval queue
-  // (does not instantly credit the wallet — a treasury reviewer must approve it).
+  // FLOAT TOP-UP: agent submits a request via POST /api/v1/agency/float-topup.
+  // It enters a real PENDING row — the wallet is only credited later when a
+  // treasury reviewer calls approve_agent_float_topup() server-side.
   const submitFloatTopUpRequest = async (params: {
     amount: number;
     method: FloatTopUpMethod;
@@ -623,39 +816,41 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     if (isOffline) {
       return { success: false, error: "Offline network. Please reconnect to submit a top-up request." };
     }
-
     if (!params.amount || params.amount <= 0) {
       return { success: false, error: "Enter a valid top-up amount." };
     }
-
-    const hasPending = floatTopUpRequests.some(
-      (r) => r.agentId === agent.id && r.status === "PENDING"
-    );
-    if (hasPending) {
-      return {
-        success: false,
-        error: "You already have a pending float top-up request awaiting review.",
+    try {
+      const res = await agencyApiFetch("/api/v1/agency/float-topup", {
+        method: "POST",
+        body: JSON.stringify({ amount: params.amount, method: params.method, proof_reference: params.proofReference }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.status !== "success") {
+        return { success: false, error: json?.error?.message || "Could not submit float top-up request." };
+      }
+      const d = json.data;
+      const request: FloatTopUpRequest = {
+        id: d.id,
+        agentId: realAgentId || agent.id,
+        amount: d.amount,
+        currency: d.currency,
+        method: d.method,
+        proofReference: params.proofReference,
+        status: d.status,
+        requestedAt: d.requested_at,
       };
+      setFloatTopUpRequests((prev) => [request, ...prev]);
+      return { success: true, request };
+    } catch {
+      return { success: false, error: "Could not reach the server. Please try again." };
     }
-
-    const request: FloatTopUpRequest = {
-      id: `ftr-${Date.now()}`,
-      agentId: agent.id,
-      amount: params.amount,
-      currency: liquidity.currency,
-      method: params.method,
-      proofReference: params.proofReference,
-      status: "PENDING",
-      requestedAt: new Date().toISOString(),
-    };
-
-    setFloatTopUpRequests((prev) => [request, ...prev]);
-
-    return { success: true, request };
   };
 
-  // SUB-AGENT FLOAT ALLOCATION: only meaningful for SUPER_AGENT tier agents.
-  // Moves float from the super agent's own wallet float into a sub-agent's wallet.
+  // SUB-AGENT FLOAT ALLOCATION / RECLAIM: both move real float between two
+  // agents' own WALLET_FLOAT ledger accounts via
+  // POST /api/v1/agency/sub-agents/float -> public.transfer_agent_float(),
+  // atomically and server-side. The client never edits a balance directly;
+  // it always re-fetches the confirmed state afterward.
   const allocateFloatToSubAgent = async (params: {
     subAgentId: string;
     amount: number;
@@ -670,50 +865,22 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     if (!params.amount || params.amount <= 0) {
       return { success: false, error: "Enter a valid allocation amount." };
     }
-    if (liquidity.walletFloat < params.amount) {
-      return { success: false, error: "Insufficient super-agent wallet float to allocate." };
+    try {
+      const res = await agencyApiFetch("/api/v1/agency/sub-agents/float", {
+        method: "POST",
+        body: JSON.stringify({ sub_agent_id: params.subAgentId, direction: "ALLOCATE", amount: params.amount, note: params.note }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.status !== "success") {
+        return { success: false, error: json?.error?.message || "Could not allocate float." };
+      }
+      await Promise.all([refreshLiquidity(), refreshSubAgents()]);
+      return { success: true };
+    } catch {
+      return { success: false, error: "Could not reach the server. Please try again." };
     }
-
-    const subAgent = subAgents.find((s) => s.id === params.subAgentId);
-    if (!subAgent) {
-      return { success: false, error: "Sub-agent not found." };
-    }
-
-    setLiquidity((prev) => ({
-      ...prev,
-      walletFloat: prev.walletFloat - params.amount,
-      totalLiquidity: prev.totalLiquidity - params.amount,
-    }));
-
-    setSubAgents((prev) =>
-      prev.map((s) =>
-        s.id === params.subAgentId
-          ? {
-              ...s,
-              walletFloat: s.walletFloat + params.amount,
-              health: s.walletFloat + params.amount >= s.cashThresholdMin ? "HEALTHY" : s.health,
-              status: s.status === "LOW_FLOAT" ? "ACTIVE" : s.status,
-            }
-          : s
-      )
-    );
-
-    const record: FloatAllocationRecord = {
-      id: `falc-${Date.now()}`,
-      subAgentId: subAgent.id,
-      subAgentName: subAgent.agentName,
-      direction: "ALLOCATE",
-      amount: params.amount,
-      currency: liquidity.currency,
-      timestamp: new Date().toISOString(),
-      note: params.note,
-    };
-    setFloatAllocations((prev) => [record, ...prev]);
-
-    return { success: true };
   };
 
-  // SUB-AGENT FLOAT RECLAIM: pulls float back from a sub-agent into the super agent's wallet.
   const reclaimFloatFromSubAgent = async (params: {
     subAgentId: string;
     amount: number;
@@ -728,51 +895,20 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     if (!params.amount || params.amount <= 0) {
       return { success: false, error: "Enter a valid reclaim amount." };
     }
-
-    const subAgent = subAgents.find((s) => s.id === params.subAgentId);
-    if (!subAgent) {
-      return { success: false, error: "Sub-agent not found." };
+    try {
+      const res = await agencyApiFetch("/api/v1/agency/sub-agents/float", {
+        method: "POST",
+        body: JSON.stringify({ sub_agent_id: params.subAgentId, direction: "RECLAIM", amount: params.amount, note: params.note }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.status !== "success") {
+        return { success: false, error: json?.error?.message || "Could not reclaim float." };
+      }
+      await Promise.all([refreshLiquidity(), refreshSubAgents()]);
+      return { success: true };
+    } catch {
+      return { success: false, error: "Could not reach the server. Please try again." };
     }
-    if (subAgent.walletFloat < params.amount) {
-      return { success: false, error: "Sub-agent does not have enough float to reclaim that amount." };
-    }
-
-    setSubAgents((prev) =>
-      prev.map((s) =>
-        s.id === params.subAgentId
-          ? {
-              ...s,
-              walletFloat: s.walletFloat - params.amount,
-              health:
-                s.walletFloat - params.amount < s.cashThresholdMin ? "LOW" : s.health,
-              status:
-                s.walletFloat - params.amount < s.cashThresholdMin && s.status === "ACTIVE"
-                  ? "LOW_FLOAT"
-                  : s.status,
-            }
-          : s
-      )
-    );
-
-    setLiquidity((prev) => ({
-      ...prev,
-      walletFloat: prev.walletFloat + params.amount,
-      totalLiquidity: prev.totalLiquidity + params.amount,
-    }));
-
-    const record: FloatAllocationRecord = {
-      id: `falc-${Date.now()}`,
-      subAgentId: subAgent.id,
-      subAgentName: subAgent.agentName,
-      direction: "RECLAIM",
-      amount: params.amount,
-      currency: liquidity.currency,
-      timestamp: new Date().toISOString(),
-      note: params.note,
-    };
-    setFloatAllocations((prev) => [record, ...prev]);
-
-    return { success: true };
   };
 
   return (
@@ -788,10 +924,14 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         setLanguage,
         t,
         customers,
+        isCustomersLoading,
+        refreshCustomers,
         transactions,
         terminal,
-        alerts,
+        isTerminalLoading,
         reconciliations,
+        isReconciliationsLoading,
+        refreshReconciliations,
         isOffline,
         isLiquidityLoading,
         isTransactionsLoading,
@@ -813,9 +953,13 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         submitReconciliation,
         notificationsCount,
         floatTopUpRequests,
+        isFloatTopUpLoading,
+        refreshFloatTopUpRequests,
         submitFloatTopUpRequest,
         subAgents,
         floatAllocations,
+        isSubAgentsLoading,
+        refreshSubAgents,
         allocateFloatToSubAgent,
         reclaimFloatFromSubAgent,
       }}

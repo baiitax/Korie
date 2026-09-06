@@ -79,7 +79,9 @@ export default function AgentProfilePage() {
           </div>
           <div className="py-2.5 flex items-center justify-between">
             <span className="text-slate-400">Assigned Smart POS</span>
-            <span className="text-amber-400 font-bold">{terminal.terminalId} ({terminal.model})</span>
+            <span className="text-amber-400 font-bold">
+              {terminal ? `${terminal.terminalId} (${terminal.model})` : agent.terminalId}
+            </span>
           </div>
           <div className="py-2.5 flex items-center justify-between">
             <span className="text-slate-400">Compliance & KYC</span>

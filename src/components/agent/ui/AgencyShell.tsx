@@ -199,7 +199,7 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
                 <div className="font-bold text-white truncate max-w-[130px]">{agent.agentName}</div>
                 <div className="text-[10px] text-emerald-400 font-mono">{agent.agentCode}</div>
               </div>
-              <span className="text-[10px] font-mono text-slate-400">{terminal.model.slice(-2)}</span>
+              <span className="text-[10px] font-mono text-slate-400">{terminal ? terminal.model.slice(-2) : "--"}</span>
             </div>
           </div>
         </aside>
@@ -228,7 +228,7 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
               {/* POS Status Badge */}
               <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono font-bold">
                 <Radio className="w-3.5 h-3.5 animate-pulse" />
-                <span>{terminal.terminalId}</span>
+                <span>{terminal ? terminal.terminalId : agent.terminalId}</span>
               </div>
 
               {/* Hide Balance Eye */}

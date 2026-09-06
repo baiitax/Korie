@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 
 export default function AgentReconciliationPage() {
-  const { reconciliations, openReconciliation, t } = useAgent();
+  const { reconciliations, isReconciliationsLoading, openReconciliation, t } = useAgent();
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-4xl mx-auto">
@@ -60,6 +60,20 @@ export default function AgentReconciliationPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5 font-mono">
+            {isReconciliationsLoading && (
+              <tr>
+                <td colSpan={7} className="p-8 text-center text-slate-500 text-xs">
+                  Loading reconciliation history…
+                </td>
+              </tr>
+            )}
+            {!isReconciliationsLoading && reconciliations.length === 0 && (
+              <tr>
+                <td colSpan={7} className="p-8 text-center text-slate-500 text-xs">
+                  No reconciliations submitted yet. Start your first end-of-day cash count above.
+                </td>
+              </tr>
+            )}
             {reconciliations.map((rec) => (
               <tr key={rec.id} className="hover:bg-white/5 transition-colors">
                 <td className="p-4 font-bold text-white">{rec.reconciliationDate}</td>

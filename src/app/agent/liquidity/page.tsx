@@ -36,7 +36,7 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export default function AgentLiquidityPage() {
-  const { liquidity, agent, t, floatTopUpRequests, submitFloatTopUpRequest } = useAgent();
+  const { liquidity, agent, t, floatTopUpRequests, isFloatTopUpLoading, submitFloatTopUpRequest, refreshLiquidity, refreshFloatTopUpRequests } = useAgent();
   const [isSweeping, setIsSweeping] = useState(false);
   const [sweepMessage, setSweepMessage] = useState<string | null>(null);
 
@@ -56,13 +56,15 @@ export default function AgentLiquidityPage() {
 
   const hasPendingRequest = myRequests.some((r) => r.status === "PENDING");
 
-  const handleSweepFloat = () => {
+  // Re-fetches the agent's real ledger balance and top-up history from the
+  // server — this button never fabricates a "synchronized" state locally,
+  // it just forces an immediate refresh of what the ledger already says.
+  const handleSweepFloat = async () => {
     setIsSweeping(true);
-    setTimeout(() => {
-      setIsSweeping(false);
-      setSweepMessage("Float balance synchronized with Providus Bank settlement vault.");
-      setTimeout(() => setSweepMessage(null), 3000);
-    }, 1000);
+    await Promise.all([refreshLiquidity(), refreshFloatTopUpRequests()]);
+    setIsSweeping(false);
+    setSweepMessage("Float balance refreshed from the ledger.");
+    setTimeout(() => setSweepMessage(null), 3000);
   };
 
   const handleSubmitRequest = async (e: React.FormEvent) => {
@@ -280,7 +282,10 @@ export default function AgentLiquidityPage() {
 
         {/* Request History */}
         <div className="space-y-2 pt-1">
-          {myRequests.length === 0 && (
+          {isFloatTopUpLoading && (
+            <p className="text-xs text-slate-500 text-center py-4">Loading top-up history…</p>
+          )}
+          {!isFloatTopUpLoading && myRequests.length === 0 && (
             <p className="text-xs text-slate-500 text-center py-4">No float top-up requests yet.</p>
           )}
           {myRequests.map((r) => (

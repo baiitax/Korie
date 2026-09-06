@@ -40,6 +40,7 @@ export default function AgentTeamPage() {
     liquidity,
     subAgents,
     floatAllocations,
+    isSubAgentsLoading,
     allocateFloatToSubAgent,
     reclaimFloatFromSubAgent,
     t,
@@ -209,7 +210,17 @@ export default function AgentTeamPage() {
 
       {/* Sub-Agent Roster */}
       <div className="space-y-3">
-        {filteredSubAgents.map((sub) => {
+        {isSubAgentsLoading && (
+          <div className="p-8 text-center text-xs text-slate-500 rounded-3xl bg-[#090f1e] border border-white/10">
+            Loading your sub-agent network…
+          </div>
+        )}
+        {!isSubAgentsLoading && subAgents.length === 0 && (
+          <div className="p-8 text-center text-xs text-slate-500 rounded-3xl bg-[#090f1e] border border-white/10">
+            You have no sub-agents assigned to your downline yet.
+          </div>
+        )}
+        {!isSubAgentsLoading && filteredSubAgents.map((sub) => {
           const symbol = sub.currency === "XOF" ? "CFA" : "₦";
           return (
             <div key={sub.id} className="rounded-3xl bg-[#090f1e] border border-white/10 p-4 sm:p-5 space-y-3">
@@ -278,7 +289,7 @@ export default function AgentTeamPage() {
           );
         })}
 
-        {filteredSubAgents.length === 0 && (
+        {!isSubAgentsLoading && subAgents.length > 0 && filteredSubAgents.length === 0 && (
           <div className="p-8 text-center text-xs text-slate-500 rounded-3xl bg-[#090f1e] border border-white/10">
             No sub-agents match your search.
           </div>

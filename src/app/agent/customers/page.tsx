@@ -3,21 +3,64 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useAgent } from "@/components/agent/AgentContext";
+import { agencyApiFetch } from "@/lib/agency/agentSession";
 import {
   ArrowLeft,
   Users,
   Search,
   UserPlus,
-  ArrowDownLeft,
-  ArrowUpRight,
-  ShieldCheck,
-  CheckCircle2,
-  Building2,
+  X,
+  XCircle,
 } from "lucide-react";
 
 export default function AgentCustomersPage() {
-  const { customers, t } = useAgent();
+  const { customers, isCustomersLoading, refreshCustomers, t } = useAgent();
   const [searchTerm, setSearchTerm] = useState("");
+  const [isOnboardOpen, setIsOnboardOpen] = useState(false);
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [bankName, setBankName] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleOnboard = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fullName.trim() || !phone.trim()) {
+      setError("Full name and phone are required.");
+      return;
+    }
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      const res = await agencyApiFetch("/api/v1/agency/customers", {
+        method: "POST",
+        body: JSON.stringify({
+          full_name: fullName.trim(),
+          phone: phone.trim(),
+          bank_name: bankName.trim() || undefined,
+          account_number_masked: accountNumber.trim()
+            ? `****${accountNumber.trim().slice(-4)}`
+            : undefined,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.status !== "success") {
+        setError(json?.error?.message || "Could not onboard this customer.");
+        return;
+      }
+      await refreshCustomers();
+      setIsOnboardOpen(false);
+      setFullName("");
+      setPhone("");
+      setBankName("");
+      setAccountNumber("");
+    } catch {
+      setError("Could not reach the server. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const filtered = customers.filter(
     (c) =>
@@ -49,7 +92,7 @@ export default function AgentCustomersPage() {
         </div>
 
         <button
-          onClick={() => alert("Customer onboarding initiated. Collect NIN / BVN for Tier-1 registration.")}
+          onClick={() => setIsOnboardOpen(true)}
           className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-colors shadow-lg shadow-amber-500/20 self-start sm:self-auto"
         >
           <UserPlus className="w-4 h-4" />
@@ -70,6 +113,29 @@ export default function AgentCustomersPage() {
       </div>
 
       {/* Customer Cards List */}
+      {isCustomersLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="p-5 rounded-3xl bg-[#090f1e] border border-white/10 space-y-3 animate-pulse">
+              <div className="h-10 w-10 rounded-2xl bg-white/10" />
+              <div className="h-3 w-32 rounded bg-white/10" />
+              <div className="h-16 rounded-2xl bg-white/5" />
+            </div>
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="p-8 rounded-3xl bg-[#090f1e] border border-white/10 text-center space-y-2">
+          <Users className="w-8 h-8 text-slate-500 mx-auto" />
+          <p className="text-sm text-slate-300 font-semibold">
+            {customers.length === 0 ? "No customers yet" : "No customers match your search"}
+          </p>
+          <p className="text-xs text-slate-500">
+            {customers.length === 0
+              ? "Your customer directory fills in automatically after your first cash-in or cash-out, or you can onboard someone manually above."
+              : "Try a different name, phone number or bank."}
+          </p>
+        </div>
+      ) : (
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {filtered.map((cust) => (
           <div
@@ -120,6 +186,85 @@ export default function AgentCustomersPage() {
           </div>
         ))}
       </div>
+      )}
+
+      {/* Onboard New Customer Modal */}
+      {isOnboardOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-3xl bg-[#0d1424] border border-white/10 p-5 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-extrabold text-white">Onboard New Customer</h3>
+              <button
+                onClick={() => setIsOnboardOpen(false)}
+                className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleOnboard} className="space-y-3">
+              {error && (
+                <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-[11px] text-rose-300 flex items-center gap-2">
+                  <XCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Full Name</label>
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  autoFocus
+                  className="mt-1 w-full px-3 py-2.5 rounded-xl bg-[#090f1e] border border-white/10 text-white text-sm focus:outline-none focus:border-amber-500/50"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Phone Number</label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="e.g. +2348012345678"
+                  className="mt-1 w-full px-3 py-2.5 rounded-xl bg-[#090f1e] border border-white/10 text-white text-sm font-mono focus:outline-none focus:border-amber-500/50"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Bank Name (optional)</label>
+                <input
+                  type="text"
+                  value={bankName}
+                  onChange={(e) => setBankName(e.target.value)}
+                  className="mt-1 w-full px-3 py-2.5 rounded-xl bg-[#090f1e] border border-white/10 text-white text-sm focus:outline-none focus:border-amber-500/50"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                  Account Number (optional)
+                </label>
+                <input
+                  type="text"
+                  value={accountNumber}
+                  onChange={(e) => setAccountNumber(e.target.value)}
+                  className="mt-1 w-full px-3 py-2.5 rounded-xl bg-[#090f1e] border border-white/10 text-white text-sm font-mono focus:outline-none focus:border-amber-500/50"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-slate-950 text-xs font-bold transition-colors"
+              >
+                {isSubmitting ? "Saving..." : "Save Customer"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
