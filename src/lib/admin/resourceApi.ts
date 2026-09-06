@@ -160,6 +160,15 @@ export async function patchResource(
     };
   }
 
+  // "Lift restriction" closes a restriction out: who lifted it and when come
+  // from the verified session and the server clock. lifted_by is in the
+  // client whitelist only so the column is writable at all — identity is
+  // never trusted from the request body.
+  if (patch.is_active === false && def.mutations.columns.includes("lifted_by")) {
+    patch.lifted_by = actor.email ?? "unknown";
+    patch.lifted_at = new Date().toISOString();
+  }
+
   // Stamp actor fields the resource tracks — never trust client identity.
   if ("status" in patch && actor.email) {
     for (const actorField of ["reviewed_by", "resolved_by", "approved_by", "decided_by", "investigated_by", "decision_maker", "checker_email"]) {
