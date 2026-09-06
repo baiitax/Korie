@@ -48,5 +48,15 @@ export async function GET(req: NextRequest) {
     return createSuccessResponse({ role: "MERCHANT", redirectTo: "/merchant", status: merchantProfile?.status }, { requestId: `KP-REQ-${Date.now()}`, environment: "PRODUCTION" });
   }
 
+  const { data: aggregatorStaffRow } = await admin
+    .from("aggregator_staff_users")
+    .select("id, aggregators(status)")
+    .eq("auth_user_id", authUserId)
+    .maybeSingle();
+  if (aggregatorStaffRow) {
+    const aggregatorRow: any = Array.isArray(aggregatorStaffRow.aggregators) ? aggregatorStaffRow.aggregators[0] : aggregatorStaffRow.aggregators;
+    return createSuccessResponse({ role: "AGGREGATOR", redirectTo: "/aggregator", status: aggregatorRow?.status }, { requestId: `KP-REQ-${Date.now()}`, environment: "PRODUCTION" });
+  }
+
   return createErrorResponse({ code: "NO_PROFILE_FOUND", message: "No KoriePay profile is associated with this account.", requestId: `KP-REQ-${Date.now()}`, httpStatus: 404 });
 }
