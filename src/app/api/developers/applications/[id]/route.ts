@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from 'next/server';
 import { DeveloperWorkspaceEngine, DeveloperWorkspaceEngineError } from '@/lib/developer/DeveloperWorkspaceEngine';
 
@@ -21,7 +22,11 @@ export async function PATCH(req: NextRequest) {
   try {
     const gateway = engine.getGateway();
     const body = await req.json();
-    const data = engine.updateApplication(req.url.split('/').pop() || '', { name: body.name, description: body.description, status: body.status }, body.actor || 'Ibrahim Abubakar');
+    const data = engine.updateApplication(
+      req.url.split('/').pop() || '',
+      { name: body.name, description: body.description, status: body.status, ipWhitelist: body.ipWhitelist },
+      body.actor || 'Ibrahim Abubakar',
+    );
     return NextResponse.json(gateway.createResponse(data));
   } catch (err: unknown) {
     const gateway = engine.getGateway();

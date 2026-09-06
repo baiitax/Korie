@@ -1,289 +1,355 @@
 "use client";
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { useDeveloper } from '@/components/developer/DeveloperContext';
+import React, { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { ArrowRight, Check, Circle, Copy, Layers, Radio, Terminal, Zap } from "lucide-react";
+import { useDeveloper } from "@/components/developer/DeveloperContext";
+import type { ApiRequestLog } from "@/types/developer";
 import {
-  Activity,
-  Zap,
-  CheckCircle2,
-  Clock,
-  Radio,
-  Key,
-  ShieldCheck,
-  Terminal,
-  Cpu,
-  BarChart3,
-  ArrowRight,
-  RefreshCw,
-  Copy,
-  AlertTriangle,
-  Play,
-  Layers,
-  ChevronRight,
-} from 'lucide-react';
-import CredentialModal from '@/components/developer/CredentialModal';
-import WebhookModal from '@/components/developer/WebhookModal';
-import SandboxSimulatorModal from '@/components/developer/SandboxSimulatorModal';
-import ProductionAccessModal from '@/components/developer/ProductionAccessModal';
+  Card,
+  CardHeader,
+  CopyButton,
+  EmptyState,
+  EnvChip,
+  ErrorState,
+  LoadingRows,
+  MethodBadge,
+  StatusChip,
+  ghostLink,
+  primaryLink,
+} from "@/components/developer/WorkspaceBits";
+
+/** Row action targets per onboarding step. */
+const STEP_CTA: Record<string, { label: string; href: string }> = {
+  account: { label: "Organization settings", href: "/developers/settings" },
+  application: { label: "Create application", href: "/developers/applications" },
+  sandbox_key: { label: "Generate key", href: "/developers/credentials" },
+  first_request: { label: "Open explorer", href: "/developers/explorer" },
+  webhook: { label: "Configure webhook", href: "/developers/webhooks" },
+  production_ready: { label: "Production readiness", href: "/developers/credentials#production" },
+};
 
 export default function DeveloperDashboardPage() {
   const {
-    t,
-    environment,
+    workspace,
+    workspacePhase,
+    workspaceError,
+    refreshWorkspace,
     organization,
     activeApplication,
-    credentials,
-    webhooks,
-    webhookLogs,
-    requestLogs,
-    errorAnalytics,
-    integrationChecklist,
-    productionRequest,
+    environment,
   } = useDeveloper();
 
-  const [isCredModalOpen, setIsCredModalOpen] = useState(false);
-  const [isWebhookModalOpen, setIsWebhookModalOpen] = useState(false);
-  const [isSimModalOpen, setIsSimModalOpen] = useState(false);
-  const [isProdModalOpen, setIsProdModalOpen] = useState(false);
+  const [requests, setRequests] = useState<ApiRequestLog[] | null>(null);
+  const [requestsPhase, setRequestsPhase] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [requestsError, setRequestsError] = useState<string | null>(null);
+  const [copiedReqId, setCopiedReqId] = useState<string | null>(null);
 
-  const completedChecks = integrationChecklist.filter(c => c.status === 'COMPLETED').length;
-  const readinessPercentage = Math.round((completedChecks / integrationChecklist.length) * 100);
+  const loadRequests = useCallback(async () => {
+    setRequestsPhase("loading");
+    setRequestsError(null);
+    try {
+      const res = await fetch("/api/developers/requests", { cache: "no-store" });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json || !json.success) {
+        throw new Error(json?.error?.message ?? `Requests API ${res.status}`);
+      }
+      setRequests((json.data as ApiRequestLog[]).slice(0, 8));
+      setRequestsPhase("ready");
+    } catch (err) {
+      setRequestsPhase("error");
+      setRequestsError(err instanceof Error ? err.message : "Failed to load request logs");
+    }
+  }, []);
 
-  const activeEnvCreds = credentials.filter(c => c.environment === environment);
+  useEffect(() => {
+    void loadRequests();
+  }, [loadRequests]);
+
+  const copyRequestId = async (id: string) => {
+    try {
+      await navigator.clipboard.writeText(id);
+    } catch {
+      /* noop */
+    }
+    setCopiedReqId(id);
+    window.setTimeout(() => setCopiedReqId(null), 1600);
+  };
+
+  const ready = workspacePhase === "ready" && workspace;
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      {/* Top Hero Card */}
-      <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-[#0a1329] via-[#0b162f] to-[#070d1c] border border-white/10 space-y-6">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-mono font-bold uppercase px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                COMMAND DASHBOARD
-              </span>
-              <span className={`text-[10px] font-mono font-bold uppercase px-2.5 py-0.5 rounded-full ${
-                environment === 'PRODUCTION' ? 'bg-amber-500/20 text-amber-300' : 'bg-emerald-500/20 text-emerald-300'
-              }`}>
-                ● {environment} ACTIVE
-              </span>
-            </div>
-            <h1 className="text-xl sm:text-3xl font-black text-white">{t.dashboard.heroTitle}</h1>
-            <p className="text-xs sm:text-sm text-slate-300 max-w-3xl leading-relaxed">
-              {t.dashboard.heroDesc}
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2.5">
-            <button
-              onClick={() => setIsSimModalOpen(true)}
-              className="px-4 py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center gap-2 transition-all"
-            >
-              <Cpu className="w-3.5 h-3.5" />
-              <span>Simulate Payment</span>
-            </button>
-            <button
-              onClick={() => setIsCredModalOpen(true)}
-              className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-white/10 text-white text-xs font-bold flex items-center gap-2 transition-all"
-            >
-              <Key className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Generate Key</span>
-            </button>
-            <button
-              onClick={() => setIsProdModalOpen(true)}
-              className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 text-xs font-extrabold flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition-all"
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Go-Live Access</span>
-            </button>
-          </div>
+    <div className="space-y-6">
+      {/* Page heading */}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-black text-[var(--foreground)]">Developer Dashboard</h1>
+          <p className="mt-0.5 text-xs text-[var(--foreground-muted)]">
+            {organization.name} · {organization.jurisdiction} ·{" "}
+            <span className="font-mono">{organization.id}</span>
+          </p>
         </div>
-
-        {/* Real-Time KPI Telemetry Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-white/10 text-xs font-mono">
-          <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-white/5 space-y-1">
-            <span className="text-slate-500 block text-[10px]">24H REQUESTS</span>
-            <span className="text-white font-bold text-lg">18,450</span>
-            <span className="text-[10px] text-emerald-400 block">+14% vs yesterday</span>
-          </div>
-          <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-white/5 space-y-1">
-            <span className="text-slate-500 block text-[10px]">SUCCESS RATE</span>
-            <span className="text-emerald-400 font-bold text-lg">99.82%</span>
-            <span className="text-[10px] text-slate-400 block">0.18% handled 4xx</span>
-          </div>
-          <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-white/5 space-y-1">
-            <span className="text-slate-500 block text-[10px]">AVG LATENCY</span>
-            <span className="text-teal-300 font-bold text-lg">142ms</span>
-            <span className="text-[10px] text-slate-400 block">Providus / Coris</span>
-          </div>
-          <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-white/5 space-y-1">
-            <span className="text-slate-500 block text-[10px]">GO-LIVE READINESS</span>
-            <span className="text-amber-400 font-bold text-lg">{readinessPercentage}%</span>
-            <span className="text-[10px] text-emerald-400 block">{completedChecks}/{integrationChecklist.length} Checks Done</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Integration Lifecycle Tracker */}
-      <div className="p-6 rounded-3xl bg-[#0a1122] border border-white/10 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-            <h3 className="font-bold text-white text-sm sm:text-base">Developer Onboarding & Go-Live Funnel</h3>
-          </div>
-          <Link href="/developers/testing" className="text-xs font-bold text-emerald-400 hover:underline flex items-center gap-1">
-            <span>View Full Scorecard</span>
-            <ChevronRight className="w-3.5 h-3.5" />
+        <div className="flex items-center gap-2">
+          <Link href="/developers/explorer" className={primaryLink}>
+            <Terminal className="w-3.5 h-3.5" /> Open API Explorer
+          </Link>
+          <Link href="/developers/applications" className={ghostLink}>
+            <Layers className="w-3.5 h-3.5" /> Applications
           </Link>
         </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 pt-2 text-xs font-mono">
-          <div className="p-3 rounded-2xl bg-slate-950 border border-emerald-500/30 text-emerald-400 space-y-1">
-            <div className="text-[10px] text-slate-400">Step 1</div>
-            <div className="font-bold flex items-center gap-1">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>Org Verified</span>
-            </div>
-          </div>
-          <div className="p-3 rounded-2xl bg-slate-950 border border-emerald-500/30 text-emerald-400 space-y-1">
-            <div className="text-[10px] text-slate-400">Step 2</div>
-            <div className="font-bold flex items-center gap-1">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>Sandbox Keys</span>
-            </div>
-          </div>
-          <div className="p-3 rounded-2xl bg-slate-950 border border-emerald-500/30 text-emerald-400 space-y-1">
-            <div className="text-[10px] text-slate-400">Step 3</div>
-            <div className="font-bold flex items-center gap-1">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>API Tested</span>
-            </div>
-          </div>
-          <div className="p-3 rounded-2xl bg-slate-950 border border-emerald-500/30 text-emerald-400 space-y-1">
-            <div className="text-[10px] text-slate-400">Step 4</div>
-            <div className="font-bold flex items-center gap-1">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>Webhooks Live</span>
-            </div>
-          </div>
-          <div className="p-3 rounded-2xl bg-slate-950 border border-emerald-500/30 text-emerald-400 space-y-1">
-            <div className="text-[10px] text-slate-400">Step 5</div>
-            <div className="font-bold flex items-center gap-1">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>Idempotency</span>
-            </div>
-          </div>
-          <div className="p-3 rounded-2xl bg-slate-950 border border-amber-500/30 text-amber-300 space-y-1">
-            <div className="text-[10px] text-slate-400">Step 6</div>
-            <div className="font-bold flex items-center gap-1">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Prod Approved</span>
-            </div>
-          </div>
-        </div>
       </div>
 
-      {/* 2-Column Split: Recent API Traffic vs Active Credentials & Webhooks */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left: Recent API Request Logs */}
-        <div className="p-6 rounded-3xl bg-[#0a1122] border border-white/10 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Activity className="w-4 h-4 text-emerald-400" />
-              <h3 className="font-bold text-white text-sm">Recent API Request Stream</h3>
-            </div>
-            <Link href="/developers/logs" className="text-xs text-emerald-400 hover:underline font-mono">
-              View All Logs →
-            </Link>
-          </div>
-
-          <div className="space-y-2">
-            {requestLogs.slice(0, 4).map(log => (
-              <div
-                key={log.id}
-                className="p-3 rounded-2xl bg-slate-950/80 border border-white/5 flex items-center justify-between text-xs font-mono"
-              >
-                <div className="flex items-center gap-2.5 truncate">
-                  <span
-                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                      log.statusCode >= 200 && log.statusCode < 300
-                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                        : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                    }`}
-                  >
-                    {log.statusCode}
-                  </span>
-                  <span className="font-bold text-slate-300">{log.method}</span>
-                  <span className="text-slate-400 truncate">{log.endpoint}</span>
-                </div>
-                <div className="flex items-center gap-3 shrink-0 text-slate-500 text-[10px]">
-                  <span>{log.latencyMs}ms</span>
-                  <span>{log.timestamp.split('T')[1].slice(0, 8)}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="pt-2">
-            <Link
-              href="/developers/explorer"
-              className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-white/10 text-xs font-bold text-slate-200 flex items-center justify-center gap-2 transition-colors"
-            >
-              <Terminal className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Test More Endpoints in Explorer</span>
-            </Link>
-          </div>
+      {/* Workspace status strip */}
+      {workspacePhase === "error" ? (
+        <ErrorState
+          title="Could not reach the workspace service"
+          message={workspaceError ?? undefined}
+          onRetry={() => void refreshWorkspace()}
+        />
+      ) : !ready ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i} className="p-4 animate-pulse">
+              <div className="h-3 w-20 rounded bg-[var(--surface-elevated)]" />
+              <div className="mt-3 h-7 w-16 rounded bg-[var(--surface-elevated)]" />
+            </Card>
+          ))}
         </div>
-
-        {/* Right: Active Credentials & Webhooks */}
-        <div className="p-6 rounded-3xl bg-[#0a1122] border border-white/10 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Key className="w-4 h-4 text-teal-400" />
-              <h3 className="font-bold text-white text-sm">Credentials & Webhooks</h3>
-            </div>
-            <button
-              onClick={() => setIsCredModalOpen(true)}
-              className="text-xs text-emerald-400 hover:underline font-mono"
-            >
-              + Add Key
-            </button>
+      ) : (
+        <>
+          {/* KPI row — server-computed counts only */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="p-4">
+              <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--foreground-muted)]">
+                Requests today
+              </p>
+              <p className="mt-2 text-2xl font-black font-mono tabular-nums text-[var(--foreground)]">
+                {workspace.counts.requestsToday}
+              </p>
+              <p className="mt-1 text-[10px] text-[var(--foreground-muted)]">Live sandbox traffic</p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--foreground-muted)]">
+                Requests this month
+              </p>
+              <p className="mt-2 text-2xl font-black font-mono tabular-nums text-[var(--foreground)]">
+                {workspace.counts.requestsMonth}
+              </p>
+              <p className="mt-1 text-[10px] text-[var(--foreground-muted)]">Across all applications</p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--foreground-muted)]">
+                Active sandbox keys
+              </p>
+              <p className="mt-2 text-2xl font-black font-mono tabular-nums text-[var(--foreground)]">
+                {workspace.counts.credentials}
+              </p>
+              <p className="mt-1 text-[10px] text-[var(--foreground-muted)]">Never stored raw</p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--foreground-muted)]">
+                Webhook endpoints
+              </p>
+              <p className="mt-2 text-2xl font-black font-mono tabular-nums text-[var(--foreground)]">
+                {workspace.counts.webhookEndpoints}
+              </p>
+              <p className="mt-1 text-[10px] text-[var(--foreground-muted)]">Delivery telemetry lands with the Webhook Center</p>
+            </Card>
           </div>
 
-          <div className="space-y-3">
-            {activeEnvCreds.slice(0, 2).map(cred => (
-              <div key={cred.id} className="p-3.5 rounded-2xl bg-slate-950/80 border border-white/5 space-y-1.5">
-                <div className="flex items-center justify-between text-xs font-mono">
-                  <span className="font-bold text-white">{cred.name}</span>
-                  <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded uppercase font-bold">
-                    {cred.status}
-                  </span>
+          {/* Onboarding checklist — ticks come from server-confirmed state only */}
+          <Card>
+            <CardHeader
+              title="Integration onboarding"
+              aside={
+                <span className="text-[10px] font-mono font-bold text-[var(--foreground-muted)]">
+                  {workspace.onboarding.filter(s => s.done).length}/{workspace.onboarding.length} complete
+                </span>
+              }
+            />
+            <ol className="divide-y divide-[var(--border)]">
+              {workspace.onboarding.map(step => {
+                const cta = STEP_CTA[step.key];
+                return (
+                  <li key={step.key} className="flex items-center gap-3 px-4 py-2.5">
+                    {step.done ? (
+                      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-500/15 text-[var(--brand-primary)]" aria-label="Complete">
+                        <Check className="w-3.5 h-3.5" />
+                      </span>
+                    ) : (
+                      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full border border-[var(--border)] text-[var(--foreground-muted)]" aria-label="Pending">
+                        <Circle className="w-3 h-3" />
+                      </span>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className={`text-xs font-bold ${step.done ? "text-[var(--foreground)]" : "text-[var(--foreground-muted)]"}`}>
+                        {step.key.replace(/_/g, " ")}
+                      </p>
+                      <p className="truncate text-[11px] text-[var(--foreground-muted)]">{step.detail}</p>
+                    </div>
+                    {!step.done && cta && (
+                      <Link href={cta.href} className="shrink-0 inline-flex items-center gap-1 rounded-lg border border-[var(--brand-border)] bg-[var(--brand-soft)] px-2.5 py-1 text-[10px] font-bold text-[var(--brand-primary)] hover:opacity-85">
+                        {cta.label} <ArrowRight className="w-3 h-3" />
+                      </Link>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          </Card>
+
+          {/* Active workspace + credentials/webhooks summary */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <Card>
+              <CardHeader title="Active workspace" />
+              <div className="space-y-3 p-4">
+                <div>
+                  <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--foreground-muted)]">Application</p>
+                  <p className="mt-0.5 flex items-center gap-2 text-xs font-bold text-[var(--foreground)]">
+                    <span className="truncate">{activeApplication.name}</span>
+                    <EnvChip env={activeApplication.environment} />
+                  </p>
+                  <p className="font-mono text-[10px] text-[var(--foreground-muted)]">{activeApplication.id}</p>
                 </div>
-                <div className="flex items-center justify-between text-xs font-mono text-slate-400">
-                  <span className="truncate">{cred.secretKeyMasked}</span>
-                  <span className="text-[10px] text-slate-500">{cred.scopes.length} Scopes</span>
+                <div className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2">
+                  <div>
+                    <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--foreground-muted)]">Portal API</p>
+                    <p className="text-xs font-bold text-emerald-600 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Operational
+                    </p>
+                  </div>
+                  <p className="text-[9px] font-mono text-[var(--foreground-muted)] text-right">server-confirmed</p>
                 </div>
+                <Link href="/developers/status" className={ghostLink + " w-full justify-center"}>
+                  System status
+                </Link>
               </div>
-            ))}
-          </div>
+            </Card>
 
-          <div className="pt-2 border-t border-white/10 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs">
-              <Radio className="w-3.5 h-3.5 text-teal-400" />
-              <span className="text-slate-300 font-medium">{webhooks.length} Active Webhook Subscriptions</span>
-            </div>
-            <Link href="/developers/webhooks" className="text-xs font-bold text-teal-400 hover:underline">
-              Manage Webhooks →
+            <Card>
+              <CardHeader
+                title="Sandbox credentials"
+                aside={
+                  <Link href="/developers/credentials" className="text-[10px] font-bold text-[var(--brand-primary)] hover:underline">
+                    Manage
+                  </Link>
+                }
+              />
+              <div className="p-4">
+                {workspace.credentialPreviews.length === 0 ? (
+                  <p className="text-xs text-[var(--foreground-muted)]">No active credentials — generate a sandbox key.</p>
+                ) : (
+                  <ul className="space-y-2.5">
+                    {workspace.credentialPreviews.slice(0, 2).map(cred => (
+                      <li key={cred.id} className="rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)] p-2.5 space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="truncate text-[11px] font-bold text-[var(--foreground)]">{cred.name}</p>
+                          <EnvChip env={cred.environment} />
+                        </div>
+                        <div className="flex items-center justify-between gap-2 font-mono text-[10px] text-[var(--foreground-muted)]">
+                          <span className="truncate" title={cred.secretKeyMasked}>{cred.secretKeyMasked}</span>
+                          <span className="shrink-0 font-bold uppercase text-[9px] tracking-wide text-[var(--foreground-muted)]">secret</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-2 font-mono text-[10px] text-[var(--foreground-muted)]">
+                          <span className="truncate" title={cred.publicKey}>{cred.publicKey}</span>
+                          <span className="shrink-0 font-bold uppercase text-[9px] tracking-wide text-[var(--foreground-muted)]">publishable</span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </Card>
+
+            <Card>
+              <CardHeader
+                title="Webhook endpoints"
+                aside={
+                  <Link href="/developers/webhooks" className="text-[10px] font-bold text-[var(--brand-primary)] hover:underline">
+                    Manage
+                  </Link>
+                }
+              />
+              <div className="p-4">
+                {workspace.webhooks.length === 0 ? (
+                  <p className="text-xs text-[var(--foreground-muted)]">No endpoints — configure one to receive events.</p>
+                ) : (
+                  <ul className="space-y-2.5">
+                    {workspace.webhooks.map(wh => (
+                      <li key={wh.id} className="rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)] p-2.5 space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <Radio className="w-3.5 h-3.5 text-[var(--brand-primary)] shrink-0" />
+                          <p className="min-w-0 flex-1 truncate font-mono text-[10px] text-[var(--foreground)]">{wh.url}</p>
+                          <StatusChip status={wh.status} />
+                        </div>
+                        <p className="pl-5.5 font-mono text-[9px] text-[var(--foreground-muted)]">
+                          {wh.events.length} events · signing secret {wh.signingSecretMasked}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </Card>
+          </div>
+        </>
+      )}
+
+      {/* Recent API requests — real engine request logs */}
+      <Card>
+        <CardHeader
+          title="Recent API requests"
+          aside={
+            <Link href="/developers/logs" className="text-[10px] font-bold text-[var(--brand-primary)] hover:underline">
+              All logs
             </Link>
+          }
+        />
+        {requestsPhase === "loading" || requestsPhase === "idle" ? (
+          <LoadingRows rows={5} />
+        ) : requestsPhase === "error" ? (
+          <div className="p-3">
+            <ErrorState title="Could not load request logs" message={requestsError ?? undefined} onRetry={() => void loadRequests()} />
           </div>
-        </div>
-      </div>
+        ) : !requests || requests.length === 0 ? (
+          <EmptyState
+            title="No sandbox requests yet"
+            description="Execute your first request from the API Explorer — it will appear here with its request ID, status and latency."
+            actionHref="/developers/explorer"
+            actionLabel="Open API Explorer"
+          />
+        ) : (
+          requests.length > 0 && (
+          <ul className="divide-y divide-[var(--border)]">
+            {requests.map(r => (
+              <li key={r.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5">
+                <MethodBadge method={r.method} />
+                <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-[var(--foreground)]">{r.endpoint}</span>
+                <StatusChip status={String(r.statusCode)} />
+                <span className="font-mono text-[10px] text-[var(--foreground-muted)]">{r.latencyMs}ms</span>
+                <span className="hidden sm:inline font-mono text-[10px] text-[var(--foreground-muted)]">
+                  {new Date(r.timestamp).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void copyRequestId(r.requestId)}
+                  className="inline-flex items-center gap-1 font-mono text-[10px] text-[var(--brand-primary)] hover:underline"
+                  aria-label={`Copy request ID ${r.requestId}`}
+                >
+                  {copiedReqId === r.requestId ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                  {r.requestId}
+                </button>
+              </li>
+            ))}
+          </ul>
+          )
+        )}
+      </Card>
 
-      {/* Modals */}
-      <CredentialModal isOpen={isCredModalOpen} onClose={() => setIsCredModalOpen(false)} />
-      <WebhookModal isOpen={isWebhookModalOpen} onClose={() => setIsWebhookModalOpen(false)} />
-      <SandboxSimulatorModal isOpen={isSimModalOpen} onClose={() => setIsSimModalOpen(false)} />
-      <ProductionAccessModal isOpen={isProdModalOpen} onClose={() => setIsProdModalOpen(false)} />
+      {/* Demo honesty note */}
+      <p className="text-[10px] text-[var(--foreground-muted)]">
+        DEMO runtime — counts reflect real engine traffic in this sandbox instance and reset when the host restarts.
+      </p>
     </div>
   );
 }

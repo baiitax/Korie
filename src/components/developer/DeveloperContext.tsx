@@ -23,6 +23,7 @@ import {
   ProductionAccessRequest,
   DeveloperSupportCase,
   DeveloperAuditLog,
+  DeveloperWorkspaceState,
 } from '@/types/developer';
 import {
   initialOrganization,
@@ -93,6 +94,12 @@ interface DeveloperContextType {
   updateIpWhitelist: (appId: string, ips: string[]) => void;
   isSearchOpen: boolean;
   setIsSearchOpen: (open: boolean) => void;
+
+  // Server-owned workspace state (BFF)
+  workspace: DeveloperWorkspaceState | null;
+  workspacePhase: 'idle' | 'loading' | 'ready' | 'error';
+  workspaceError: string | null;
+  refreshWorkspace: () => Promise<void>;
 }
 
 const DeveloperContext = createContext<DeveloperContextType | undefined>(undefined);
@@ -118,6 +125,9 @@ export const DeveloperProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [supportCases, setSupportCases] = useState<DeveloperSupportCase[]>(initialSupportCases);
   const [auditLogs, setAuditLogs] = useState<DeveloperAuditLog[]>(initialDeveloperAuditLogs);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [workspace, setWorkspace] = useState<DeveloperWorkspaceState | null>(null);
+  const [workspacePhase, setWorkspacePhase] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  const [workspaceError, setWorkspaceError] = useState<string | null>(null);
 
   const t = getDeveloperTranslation(locale);
 
@@ -528,6 +538,36 @@ export const DeveloperProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     logAudit('IP_WHITELIST_MODIFIED', 'APPLICATION', appId, `Updated IP whitelist to: ${ips.join(', ')}`);
   };
 
+  /** Pull the server-owned workspace and reconcile local shell state with it. */
+  const refreshWorkspace = async () => {
+    setWorkspacePhase('loading');
+    setWorkspaceError(null);
+    try {
+      const res = await fetch('/api/developers/workspace', { cache: 'no-store' });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json || !json.success) {
+        throw new Error(json?.error?.message ?? `Workspace API ${res.status}`);
+      }
+      const data = json.data as DeveloperWorkspaceState;
+      setWorkspace(data);
+      setOrganization(data.organization);
+      setMembers(data.members);
+      setApplications(data.applications);
+      setActiveApplicationIdState(prev =>
+        data.applications.some(a => a.id === prev) ? prev : (data.applications[0]?.id ?? prev),
+      );
+      setWorkspacePhase('ready');
+    } catch (err) {
+      setWorkspacePhase('error');
+      setWorkspaceError(err instanceof Error ? err.message : 'Failed to load workspace');
+    }
+  };
+
+  useEffect(() => {
+    void refreshWorkspace();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <DeveloperContext.Provider
       value={{
@@ -575,6 +615,10 @@ export const DeveloperProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         updateIpWhitelist,
         isSearchOpen,
         setIsSearchOpen,
+        workspace,
+        workspacePhase,
+        workspaceError,
+        refreshWorkspace,
       }}
     >
       {children}

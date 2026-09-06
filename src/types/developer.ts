@@ -23,7 +23,7 @@ export type ApiProductStatus = 'DRAFT' | 'INTERNAL' | 'SANDBOX' | 'PUBLIC_SANDBO
 
 export type WebhookDeliveryStatus = 'DELIVERED' | 'FAILED' | 'RETRYING' | 'PENDING' | 'REPLAYED';
 
-export type ProductionRequestStatus = 'DRAFT' | 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED';
+export type ProductionRequestStatus = 'DRAFT' | 'NOT_REQUESTED' | 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED';
 
 export interface DeveloperOrganization {
   id: string;
@@ -347,4 +347,32 @@ export interface DeveloperAuditLog {
   ipAddress: string;
   timestamp: string;
   environment: DeveloperEnvironment;
+}
+
+/* ---------------------------------------------------------------- */
+/* Server workspace state (BFF /api/developers/workspace DTO)        */
+/* ---------------------------------------------------------------- */
+
+export interface DeveloperOnboardingStep {
+  key: string;
+  done: boolean;
+  detail: string;
+}
+
+export interface DeveloperWorkspaceCounts {
+  credentials: number;
+  webhookEndpoints: number;
+  requestsToday: number;
+  requestsMonth: number;
+}
+
+export interface DeveloperWorkspaceState {
+  organization: DeveloperOrganization;
+  members: DeveloperMember[];
+  applications: DeveloperApplication[];
+  onboarding: DeveloperOnboardingStep[];
+  counts: DeveloperWorkspaceCounts;
+  productionAccessStatus: ProductionRequestStatus;
+  credentialPreviews: ApiCredential[];
+  webhooks: WebhookEndpoint[];
 }

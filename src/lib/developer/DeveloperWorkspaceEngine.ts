@@ -10,6 +10,7 @@ import type {
   ApiRequestLog,
   WebhookEndpoint,
   HttpMethod,
+  DeveloperWorkspaceState,
 } from '@/types/developer';
 import { ApiGatewayEngine } from '@/lib/gateway/ApiGatewayEngine';
 
@@ -158,7 +159,7 @@ export class DeveloperWorkspaceEngine {
       environment: 'SANDBOX',
       status: 'ACTIVE',
       events: ['transaction.created', 'transaction.successful', 'transaction.failed', 'customer.created'],
-      signingSecretMasked: '',
+      signingSecretMasked: `whsec_${crypto.randomBytes(16).toString('hex').slice(0, 16)}…`, 
       failureCount: 0,
       lastDeliveryStatus: 'DELIVERED',
       lastDeliveredAt: '2026-09-03T15:58:00Z',
@@ -239,20 +240,23 @@ export class DeveloperWorkspaceEngine {
   }
 
   /* --------------------------------------------------- workspace */
-  public getWorkspace() {
+  public getWorkspace(): DeveloperWorkspaceState {
     this.hydrate();
+    const month = this.now().slice(0, 7);
     return {
       organization: this.organization,
       members: this.members,
-      applications: this.applications,
-      webhookEndpointCount: this.webhookEndpoints.length,
-      productionAccessStatus: this.productionAccessStatus,
+      applications: [...this.applications].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
       onboarding: this.getOnboardingProgress(),
       counts: {
         credentials: this.credentials.filter(c => c.status === 'ACTIVE').length,
         webhookEndpoints: this.webhookEndpoints.length,
         requestsToday: this.requestLogs.filter(r => r.timestamp.slice(0, 10) === this.now().slice(0, 10)).length,
+        requestsMonth: this.requestLogs.filter(r => r.timestamp.slice(0, 7) === month).length,
       },
+      productionAccessStatus: this.productionAccessStatus,
+      credentialPreviews: this.listCredentials().filter(c => c.status === 'ACTIVE'),
+      webhooks: this.webhookEndpoints,
     };
   }
 
@@ -313,7 +317,7 @@ export class DeveloperWorkspaceEngine {
 
   public updateApplication(
     id: string,
-    patch: { name?: string; description?: string; status?: 'ACTIVE' | 'DEPRECATED' | 'REVOKED' },
+    patch: { name?: string; description?: string; status?: 'ACTIVE' | 'DEPRECATED' | 'REVOKED'; ipWhitelist?: string[] },
     actor: string,
   ): DeveloperApplication {
     const app = this.getApplication(id);
@@ -326,6 +330,17 @@ export class DeveloperWorkspaceEngine {
     if (patch.status !== undefined) {
       app.status = patch.status;
       this.logActivity(actor, 'application.status_changed', `${app.name} → ${patch.status}`);
+    }
+    if (patch.ipWhitelist !== undefined) {
+      const ips = patch.ipWhitelist.map(i => i.trim()).filter(Boolean);
+      const ipv4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+      for (const ip of ips) {
+        const m = ip.match(ipv4);
+        if (!m || m.slice(1).some(o => Number(o) > 255))
+          throw new DeveloperWorkspaceEngineError('VALIDATION_ERROR', `Invalid IP address: ${ip}`);
+      }
+      app.ipWhitelist = ips;
+      this.logActivity(actor, 'application.ip_whitelist_updated', `Updated IP whitelist for ${app.name}`);
     }
     return app;
   }
@@ -379,14 +394,17 @@ export class DeveloperWorkspaceEngine {
   }
 
   public rotateCredential(id: string, actor: string): { credential: ApiCredential; secretKeyRaw: string } {
+    this.hydrate();
     const cred = this.credentials.find(c => c.id === id);
     if (!cred) throw new DeveloperWorkspaceEngineError('NOT_FOUND', 'Credential not found', 404);
     if (cred.status === 'REVOKED') throw new DeveloperWorkspaceEngineError('FORBIDDEN', 'Revoked credentials cannot be rotated', 403);
+    // Hydrating again mid-mutation (e.g. via getApplication) would discard this
+    // in-flight change — resolve the owning application without re-hydration.
+    const app = this.applications.find(a => a.id === cred.appId);
     // Archive the old secret (grace window) and issue a fresh pair.
     cred.status = 'ROTATING';
     cred.gracePeriodExpiresAt = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
     delete cred.secretKeyRaw;
-    const app = this.getApplication(cred.appId);
     const secretKeyRaw = generateKey(cred.environment, 'sec');
     const fresh: StoredCredential = {
       id: this.nextId('cred'),
@@ -405,20 +423,22 @@ export class DeveloperWorkspaceEngine {
       createdByName: actor,
     };
     this.credentials.unshift(fresh);
-    this.logActivity(actor, 'credential.rotated', `Rotated ${cred.environment} secret key for ${app.name}`);
+    this.logActivity(actor, 'credential.rotated', `Rotated ${cred.environment} secret key for ${app?.name ?? cred.appId}`);
     const { secretKeyRaw: _raw, ...rest } = fresh;
     return { credential: { ...rest, secretKeyMasked: fresh.secretKeyMasked }, secretKeyRaw };
   }
 
   public revokeCredential(id: string, actor: string): ApiCredential {
+    this.hydrate();
     const cred = this.credentials.find(c => c.id === id);
     if (!cred) throw new DeveloperWorkspaceEngineError('NOT_FOUND', 'Credential not found', 404);
     if (cred.status === 'REVOKED') throw new DeveloperWorkspaceEngineError('DUPLICATE_REQUEST', 'Credential already revoked', 409);
+    // No hydration after this point — it would discard the in-flight change.
+    const app = this.applications.find(a => a.id === cred.appId);
     cred.status = 'REVOKED';
     cred.gracePeriodExpiresAt = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
     delete cred.secretKeyRaw;
-    const app = this.getApplication(cred.appId);
-    this.logActivity(actor, 'credential.revoked', `Revoked ${cred.environment} secret key for ${app.name}`);
+    this.logActivity(actor, 'credential.revoked', `Revoked ${cred.environment} secret key for ${app?.name ?? cred.appId}`);
     const { secretKeyRaw: _raw, ...rest } = cred;
     return { ...rest, secretKeyMasked: cred.secretKeyMasked };
   }
@@ -429,6 +449,7 @@ export class DeveloperWorkspaceEngine {
   }
 
   public requestProductionAccess(actor: string): { status: string } {
+    this.hydrate();
     if (this.productionAccessStatus === 'APPROVED')
       return { status: this.productionAccessStatus };
     this.productionAccessStatus = 'UNDER_REVIEW';
@@ -454,6 +475,7 @@ export class DeveloperWorkspaceEngine {
     errorMessage?: string;
     providerNode?: ApiRequestLog['providerNode'];
   }): ApiRequestLog {
+    this.hydrate();
     const entry: ApiRequestLog = {
       id: this.nextId('req'),
       requestId: input.requestId,
