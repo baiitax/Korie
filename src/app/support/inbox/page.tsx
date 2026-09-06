@@ -74,7 +74,7 @@ export default function InboxPage() {
     if (unassigned) query.unassigned = "1";
     if (q) query.q = q;
     if (openOnly && !status) query.open = "1";
-    const res = await supportOps.tickets(query, activeOfficer?.id);
+    const res = await supportOps.tickets(query);
     if (isSupportApiError(res)) {
       setError(res.message);
       setLoading(false);
@@ -83,7 +83,7 @@ export default function InboxPage() {
     setRows(res.items);
     setTotal(res.total);
     setLoading(false);
-  }, [status, priority, category, jurisdiction, unassigned, q, openOnly, activeOfficer?.id]);
+  }, [status, priority, category, jurisdiction, unassigned, q, openOnly]);
 
   useEffect(() => {
     if (isOnline) void load();

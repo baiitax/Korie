@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
-import { requireSupportAccess, operationalError } from "@/lib/support/supportApi";
-import { SupportOpsEngine } from "@/lib/support/SupportOpsEngine";
+import { requireSupportAccess } from "@/lib/support/supportApi";
 import { createSuccessResponse } from "@/lib/security/apiResponse";
+import { listKnowledgeRows, knowledgeRowToArticle } from "@/lib/support/supportDb";
 
 export const dynamic = "force-dynamic";
 
@@ -15,13 +15,13 @@ export async function GET(req: NextRequest) {
   if (!access.ok) return access.response;
 
   const q = (req.nextUrl.searchParams.get("q") ?? "").trim().toLowerCase();
-  const category = req.nextUrl.searchParams.get("category");
+  const category = req.nextUrl.searchParams.get("category") ?? undefined;
   const lang = (req.nextUrl.searchParams.get("lang") ?? "en") as "en" | "fr" | "ha";
 
-  let rows = SupportOpsEngine.getInstance().getStore().knowledge.filter((k) => k.status === "PUBLISHED");
-  if (category) rows = rows.filter((k) => k.category === category);
+  const rows = await listKnowledgeRows({ status: "PUBLISHED", category });
+  let items = rows.map((r) => knowledgeRowToArticle(r));
   if (q) {
-    rows = rows.filter(
+    items = items.filter(
       (k) =>
         k.body.en.title.toLowerCase().includes(q) ||
         k.body.fr.title.toLowerCase().includes(q) ||
@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
   return createSuccessResponse(
     {
       lang,
-      items: rows.map((k) => ({
+      items: items.map((k) => ({
         id: k.id,
         category: k.category,
         audience: k.audience,

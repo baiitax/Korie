@@ -37,7 +37,7 @@ export default function AuditPage() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const res = await supportOps.audit({ limit: String(limit) }, activeOfficer?.id);
+    const res = await supportOps.audit({ limit: String(limit) });
     if (isSupportApiError(res)) {
       setError(res.message);
       setLoading(false);
@@ -46,7 +46,7 @@ export default function AuditPage() {
     setRows(res.items);
     setTotal(res.total);
     setLoading(false);
-  }, [limit, activeOfficer?.id]);
+  }, [limit]);
 
   useEffect(() => {
     if (isOnline) void load();

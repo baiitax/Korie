@@ -41,13 +41,13 @@ export default function Customer360Page() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const res = await supportOps.customer360(id, activeOfficer?.id, unmasked);
+    const res = await supportOps.customer360(id, unmasked);
     if (isSupportApiError(res)) {
       const code = supportErrorCode(res);
       if (code === "FORBIDDEN_UNMASK") {
         toast(t("supportOps.errors.forbidden"), "error");
         setUnmasked(false);
-        const fallback = await supportOps.customer360(id, activeOfficer?.id, false);
+        const fallback = await supportOps.customer360(id, false);
         if (isSupportApiError(fallback)) {
           setError(fallback.message);
           setLoading(false);
@@ -63,7 +63,7 @@ export default function Customer360Page() {
     }
     setView(res);
     setLoading(false);
-  }, [id, activeOfficer?.id, unmasked, t, toast]);
+  }, [id, unmasked, t, toast]);
 
   useEffect(() => {
     if (isOnline) void load();

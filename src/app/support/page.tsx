@@ -28,7 +28,7 @@ export default function SupportDashboardPage() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const res = await supportOps.overview(range, activeOfficer?.id);
+    const res = await supportOps.overview(range);
     if (isSupportApiError(res)) {
       setError(res.message);
       setLoading(false);
@@ -36,7 +36,7 @@ export default function SupportDashboardPage() {
     }
     setData(res);
     setLoading(false);
-  }, [range, activeOfficer?.id]);
+  }, [range]);
 
   useEffect(() => {
     if (isOnline) void load();

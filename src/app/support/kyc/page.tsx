@@ -30,7 +30,7 @@ export default function KycQueuePage() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const res = await supportOps.tickets({ category: "KYC_TIER", limit: "50" }, activeOfficer?.id);
+    const res = await supportOps.tickets({ category: "KYC_TIER", limit: "50" });
     if (isSupportApiError(res)) {
       setError(res.message);
       setLoading(false);
@@ -38,7 +38,7 @@ export default function KycQueuePage() {
     }
     setRows(res.items);
     setLoading(false);
-  }, [activeOfficer?.id]);
+  }, []);
 
   useEffect(() => {
     if (isOnline) void load();

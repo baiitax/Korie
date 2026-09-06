@@ -27,6 +27,7 @@ import {
   LifeBuoy,
   ListChecks,
   Lock,
+  LogOut,
   MoreHorizontal,
   MessagesSquare,
   Moon,
@@ -124,7 +125,7 @@ function isActive(pathname: string, item: NavItem): boolean {
 }
 
 export function SupportShell({ children }: { children: React.ReactNode }) {
-  const { t, lang, setLang, theme, setTheme, activeOfficer, setActiveOfficerId, officers, isOnline, toasts, dismissToast, toast } = useSupportOps();
+  const { t, lang, setLang, theme, setTheme, activeOfficer, signOut, isOnline, toasts, dismissToast, toast } = useSupportOps();
   const pathname = usePathname();
   const router = useRouter();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -136,12 +137,11 @@ export function SupportShell({ children }: { children: React.ReactNode }) {
 
   // Notification unread badge (poll-light: on open + every 60s).
   const refreshNotifications = useCallback(async () => {
-    const officerId = activeOfficer?.id;
-    const res = await supportOps.notifications(officerId);
+    const res = await supportOps.notifications();
     if (isSupportApiError(res)) return;
     setNotifications(res.items);
     setUnread(res.unreadCount);
-  }, [activeOfficer?.id]);
+  }, []);
 
   useEffect(() => {
     refreshNotifications();
@@ -225,18 +225,20 @@ export function SupportShell({ children }: { children: React.ReactNode }) {
               <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[var(--brand-primary)] text-[11px] font-extrabold text-[var(--brand-on-primary)]">
                 {activeOfficer ? initials(activeOfficer.fullName) : "?"}
               </span>
-              <select
-                aria-label={t("supportOps.header.switchOfficer")}
-                value={activeOfficer?.id ?? ""}
-                onChange={(e) => setActiveOfficerId(e.target.value)}
-                className="w-full min-w-0 flex-1 cursor-pointer rounded-md bg-transparent text-xs font-bold text-[var(--foreground)] outline-none"
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-bold text-[var(--foreground)]">{activeOfficer?.fullName ?? "—"}</p>
+                <p className="truncate text-[10px] font-semibold text-[var(--muted)]">
+                  {activeOfficer ? t(`supportOps.roles.${activeOfficer.role}`) : ""}
+                </p>
+              </div>
+              <button
+                onClick={() => void signOut()}
+                aria-label={t("supportOps.header.signOut")}
+                title={t("supportOps.header.signOut")}
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-[var(--muted)] transition-colors hover:bg-[var(--surface-3)] hover:text-[var(--foreground)]"
               >
-                {officers.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.fullName} — {t(`supportOps.roles.${o.role}`)}
-                  </option>
-                ))}
-              </select>
+                <LogOut className="h-3.5 w-3.5" />
+              </button>
             </div>
             <div className="mt-2 flex items-center justify-between px-1">
               <div className="flex items-center gap-1" role="group" aria-label={t("supportOps.header.language")}>
@@ -321,7 +323,7 @@ export function SupportShell({ children }: { children: React.ReactNode }) {
                         onClick={async () => {
                           setNotifOpen(false);
                           if (!n.read) {
-                            await supportOps.markNotificationRead(n.id, activeOfficer?.id);
+                            await supportOps.markNotificationRead(n.id);
                             setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
                             setUnread((u) => Math.max(0, u - 1));
                           }
@@ -438,7 +440,7 @@ interface SearchResults {
 }
 
 function GlobalSearchModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { t, activeOfficer } = useSupportOps();
+  const { t } = useSupportOps();
   const router = useRouter();
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
@@ -460,13 +462,13 @@ function GlobalSearchModal({ open, onClose }: { open: boolean; onClose: () => vo
     }
     setBusy(true);
     const timer = window.setTimeout(async () => {
-      const res = await supportOps.search(q.trim(), activeOfficer?.id);
+      const res = await supportOps.search(q.trim());
       if (isSupportApiError(res)) setResults(null);
       else setResults(res);
       setBusy(false);
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [q, activeOfficer?.id]);
+  }, [q]);
 
   const go = (href: string) => {
     onClose();

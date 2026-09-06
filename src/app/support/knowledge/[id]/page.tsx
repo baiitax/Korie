@@ -24,7 +24,7 @@ export default function KnowledgeArticlePage() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const res = await supportOps.knowledgeArticle(id, lang, activeOfficer?.id);
+    const res = await supportOps.knowledgeArticle(id, lang);
     if (isSupportApiError(res)) {
       setError(res.message);
       setLoading(false);
@@ -32,7 +32,7 @@ export default function KnowledgeArticlePage() {
     }
     setArticle(res);
     setLoading(false);
-  }, [id, lang, activeOfficer?.id]);
+  }, [id, lang]);
 
   useEffect(() => {
     if (isOnline) void load();

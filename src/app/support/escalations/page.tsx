@@ -21,7 +21,7 @@ export default function EscalationsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const res = await supportOps.escalations(destination ? { destination } : {}, activeOfficer?.id);
+    const res = await supportOps.escalations(destination ? { destination } : {});
     if (isSupportApiError(res)) {
       setError(res.message);
       setLoading(false);
@@ -29,7 +29,7 @@ export default function EscalationsPage() {
     }
     setRows(res.items);
     setLoading(false);
-  }, [destination, activeOfficer?.id]);
+  }, [destination]);
 
   useEffect(() => {
     if (isOnline) void load();

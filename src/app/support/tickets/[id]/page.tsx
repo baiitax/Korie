@@ -75,17 +75,17 @@ export default function TicketDetailPage() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const res = await supportOps.ticket(id, activeOfficer?.id);
+    const res = await supportOps.ticket(id);
     if (isSupportApiError(res)) {
       setError(res.message);
       setLoading(false);
       return;
     }
     setDetail(res);
-    const m = await supportOps.macros(activeOfficer?.id);
+    const m = await supportOps.macros();
     if (!isSupportApiError(m)) setMacros(m.items.filter((x) => x.enabled));
     setLoading(false);
-  }, [id, activeOfficer?.id]);
+  }, [id]);
 
   useEffect(() => {
     if (isOnline) void load();
@@ -98,7 +98,6 @@ export default function TicketDetailPage() {
       const res = await supportOps.updateTicket(
         id,
         { status, rootCause: extra?.rootCause, reason: extra?.reason },
-        activeOfficer?.id,
       );
       setBusy(false);
       if (isSupportApiError(res)) {
@@ -109,7 +108,7 @@ export default function TicketDetailPage() {
       toast(t("supportOps.toasts.statusChanged", { status: t(`supportOps.statuses.${status}`) }));
       void load();
     },
-    [detail, id, activeOfficer?.id, t, toast, load],
+    [detail, id, t, toast, load],
   );
 
   const [resolveOpen, setResolveOpen] = useState(false);
@@ -229,7 +228,7 @@ export default function TicketDetailPage() {
             canNote={capabilities.canInternalNote}
             isOnline={isOnline}
             onDone={async () => {
-              const res = await supportOps.ticket(id, activeOfficer?.id);
+              const res = await supportOps.ticket(id);
               if (!isSupportApiError(res)) setDetail(res);
             }}
             onRequestResolve={() => setResolveOpen(true)}
@@ -502,7 +501,6 @@ function EscalateModal({
     setBusy(true);
     const res = await supportOps.createEscalation(
       { ticketId: ticket.id, reason: reason.trim(), destination },
-      activeOfficer?.id,
     );
     setBusy(false);
     if (isSupportApiError(res)) {
@@ -579,7 +577,7 @@ function AssignModal({
   const submit = async () => {
     if (!officerId) return;
     setBusy(true);
-    const res = await supportOps.updateTicket(ticket.id, { assignedOfficerId: officerId }, activeOfficer?.id);
+    const res = await supportOps.updateTicket(ticket.id, { assignedOfficerId: officerId });
     setBusy(false);
     if (isSupportApiError(res)) {
       toast(supportErrorMessage(res), "error");
@@ -667,7 +665,7 @@ function Composer({
         macroId: selectedMacro?.id,
         internal: mode === "note",
       },
-      activeOfficer?.id,
+
       `msg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
     );
     setBusy(false);

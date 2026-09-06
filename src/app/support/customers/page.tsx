@@ -37,7 +37,7 @@ export default function CustomersPage() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const res = await supportOps.searchCustomers(q, activeOfficer?.id);
+    const res = await supportOps.searchCustomers(q);
     if (isSupportApiError(res)) {
       setError(res.message);
       setLoading(false);
@@ -45,7 +45,7 @@ export default function CustomersPage() {
     }
     setRows(res.items);
     setLoading(false);
-  }, [q, activeOfficer?.id]);
+  }, [q]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {

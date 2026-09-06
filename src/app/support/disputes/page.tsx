@@ -23,7 +23,7 @@ export default function DisputesPage() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const res = await supportOps.disputes(status ? { status } : {}, activeOfficer?.id);
+    const res = await supportOps.disputes(status ? { status } : {});
     if (isSupportApiError(res)) {
       setError(res.message);
       setLoading(false);
@@ -31,7 +31,7 @@ export default function DisputesPage() {
     }
     setRows(res.items);
     setLoading(false);
-  }, [status, activeOfficer?.id]);
+  }, [status]);
 
   useEffect(() => {
     if (isOnline) void load();

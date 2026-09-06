@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server";
 import { requireSupportAccess, operationalError } from "@/lib/support/supportApi";
 import { hasCapability } from "@/lib/support/SupportPermissions";
-import { SupportOpsEngine } from "@/lib/support/SupportOpsEngine";
 import { DisputeChargebackEngine } from "@/lib/recovery/DisputeChargebackEngine";
+import { listDisputeRows, disputeRowToDispute } from "@/lib/support/supportDb";
 import { createSuccessResponse } from "@/lib/security/apiResponse";
 
 export const dynamic = "force-dynamic";
@@ -10,8 +10,9 @@ export const dynamic = "force-dynamic";
 /**
  * GET /api/support/refunds
  * Refund & reversal surface (spec §31): support disputes carrying financial
- * decisions + the AUTHORITATIVE recovery cases from DisputeChargebackEngine.
- * Support only ever REQUESTS — execution state comes from the recovery engine.
+ * decisions (from the real support_disputes table) + the AUTHORITATIVE
+ * recovery cases from DisputeChargebackEngine. Support only ever REQUESTS —
+ * execution state comes from the recovery engine.
  */
 export async function GET(req: NextRequest) {
   const access = await requireSupportAccess(req, "support:read");
@@ -20,17 +21,16 @@ export async function GET(req: NextRequest) {
     return operationalError("FORBIDDEN", "Your role cannot view refund and reversal cases.", 403, access.ctx.requestId);
   }
 
-  const engine = SupportOpsEngine.getInstance();
-  const store = engine.getStore();
-
-  const supportDisputes = store.disputes.filter(
+  const rows = await listDisputeRows({ limit: 2000 });
+  const relevant = rows.filter(
     (d) =>
       d.category === "REFUND" ||
       d.category === "REVERSAL" ||
-      d.decision?.type === "REFUND_APPROVED" ||
-      d.decision?.type === "REVERSAL_APPROVED" ||
-      d.decision?.type === "PARTIAL_REFUND",
+      d.decision_type === "REFUND_APPROVED" ||
+      d.decision_type === "REVERSAL_APPROVED" ||
+      d.decision_type === "PARTIAL_REFUND",
   );
+  const disputes = await Promise.all(relevant.map((d) => disputeRowToDispute(d)));
 
   const recoveryCases = DisputeChargebackEngine.getInstance()
     .getDisputes()
@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
 
   return createSuccessResponse(
     {
-      items: supportDisputes.map((d) => ({
+      items: disputes.map((d) => ({
         disputeNumber: d.disputeNumber,
         id: d.id,
         category: d.category,

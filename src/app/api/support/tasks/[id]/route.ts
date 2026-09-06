@@ -1,9 +1,9 @@
 import { NextRequest } from "next/server";
 import { requireSupportAccess, operationalError } from "@/lib/support/supportApi";
 import { hasCapability } from "@/lib/support/SupportPermissions";
-import { SupportOpsEngine } from "@/lib/support/SupportOpsEngine";
 import { createSuccessResponse, createErrorResponse } from "@/lib/security/apiResponse";
 import { SupportTaskStatus } from "@/types/supportOps";
+import { getTaskRow, updateTaskRow, taskRowToTask, getOfficerRow } from "@/lib/support/supportDb";
 
 export const dynamic = "force-dynamic";
 
@@ -22,9 +22,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return operationalError("INVALID_JSON", "The request body must be valid JSON.", 400, access.ctx.requestId);
   }
 
-  const engine = SupportOpsEngine.getInstance();
-  const store = engine.getStore();
-  const existing = store.getTask(params.id);
+  const existing = await getTaskRow(params.id);
   if (!existing) {
     return createErrorResponse({
       code: "TASK_NOT_FOUND",
@@ -34,16 +32,23 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     });
   }
 
-  const updates: Parameters<typeof store.updateTask>[1] = {};
+  const updates: Record<string, unknown> = {};
   if (body.status) updates.status = body.status;
   if (body.title) updates.title = body.title;
-  if (body.dueAt) updates.dueAt = body.dueAt;
+  if (body.dueAt) updates.due_at = body.dueAt;
   if (body.assignedToId) {
-    const o = store.getOfficer(body.assignedToId);
+    const o = await getOfficerRow(body.assignedToId);
     if (!o) return operationalError("OFFICER_NOT_FOUND", "The assignee does not exist.", 422, access.ctx.requestId);
-    updates.assignedToId = o.id;
-    updates.assignedToName = o.fullName;
+    updates.assigned_to_officer_id = o.id;
   }
-  const updated = store.updateTask(params.id, updates);
-  return createSuccessResponse({ task: updated }, { requestId: access.ctx.requestId, code: "TASK_UPDATED" });
+  const updated = await updateTaskRow(params.id, updates);
+  if (!updated) {
+    return createErrorResponse({
+      code: "TASK_NOT_FOUND",
+      message: "This task no longer exists.",
+      requestId: access.ctx.requestId,
+      httpStatus: 404,
+    });
+  }
+  return createSuccessResponse({ task: await taskRowToTask(updated) }, { requestId: access.ctx.requestId, code: "TASK_UPDATED" });
 }

@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { requireSupportAccess, operationalError } from "@/lib/support/supportApi";
 import { hasCapability } from "@/lib/support/SupportPermissions";
-import { SupportOpsEngine } from "@/lib/support/SupportOpsEngine";
+import { getSupportOpsEngine } from "@/lib/support/SupportOpsEngine";
 import { createSuccessResponse } from "@/lib/security/apiResponse";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const results = SupportOpsEngine.getInstance().search(q);
+  const results = await getSupportOpsEngine().search(q);
   const role = access.ctx.actor.role;
 
   return createSuccessResponse(

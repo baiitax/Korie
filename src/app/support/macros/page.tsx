@@ -24,7 +24,7 @@ export default function MacrosPage() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const res = await supportOps.macros(activeOfficer?.id);
+    const res = await supportOps.macros();
     if (isSupportApiError(res)) {
       setError(res.message);
       setLoading(false);
@@ -32,7 +32,7 @@ export default function MacrosPage() {
     }
     setRows(res.items);
     setLoading(false);
-  }, [activeOfficer?.id]);
+  }, []);
 
   useEffect(() => {
     if (isOnline) void load();
@@ -88,7 +88,7 @@ export default function MacrosPage() {
                       </button>
                       <button
                         onClick={async () => {
-                          const res = await supportOps.updateMacro(m.id, { enabled: !m.enabled }, activeOfficer?.id);
+                          const res = await supportOps.updateMacro(m.id, { enabled: !m.enabled });
                           if (isSupportApiError(res)) {
                             toast(supportErrorMessage(res), "error");
                             return;
@@ -147,7 +147,7 @@ function MacroEditor({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const { t, activeOfficer, toast } = useSupportOps();
+  const { t, toast } = useSupportOps();
   const [name, setName] = useState(macro?.name ?? "");
   const [key, setKey] = useState(macro?.key ?? "");
   const [en, setEn] = useState(macro?.body.en ?? "");
@@ -170,11 +170,10 @@ function MacroEditor({
     setBusy(true);
     let res;
     if (macro) {
-      res = await supportOps.updateMacro(macro.id, { body: { en: en.trim(), fr: fr.trim() || en.trim(), ha: ha.trim() || en.trim() }, name: name.trim() }, activeOfficer?.id);
+      res = await supportOps.updateMacro(macro.id, { body: { en: en.trim(), fr: fr.trim() || en.trim(), ha: ha.trim() || en.trim() }, name: name.trim() });
     } else {
       res = await supportOps.createMacro(
         { key: key.trim() || `macro-${Date.now().toString(36)}`, name: name.trim(), body: { en: en.trim(), fr: fr.trim() || en.trim(), ha: ha.trim() || en.trim() }, category: "GENERAL" },
-        activeOfficer?.id,
       );
     }
     setBusy(false);

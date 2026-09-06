@@ -24,7 +24,7 @@ export default function TransactionsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const res = await supportOps.searchTransactions(q, activeOfficer?.id);
+    const res = await supportOps.searchTransactions(q);
     if (isSupportApiError(res)) {
       setError(res.message);
       setLoading(false);
@@ -32,7 +32,7 @@ export default function TransactionsPage() {
     }
     setRows(res.items);
     setLoading(false);
-  }, [q, activeOfficer?.id]);
+  }, [q]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {

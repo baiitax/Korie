@@ -42,7 +42,7 @@ export default function KnowledgePage() {
     const params: Record<string, string> = { lang };
     if (q) params.q = q;
     if (category) params.category = category;
-    const res = await supportOps.knowledge(params, activeOfficer?.id);
+    const res = await supportOps.knowledge(params);
     if (isSupportApiError(res)) {
       setError(res.message);
       setLoading(false);
@@ -50,7 +50,7 @@ export default function KnowledgePage() {
     }
     setRows(res.items);
     setLoading(false);
-  }, [q, category, lang, activeOfficer?.id]);
+  }, [q, category, lang]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {

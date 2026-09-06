@@ -26,7 +26,7 @@ export default function TasksPage() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const res = await supportOps.tasks({}, activeOfficer?.id);
+    const res = await supportOps.tasks({});
     if (isSupportApiError(res)) {
       setError(res.message);
       setLoading(false);
@@ -34,7 +34,7 @@ export default function TasksPage() {
     }
     setRows(res.items);
     setLoading(false);
-  }, [activeOfficer?.id]);
+  }, []);
 
   useEffect(() => {
     if (isOnline) void load();
@@ -46,11 +46,11 @@ export default function TasksPage() {
     if (view === "team") return rows.filter((x) => x.status !== "DONE");
     if (view === "overdue") return rows.filter((x) => x.overdue);
     return rows.filter((x) => x.status === "DONE");
-  }, [rows, view, activeOfficer?.id]);
+  }, [rows, view]);
 
   const setStatus = async (id: string, status: string) => {
     setBusyId(id);
-    const res = await supportOps.updateTask(id, { status }, activeOfficer?.id);
+    const res = await supportOps.updateTask(id, { status });
     setBusyId(null);
     if (isSupportApiError(res)) {
       toast(supportErrorMessage(res), "error");
@@ -182,7 +182,6 @@ function CreateTaskModal({ open, onClose, onCreated }: { open: boolean; onClose:
         dueAt: dueAt ? new Date(dueAt).toISOString() : new Date(Date.now() + 86400000).toISOString(),
         assignedToId: assignedToId || undefined,
       },
-      activeOfficer?.id,
     );
     setBusy(false);
     if (isSupportApiError(res)) {

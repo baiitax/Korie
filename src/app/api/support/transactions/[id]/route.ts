@@ -2,18 +2,24 @@ import { NextRequest } from "next/server";
 import { requireSupportAccess, operationalError } from "@/lib/support/supportApi";
 import { hasCapability } from "@/lib/support/SupportPermissions";
 import { resolveTransactionInvestigation } from "@/lib/support/SupportContexts";
-import { SupportOpsStore } from "@/lib/support/SupportOpsStore";
+import { insertAuditRow } from "@/lib/support/supportDb";
 import { createSuccessResponse, createErrorResponse } from "@/lib/security/apiResponse";
 
 export const dynamic = "force-dynamic";
 
+function auditId(): string {
+  return `AUD-SUP-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+}
+
 /**
  * GET /api/support/transactions/[id]
- * Transaction support detail (spec §25/§26/§27): authoritative status
- * (engine row wins), timeline, provider trace (references only — never keys
- * or headers), ledger state, related tickets & disputes. Provider trace
- * fields require the view_provider_trace capability; without it the provider
- * block is withheld (the transaction itself remains visible).
+ * Transaction support detail (spec §25/§26/§27), read from the SAME
+ * customer_transactions/agency_transactions tables the Customer/Agency
+ * portals write: authoritative status, an honest timeline built only from
+ * the row's own fields (no fabricated provider stages), provider reference
+ * (never keys/headers), and related tickets & disputes. Provider trace
+ * fields require the view_provider_trace capability; without it the
+ * provider block is withheld (the transaction itself remains visible).
  */
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const access = await requireSupportAccess(req, "support:read");
@@ -27,30 +33,28 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   if (!view) {
     return createErrorResponse({
       code: "TRANSACTION_NOT_FOUND",
-      message: "No transaction or provider trace exists for this reference.",
+      message: "No transaction exists for this reference.",
       requestId: access.ctx.requestId,
       httpStatus: 404,
     });
   }
 
   if (!canTrace && view.provider) {
-    const providerName = view.provider.node;
     return createSuccessResponse(
-      { ...view, provider: null, timeline: view.timeline, note: "Provider trace requires a senior role.", withheldProvider: providerName ? "withheld" : undefined },
+      { ...view, provider: null, note: "Provider trace requires a senior role." },
       { requestId: access.ctx.requestId },
     );
   }
 
-  if (canTrace) {
-    SupportOpsStore.getInstance().addAudit({
-      id: `AUD-SUP-${Date.now().toString(36).toUpperCase()}`,
-      timestamp: new Date().toISOString(),
-      officerId: access.ctx.actor.officerId,
-      officerName: access.ctx.actor.name,
-      officerRole: access.ctx.actor.role,
+  if (canTrace && view.provider) {
+    await insertAuditRow({
+      id: auditId(),
+      officer_id: access.ctx.actor.officerId,
+      officer_name: access.ctx.actor.name,
+      officer_role: access.ctx.actor.role,
       action: "PROVIDER_TRACE_VIEWED",
-      entityType: "TRANSACTION",
-      entityId: view.transactionId,
+      entity_type: "TRANSACTION",
+      entity_id: view.transactionId,
       details: `Viewed provider trace for ${view.reference} (${view.source}).`,
       jurisdiction: "CROSS_BORDER",
     });

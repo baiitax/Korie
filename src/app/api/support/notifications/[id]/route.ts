@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { requireSupportAccess, operationalError } from "@/lib/support/supportApi";
-import { SupportOpsStore } from "@/lib/support/SupportOpsStore";
+import { getNotificationRow, markNotificationReadForOfficer } from "@/lib/support/supportDb";
 import { createSuccessResponse, createErrorResponse } from "@/lib/security/apiResponse";
 
 export const dynamic = "force-dynamic";
@@ -16,8 +16,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   } catch {
     return operationalError("INVALID_JSON", "The request body must be valid JSON.", 400, access.ctx.requestId);
   }
-  const store = SupportOpsStore.getInstance();
-  const n = store.notifications.find((x) => x.id === params.id);
+  const n = await getNotificationRow(params.id);
   if (!n) {
     return createErrorResponse({
       code: "NOTIFICATION_NOT_FOUND",
@@ -26,6 +25,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       httpStatus: 404,
     });
   }
-  if (body.read) store.markNotificationRead(params.id);
-  return createSuccessResponse({ notification: n }, { requestId: access.ctx.requestId, code: "NOTIFICATION_UPDATED" });
+  if (body.read) await markNotificationReadForOfficer(params.id, access.ctx.actor.officerId);
+  return createSuccessResponse(
+    { notification: { id: n.id, type: n.type, title: n.title, body: n.body, ticketId: n.ticket_id ?? undefined, href: n.href ?? undefined, read: !!body.read, createdAt: n.created_at } },
+    { requestId: access.ctx.requestId, code: "NOTIFICATION_UPDATED" },
+  );
 }

@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
-import { requireSupportAccess, operationalError } from "@/lib/support/supportApi";
-import { SupportOpsStore } from "@/lib/support/SupportOpsStore";
+import { requireSupportAccess } from "@/lib/support/supportApi";
+import { notificationsForOfficer } from "@/lib/support/supportDb";
 import { createSuccessResponse } from "@/lib/security/apiResponse";
 
 export const dynamic = "force-dynamic";
@@ -11,12 +11,12 @@ export async function GET(req: NextRequest) {
   if (!access.ok) return access.response;
 
   const unread = req.nextUrl.searchParams.get("unread") === "1";
-  const store = SupportOpsStore.getInstance();
-  const rows = store.notificationsForOfficer(access.ctx.actor.officerId).filter((n) => (unread ? !n.read : true));
+  const [items, all] = await Promise.all([
+    notificationsForOfficer(access.ctx.actor.officerId, unread, 50),
+    notificationsForOfficer(access.ctx.actor.officerId, true, 200),
+  ]);
   return createSuccessResponse(
-    { items: rows.slice(0, 50), unreadCount: store.notificationsForOfficer(access.ctx.actor.officerId).filter((n) => !n.read).length },
+    { items, unreadCount: all.length },
     { requestId: access.ctx.requestId },
   );
 }
-
-void operationalError;

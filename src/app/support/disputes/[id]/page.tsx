@@ -58,7 +58,7 @@ export default function DisputeDetailPage() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const res = await supportOps.dispute(id, activeOfficer?.id);
+    const res = await supportOps.dispute(id);
     if (isSupportApiError(res)) {
       setError(res.message);
       setLoading(false);
@@ -66,7 +66,7 @@ export default function DisputeDetailPage() {
     }
     setDetail(res);
     setLoading(false);
-  }, [id, activeOfficer?.id]);
+  }, [id]);
 
   useEffect(() => {
     if (isOnline) void load();
@@ -196,7 +196,7 @@ export default function DisputeDetailPage() {
         dispute={d}
         onDecided={async () => {
           setDecisionOpen(false);
-          const res = await supportOps.dispute(id, activeOfficer?.id);
+          const res = await supportOps.dispute(id);
           if (!isSupportApiError(res)) setDetail(res);
         }}
       />
@@ -223,7 +223,7 @@ function DecisionModal({
   const submit = async () => {
     if (!reason.trim()) return;
     setBusy(true);
-    const res = await supportOps.decideDispute(dispute.id, { type, reason: reason.trim() }, activeOfficer?.id);
+    const res = await supportOps.decideDispute(dispute.id, { type, reason: reason.trim() });
     setBusy(false);
     if (isSupportApiError(res)) {
       const code = supportErrorCode(res);

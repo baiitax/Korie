@@ -12,7 +12,7 @@ import { useSupportOps } from "@/components/support/SupportOpsProvider";
 import { SectionCard, initials } from "@/components/support/SupportUI";
 
 export default function SupportSettingsPage() {
-  const { t, lang, setLang, theme, setTheme, activeOfficer, officers } = useSupportOps();
+  const { t, lang, setLang, theme, setTheme, activeOfficer, officers, signOut } = useSupportOps();
 
   if (!activeOfficer) {
     return (
@@ -102,6 +102,16 @@ export default function SupportSettingsPage() {
             {t("supportOps.header.dark")}
           </button>
         </div>
+      </SectionCard>
+
+      {/* Session */}
+      <SectionCard title={t("supportOps.settings.session")}>
+        <button
+          onClick={() => void signOut()}
+          className="rounded-[var(--support-radius-input)] border border-[var(--state-danger)]/40 bg-[var(--state-danger-soft)] px-4 py-2 text-xs font-extrabold text-[var(--state-danger)] transition-colors hover:bg-[var(--state-danger)]/20"
+        >
+          {t("supportOps.header.signOut")}
+        </button>
       </SectionCard>
     </div>
   );

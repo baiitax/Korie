@@ -39,7 +39,7 @@ export function RetainedModulePage({
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const res = await supportOps.retainedModules(activeOfficer?.id);
+    const res = await supportOps.retainedModules();
     if (isSupportApiError(res)) {
       setError(res.message);
       setLoading(false);
@@ -49,7 +49,7 @@ export function RetainedModulePage({
     if (Array.isArray(data)) setRows(data as Record<string, unknown>[]);
     else setRows(data ? [data as Record<string, unknown>] : []);
     setLoading(false);
-  }, [module, activeOfficer?.id]);
+  }, [module]);
 
   useEffect(() => {
     if (isOnline) void load();

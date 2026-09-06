@@ -1,10 +1,10 @@
 import { NextRequest } from "next/server";
 import { requireSupportAccess, operationalError } from "@/lib/support/supportApi";
-import { hasCapability } from "@/lib/support/SupportPermissions";
-import { SupportOpsEngine } from "@/lib/support/SupportOpsEngine";
+import { getSupportOpsEngine } from "@/lib/support/SupportOpsEngine";
 import { createSuccessResponse } from "@/lib/security/apiResponse";
 import { EscalationDestination } from "@/types/supportOps";
 import { TicketPriority } from "@/types/support";
+import { listEscalationRows, escalationRowToEscalation } from "@/lib/support/supportDb";
 
 export const dynamic = "force-dynamic";
 
@@ -16,13 +16,12 @@ export async function GET(req: NextRequest) {
   if (!access.ok) return access.response;
 
   const q = new URLSearchParams(req.nextUrl.search);
-  const status = q.get("status");
-  const destination = q.get("destination");
-  let rows = SupportOpsEngine.getInstance().getStore().escalations;
-  if (status) rows = rows.filter((e) => e.status === status);
-  if (destination) rows = rows.filter((e) => e.destination === destination);
+  const status = q.get("status") ?? undefined;
+  const destination = q.get("destination") ?? undefined;
+  const rows = await listEscalationRows({ status, destination });
+  const items = await Promise.all(rows.map((e) => escalationRowToEscalation(e)));
 
-  return createSuccessResponse({ items: rows, total: rows.length }, { requestId: access.ctx.requestId });
+  return createSuccessResponse({ items, total: items.length }, { requestId: access.ctx.requestId });
 }
 
 /**
@@ -48,8 +47,8 @@ export async function POST(req: NextRequest) {
     return operationalError("INVALID_JSON", "The request body must be valid JSON.", 400, access.ctx.requestId);
   }
 
-  const engine = SupportOpsEngine.getInstance();
-  const result = engine.createEscalation(
+  const engine = getSupportOpsEngine();
+  const result = await engine.createEscalation(
     {
       ticketId: body.ticketId ?? "",
       reason: body.reason ?? "",
@@ -66,5 +65,3 @@ export async function POST(req: NextRequest) {
   }
   return createSuccessResponse({ escalation: result.data }, { requestId: access.ctx.requestId, status: 201, code: "ESCALATION_CREATED" });
 }
-
-void hasCapability;

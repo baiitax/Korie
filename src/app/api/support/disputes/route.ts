@@ -1,10 +1,11 @@
 import { NextRequest } from "next/server";
 import { requireSupportAccess, operationalError } from "@/lib/support/supportApi";
 import { hasCapability } from "@/lib/support/SupportPermissions";
-import { SupportOpsEngine } from "@/lib/support/SupportOpsEngine";
+import { getSupportOpsEngine } from "@/lib/support/SupportOpsEngine";
 import { createSuccessResponse } from "@/lib/security/apiResponse";
 import { DisputeCategory } from "@/types/supportOps";
 import { TicketPriority } from "@/types/support";
+import { listDisputeRows, disputeRowToDispute } from "@/lib/support/supportDb";
 
 export const dynamic = "force-dynamic";
 
@@ -16,14 +17,13 @@ export async function GET(req: NextRequest) {
   if (!access.ok) return access.response;
 
   const q = new URLSearchParams(req.nextUrl.search);
-  const status = q.get("status");
-  const category = q.get("category");
-  let rows = SupportOpsEngine.getInstance().getStore().disputes;
-  if (status) rows = rows.filter((d) => d.status === status);
-  if (category) rows = rows.filter((d) => d.category === category);
+  const status = q.get("status") ?? undefined;
+  const category = q.get("category") ?? undefined;
+  const rows = await listDisputeRows({ status, category, limit: 500 });
+  const items = await Promise.all(rows.map((d) => disputeRowToDispute(d)));
 
   return createSuccessResponse(
-    { items: rows, total: rows.length },
+    { items, total: items.length },
     { requestId: access.ctx.requestId },
   );
 }
@@ -58,8 +58,8 @@ export async function POST(req: NextRequest) {
     return operationalError("INVALID_JSON", "The request body must be valid JSON.", 400, access.ctx.requestId);
   }
 
-  const engine = SupportOpsEngine.getInstance();
-  const result = engine.createDispute(
+  const engine = getSupportOpsEngine();
+  const result = await engine.createDispute(
     {
       ticketId: body.ticketId,
       category: body.category ?? "OTHER",

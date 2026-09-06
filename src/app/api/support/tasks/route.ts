@@ -1,10 +1,10 @@
 import { NextRequest } from "next/server";
 import { requireSupportAccess, operationalError } from "@/lib/support/supportApi";
 import { hasCapability } from "@/lib/support/SupportPermissions";
-import { SupportOpsEngine } from "@/lib/support/SupportOpsEngine";
+import { getSupportOpsEngine } from "@/lib/support/SupportOpsEngine";
 import { createSuccessResponse } from "@/lib/security/apiResponse";
-import { SupportTaskStatus } from "@/types/supportOps";
 import { TicketPriority } from "@/types/support";
+import { listTaskRows, taskRowToTask } from "@/lib/support/supportDb";
 
 export const dynamic = "force-dynamic";
 
@@ -17,16 +17,16 @@ export async function GET(req: NextRequest) {
 
   const q = new URLSearchParams(req.nextUrl.search);
   const assignee = q.get("assignee");
-  const status = q.get("status");
-  let rows = SupportOpsEngine.getInstance().getStore().tasks;
-  if (assignee === "me") rows = rows.filter((t) => t.assignedToId === access.ctx.actor.officerId);
-  else if (assignee) rows = rows.filter((t) => t.assignedToId === assignee);
-  if (status) rows = rows.filter((t) => t.status === status);
+  const status = q.get("status") ?? undefined;
+  const assignedToId = assignee === "me" ? access.ctx.actor.officerId : assignee ?? undefined;
+
+  const rows = await listTaskRows({ assignedToId, status });
+  const items = await Promise.all(rows.map((t) => taskRowToTask(t)));
 
   const now = Date.now();
   return createSuccessResponse(
     {
-      items: rows.map((t) => ({
+      items: items.map((t) => ({
         ...t,
         overdue: t.status !== "DONE" && new Date(t.dueAt).getTime() < now,
       })),
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
   if (!body.title || !body.title.trim()) {
     return operationalError("VALIDATION_FAILED", "Task title is required.", 422, access.ctx.requestId);
   }
-  const result = SupportOpsEngine.getInstance().addTask(
+  const result = await getSupportOpsEngine().addTask(
     { ...body, title: body.title },
     access.ctx.actor,
   );

@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { requireSupportAccess, operationalError } from "@/lib/support/supportApi";
-import { SupportOpsEngine } from "@/lib/support/SupportOpsEngine";
+import { getSupportOpsEngine } from "@/lib/support/SupportOpsEngine";
 import { createSuccessResponse } from "@/lib/security/apiResponse";
 import { ArticleLanguage } from "@/types/supportOps";
 
@@ -24,8 +24,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return operationalError("VALIDATION_FAILED", "rating must be an integer from 1 to 5.", 422, access.ctx.requestId);
   }
 
-  const engine = SupportOpsEngine.getInstance();
-  const result = engine.submitCsat(params.id, {
+  const engine = getSupportOpsEngine();
+  const result = await engine.submitCsat(params.id, {
     rating: body.rating as 1 | 2 | 3 | 4 | 5,
     comment: body.comment,
     language: body.language,

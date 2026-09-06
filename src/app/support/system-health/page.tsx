@@ -23,7 +23,7 @@ export default function SystemHealthPage() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const res = await supportOps.health(activeOfficer?.id);
+    const res = await supportOps.health();
     if (isSupportApiError(res)) {
       setError(res.message);
       setLoading(false);
@@ -31,7 +31,7 @@ export default function SystemHealthPage() {
     }
     setItems(res.items);
     setLoading(false);
-  }, [activeOfficer?.id]);
+  }, []);
 
   useEffect(() => {
     if (isOnline) void load();

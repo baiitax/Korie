@@ -32,7 +32,7 @@ export default function NotificationsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const res = await supportOps.notifications(activeOfficer?.id);
+    const res = await supportOps.notifications();
     if (isSupportApiError(res)) {
       setError(res.message);
       setLoading(false);
@@ -40,7 +40,7 @@ export default function NotificationsPage() {
     }
     setRows(res.items);
     setLoading(false);
-  }, [activeOfficer?.id]);
+  }, []);
 
   useEffect(() => {
     if (isOnline) void load();
@@ -49,7 +49,7 @@ export default function NotificationsPage() {
   const markAll = async () => {
     if (!rows) return;
     for (const n of rows.filter((x) => !x.read)) {
-      await supportOps.markNotificationRead(n.id, activeOfficer?.id);
+      await supportOps.markNotificationRead(n.id);
     }
     setRows((prev) => (prev ? prev.map((n) => ({ ...n, read: true })) : prev));
     toast(t("supportOps.toasts.notificationRead"), "info");
@@ -84,7 +84,7 @@ export default function NotificationsPage() {
               key={n.id}
               onClick={async () => {
                 if (!n.read) {
-                  await supportOps.markNotificationRead(n.id, activeOfficer?.id);
+                  await supportOps.markNotificationRead(n.id);
                   setRows((prev) => (prev ? prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)) : prev));
                 }
                 if (n.link) window.location.href = n.link;

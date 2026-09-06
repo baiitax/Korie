@@ -2,28 +2,22 @@
 // File: src/lib/support/supportApi.ts
 // Description: Shared plumbing for /api/support/* routes.
 //
-// Security model (spec §54/§91):
-//   1. Key auth   — authenticateApiRequest (Bearer kp_test_*/kp_live_*, scopes).
-//   2. Officer    — asserted via x-kp-support-officer and VALIDATED against
-//                   the officer roster. The server, never the browser, decides
-//                   which capabilities exist for that officer (RBAC).
-//   3. Auditing   — sensitive actions append support audit + global AuditService.
-//
-// In a production deployment step 2 resolves from the signed-in session
-// (Supabase auth user → support roster membership). The sandbox has no
-// per-officer session, so the header stands in — every downstream permission
-// check is identical.
+// Security model (spec §54/§91), NOW REAL:
+//   1. Session  — authenticateSupportOfficerRequest validates a real Supabase
+//      access token (issued by supabase.auth.signInWithPassword on the
+//      client) and resolves the caller's public.support_officers row. There
+//      is no client-asserted officer identity anymore — the browser cannot
+//      widen its own access by sending a different header.
+//   2. RBAC     — capabilities are derived from the resolved officer's role,
+//      exactly as before (SupportPermissions.hasCapability).
+//   3. Auditing — sensitive actions append support_audit_log rows.
 // =============================================================================
 
 import { NextRequest } from "next/server";
-import { authenticateApiRequest } from "@/lib/security/authMiddleware";
 import { createErrorResponse } from "@/lib/security/apiResponse";
-import { SupportOpsStore } from "./SupportOpsStore";
+import { authenticateSupportOfficerRequest } from "@/lib/security/supportOfficerAuth";
 import { SupportActor } from "./SupportOpsEngine";
 import { SupportOfficer } from "@/types/support";
-
-/** Sandbox default: a TIER-2 senior — enough to see most, never manager-only. */
-const DEFAULT_SANDBOX_OFFICER_ID = "OFF-SUP-03";
 
 export interface SupportApiContext {
   officer: SupportOfficer;
@@ -34,52 +28,50 @@ export interface SupportApiContext {
 
 export async function requireSupportAccess(
   req: NextRequest,
-  scope: "support:read" | "support:write" | "support:finance" = "support:read",
+  _scope: "support:read" | "support:write" | "support:finance" = "support:read",
 ): Promise<{ ok: true; ctx: SupportApiContext } | { ok: false; response: ReturnType<typeof createErrorResponse> }> {
-  const auth = await authenticateApiRequest(req, [scope]);
-  if (!auth.isAuthenticated || !auth.context) {
+  void _scope; // scope enforcement now happens per-capability (hasCapability), not per-key.
+
+  const auth = await authenticateSupportOfficerRequest(req);
+  if (!auth.isAuthenticated || !auth.officer) {
     return {
       ok: false,
       response: createErrorResponse({
         code: auth.errorCode || "UNAUTHORIZED",
-        message: "Support access requires a valid KoriePay API credential.",
-        requestId: auth.context?.requestId,
+        message: auth.errorMessage || "Support access requires a valid KoriePay session.",
         httpStatus: auth.httpStatus || 401,
       }),
     };
   }
 
-  const store = SupportOpsStore.getInstance();
-  const officerId = req.headers.get("x-kp-support-officer") || DEFAULT_SANDBOX_OFFICER_ID;
-  let officer = store.getOfficer(officerId);
-  if (!officer) {
-    // Unknown/rogue officer id must never widen access — fall back to the
-    // least-privileged sandbox identity, not the most privileged.
-    officer = store.getOfficer("OFF-SUP-08") ?? store.getOfficer(DEFAULT_SANDBOX_OFFICER_ID);
-  }
-  if (!officer) {
-    return {
-      ok: false,
-      response: createErrorResponse({
-        code: "SUPPORT_ROSTER_UNAVAILABLE",
-        message: "The support roster is unavailable. No officer could be resolved.",
-        httpStatus: 503,
-      }),
-    };
-  }
+  const officer: SupportOfficer = {
+    id: auth.officer.officerId,
+    fullName: auth.officer.fullName,
+    email: auth.officer.email,
+    role: auth.officer.role,
+    tier: auth.officer.tier as SupportOfficer["tier"],
+    jurisdiction: auth.officer.jurisdiction,
+    languages: auth.officer.languages as SupportOfficer["languages"],
+    activeTicketCount: 0, // computed on demand by /api/support/officers, not carried on the session
+    maxCapacity: auth.officer.maxCapacity,
+    status: auth.officer.status,
+    qaScore: auth.officer.qaScore,
+    skills: auth.officer.skills,
+    joinedDate: auth.officer.joinedDate,
+  };
 
   return {
     ok: true,
     ctx: {
       officer,
       actor: {
-        officerId: officer.id,
-        name: officer.fullName,
-        role: officer.role,
-        requestId: auth.context.requestId,
+        officerId: auth.officer.officerId,
+        name: auth.officer.fullName,
+        role: auth.officer.role,
+        requestId: auth.officer.requestId,
       },
-      requestId: auth.context.requestId,
-      correlationId: auth.context.correlationId,
+      requestId: auth.officer.requestId,
+      correlationId: req.headers.get("x-kp-correlation-id") || auth.officer.requestId,
     },
   };
 }

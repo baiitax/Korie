@@ -1,8 +1,9 @@
 import { NextRequest } from "next/server";
 import { requireSupportAccess, operationalError } from "@/lib/support/supportApi";
-import { SupportOpsEngine } from "@/lib/support/SupportOpsEngine";
+import { getSupportOpsEngine } from "@/lib/support/SupportOpsEngine";
 import { createSuccessResponse } from "@/lib/security/apiResponse";
 import { TicketMessage } from "@/types/support";
+import { getTicketRow, ticketRowToTicket, listMessagesForTicket, messageRowToMessage } from "@/lib/support/supportDb";
 
 export const dynamic = "force-dynamic";
 
@@ -27,8 +28,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return operationalError("INVALID_JSON", "The request body must be valid JSON.", 400, access.ctx.requestId);
   }
 
-  const engine = SupportOpsEngine.getInstance();
-  const result = engine.addMessage(
+  const engine = getSupportOpsEngine();
+  const result = await engine.addMessage(
     params.id,
     {
       content: body.content ?? "",
@@ -47,9 +48,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   // Re-read so the response includes the refreshed SLA + message count.
-  const ticket = engine.getStore().getTicket(params.id)!;
+  const row = await getTicketRow(params.id);
+  const messages = row ? (await listMessagesForTicket(row.id)).map(messageRowToMessage) : [];
+  const ticket = row ? await ticketRowToTicket(row, messages) : null;
   return createSuccessResponse(
-    { message: result.data as TicketMessage, ticket, sla: engine.computeSla(ticket) },
+    { message: result.data as TicketMessage, ticket, sla: ticket && row ? engine.computeSla(ticket, Number(row.resolution_paused_ms ?? 0), row.resolution_paused_since ?? undefined) : undefined },
     { requestId: access.ctx.requestId, status: 201, code: "MESSAGE_POSTED" },
   );
 }

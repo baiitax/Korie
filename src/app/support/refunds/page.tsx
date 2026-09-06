@@ -47,7 +47,7 @@ export default function RefundsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const res = await supportOps.refunds(activeOfficer?.id);
+    const res = await supportOps.refunds();
     if (isSupportApiError(res)) {
       setError(res.message);
       setLoading(false);
@@ -55,7 +55,7 @@ export default function RefundsPage() {
     }
     setData(res);
     setLoading(false);
-  }, [activeOfficer?.id]);
+  }, []);
 
   useEffect(() => {
     if (isOnline) void load();

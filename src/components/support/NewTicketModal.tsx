@@ -65,7 +65,6 @@ export function NewTicketModal({
         language,
         channel: "IN_APP",
       },
-      activeOfficer?.id,
       `web-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
     );
     setBusy(false);

@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
-import { requireSupportAccess, operationalError } from "@/lib/support/supportApi";
-import { SupportOpsEngine } from "@/lib/support/SupportOpsEngine";
+import { requireSupportAccess } from "@/lib/support/supportApi";
 import { createSuccessResponse, createErrorResponse } from "@/lib/security/apiResponse";
+import { getKnowledgeRow, knowledgeRowToArticle } from "@/lib/support/supportDb";
 
 export const dynamic = "force-dynamic";
 
@@ -11,8 +11,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   if (!access.ok) return access.response;
 
   const lang = (req.nextUrl.searchParams.get("lang") ?? "en") as "en" | "fr" | "ha";
-  const article = SupportOpsEngine.getInstance().getStore().getKnowledge(params.id);
-  if (!article) {
+  const row = await getKnowledgeRow(params.id);
+  if (!row) {
     return createErrorResponse({
       code: "KNOWLEDGE_NOT_FOUND",
       message: "This article does not exist.",
@@ -20,6 +20,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       httpStatus: 404,
     });
   }
+  const article = knowledgeRowToArticle(row);
   return createSuccessResponse(
     { ...article, body: article.body[lang] ?? article.body.en },
     { requestId: access.ctx.requestId },

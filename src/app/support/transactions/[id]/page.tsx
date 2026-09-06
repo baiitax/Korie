@@ -35,7 +35,7 @@ export default function TransactionDetailPage() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const res = await supportOps.transaction(id, activeOfficer?.id);
+    const res = await supportOps.transaction(id);
     if (isSupportApiError(res)) {
       setError(res.message);
       setLoading(false);
@@ -43,7 +43,7 @@ export default function TransactionDetailPage() {
     }
     setView(res);
     setLoading(false);
-  }, [id, activeOfficer?.id]);
+  }, [id]);
 
   useEffect(() => {
     if (isOnline) void load();

@@ -2596,6 +2596,7 @@ export const ha = {
       searchPlaceholder: "Bincika abokin ciniki, tiketi, mafaruka… (⌘K)",
       notifications: "Sanarwa",
       switchOfficer: "Yin aiki a matsayin",
+      signOut: "Fita",
       language: "Harshe",
       theme: "Launi",
       light: "Haske",
@@ -3054,6 +3055,7 @@ export const ha = {
       languageHint: "Yana aiki a KoriePay gaba ɗaya. Ana kai bayani cikin harshe da aka zaba.",
       permissionsHint: "Na'a ita ce ke tsaka. Ba za ka iya ba wa ka kansa izini a nan ba.",
       officer: "Mai taimako",
+      session: "Zama",
     },
     search: {
       title: "Bincike",

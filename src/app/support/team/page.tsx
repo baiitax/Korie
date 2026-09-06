@@ -14,7 +14,7 @@ export default function TeamPage() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const res = await supportOps.officers(activeOfficer?.id);
+    const res = await supportOps.officers();
     if (isSupportApiError(res)) {
       setError(res.message);
       setLoading(false);
@@ -22,7 +22,7 @@ export default function TeamPage() {
     }
     setRows(res.items);
     setLoading(false);
-  }, [activeOfficer?.id]);
+  }, []);
 
   useEffect(() => {
     if (isOnline) void load();

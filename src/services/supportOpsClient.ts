@@ -6,16 +6,16 @@
 // The server is the ONLY place business rules live (SLA, RBAC, lifecycle,
 // PII masking, recovery handoff). React holds no business logic.
 //
-// Credentials: the platform sandbox key (same pattern as
-// customerPortalClient) — the support API enforces its own officer RBAC on
-// top of the key, asserted per request via x-kp-support-officer.
+// Credentials: every request carries the caller's real, verified Supabase
+// access token (see src/lib/support/officerSession.ts). There is no
+// client-asserted officer identity header anymore — the server resolves
+// "who is acting" from public.support_officers via the token, exactly like
+// the customer and agency portals.
 // =============================================================================
 
 import { createErrorResponse, createSuccessResponse } from "@/lib/security/apiResponse";
 import type { NextRequest } from "next/server";
-
-export const DEFAULT_SUPPORT_TOKEN = "kp_test_cdb3db2b9b22a98c9c1b";
-export const DEFAULT_SUPPORT_OFFICER = "OFF-SUP-04"; // Amina Yusuf — SUPERVISOR
+import { getSupportOfficerAccessToken } from "@/lib/support/officerSession";
 
 /* ----------------------------------------------- Envelope (mirrors server) */
 
@@ -41,7 +41,6 @@ function isSupportError(value: SupportResult<unknown>): value is SupportError {
 /* --------------------------------------- Request plumbing (spec §72/§73) */
 
 export interface SupportRequestOptions {
-  officerId?: string;
   idempotencyKey?: string;
   signal?: AbortSignal;
 }
@@ -67,10 +66,14 @@ function apiError(code: string, message: string, requestId?: string): SupportApi
 }
 
 async function supportFetch<T>(path: string, init: RequestInit, opts: SupportRequestOptions = {}): Promise<T | SupportApiError> {
+  const token = await getSupportOfficerAccessToken();
+  if (!token) {
+    return apiError("UNAUTHORIZED_MISSING_TOKEN", "Your support session has expired. Please sign in again.");
+  }
+
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${DEFAULT_SUPPORT_TOKEN}`,
-    "x-kp-support-officer": opts.officerId || DEFAULT_SUPPORT_OFFICER,
+    Authorization: `Bearer ${token}`,
     "x-kp-request-id": `KP-REQ-BROWSER-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
     "x-kp-correlation-id": `KP-COR-BROWSER-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
   };
@@ -369,29 +372,32 @@ export interface RetainedModulesDto {
 /* -------------------------------------------------------------- API map */
 
 export const supportOps = {
-  overview: (range: "24H" | "7D" | "30D" | "90D" = "24H", officerId?: string) =>
-    supportFetch<OverviewDto>(`/api/support/overview?range=${range}`, { method: "GET" }, { officerId }),
+  overview: (range: "24H" | "7D" | "30D" | "90D" = "24H") =>
+    supportFetch<OverviewDto>(`/api/support/overview?range=${range}`, { method: "GET" }),
 
-  officers: (officerId?: string) =>
-    supportFetch<{ items: SupportOfficerDto[] }>("/api/support/officers", { method: "GET" }, { officerId }),
+  /** The signed-in officer's own profile, resolved server-side from the
+   * verified Supabase session — never a client-picked identity. */
+  me: () => supportFetch<{ officer: SupportOfficerDto }>("/api/support/me", { method: "GET" }),
 
-  tickets: (params: Record<string, string>, officerId?: string) => {
+  officers: () =>
+    supportFetch<{ items: SupportOfficerDto[] }>("/api/support/officers", { method: "GET" }),
+
+  tickets: (params: Record<string, string>) => {
     const qs = new URLSearchParams(params).toString();
     return supportFetch<{ items: TicketDto[]; total: number; limit: number; hasMore: boolean }>(
       `/api/support/tickets?${qs}`,
       { method: "GET" },
-      { officerId },
     );
   },
 
-  createTicket: (payload: Record<string, unknown>, officerId?: string, idempotencyKey?: string) =>
+  createTicket: (payload: Record<string, unknown>, idempotencyKey?: string) =>
     supportFetch<{ ticket: TicketDto; duplicates: TicketDto[]; autoAssignedTo?: string }>(
       "/api/support/tickets",
       { method: "POST", body: JSON.stringify(payload) },
-      { officerId, idempotencyKey },
+      { idempotencyKey },
     ),
 
-  ticket: (id: string, officerId?: string) =>
+  ticket: (id: string) =>
     supportFetch<{
       ticket: TicketDto;
       sla: SlaDto;
@@ -402,188 +408,165 @@ export const supportOps = {
       relatedTickets: TicketDto[];
       allowedTransitions: string[];
       capabilities: Record<string, boolean>;
-    }>(`/api/support/tickets/${encodeURIComponent(id)}`, { method: "GET" }, { officerId }),
+    }>(`/api/support/tickets/${encodeURIComponent(id)}`, { method: "GET" }),
 
   updateTicket: (
     id: string,
     patch: { status?: string; priority?: string; assignedOfficerId?: string; reason?: string; rootCause?: string },
-    officerId?: string,
   ) =>
     supportFetch<{ ticket: TicketDto }>(
       `/api/support/tickets/${encodeURIComponent(id)}`,
       { method: "PATCH", body: JSON.stringify(patch) },
-      { officerId },
     ),
 
   postMessage: (
     id: string,
     body: { content: string; internal?: boolean; macroId?: string; senderType?: "AGENT" | "CUSTOMER" },
-    officerId?: string,
     idempotencyKey?: string,
   ) =>
     supportFetch<{ message: TicketDto["messages"] extends (infer M)[] | undefined ? M : never; ticket: TicketDto; sla: SlaDto }>(
       `/api/support/tickets/${encodeURIComponent(id)}/messages`,
       { method: "POST", body: JSON.stringify(body) },
-      { officerId, idempotencyKey },
+      { idempotencyKey },
     ),
 
-  submitCsat: (id: string, body: { rating: number; comment?: string; language?: string }, officerId?: string) =>
+  submitCsat: (id: string, body: { rating: number; comment?: string; language?: string }) =>
     supportFetch<{ record: { ticketId: string; rating: number } }>(
       `/api/support/tickets/${encodeURIComponent(id)}/csat`,
       { method: "POST", body: JSON.stringify(body) },
-      { officerId },
     ),
 
-  searchCustomers: (q: string, officerId?: string) =>
+  searchCustomers: (q: string) =>
     supportFetch<{ items: { id: string; name: string; country: string; status: string; kycTier: string; riskLevel: string; source: string; openTickets: number }[] }>(
       `/api/support/customers?q=${encodeURIComponent(q)}`,
       { method: "GET" },
-      { officerId },
     ),
 
-  customer360: (id: string, officerId?: string, unmask = false) =>
+  customer360: (id: string, unmask = false) =>
     supportFetch<Customer360Dto>(
       `/api/support/customers/${encodeURIComponent(id)}${unmask ? "?unmask=1" : ""}`,
       { method: "GET" },
-      { officerId },
     ),
 
-  searchTransactions: (q: string, officerId?: string) =>
+  searchTransactions: (q: string) =>
     supportFetch<{ items: { transactionId: string; reference: string; amount: number; currency: string; status: string; timestamp: string; origin: string; destination: string }[] }>(
       `/api/support/transactions?q=${encodeURIComponent(q)}`,
       { method: "GET" },
-      { officerId },
     ),
 
-  transaction: (id: string, officerId?: string) =>
+  transaction: (id: string) =>
     supportFetch<TransactionInvestigationDto>(
       `/api/support/transactions/${encodeURIComponent(id)}`,
       { method: "GET" },
-      { officerId },
     ),
 
-  disputes: (params: Record<string, string> = {}, officerId?: string) => {
+  disputes: (params: Record<string, string> = {}) => {
     const qs = new URLSearchParams(params).toString();
     return supportFetch<{ items: DisputeDto[]; total: number }>(
       `/api/support/disputes${qs ? `?${qs}` : ""}`,
       { method: "GET" },
-      { officerId },
     );
   },
 
-  dispute: (id: string, officerId?: string) =>
+  dispute: (id: string) =>
     supportFetch<{ dispute: DisputeDto; ticket?: TicketDto }>(
       `/api/support/disputes/${encodeURIComponent(id)}`,
       { method: "GET" },
-      { officerId },
     ),
 
-  decideDispute: (id: string, decision: { type: string; reason: string }, officerId?: string) =>
+  decideDispute: (id: string, decision: { type: string; reason: string }) =>
     supportFetch<{ dispute: DisputeDto }>(
       `/api/support/disputes/${encodeURIComponent(id)}`,
       { method: "PATCH", body: JSON.stringify({ decision }) },
-      { officerId },
     ),
 
-  advanceDispute: (id: string, status: string, detail?: string, officerId?: string) =>
+  advanceDispute: (id: string, status: string, detail?: string) =>
     supportFetch<{ dispute: DisputeDto }>(
       `/api/support/disputes/${encodeURIComponent(id)}`,
       { method: "PATCH", body: JSON.stringify({ status, detail }) },
-      { officerId },
     ),
 
-  refunds: (officerId?: string) =>
+  refunds: () =>
     supportFetch<{
       items: { disputeNumber: string; id: string; category: string; status: string; customerName: string; transactionReference: string; amount: number; currency: string; decision?: { type: string; reason: string }; recoveryCaseReference?: string; createdAt: string }[];
       recoveryCases: { id: string; reference: string; transactionReference: string; claimantName: string; category: string; amount: number; currency: string; priority: string; status: string; heldReserve: number; outcome?: string; createdAt: string }[];
-    }>("/api/support/refunds", { method: "GET" }, { officerId }),
+    }>("/api/support/refunds", { method: "GET" }),
 
-  escalations: (params: Record<string, string> = {}, officerId?: string) => {
+  escalations: (params: Record<string, string> = {}) => {
     const qs = new URLSearchParams(params).toString();
     return supportFetch<{ items: EscalationDto[]; total: number }>(
       `/api/support/escalations${qs ? `?${qs}` : ""}`,
       { method: "GET" },
-      { officerId },
     );
   },
 
-  escalation: (id: string, officerId?: string) =>
+  escalation: (id: string) =>
     supportFetch<{ escalation: EscalationDto; ticket?: TicketDto }>(
       `/api/support/escalations/${encodeURIComponent(id)}`,
       { method: "GET" },
-      { officerId },
     ),
 
-  updateEscalation: (id: string, patch: { status?: string; resolutionNote?: string }, officerId?: string) =>
+  updateEscalation: (id: string, patch: { status?: string; resolutionNote?: string }) =>
     supportFetch<{ escalation: EscalationDto }>(
       `/api/support/escalations/${encodeURIComponent(id)}`,
       { method: "PATCH", body: JSON.stringify(patch) },
-      { officerId },
     ),
 
-  createEscalation: (payload: { ticketId: string; reason: string; destination: string; priority?: string; assignedToName?: string }, officerId?: string) =>
+  createEscalation: (payload: { ticketId: string; reason: string; destination: string; priority?: string; assignedToName?: string }) =>
     supportFetch<{ escalation: EscalationDto }>(
       "/api/support/escalations",
       { method: "POST", body: JSON.stringify(payload) },
-      { officerId },
     ),
 
-  tasks: (params: Record<string, string> = {}, officerId?: string) => {
+  tasks: (params: Record<string, string> = {}) => {
     const qs = new URLSearchParams(params).toString();
     return supportFetch<{ items: SupportTaskDto[] }>(
       `/api/support/tasks${qs ? `?${qs}` : ""}`,
       { method: "GET" },
-      { officerId },
     );
   },
 
-  createTask: (payload: { title: string; description?: string; priority?: string; dueAt?: string; assignedToId?: string; ticketId?: string; customerId?: string }, officerId?: string) =>
-    supportFetch<{ task: SupportTaskDto }>("/api/support/tasks", { method: "POST", body: JSON.stringify(payload) }, { officerId }),
+  createTask: (payload: { title: string; description?: string; priority?: string; dueAt?: string; assignedToId?: string; ticketId?: string; customerId?: string }) =>
+    supportFetch<{ task: SupportTaskDto }>("/api/support/tasks", { method: "POST", body: JSON.stringify(payload) }),
 
-  updateTask: (id: string, patch: { status?: string; title?: string; dueAt?: string; assignedToId?: string }, officerId?: string) =>
+  updateTask: (id: string, patch: { status?: string; title?: string; dueAt?: string; assignedToId?: string }) =>
     supportFetch<{ task: SupportTaskDto }>(
       `/api/support/tasks/${encodeURIComponent(id)}`,
       { method: "PATCH", body: JSON.stringify(patch) },
-      { officerId },
     ),
 
-  knowledge: (params: Record<string, string> = {}, officerId?: string) => {
+  knowledge: (params: Record<string, string> = {}) => {
     const qs = new URLSearchParams(params).toString();
     return supportFetch<{ lang: string; items: KnowledgeDto[] }>(
       `/api/support/knowledge${qs ? `?${qs}` : ""}`,
       { method: "GET" },
-      { officerId },
     );
   },
 
-  knowledgeArticle: (id: string, lang: string, officerId?: string) =>
+  knowledgeArticle: (id: string, lang: string) =>
     supportFetch<KnowledgeDto>(
       `/api/support/knowledge/${encodeURIComponent(id)}?lang=${lang}`,
       { method: "GET" },
-      { officerId },
     ),
 
-  macros: (officerId?: string) =>
-    supportFetch<{ items: MacroDto[] }>("/api/support/macros", { method: "GET" }, { officerId }),
+  macros: () =>
+    supportFetch<{ items: MacroDto[] }>("/api/support/macros", { method: "GET" }),
 
   createMacro: (
     payload: { key: string; name: string; body: { en: string; fr: string; ha: string }; category?: string; variables?: string[] },
-    officerId?: string,
   ) =>
-    supportFetch<{ macro: MacroDto }>("/api/support/macros", { method: "POST", body: JSON.stringify(payload) }, { officerId }),
+    supportFetch<{ macro: MacroDto }>("/api/support/macros", { method: "POST", body: JSON.stringify(payload) }),
 
   updateMacro: (
     id: string,
     patch: { body?: { en?: string; fr?: string; ha?: string }; enabled?: boolean; name?: string },
-    officerId?: string,
   ) =>
     supportFetch<{ macro: MacroDto }>(
       `/api/support/macros/${encodeURIComponent(id)}`,
       { method: "PATCH", body: JSON.stringify(patch) },
-      { officerId },
     ),
 
-  analytics: (officerId?: string) =>
+  analytics: () =>
     supportFetch<{
       generatedAt: string;
       range: string;
@@ -593,35 +576,32 @@ export const supportOps = {
       csat: { average: number | null; count: number; distribution: Record<string, number>; byLanguage: { language: string; average: number | null; count: number }[] };
       escalations: { total: number; open: number; byDestination: { destination: string; label: string; count: number }[]; resolutionRate: number };
       reopens: { total: number; rate: number };
-    }>("/api/support/analytics", { method: "GET" }, { officerId }),
+    }>("/api/support/analytics", { method: "GET" }),
 
-  audit: (params: Record<string, string> = {}, officerId?: string) => {
+  audit: (params: Record<string, string> = {}) => {
     const qs = new URLSearchParams(params).toString();
     return supportFetch<{ items: { id: string; timestamp: string; officerId: string; officerName: string; officerRole: string; action: string; entityType: string; entityId: string; details: string; jurisdiction: string }[]; total: number }>(
       `/api/support/audit${qs ? `?${qs}` : ""}`,
       { method: "GET" },
-      { officerId },
     );
   },
 
-  notifications: (officerId?: string, unreadOnly = false) =>
+  notifications: (unreadOnly = false) =>
     supportFetch<{ items: { id: string; officerId: string; type: string; title: string; body: string; link?: string; read: boolean; createdAt: string }[]; unreadCount: number }>(
       `/api/support/notifications${unreadOnly ? "?unread=1" : ""}`,
       { method: "GET" },
-      { officerId },
     ),
 
-  markNotificationRead: (id: string, officerId?: string) =>
+  markNotificationRead: (id: string) =>
     supportFetch<{ notification: { id: string } }>(
       `/api/support/notifications/${encodeURIComponent(id)}`,
       { method: "PATCH", body: JSON.stringify({ read: true }) },
-      { officerId },
     ),
 
-  health: (officerId?: string) =>
-    supportFetch<{ items: { key: string; label: string; status: string; detail: string; checkedAt: string }[] }>("/api/support/health", { method: "GET" }, { officerId }),
+  health: () =>
+    supportFetch<{ items: { key: string; label: string; status: string; detail: string; checkedAt: string }[] }>("/api/support/health", { method: "GET" }),
 
-  search: (q: string, officerId?: string) =>
+  search: (q: string) =>
     supportFetch<{
       customers: { id: string; name: string; country: string; status: string; href: string }[];
       tickets: { id: string; number: string; subject: string; status: string; href: string }[];
@@ -629,10 +609,10 @@ export const supportOps = {
       disputes: { id: string; number: string; category: string; status: string; href: string }[];
       escalations: { id: string; number: string; destination: string; status: string; href: string }[];
       knowledge: { id: string; title: string; category: string; href: string }[];
-    }>(`/api/support/search?q=${encodeURIComponent(q)}`, { method: "GET" }, { officerId }),
+    }>(`/api/support/search?q=${encodeURIComponent(q)}`, { method: "GET" }),
 
-  retainedModules: (officerId?: string) =>
-    supportFetch<RetainedModulesDto>("/api/support/retained/modules", { method: "GET" }, { officerId }),
+  retainedModules: () =>
+    supportFetch<RetainedModulesDto>("/api/support/retained/modules", { method: "GET" }),
 };
 
 export function supportErrorCode(value: unknown): string {

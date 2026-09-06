@@ -1,8 +1,9 @@
 import { NextRequest } from "next/server";
 import { requireSupportAccess, operationalError } from "@/lib/support/supportApi";
-import { SupportOpsEngine } from "@/lib/support/SupportOpsEngine";
+import { getSupportOpsEngine } from "@/lib/support/SupportOpsEngine";
 import { createSuccessResponse, createErrorResponse } from "@/lib/security/apiResponse";
 import { EscalationStatus } from "@/types/supportOps";
+import { getEscalationRow, escalationRowToEscalation, getTicketRow, ticketRowToTicket } from "@/lib/support/supportDb";
 
 export const dynamic = "force-dynamic";
 
@@ -10,9 +11,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   const access = await requireSupportAccess(req, "support:read");
   if (!access.ok) return access.response;
 
-  const engine = SupportOpsEngine.getInstance();
-  const e = engine.getStore().getEscalation(params.id);
-  if (!e) {
+  const row = await getEscalationRow(params.id);
+  if (!row) {
     return createErrorResponse({
       code: "ESCALATION_NOT_FOUND",
       message: "This escalation does not exist.",
@@ -20,7 +20,9 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       httpStatus: 404,
     });
   }
-  const ticket = engine.getStore().getTicket(e.ticketId);
+  const e = await escalationRowToEscalation(row);
+  const ticketRow = await getTicketRow(e.ticketId);
+  const ticket = ticketRow ? await ticketRowToTicket(ticketRow) : undefined;
   return createSuccessResponse({ escalation: e, ticket }, { requestId: access.ctx.requestId });
 }
 
@@ -39,8 +41,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return operationalError("INVALID_JSON", "The request body must be valid JSON.", 400, access.ctx.requestId);
   }
 
-  const engine = SupportOpsEngine.getInstance();
-  const result = engine.updateEscalation(params.id, body, access.ctx.actor);
+  const engine = getSupportOpsEngine();
+  const result = await engine.updateEscalation(params.id, body, access.ctx.actor);
   if (!result.ok) {
     return operationalError(result.code ?? "ESCALATION_UPDATE_FAILED", result.error ?? "Could not update the escalation.",
       result.code === "FORBIDDEN" ? 403 : 404, access.ctx.requestId);

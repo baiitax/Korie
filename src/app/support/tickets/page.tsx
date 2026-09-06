@@ -42,7 +42,7 @@ export default function TicketsPage() {
     if (category) query.category = category;
     if (unassigned) query.unassigned = "1";
     if (openOnly && !status) query.open = "1";
-    const res = await supportOps.tickets(query, activeOfficer?.id);
+    const res = await supportOps.tickets(query);
     if (isSupportApiError(res)) {
       setError(res.message);
       setLoading(false);
@@ -51,7 +51,7 @@ export default function TicketsPage() {
     setRows(res.items);
     setTotal(res.total);
     setLoading(false);
-  }, [q, status, priority, category, unassigned, openOnly, activeOfficer?.id]);
+  }, [q, status, priority, category, unassigned, openOnly]);
 
   useEffect(() => {
     if (isOnline) void load();

@@ -2598,6 +2598,7 @@ export const en = {
       searchPlaceholder: "Search customers, tickets, transactions… (⌘K)",
       notifications: "Notifications",
       switchOfficer: "Acting as",
+      signOut: "Sign out",
       language: "Language",
       theme: "Theme",
       light: "Light",
@@ -3056,6 +3057,7 @@ export const en = {
       languageHint: "Applies across KoriePay. Content is delivered in the selected language.",
       permissionsHint: "Capabilities are enforced by the server. You cannot grant yourself permissions here.",
       officer: "Support officer",
+      session: "Session",
     },
     search: {
       title: "Search",

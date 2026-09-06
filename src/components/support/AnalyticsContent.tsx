@@ -38,7 +38,7 @@ export function AnalyticsContent({ initialTab }: { initialTab?: "agents" | "sla"
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const res = await supportOps.analytics(activeOfficer?.id);
+    const res = await supportOps.analytics();
     if (isSupportApiError(res)) {
       setError(res.message);
       setLoading(false);
@@ -46,7 +46,7 @@ export function AnalyticsContent({ initialTab }: { initialTab?: "agents" | "sla"
     }
     setData(res);
     setLoading(false);
-  }, [activeOfficer?.id]);
+  }, []);
 
   useEffect(() => {
     if (isOnline) void load();

@@ -31,7 +31,7 @@ export default function EscalationDetailPage() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const res = await supportOps.escalation(id, activeOfficer?.id);
+    const res = await supportOps.escalation(id);
     if (isSupportApiError(res)) {
       setError(res.message);
       setLoading(false);
@@ -39,7 +39,7 @@ export default function EscalationDetailPage() {
     }
     setDetail(res);
     setLoading(false);
-  }, [id, activeOfficer?.id]);
+  }, [id]);
 
   useEffect(() => {
     if (isOnline) void load();
@@ -122,14 +122,14 @@ export default function EscalationDetailPage() {
         open={resolveOpen}
         onClose={() => setResolveOpen(false)}
         onDone={async (note) => {
-          const res = await supportOps.updateEscalation(id, { status: "RESOLVED", resolutionNote: note }, activeOfficer?.id);
+          const res = await supportOps.updateEscalation(id, { status: "RESOLVED", resolutionNote: note });
           setResolveOpen(false);
           if (isSupportApiError(res)) {
             toast(supportErrorMessage(res), "error");
             return;
           }
           toast(t("supportOps.toasts.taskDone"));
-          const refreshed = await supportOps.escalation(id, activeOfficer?.id);
+          const refreshed = await supportOps.escalation(id);
           if (!isSupportApiError(refreshed)) setDetail(refreshed);
         }}
       />
