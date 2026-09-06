@@ -1,16 +1,21 @@
 import React from "react";
 import { AdminProvider } from "@/components/admin/AdminContext";
-import AdminSidebar from "@/components/admin/AdminSidebar";
-import AdminTopBar from "@/components/admin/AdminTopBar";
-import EntityDrawer from "@/components/admin/EntityDrawer";
-import MakerCheckerModal from "@/components/admin/MakerCheckerModal";
+import { AdminDataGateway } from "@/components/admin/AdminDataGateway";
+import { AdminShell } from "@/components/admin/AdminShell";
 
 export const metadata = {
-  title: "Super Admin Command Center | KoriePay",
+  title: "Command Center | KoriePay Admin",
   description:
-    "KoriePay Tier-1 Production Banking Command Center for Nigeria (Providus Bank) and Niger Republic (Coris Bank).",
+    "KoriePay operational command center — Nigeria (Providus Bank) and Niger Republic (Coris Bank). Authorized staff only.",
 };
 
+/**
+ * Admin shell: session gateway → phase-driven shell. Nothing admin-looking
+ * renders until a real staff session is proven (AdminShell handles the
+ * checking/gated states as full screens). AdminContext keeps the 35 legacy
+ * pages working; EntityDrawer and MakerCheckerModal mount with the ready
+ * shell.
+ */
 export default function AdminLayout({
   children,
 }: {
@@ -18,25 +23,9 @@ export default function AdminLayout({
 }) {
   return (
     <AdminProvider>
-      <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] flex flex-row font-sans selection:bg-emerald-500 selection:text-slate-950">
-        {/* Left Collapsible Admin Sidebar */}
-        <AdminSidebar />
-
-        {/* Right Main Working Area */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
-          {/* Global Super Admin Topbar */}
-          <AdminTopBar />
-
-          {/* Dynamic Page Content */}
-          <main className="flex-1 pb-16">{children}</main>
-
-          {/* Universal Slide-In Entity Inspection Drawer */}
-          <EntityDrawer />
-
-          {/* Maker-Checker / Four-Eyes Authorization Dialog */}
-          <MakerCheckerModal />
-        </div>
-      </div>
+      <AdminDataGateway>
+        <AdminShell>{children}</AdminShell>
+      </AdminDataGateway>
     </AdminProvider>
   );
 }
