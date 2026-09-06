@@ -1,134 +1,103 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { useSupport } from '@/components/support/SupportContext';
-import { TransactionInvestigationContext } from '@/types/support';
-import {
-  Search,
-  CheckCircle2,
-  AlertTriangle,
-  Clock,
-  Radio,
-  FileText,
-  ShieldCheck,
-  ChevronRight,
-} from 'lucide-react';
+// =============================================================================
+// File: src/app/support/transactions/page.tsx
+// Description: Transactions — search by reference / ID / counterparty (§25).
+// =============================================================================
 
-export default function TransactionInvestigationPage() {
-  const { transactionInvestigationMap, formatCurrency, formatDate } = useSupport();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTx, setSelectedTx] = useState<TransactionInvestigationContext | null>(null);
+import React, { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { Search } from "lucide-react";
+import { useSupportOps } from "@/components/support/SupportOpsProvider";
+import { EmptyState, ErrorState, LoadingPanel, OfflineBanner, fmtMoney, relTime } from "@/components/support/SupportUI";
+import { supportOps, isSupportApiError } from "@/services/supportOpsClient";
 
-  const txList = Object.values(transactionInvestigationMap);
+export default function TransactionsPage() {
+  const { t, activeOfficer, isOnline } = useSupportOps();
+  const [q, setQ] = useState("");
+  const [rows, setRows] = useState<
+    { transactionId: string; reference: string; amount: number; currency: string; status: string; timestamp: string; origin: string; destination: string }[] | null
+  >(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const filtered = txList.filter((tx) => {
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      return (
-        tx.transactionId.toLowerCase().includes(q) ||
-        tx.reference.toLowerCase().includes(q) ||
-        tx.originEntity.toLowerCase().includes(q) ||
-        tx.destinationEntity.toLowerCase().includes(q)
-      );
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const res = await supportOps.searchTransactions(q, activeOfficer?.id);
+    if (isSupportApiError(res)) {
+      setError(res.message);
+      setLoading(false);
+      return;
     }
-    return true;
-  });
+    setRows(res.items);
+    setLoading(false);
+  }, [q, activeOfficer?.id]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (isOnline) void load();
+    }, q ? 250 : 0);
+    return () => window.clearTimeout(timer);
+  }, [isOnline, load, q]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-mono font-bold text-teal-400 uppercase tracking-wider mb-1">
-            <Search className="w-4 h-4" />
-            LEDGER & SWITCH TELEMETRY
-          </div>
-          <h1 className="text-2xl font-extrabold text-white">Transaction Investigation Desk</h1>
-          <p className="text-xs text-slate-400">
-            Lifecycle traces, NIBSS Session IDs, Providus Bank NG & Coris Bank NE gateway logs.
-          </p>
-        </div>
+    <div className="mx-auto max-w-5xl space-y-4">
+      <div>
+        <h1 className="text-xl font-extrabold tracking-tight">{t("supportOps.nav.transactions")}</h1>
+        <p className="mt-0.5 text-[13px] text-[var(--foreground-muted)]">{t("supportOps.transactions.searchPlaceholder")}</p>
       </div>
 
-      <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-4 flex items-center justify-between gap-4">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by transaction ID, NIBSS reference, or customer name..."
-            className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-500 font-mono"
-          />
-        </div>
+      {!isOnline && <OfflineBanner message={t("supportOps.dashboard.offlineBanner")} />}
+
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" />
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder={t("supportOps.transactions.searchPlaceholder")}
+          aria-label={t("supportOps.transactions.searchPlaceholder")}
+          className="w-full rounded-[var(--support-radius-input)] border border-[var(--border)] bg-[var(--input-bg)] py-2.5 pl-10 pr-4 text-sm outline-none placeholder:text-[var(--muted)] focus:border-[var(--brand-border)]"
+        />
       </div>
 
-      <div className="space-y-4">
-        {filtered.map((tx) => (
-          <div
-            key={tx.transactionId}
-            className="p-5 bg-slate-900/60 border border-slate-800/80 rounded-2xl flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-xl"
-          >
-            <div className="space-y-2 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-mono text-xs font-bold text-teal-400 bg-teal-950/60 px-2 py-0.5 rounded border border-teal-800/40">
-                  {tx.transactionId}
-                </span>
-                <span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-300 font-mono font-bold">
-                  {tx.channel}
-                </span>
+      {loading && <LoadingPanel rows={6} />}
+      {error && <ErrorState message={error} onRetry={() => void load()} />}
+      {!loading && !error && rows && rows.length === 0 && (
+        <EmptyState title={t("supportOps.transactions.noResults")} hint={t("supportOps.transactions.noResultsHint")} />
+      )}
+      {!loading && !error && rows && rows.length > 0 && (
+        <div className="overflow-hidden rounded-[var(--support-radius-card)] border border-[var(--card-border)] bg-[var(--card-bg)] backdrop-blur-[var(--glass-blur-01)]">
+          {rows.map((tx) => (
+            <Link
+              key={tx.transactionId}
+              href={`/support/transactions/${tx.transactionId}`}
+              className="flex items-center justify-between gap-3 border-b border-[var(--card-border)] px-4 py-3 transition-colors last:border-b-0 hover:bg-[var(--surface-2)]"
+            >
+              <div className="min-w-0">
+                <p className="text-[13px] font-extrabold text-[var(--foreground)]">{tx.reference}</p>
+                <p className="truncate text-[11px] text-[var(--muted)]">
+                  {tx.origin} → {tx.destination} · {relTime(tx.timestamp, t)}
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <span className="text-sm font-extrabold tabular-nums">{fmtMoney(tx.amount, tx.currency)}</span>
                 <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase font-mono ${
-                    tx.status === 'SUCCESSFUL'
-                      ? 'bg-emerald-500/20 text-emerald-300'
-                      : tx.status === 'FAILED'
-                      ? 'bg-rose-500/20 text-rose-300'
-                      : 'bg-amber-500/20 text-amber-300'
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${
+                    tx.status === "SUCCESSFUL" || tx.status === "COMPLETED"
+                      ? "bg-[var(--state-success-soft)] text-[var(--state-success)]"
+                      : tx.status === "FAILED"
+                        ? "bg-[var(--state-danger-soft)] text-[var(--state-danger)]"
+                        : "bg-[var(--state-info-soft)] text-[var(--state-info)]"
                   }`}
                 >
                   {tx.status}
                 </span>
-                <span className="text-xs font-mono text-slate-400 font-semibold">{tx.reference}</span>
               </div>
-
-              <div className="p-3 bg-slate-950/70 rounded-xl border border-slate-800/60 text-xs space-y-1">
-                <div className="flex justify-between text-slate-300">
-                  <span>Origin: <strong className="text-white">{tx.originEntity}</strong></span>
-                  <span>Destination: <strong className="text-white">{tx.destinationEntity}</strong></span>
-                </div>
-                <div className="flex justify-between text-slate-400 pt-1 border-t border-slate-800/60 font-mono text-[11px]">
-                  <span>Provider: {tx.providerNode}</span>
-                  <span>Ledger: <strong className="text-emerald-400">{tx.ledgerPostingStatus}</strong></span>
-                </div>
-              </div>
-
-              {/* Lifecycle stages */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 pt-1">
-                {tx.timeline.map((step, idx) => (
-                  <div key={idx} className="p-2 bg-slate-950/80 rounded-lg border border-slate-800 text-[11px] space-y-0.5">
-                    <div className="flex justify-between font-semibold text-slate-200">
-                      <span>{step.stage}</span>
-                      <span className="text-[10px] font-mono text-slate-500">{step.timestamp}</span>
-                    </div>
-                    <div className="text-[10px] text-slate-400 line-clamp-1">{step.details}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="text-right flex lg:flex-col items-center lg:items-end justify-between border-t lg:border-t-0 pt-3 lg:pt-0 border-slate-800">
-              <div>
-                <div className="text-xs text-slate-500 uppercase font-bold">Transaction Value</div>
-                <div className="text-lg font-extrabold text-emerald-400 font-mono">
-                  {formatCurrency(tx.amount, tx.currency)}
-                </div>
-              </div>
-              <div className="text-[11px] font-mono text-slate-400 mt-1">
-                Auto-Refund: {tx.canAutomateRefund ? 'ELIGIBLE' : 'MANUAL'}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

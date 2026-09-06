@@ -61,6 +61,12 @@ export async function authenticateApiRequest(
     'bills:vend',
     'fx:read',
     'fx:quote',
+    // Support operating system scopes (sandbox test keys). In production
+    // these map to the support role's API key grants; every route still
+    // enforces officer-level RBAC on top of key scopes.
+    'support:read',
+    'support:write',
+    'support:finance',
   ];
 
   // Verify that all required scopes are satisfied

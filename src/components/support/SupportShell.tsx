@@ -1,348 +1,526 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useSupport } from './SupportContext';
+// =============================================================================
+// File: src/components/support/SupportShell.tsx
+// Description: KoriePay Support — the operating system shell.
+//
+// §09  complete sidebar (OVERVIEW / CUSTOMER SERVICE / TRANSACTIONS /
+//       OPERATIONS / KNOWLEDGE / ANALYTICS / GOVERNANCE / SYSTEM)
+// §79  rounded glass surfaces
+// §81  mobile: floating bottom nav (5 slots + More sheet), full desktop IA
+// §83  dark mode via .dark .kp-support tokens
+// §95  global command search (⌘K)
+// =============================================================================
+
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import {
-  LifeBuoy,
-  Inbox,
-  CheckCircle2,
-  ListFilter,
-  Users,
-  Search,
-  Radio,
-  SlidersHorizontal,
-  BookOpen,
-  FileCheck2,
-  GraduationCap,
-  Award,
+  Activity,
   BarChart3,
-  TrendingUp,
-  History,
-  Settings,
-  X,
-  Menu,
-  ChevronDown,
-  AlertTriangle,
-  Zap,
-  Globe,
   Bell,
-  Layers,
-  Sparkles,
-} from 'lucide-react';
-import { SupportLocale } from '@/locales/support';
-import ShellAccount from '@/components/ui/ShellAccount';
-import PortalFooter from '@/components/ui/PortalFooter';
+  BookOpen,
+  ClipboardList,
+  DollarSign,
+  FileSearch,
+  LayoutDashboard,
+  LifeBuoy,
+  ListChecks,
+  Lock,
+  MoreHorizontal,
+  MessagesSquare,
+  Moon,
+  Plus,
+  Search,
+  Server,
+  Settings as SettingsIcon,
+  ShieldCheck,
+  Sun,
+  Ticket as TicketIcon,
+  Users,
+  Zap,
+} from "lucide-react";
+import { useSupportOps } from "./SupportOpsProvider";
+import { Modal, Spinner, initials, relTime } from "./SupportUI";
+import { supportOps, isSupportApiError } from "@/services/supportOpsClient";
+import { NewTicketModal } from "./NewTicketModal";
 
-export const SupportShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+interface NavItem {
+  href: string;
+  key: string;
+  icon: React.ComponentType<{ className?: string }>;
+  exact?: boolean;
+}
+
+const NAV: { group: string; items: NavItem[] }[] = [
+  {
+    group: "overview",
+    items: [
+      { href: "/support", key: "dashboard", icon: LayoutDashboard, exact: true },
+      { href: "/support/inbox", key: "inbox", icon: MessagesSquare },
+    ],
+  },
+  {
+    group: "customerService",
+    items: [
+      { href: "/support/tickets", key: "tickets", icon: TicketIcon },
+      { href: "/support/customers", key: "customers", icon: Users },
+      { href: "/support/kyc", key: "kyc", icon: ShieldCheck },
+    ],
+  },
+  {
+    group: "transactions",
+    items: [
+      { href: "/support/transactions", key: "transactions", icon: Activity },
+      { href: "/support/disputes", key: "disputes", icon: FileSearch },
+      { href: "/support/refunds", key: "refunds", icon: DollarSign },
+    ],
+  },
+  {
+    group: "operations",
+    items: [
+      { href: "/support/escalations", key: "escalations", icon: Zap },
+      { href: "/support/tasks", key: "tasks", icon: ListChecks },
+    ],
+  },
+  {
+    group: "knowledge",
+    items: [
+      { href: "/support/knowledge", key: "knowledge", icon: BookOpen },
+      { href: "/support/macros", key: "macros", icon: ClipboardList },
+    ],
+  },
+  {
+    group: "analytics",
+    items: [{ href: "/support/analytics", key: "analytics", icon: BarChart3 }],
+  },
+  {
+    group: "governance",
+    items: [
+      { href: "/support/audit", key: "audit", icon: Lock },
+      { href: "/support/notifications", key: "notifications", icon: Bell },
+    ],
+  },
+  {
+    group: "system",
+    items: [
+      { href: "/support/integrations", key: "integrations", icon: Server },
+      { href: "/support/system-health", key: "systemHealth", icon: LifeBuoy },
+      { href: "/support/settings", key: "settings", icon: SettingsIcon },
+    ],
+  },
+];
+
+const MOBILE_MAIN = [
+  { href: "/support", key: "dashboard", icon: LayoutDashboard, exact: true },
+  { href: "/support/inbox", key: "inbox", icon: MessagesSquare },
+  { href: "/support/customers", key: "customers", icon: Users },
+  { href: "/support/tasks", key: "tasks", icon: ListChecks },
+];
+
+function isActive(pathname: string, item: NavItem): boolean {
+  if (item.exact) return pathname === item.href;
+  return pathname === item.href || pathname.startsWith(item.href + "/");
+}
+
+export function SupportShell({ children }: { children: React.ReactNode }) {
+  const { t, lang, setLang, theme, setTheme, activeOfficer, setActiveOfficerId, officers, isOnline, toasts, dismissToast, toast } = useSupportOps();
   const pathname = usePathname();
-  const {
-    locale,
-    setLocale,
-    t,
-    selectedJurisdiction,
-    setSelectedJurisdiction,
-    currentOfficer,
-    setCurrentOfficer,
-    officers,
-    stats,
-  } = useSupport();
+  const router = useRouter();
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [newTicketOpen, setNewTicketOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState<{ id: string; title: string; body: string; read: boolean; createdAt: string; link?: string }[]>([]);
+  const [unread, setUnread] = useState(0);
 
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [officerDropdownOpen, setOfficerDropdownOpen] = useState(false);
+  // Notification unread badge (poll-light: on open + every 60s).
+  const refreshNotifications = useCallback(async () => {
+    const officerId = activeOfficer?.id;
+    const res = await supportOps.notifications(officerId);
+    if (isSupportApiError(res)) return;
+    setNotifications(res.items);
+    setUnread(res.unreadCount);
+  }, [activeOfficer?.id]);
 
-  interface NavSubItem {
-    name: string;
-    href: string;
-    icon: React.ComponentType<{ className?: string }>;
-    badge?: number | string | null;
-    alert?: boolean;
-  }
+  useEffect(() => {
+    refreshNotifications();
+    const iv = window.setInterval(refreshNotifications, 60000);
+    return () => window.clearInterval(iv);
+  }, [refreshNotifications]);
 
-  interface NavGroup {
-    group: string;
-    items: NavSubItem[];
-  }
+  // ⌘K global search
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen((v) => !v);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
 
-  const navItems: NavGroup[] = [
-    {
-      group: 'COMMAND & INBOX',
-      items: [
-        { name: 'Dashboard', href: '/support', icon: BarChart3, badge: null, alert: false },
-        { name: 'Live Inbox', href: '/support/inbox', icon: Inbox, badge: stats.totalOpen, alert: false },
-        { name: 'My Queue', href: '/support/my-queue', icon: CheckCircle2, badge: stats.assignedToMe, alert: false },
-        { name: 'All Tickets', href: '/support/tickets', icon: ListFilter, badge: stats.unassigned ? `+${stats.unassigned}` : null, alert: false },
-      ],
-    },
-    {
-      group: 'INVESTIGATION & CONTEXT',
-      items: [
-        { name: 'Customer 360°', href: '/support/customers', icon: Users, badge: null, alert: false },
-        { name: 'Transaction Investigation', href: '/support/transactions', icon: Search, badge: null, alert: false },
-        { name: 'System Incidents', href: '/support/incidents', icon: AlertTriangle, badge: stats.activeIncidentsCount > 0 ? stats.activeIncidentsCount : null, alert: stats.activeIncidentsCount > 0 },
-      ],
-    },
-    {
-      group: 'AUTOMATION & PLAYBOOKS',
-      items: [
-        { name: 'Automation Rules', href: '/support/automation', icon: Zap, badge: stats.automationResolvedCount ? `${stats.automationResolvedCount} runs` : null, alert: false },
-        { name: 'Guided Playbooks', href: '/support/playbooks', icon: Layers, badge: 'Step-by-Step', alert: false },
-        { name: 'Knowledge Base', href: '/support/knowledge-base', icon: BookOpen, badge: null, alert: false },
-      ],
-    },
-    {
-      group: 'WORKFORCE & INTELLIGENCE',
-      items: [
-        { name: 'Training Academy', href: '/support/training', icon: GraduationCap, badge: 'Sandbox', alert: false },
-        { name: 'Quality Assurance (QA)', href: '/support/qa', icon: Award, badge: null, alert: false },
-        { name: 'Support Intelligence', href: '/support/analytics', icon: TrendingUp, badge: null, alert: false },
-        { name: 'Capacity Planning', href: '/support/capacity', icon: SlidersHorizontal, badge: null, alert: false },
-        { name: 'Team & RBAC', href: '/support/team', icon: Users, badge: null, alert: false },
-        { name: 'Immutable Audit Log', href: '/support/audit', icon: History, badge: null, alert: false },
-        { name: 'SLA Settings', href: '/support/settings', icon: Settings, badge: null, alert: false },
-      ],
-    },
-  ];
+  const navGroups = useMemo(() => NAV, []);
+
+  const SidebarLink = ({ item }: { item: NavItem }) => {
+    const active = isActive(pathname, item);
+    return (
+      <Link
+        href={item.href}
+        aria-current={active ? "page" : undefined}
+        className={`group flex items-center gap-2.5 rounded-[10px] px-3 py-2 text-[13px] font-semibold transition-colors ${
+          active
+            ? "bg-[var(--brand-soft-strong)] text-[var(--brand-primary)]"
+            : "text-[var(--foreground-muted)] hover:bg-[var(--surface-3)] hover:text-[var(--foreground)]"
+        }`}
+      >
+        <item.icon className="h-4 w-4 shrink-0" />
+        {t(`supportOps.nav.${item.key}`)}
+      </Link>
+    );
+  };
 
   return (
-    <div className="min-h-screen bg-[var(--surface)] text-slate-100 flex flex-col font-sans antialiased selection:bg-emerald-500/30 selection:text-emerald-200">
-      {/* Top Header Navigation */}
-      <header className="sticky top-0 z-40 bg-[var(--nav-bg)] backdrop-blur-md border-b border-slate-800/80 px-4 lg:px-8 py-2.5 flex items-center justify-between shadow-lg">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="lg:hidden p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800"
-            aria-label="Toggle navigation"
-          >
-            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
-
-          <Link href="/support" className="flex items-center gap-3 group">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 via-teal-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-blue-900/30 ring-1 ring-blue-400/40">
-              <LifeBuoy className="w-5 h-5 text-slate-950 font-bold" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold text-base tracking-tight text-white group-hover:text-teal-400 transition-colors">
-                  KORIEPAY
-                </span>
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                  SUPPORT OPS
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-400 hidden sm:block">
-                Workforce Automation & Service Intelligence Center
-              </p>
-            </div>
-          </Link>
+    <div className="kp-support min-h-dvh bg-[var(--background)] text-[var(--foreground)] antialiased">
+      {/* Offline strip */}
+      {!isOnline && (
+        <div className="sticky top-0 z-[60] flex items-center justify-center gap-2 bg-[var(--state-warning)] px-4 py-1.5 text-xs font-bold text-white">
+          <span className="h-1.5 w-1.5 rounded-full bg-white/80" />
+          {t("supportOps.header.offline")}
         </div>
+      )}
 
-        {/* Global Selectors */}
-        <div className="flex items-center gap-3">
-          {/* Jurisdiction Switcher */}
-          <div className="hidden sm:flex items-center bg-slate-900/90 rounded-lg p-0.5 border border-slate-800">
-            <button
-              onClick={() => setSelectedJurisdiction('ALL')}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
-                selectedJurisdiction === 'ALL'
-                  ? 'bg-slate-800 text-white shadow-sm border border-slate-700'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              🌍 All Regions
-            </button>
-            <button
-              onClick={() => setSelectedJurisdiction('NG')}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 ${
-                selectedJurisdiction === 'NG'
-                  ? 'bg-emerald-950/80 text-emerald-300 shadow-sm border border-emerald-700/50'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <span>🇳🇬</span> Nigeria (NGN)
-            </button>
-            <button
-              onClick={() => setSelectedJurisdiction('NE')}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 ${
-                selectedJurisdiction === 'NE'
-                  ? 'bg-amber-950/80 text-amber-300 shadow-sm border border-amber-700/50'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <span>🇳🇪</span> Niger (XOF)
-            </button>
+      <div className="flex">
+        {/* ── Desktop sidebar ─────────────────────────────────────────── */}
+        <aside className="fixed inset-y-0 left-0 z-40 hidden w-[var(--support-sidebar-w)] flex-col border-r border-[var(--card-border)] bg-[var(--nav-bg)] backdrop-blur-[var(--nav-blur)] lg:flex">
+          <div className="flex items-center gap-2.5 px-5 pb-4 pt-5">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-[#0b7a63] to-[#158987] text-white shadow-sm">
+              <LifeBuoy className="h-5 w-5" />
+            </span>
+            <div className="leading-tight">
+              <p className="text-[13px] font-extrabold tracking-tight">{t("supportOps.nav.title")}</p>
+              <p className="text-[11px] font-semibold text-[var(--muted)]">{t("supportOps.nav.subtitle")}</p>
+            </div>
           </div>
 
-          {/* Language Switcher */}
-          <div className="flex items-center bg-slate-900/90 rounded-lg p-0.5 border border-slate-800">
-            {(['en', 'ha', 'fr'] as SupportLocale[]).map((lang) => (
-              <button
-                key={lang}
-                onClick={() => setLocale(lang)}
-                className={`px-2 py-1 text-xs font-bold uppercase rounded-md transition-colors ${
-                  locale === lang
-                    ? 'bg-blue-600 text-white'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                {lang}
-              </button>
-            ))}
-          </div>
-
-          {/* Active Officer / RBAC Profile Switcher */}
-          <div className="relative">
-            <button
-              onClick={() => setOfficerDropdownOpen(!officerDropdownOpen)}
-              className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 hover:border-slate-700 transition"
-            >
-              <div className="w-7 h-7 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-xs border border-blue-500/30">
-                {currentOfficer.fullName.slice(0, 2).toUpperCase()}
-              </div>
-              <div className="text-left hidden md:block">
-                <div className="text-xs font-bold text-slate-200 leading-tight">
-                  {currentOfficer.fullName}
-                </div>
-                <div className="text-[10px] text-teal-400 font-mono">
-                  {currentOfficer.role.replace(/_/g, ' ')}
-                </div>
-              </div>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-            </button>
-
-            {officerDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-64 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl p-2 z-50">
-                <div className="text-[11px] font-bold text-slate-400 px-2 py-1 uppercase tracking-wider">
-                  Simulate Officer Role & Permissions
-                </div>
-                <div className="space-y-1 mt-1">
-                  {officers.map((off) => (
-                    <button
-                      key={off.id}
-                      onClick={() => {
-                        setCurrentOfficer(off);
-                        setOfficerDropdownOpen(false);
-                      }}
-                      className={`w-full text-left px-2.5 py-2 rounded-lg text-xs transition flex items-center justify-between ${
-                        currentOfficer.id === off.id
-                          ? 'bg-blue-950/60 text-blue-300 border border-blue-800/60'
-                          : 'text-slate-300 hover:bg-slate-800'
-                      }`}
-                    >
-                      <div>
-                        <div className="font-semibold">{off.fullName}</div>
-                        <div className="text-[10px] text-slate-400">
-                          {off.role.replace(/_/g, ' ')} • {off.jurisdiction}
-                        </div>
-                      </div>
-                      {currentOfficer.id === off.id && (
-                        <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-                      )}
-                    </button>
+          <nav className="flex-1 space-y-4 overflow-y-auto px-3 pb-4" aria-label={t("supportOps.nav.title")}>
+            {navGroups.map((g) => (
+              <div key={g.group}>
+                <p className="px-3 pb-1.5 pt-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-[var(--muted)]">
+                  {t(`supportOps.nav.${g.group}`)}
+                </p>
+                <div className="space-y-0.5">
+                  {g.items.map((item) => (
+                    <SidebarLink key={item.key} item={item} />
                   ))}
                 </div>
               </div>
-            )}
-
-            {/* Day / Night + Sign out */}
-            <ShellAccount className="hidden md:flex" />
-          </div>
-        </div>
-      </header>
-
-      {/* Main Workspace Frame */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar */}
-        <aside
-          className={`${
-            mobileMenuOpen ? 'fixed inset-0 z-50 bg-[var(--nav-bg)]' : 'hidden'
-          } lg:block lg:static w-72 flex-shrink-0 bg-[var(--nav-bg)] border-r border-slate-800/80 overflow-y-auto`}
-        >
-          {mobileMenuOpen && (
-            <div className="p-4 flex items-center justify-between border-b border-slate-800 lg:hidden">
-              <span className="font-bold text-slate-200">Support Operations Menu</span>
-              <button
-                onClick={() => setMobileMenuOpen(false)}
-                className="p-1 text-slate-400 hover:text-white"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-          )}
-
-          <div className="p-4 space-y-6">
-            {navItems.map((grp) => (
-              <div key={grp.group} className="space-y-1">
-                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-3 mb-2">
-                  {grp.group}
-                </div>
-                {grp.items.map((item) => {
-                  const isActive =
-                    pathname === item.href ||
-                    (item.href !== '/support' && pathname.startsWith(item.href));
-                  const Icon = item.icon;
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-                        isActive
-                          ? 'bg-gradient-to-r from-blue-600/20 to-teal-600/10 text-teal-300 border border-teal-500/30 shadow-inner'
-                          : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <Icon className={`w-4 h-4 ${isActive ? 'text-teal-400' : 'text-slate-400'}`} />
-                        <span>{item.name}</span>
-                      </div>
-                      {item.badge !== null && item.badge !== undefined && (
-                        <span
-                          className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                            item.alert
-                              ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30 animate-pulse'
-                              : 'bg-slate-800 text-slate-300'
-                          }`}
-                        >
-                          {item.badge}
-                        </span>
-                      )}
-                    </Link>
-                  );
-                })}
-              </div>
             ))}
+          </nav>
 
-            {/* Banking & Switch Node Status */}
-            <div className="pt-4 border-t border-slate-800/80 space-y-2">
-              <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-3">
-                BANKING CLEARING RAILS
+          {/* Officer + prefs footer */}
+          <div className="border-t border-[var(--border)] p-3">
+            <div className="flex items-center gap-2 rounded-[10px] bg-[var(--surface-2)] p-2">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[var(--brand-primary)] text-[11px] font-extrabold text-[var(--brand-on-primary)]">
+                {activeOfficer ? initials(activeOfficer.fullName) : "?"}
+              </span>
+              <select
+                aria-label={t("supportOps.header.switchOfficer")}
+                value={activeOfficer?.id ?? ""}
+                onChange={(e) => setActiveOfficerId(e.target.value)}
+                className="w-full min-w-0 flex-1 cursor-pointer rounded-md bg-transparent text-xs font-bold text-[var(--foreground)] outline-none"
+              >
+                {officers.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.fullName} — {t(`supportOps.roles.${o.role}`)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="mt-2 flex items-center justify-between px-1">
+              <div className="flex items-center gap-1" role="group" aria-label={t("supportOps.header.language")}>
+                {(["en", "fr", "ha"] as const).map((l) => (
+                  <button
+                    key={l}
+                    onClick={() => setLang(l)}
+                    aria-pressed={lang === l}
+                    className={`rounded-md px-1.5 py-0.5 text-[10px] font-extrabold uppercase ${
+                      lang === l ? "bg-[var(--brand-soft-strong)] text-[var(--brand-primary)]" : "text-[var(--muted)] hover:text-[var(--foreground)]"
+                    }`}
+                  >
+                    {l}
+                  </button>
+                ))}
               </div>
-              <div className="px-3 py-2 bg-slate-900/60 border border-slate-800 rounded-lg text-xs space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-400">Providus NIP (NG):</span>
-                  <span className="text-amber-400 font-mono text-[11px] font-semibold">DEGRADED (INC-01)</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-400">Coris Bank (NE):</span>
-                  <span className="text-emerald-400 font-mono text-[11px] font-semibold">ONLINE</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-400">Interswitch Switch:</span>
-                  <span className="text-emerald-400 font-mono text-[11px] font-semibold">ONLINE</span>
-                </div>
-              </div>
+              <button
+                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                aria-label={t("supportOps.header.theme")}
+                className="grid h-7 w-7 place-items-center rounded-md text-[var(--muted)] transition-colors hover:bg-[var(--surface-3)] hover:text-[var(--foreground)]"
+              >
+                {theme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+              </button>
             </div>
           </div>
         </aside>
 
-        {/* Center Main Stage */}
-        <main className="flex-1 overflow-y-auto bg-[var(--background)] p-4 lg:p-8 space-y-6">
-          {children}
-        </main>
-          <PortalFooter portal="support" />
+        {/* ── Main column ─────────────────────────────────────────────── */}
+        <div className="flex min-h-dvh w-full flex-col lg:pl-[var(--support-sidebar-w)]">
+          {/* Topbar */}
+          <header className="sticky top-0 z-30 flex h-[var(--support-topbar-h)] items-center gap-2 border-b border-[var(--card-border)] bg-[var(--nav-bg)] px-4 backdrop-blur-[var(--nav-blur)] sm:px-6">
+            {/* Mobile brand */}
+            <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-[#0b7a63] to-[#158987] text-white lg:hidden">
+              <LifeBuoy className="h-4 w-4" />
+            </span>
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="flex min-w-0 flex-1 items-center gap-2.5 rounded-[var(--support-radius-input)] border border-[var(--border)] bg-[var(--input-bg)] px-3 py-2 text-left text-[13px] text-[var(--muted)] transition-colors hover:border-[var(--brand-border)]"
+            >
+              <Search className="h-4 w-4 shrink-0" />
+              <span className="hidden truncate sm:inline">{t("supportOps.header.searchPlaceholder")}</span>
+              <span className="truncate sm:hidden">{t("supportOps.search.title")}</span>
+              <kbd className="ml-auto hidden rounded border border-[var(--border)] px-1.5 py-0.5 text-[10px] font-bold sm:inline">⌘K</kbd>
+            </button>
+
+            <button
+              onClick={() => setNewTicketOpen(true)}
+              disabled={!isOnline}
+              className="flex items-center gap-1.5 rounded-[var(--support-radius-input)] bg-[var(--brand-primary)] px-3 py-2 text-[13px] font-bold text-[var(--brand-on-primary)] shadow-sm transition-colors hover:bg-[var(--brand-primary-hover)] disabled:opacity-50"
+            >
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">{t("supportOps.newTicket.title")}</span>
+            </button>
+
+            {/* Notifications */}
+            <div className="relative">
+              <button
+                onClick={() => {
+                  setNotifOpen((v) => !v);
+                }}
+                aria-label={t("supportOps.header.notifications")}
+                className="relative grid h-9 w-9 place-items-center rounded-[var(--support-radius-input)] border border-[var(--border)] bg-[var(--input-bg)] text-[var(--foreground-muted)] transition-colors hover:border-[var(--brand-border)]"
+              >
+                <Bell className="h-4 w-4" />
+                {unread > 0 && (
+                  <span className="absolute -right-1 -top-1 grid h-4.5 min-w-[18px] h-[18px] place-items-center rounded-full bg-[var(--state-danger)] px-1 text-[10px] font-extrabold text-white">
+                    {unread > 9 ? "9+" : unread}
+                  </span>
+                )}
+              </button>
+              {notifOpen && (
+                <div className="absolute right-0 top-11 z-50 w-80 rounded-[var(--support-radius-card)] border border-[var(--card-border)] bg-[var(--surface)] p-2 shadow-xl">
+                  <p className="px-2 py-1 text-xs font-extrabold text-[var(--foreground)]">{t("supportOps.notifications.title")}</p>
+                  <div className="max-h-72 overflow-y-auto">
+                    {notifications.length === 0 && (
+                      <p className="px-2 py-4 text-center text-xs text-[var(--muted)]">{t("supportOps.notifications.empty")}</p>
+                    )}
+                    {notifications.map((n) => (
+                      <Link
+                        key={n.id}
+                        href={n.link ?? "/support/notifications"}
+                        onClick={async () => {
+                          setNotifOpen(false);
+                          if (!n.read) {
+                            await supportOps.markNotificationRead(n.id, activeOfficer?.id);
+                            setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
+                            setUnread((u) => Math.max(0, u - 1));
+                          }
+                        }}
+                        className={`block rounded-lg px-2 py-2 transition-colors hover:bg-[var(--surface-3)] ${n.read ? "opacity-60" : ""}`}
+                      >
+                        <p className="text-xs font-bold text-[var(--foreground)]">{n.title}</p>
+                        <p className="mt-0.5 line-clamp-2 text-[11px] text-[var(--foreground-muted)]">{n.body}</p>
+                        <p className="mt-0.5 text-[10px] text-[var(--muted)]">{relTime(n.createdAt, t)}</p>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </header>
+
+          <main className="flex-1 px-4 pb-24 pt-5 sm:px-6 lg:px-8 lg:pb-10">{children}</main>
+        </div>
+      </div>
+
+      {/* ── Mobile floating bottom nav (§81–§82) ──────────────────────── */}
+      <nav
+        aria-label="mobile"
+        className="fixed bottom-4 left-1/2 z-40 flex w-[92%] max-w-md -translate-x-1/2 items-center justify-around rounded-2xl border border-[var(--card-border)] bg-[var(--nav-bg)] p-1.5 shadow-xl backdrop-blur-[var(--nav-blur)] lg:hidden"
+        style={{ paddingBottom: "calc(6px + env(safe-area-inset-bottom, 0px))" }}
+      >
+        {MOBILE_MAIN.map((item) => {
+          const active = isActive(pathname, item);
+          return (
+            <Link
+              key={item.key}
+              href={item.href}
+              aria-current={active ? "page" : undefined}
+              className={`flex flex-col items-center gap-0.5 rounded-xl px-4 py-1.5 text-[10px] font-bold transition-colors ${
+                active ? "text-[var(--brand-primary)]" : "text-[var(--muted)]"
+              }`}
+            >
+              <item.icon className={`h-5 w-5 ${active ? "" : "opacity-70"}`} />
+              {t(`supportOps.nav.${item.key}`)}
+            </Link>
+          );
+        })}
+        <button
+          onClick={() => setMoreOpen(true)}
+          aria-label={t("supportOps.common.actions")}
+          className={`flex flex-col items-center gap-0.5 rounded-xl px-4 py-1.5 text-[10px] font-bold text-[var(--muted)]`}
+        >
+          <MoreHorizontal className="h-5 w-5 opacity-70" />
+          {t("supportOps.common.actions")}
+        </button>
+      </nav>
+
+      {/* More sheet (mobile) */}
+      <Modal open={moreOpen} onClose={() => setMoreOpen(false)} title={t("supportOps.nav.title")}>
+        <div className="grid grid-cols-2 gap-2">
+          {NAV.flatMap((g) => g.items)
+            .filter((i) => !MOBILE_MAIN.some((m) => m.href === i.href))
+            .map((item) => (
+              <Link
+                key={item.key}
+                href={item.href}
+                onClick={() => setMoreOpen(false)}
+                className="flex items-center gap-2.5 rounded-[10px] border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2.5 text-[13px] font-semibold text-[var(--foreground)] transition-colors hover:border-[var(--brand-border)]"
+              >
+                <item.icon className="h-4 w-4 text-[var(--brand-primary)]" />
+                {t(`supportOps.nav.${item.key}`)}
+              </Link>
+            ))}
+        </div>
+      </Modal>
+
+      <GlobalSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
+      <NewTicketModal open={newTicketOpen} onClose={() => setNewTicketOpen(false)} onCreated={(num) => toast(t("supportOps.toasts.ticketCreated", { ticket: num }))} />
+
+      {/* Toasts */}
+      <div className="pointer-events-none fixed bottom-24 right-4 z-[70] flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2 lg:bottom-6">
+        {toasts.map((toastItem) => (
+          <div
+            key={toastItem.id}
+            role="status"
+            className={`pointer-events-auto flex items-start gap-2 rounded-[10px] border px-3 py-2.5 text-xs font-semibold shadow-lg backdrop-blur ${
+              toastItem.type === "error"
+                ? "border-[var(--state-danger)]/40 bg-[var(--state-danger-soft)] text-[var(--state-danger)]"
+                : toastItem.type === "info"
+                  ? "border-[var(--state-info)]/40 bg-[var(--state-info-soft)] text-[var(--state-info)]"
+                  : "border-[var(--state-success)]/40 bg-[var(--state-success-soft)] text-[var(--state-success)]"
+            }`}
+          >
+            <span className="flex-1">{toastItem.message}</span>
+            <button onClick={() => dismissToast(toastItem.id)} aria-label={t("supportOps.common.close")} className="opacity-70 hover:opacity-100">
+              ✕
+            </button>
+          </div>
+        ))}
       </div>
     </div>
   );
-};
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Global command search (§95) */
+interface SearchHit {
+  id: string;
+  href: string;
+}
+interface SearchResults {
+  customers: (SearchHit & { name: string; country: string; status: string })[];
+  tickets: (SearchHit & { number: string; subject: string; status: string })[];
+  transactions: (SearchHit & { reference: string; currency: string; amount: number; status: string })[];
+  disputes: (SearchHit & { number: string; category: string; status: string })[];
+  escalations: (SearchHit & { number: string; destination: string; status: string })[];
+  knowledge: (SearchHit & { title: string; category: string })[];
+}
+
+function GlobalSearchModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { t, activeOfficer } = useSupportOps();
+  const router = useRouter();
+  const [q, setQ] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [results, setResults] = useState<SearchResults | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (open) {
+      setQ("");
+      setResults(null);
+      window.setTimeout(() => inputRef.current?.focus(), 50);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (q.trim().length < 2) {
+      setResults(null);
+      return;
+    }
+    setBusy(true);
+    const timer = window.setTimeout(async () => {
+      const res = await supportOps.search(q.trim(), activeOfficer?.id);
+      if (isSupportApiError(res)) setResults(null);
+      else setResults(res);
+      setBusy(false);
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [q, activeOfficer?.id]);
+
+  const go = (href: string) => {
+    onClose();
+    router.push(href);
+  };
+
+  const groups: { key: string; items: { href: string; primary: string; secondary: string }[] }[] = results
+    ? [
+        { key: "customers", items: results.customers.map((c) => ({ href: c.href, primary: c.name, secondary: c.status })) },
+        { key: "tickets", items: results.tickets.map((x) => ({ href: x.href, primary: `${x.number} — ${x.subject}`, secondary: x.status })) },
+        { key: "transactions", items: results.transactions.map((x) => ({ href: x.href, primary: x.reference, secondary: `${x.currency} ${x.amount} · ${x.status}` })) },
+        { key: "disputes", items: results.disputes.map((x) => ({ href: x.href, primary: x.number, secondary: x.category })) },
+        { key: "escalations", items: results.escalations.map((x) => ({ href: x.href, primary: x.number, secondary: x.destination })) },
+        { key: "knowledge", items: results.knowledge.map((x) => ({ href: x.href, primary: x.title, secondary: x.category })) },
+      ].filter((g) => g.items.length > 0)
+    : [];
+
+  return (
+    <Modal open={open} onClose={onClose} title={t("supportOps.search.title")} wide>
+      <input
+        ref={inputRef}
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder={t("supportOps.search.placeholder")}
+        aria-label={t("supportOps.search.placeholder")}
+        className="w-full rounded-[var(--support-radius-input)] border border-[var(--border)] bg-[var(--input-bg)] px-3 py-2.5 text-sm text-[var(--foreground)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--brand-border)]"
+      />
+      <div className="mt-3 max-h-[50dvh] overflow-y-auto">
+        {busy && <div className="flex items-center gap-2 px-1 py-3 text-xs text-[var(--muted)]"><Spinner /> {t("supportOps.common.loading")}</div>}
+        {!busy && q.trim().length >= 2 && groups.length === 0 && (
+          <p className="px-1 py-6 text-center text-xs text-[var(--muted)]">
+            {t("supportOps.search.noResults", { query: q })}
+          </p>
+        )}
+        {groups.map((g) => (
+          <div key={g.key} className="mb-3">
+            <p className="px-1 pb-1 text-[10px] font-extrabold uppercase tracking-wider text-[var(--muted)]">
+              {t(`supportOps.search.groups.${g.key}`)}
+            </p>
+            {g.items.map((item, i) => (
+              <button
+                key={i}
+                onClick={() => go(item.href)}
+                className="flex w-full items-center justify-between gap-3 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-[var(--surface-3)]"
+              >
+                <span className="truncate text-[13px] font-semibold text-[var(--foreground)]">{item.primary}</span>
+                <span className="shrink-0 text-[11px] font-semibold text-[var(--muted)]">{item.secondary}</span>
+              </button>
+            ))}
+          </div>
+        ))}
+      </div>
+    </Modal>
+  );
+}
+
+

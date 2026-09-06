@@ -9,6 +9,7 @@ export type SupportRole =
   | "TIER_3_TECH_OPS"
   | "SUPPORT_SUPERVISOR"
   | "SUPPORT_MANAGER"
+  | "SUPPORT_READ_ONLY"
   | "SUPER_ADMIN";
 
 export type SupportTier =

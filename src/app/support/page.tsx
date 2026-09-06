@@ -1,227 +1,329 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { useSupport } from '@/components/support/SupportContext';
-import { SupportCommandHero } from '@/components/support/SupportCommandHero';
-import { TicketDetailWorkspace } from '@/components/support/TicketDetailWorkspace';
-import { CreateTicketModal } from '@/components/support/CreateTicketModal';
-import { IncidentModal } from '@/components/support/IncidentModal';
-import { EscalationModal } from '@/components/support/EscalationModal';
-import { SupportTicket } from '@/types/support';
-import {
-  LifeBuoy,
-  Inbox,
-  Clock,
-  CheckCircle2,
-  AlertTriangle,
-  Zap,
-  ArrowRight,
-  User,
-  ShieldCheck,
-  ChevronRight,
-  TrendingUp,
-  Layers,
-  Sparkles,
-} from 'lucide-react';
+// =============================================================================
+// File: src/app/support/page.tsx
+// Description: KoriePay Support — Command Center (dashboard, §101).
+// KPIs + immediate-attention + trend + categories + LIVE service health +
+// recent activity. Every number comes from the server overview endpoint.
+// =============================================================================
 
-export default function SupportCommandCenterPage() {
-  const {
-    tickets,
-    incidents,
-    playbooks,
-    automationLogs,
-    selectedJurisdiction,
-    currentOfficer,
-    formatDate,
-    calculateSlaRemaining,
-  } = useSupport();
+import React, { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { ArrowUpRight, Clock, Inbox, Siren, UserCheck, Users, Zap } from "lucide-react";
+import { useSupportOps } from "@/components/support/SupportOpsProvider";
+import { ErrorState, HealthDot, LoadingPanel, OfflineBanner, SectionCard, StatCard, relTime } from "@/components/support/SupportUI";
+import { supportOps, isSupportApiError, OverviewDto } from "@/services/supportOpsClient";
 
-  const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
-  const [isCreateTicketOpen, setIsCreateTicketOpen] = useState(false);
-  const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
-  const [isEscalateModalOpen, setIsEscalateModalOpen] = useState(false);
+const RANGES = ["24H", "7D", "30D", "90D"] as const;
+type Range = (typeof RANGES)[number];
 
-  const filteredTickets = selectedJurisdiction === 'ALL'
-    ? tickets
-    : tickets.filter((t) => t.jurisdiction === selectedJurisdiction);
+export default function SupportDashboardPage() {
+  const { t, activeOfficer, isOnline, toast } = useSupportOps();
+  const router = useRouter();
+  const [range, setRange] = useState<Range>("24H");
+  const [data, setData] = useState<OverviewDto | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const res = await supportOps.overview(range, activeOfficer?.id);
+    if (isSupportApiError(res)) {
+      setError(res.message);
+      setLoading(false);
+      return;
+    }
+    setData(res);
+    setLoading(false);
+  }, [range, activeOfficer?.id]);
+
+  useEffect(() => {
+    if (isOnline) void load();
+  }, [isOnline, load]);
 
   return (
-    <div className="space-y-6">
-      {/* Command Hero */}
-      <SupportCommandHero
-        onOpenCreateTicket={() => setIsCreateTicketOpen(true)}
-        onOpenDeclareIncident={() => setIsIncidentModalOpen(true)}
-      />
-
-      {/* Main Grid: Live Queue + Guided Playbooks */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Live Priority Queue (Cols 1-2) */}
-        <div className="lg:col-span-2 bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 bg-blue-950 text-blue-400 rounded-lg border border-blue-800/40">
-                  <Inbox className="w-4 h-4" />
-                </div>
-                <div>
-                  <h2 className="text-base font-bold text-white">Live Priority Triage Queue</h2>
-                  <p className="text-xs text-slate-400">Incoming omnichannel tickets ranked by SLA urgency</p>
-                </div>
-              </div>
-              <Link
-                href="/support/tickets"
-                className="text-xs font-semibold text-teal-400 hover:text-teal-300 flex items-center gap-1"
-              >
-                All Tickets <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-
-            <div className="space-y-3">
-              {filteredTickets.slice(0, 4).map((ticket) => {
-                const sla = calculateSlaRemaining(ticket.resolutionDueAt);
-                return (
-                  <div
-                    key={ticket.id}
-                    onClick={() => setSelectedTicket(ticket)}
-                    className="p-4 bg-slate-950/70 hover:bg-slate-800/60 border border-slate-800/80 rounded-xl cursor-pointer transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 group shadow-md"
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-bold text-teal-400 group-hover:underline">
-                          {ticket.ticketNumber}
-                        </span>
-                        <span className="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-300 font-mono">
-                          {ticket.category.replace(/_/g, ' ')}
-                        </span>
-                        <span
-                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${
-                            ticket.priority === 'CRITICAL' || ticket.priority === 'URGENT'
-                              ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
-                              : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                          }`}
-                        >
-                          {ticket.priority}
-                        </span>
-                        <span className="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400 font-mono">
-                          {ticket.jurisdiction === 'NG' ? '🇳🇬' : '🇳🇪'}
-                        </span>
-                      </div>
-                      <div className="text-xs font-bold text-slate-200 line-clamp-1">{ticket.subject}</div>
-                      <div className="text-[11px] text-slate-400 flex items-center gap-2">
-                        <span>Customer: <strong className="text-slate-300">{ticket.customerName}</strong></span>
-                        <span>•</span>
-                        <span>Officer: <strong className="text-slate-300">{ticket.assignedOfficerName || 'Unassigned'}</strong></span>
-                      </div>
-                    </div>
-
-                    <div className="text-right flex sm:flex-col items-center sm:items-end justify-between border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-800">
-                      <div
-                        className={`text-xs font-mono font-bold flex items-center gap-1 ${
-                          sla.isBreached ? 'text-rose-400' : sla.isWarning ? 'text-amber-400' : 'text-teal-400'
-                        }`}
-                      >
-                        <Clock className="w-3 h-3" />
-                        {sla.text}
-                      </div>
-                      <span className="text-[10px] text-slate-500 font-mono mt-1">
-                        {ticket.messages.length} message(s)
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+    <div className="mx-auto max-w-7xl space-y-5">
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-extrabold tracking-tight text-[var(--foreground)]">{t("supportOps.dashboard.title")}</h1>
+          <p className="mt-0.5 text-[13px] text-[var(--foreground-muted)]">{t("supportOps.dashboard.subtitle")}</p>
         </div>
-
-        {/* Guided Playbooks & Quick Automation Strip */}
-        <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 flex flex-col justify-between space-y-4">
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 bg-teal-950 text-teal-400 rounded-lg border border-teal-800/40">
-                  <Layers className="w-4 h-4" />
-                </div>
-                <div>
-                  <h2 className="text-base font-bold text-white">Junior Guided Playbooks</h2>
-                  <p className="text-xs text-slate-400">Step-by-step resolution guides</p>
-                </div>
-              </div>
-              <Link
-                href="/support/playbooks"
-                className="text-xs font-semibold text-teal-400 hover:text-teal-300 flex items-center gap-1"
-              >
-                All Playbooks <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-
-            <div className="space-y-3">
-              {playbooks.map((pb) => (
-                <Link
-                  key={pb.id}
-                  href={`/support/playbooks`}
-                  className="p-3 bg-slate-950/70 hover:bg-slate-800/60 border border-slate-800 rounded-xl block space-y-1 transition group"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-mono text-teal-400 bg-teal-950/60 px-1.5 py-0.5 rounded font-bold">
-                      {pb.category.replace(/_/g, ' ')}
-                    </span>
-                    <span className="text-[10px] text-slate-500 font-mono">~{pb.estimatedMinutes} mins</span>
-                  </div>
-                  <h3 className="text-xs font-bold text-white group-hover:text-teal-300 transition">
-                    {pb.title}
-                  </h3>
-                  <div className="text-[10px] text-slate-400 flex items-center gap-1">
-                    <span>{pb.steps.length} guided steps</span>
-                    <span>•</span>
-                    <span className="text-emerald-400 font-semibold">{pb.targetTier.replace(/_/g, ' ')}</span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-
-          <div className="p-3 bg-slate-950/80 rounded-xl border border-slate-800 text-xs flex items-center justify-between">
-            <div className="flex items-center gap-2 text-teal-400">
-              <Zap className="w-4 h-4" />
-              <span className="font-bold">Automation Efficiency:</span>
-            </div>
-            <span className="font-mono font-bold text-white">55% Auto-Handled</span>
-          </div>
+        <div className="flex items-center gap-1 rounded-[var(--support-radius-input)] border border-[var(--border)] bg-[var(--surface)] p-1" role="group" aria-label={t("supportOps.dashboard.trendTitle", { range: range === "24H" ? 1 : range === "7D" ? 7 : range === "30D" ? 30 : 90 })}>
+          {RANGES.map((r) => (
+            <button
+              key={r}
+              onClick={() => setRange(r)}
+              aria-pressed={range === r}
+              className={`rounded-lg px-2.5 py-1 text-[11px] font-extrabold transition-colors ${
+                range === r ? "bg-[var(--brand-soft-strong)] text-[var(--brand-primary)]" : "text-[var(--muted)] hover:text-[var(--foreground)]"
+              }`}
+            >
+              {r}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Full Dedicated Interactive Workspace when Ticket is Selected */}
-      {selectedTicket && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-teal-400" />
-              <span>Active Investigation Cockpit ({selectedTicket.ticketNumber})</span>
-            </h3>
-            <button
-              onClick={() => setSelectedTicket(null)}
-              className="text-xs text-slate-400 hover:text-white"
-            >
-              ✕ Close Workspace
-            </button>
-          </div>
-          <TicketDetailWorkspace
-            ticket={selectedTicket}
-            onOpenEscalate={() => setIsEscalateModalOpen(true)}
-          />
-        </div>
-      )}
+      {!isOnline && <OfflineBanner message={t("supportOps.dashboard.offlineBanner")} />}
 
-      {/* Modals */}
-      <CreateTicketModal isOpen={isCreateTicketOpen} onClose={() => setIsCreateTicketOpen(false)} />
-      <IncidentModal isOpen={isIncidentModalOpen} onClose={() => setIsIncidentModalOpen(false)} />
-      <EscalationModal
-        ticket={selectedTicket}
-        isOpen={isEscalateModalOpen}
-        onClose={() => setIsEscalateModalOpen(false)}
-      />
+      {error && !loading && <ErrorState message={error} onRetry={() => void load()} />}
+
+      {loading && !data ? (
+        <LoadingPanel rows={8} />
+      ) : data ? (
+        <>
+          {/* KPIs */}
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+            <StatCard
+              label={t("supportOps.dashboard.openTickets")}
+              value={data.kpis.openTickets}
+              tone="info"
+              onClick={() => router.push("/support/inbox")}
+            />
+            <StatCard
+              label={t("supportOps.dashboard.critical")}
+              value={data.kpis.critical}
+              tone={data.kpis.critical > 0 ? "danger" : "neutral"}
+              onClick={() => router.push("/support/inbox?priority=CRITICAL&open=1")}
+            />
+            <StatCard
+              label={t("supportOps.dashboard.slaAtRisk")}
+              value={data.kpis.slaAtRisk}
+              tone={data.kpis.slaAtRisk > 0 ? "warning" : "neutral"}
+              onClick={() => router.push("/support/inbox")}
+            />
+            <StatCard
+              label={t("supportOps.dashboard.waitingForCustomer")}
+              value={data.kpis.waitingForCustomer}
+              tone="neutral"
+              onClick={() => router.push("/support/inbox?status=WAITING_FOR_CUSTOMER&open=1")}
+            />
+            <StatCard
+              label={t("supportOps.dashboard.unassigned")}
+              value={data.kpis.unassigned}
+              tone={data.kpis.unassigned > 0 ? "warning" : "neutral"}
+              onClick={() => router.push("/support/inbox?unassigned=1&open=1")}
+            />
+            <StatCard label={t("supportOps.dashboard.resolvedToday")} value={data.kpis.resolvedToday} tone="success" />
+          </div>
+
+          <div className="grid gap-5 lg:grid-cols-3">
+            {/* Attention center */}
+            <SectionCard title={t("supportOps.dashboard.attentionTitle")} tone={data.attention.criticalTickets > 0 ? "danger" : undefined}>
+              <div className="space-y-2">
+                <AttentionRow
+                  icon={<Siren className="h-4 w-4" />}
+                  label={t("supportOps.dashboard.criticalTickets")}
+                  value={data.attention.criticalTickets}
+                  tone="danger"
+                  onClick={() => router.push("/support/inbox?priority=CRITICAL&open=1")}
+                />
+                <AttentionRow
+                  icon={<Clock className="h-4 w-4" />}
+                  label={t("supportOps.dashboard.slaBreached")}
+                  value={data.attention.slaBreachedOrAtRisk}
+                  tone="warning"
+                  onClick={() => router.push("/support/inbox")}
+                />
+                <AttentionRow
+                  icon={<Zap className="h-4 w-4" />}
+                  label={t("supportOps.dashboard.fraudEscalations")}
+                  value={data.attention.fraudEscalations}
+                  tone="danger"
+                  onClick={() => router.push("/support/escalations?destination=FRAUD_RISK")}
+                />
+                <AttentionRow
+                  icon={<Inbox className="h-4 w-4" />}
+                  label={t("supportOps.dashboard.transactionDisputes")}
+                  value={data.attention.transactionDisputes}
+                  tone="warning"
+                  onClick={() => router.push("/support/disputes")}
+                />
+                <AttentionRow
+                  icon={<Users className="h-4 w-4" />}
+                  label={t("supportOps.dashboard.bankingIssues")}
+                  value={data.attention.bankingIssues}
+                  tone="info"
+                  onClick={() => router.push("/support/inbox?category=AGENT_FLOAT&open=1")}
+                />
+              </div>
+            </SectionCard>
+
+            {/* Trend */}
+            <SectionCard
+              title={t("supportOps.dashboard.trendTitle", { range: range === "24H" ? 1 : range === "7D" ? 7 : range === "30D" ? 30 : 90 })}
+              subtitle={`${t("supportOps.dashboard.avgResolution")}: ${data.trend.avgResolutionHours}h`}
+            >
+              <TrendChart labels={data.trend.labels} created={data.trend.created} resolved={data.trend.resolved} />
+              <div className="mt-3 flex items-center gap-4 text-[11px] font-semibold text-[var(--foreground-muted)]">
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-sm bg-[var(--brand-accent)]" /> {t("supportOps.dashboard.created")}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-sm bg-[var(--state-success)]" /> {t("supportOps.dashboard.resolved")}
+                </span>
+              </div>
+            </SectionCard>
+
+            {/* Categories */}
+            <SectionCard title={t("supportOps.dashboard.categoriesTitle")}>
+              <div className="space-y-2">
+                {data.categories.length === 0 && (
+                  <p className="py-4 text-center text-xs text-[var(--muted)]">{t("supportOps.common.noData")}</p>
+                )}
+                {data.categories.map((c) => {
+                  const max = Math.max(1, ...data.categories.map((x) => x.count));
+                  return (
+                    <div key={c.key}>
+                      <div className="mb-0.5 flex items-center justify-between text-[11px] font-semibold">
+                        <span className="text-[var(--foreground)]">{t(`supportOps.categories.${c.key}`)}</span>
+                        <span className="tabular-nums text-[var(--muted)]">{c.count}</span>
+                      </div>
+                      <div className="h-1.5 overflow-hidden rounded-full bg-[var(--surface-3)]">
+                        <div className="h-full rounded-full bg-[var(--brand-accent)]" style={{ width: `${(c.count / max) * 100}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </SectionCard>
+          </div>
+
+          <div className="grid gap-5 lg:grid-cols-3">
+            {/* Service health — live, never simulated (§15) */}
+            <SectionCard
+              title={t("supportOps.dashboard.healthTitle")}
+              subtitle={
+                data.serviceHealth.some((h) => h.status !== "OPERATIONAL")
+                  ? t("supportOps.dashboard.healthIssues")
+                  : t("supportOps.dashboard.healthAll")
+              }
+              action={
+                <button onClick={() => router.push("/support/system-health")} className="flex items-center gap-1 text-[11px] font-extrabold text-[var(--brand-primary)] hover:underline">
+                  {t("supportOps.nav.systemHealth")} <ArrowUpRight className="h-3 w-3" />
+                </button>
+              }
+            >
+              <div className="space-y-2">
+                {data.serviceHealth.map((h) => (
+                  <div key={h.key} className="flex items-start gap-2.5 rounded-[10px] bg-[var(--surface-2)] px-3 py-2">
+                    <HealthDot status={h.status} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-[var(--foreground)]">{h.label}</p>
+                      <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-[var(--foreground-muted)]">{h.detail}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </SectionCard>
+
+            {/* Recent activity */}
+            <SectionCard
+              title={t("supportOps.dashboard.activityTitle")}
+              className="lg:col-span-2"
+              action={
+                <button onClick={() => router.push("/support/audit")} className="flex items-center gap-1 text-[11px] font-extrabold text-[var(--brand-primary)] hover:underline">
+                  {t("supportOps.nav.audit")} <ArrowUpRight className="h-3 w-3" />
+                </button>
+              }
+            >
+              <div className="space-y-1">
+                {data.recentActivity.length === 0 && (
+                  <p className="py-4 text-center text-xs text-[var(--muted)]">{t("supportOps.common.noData")}</p>
+                )}
+                {data.recentActivity.slice(0, 8).map((a) => (
+                  <div key={a.id} className="flex items-center gap-3 rounded-lg px-2 py-1.5 text-xs hover:bg-[var(--surface-2)]">
+                    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[var(--brand-soft)] text-[var(--brand-primary)]">
+                      <UserCheck className="h-3.5 w-3.5" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-semibold text-[var(--foreground)]">
+                        <span className="font-extrabold">{a.officerName}</span> — {a.details}
+                      </p>
+                      <p className="text-[10px] text-[var(--muted)]">{a.action} · {a.entityType}</p>
+                    </div>
+                    <span className="shrink-0 text-[10px] font-semibold tabular-nums text-[var(--muted)]">{relTime(a.timestamp, t)}</span>
+                  </div>
+                ))}
+              </div>
+            </SectionCard>
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+/* ----------------------------------------------------------------- pieces */
+
+function AttentionRow({
+  icon,
+  label,
+  value,
+  tone,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+  tone: "danger" | "warning" | "info";
+  onClick: () => void;
+}) {
+  const toneCls =
+    tone === "danger" ? "text-[var(--state-danger)] bg-[var(--state-danger-soft)]"
+    : tone === "warning" ? "text-[var(--state-warning)] bg-[var(--state-warning-soft)]"
+    : "text-[var(--state-info)] bg-[var(--state-info-soft)]";
+  return (
+    <button
+      onClick={onClick}
+      className="flex w-full items-center gap-3 rounded-[10px] border border-transparent px-3 py-2.5 text-left transition-colors hover:border-[var(--border)] hover:bg-[var(--surface-2)]"
+    >
+      <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${toneCls}`}>{icon}</span>
+      <span className="flex-1 text-[13px] font-semibold text-[var(--foreground)]">{label}</span>
+      <span className={`grid h-7 min-w-[28px] place-items-center rounded-full px-2 text-[13px] font-extrabold tabular-nums ${value > 0 ? toneCls : "bg-[var(--surface-3)] text-[var(--muted)]"}`}>
+        {value}
+      </span>
+    </button>
+  );
+}
+
+function TrendChart({ labels, created, resolved }: { labels: string[]; created: number[]; resolved: number[] }) {
+  const max = Math.max(1, ...created, ...resolved);
+  const W = 560;
+  const H = 140;
+  const pad = 4;
+  const n = Math.max(created.length, 1);
+  const bw = (W - pad * 2) / n;
+
+  return (
+    <div className="overflow-x-auto">
+      <svg viewBox={`0 0 ${W} ${H + 20}`} className="w-full min-w-[380px]" role="img" aria-label="volume trend">
+        {labels.map((l, i) => (
+          <g key={i}>
+            <rect
+              x={pad + i * bw + bw * 0.12}
+              y={H - (created[i] / max) * (H - 12)}
+              width={bw * 0.32}
+              height={Math.max(2, (created[i] / max) * (H - 12))}
+              rx={3}
+              className="fill-[var(--brand-accent)]"
+            />
+            <rect
+              x={pad + i * bw + bw * 0.5}
+              y={H - (resolved[i] / max) * (H - 12)}
+              width={bw * 0.32}
+              height={Math.max(2, (resolved[i] / max) * (H - 12))}
+              rx={3}
+              className="fill-[var(--state-success)]"
+            />
+            <text x={pad + i * bw + bw / 2} y={H + 14} textAnchor="middle" className="fill-[var(--muted)] text-[9px] font-semibold">
+              {l}
+            </text>
+          </g>
+        ))}
+      </svg>
     </div>
   );
 }
