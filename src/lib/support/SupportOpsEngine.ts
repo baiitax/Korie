@@ -660,7 +660,8 @@ export class SupportOpsEngine {
     const { actor } = params;
     const ticket = this.store.getTicket(ticketId);
     if (!ticket) return { ok: false, code: "TICKET_NOT_FOUND", error: "Ticket not found." };
-    if (!params.content || !params.content.trim()) {
+    // A macro alone is a valid message: its template becomes the content.
+    if (!params.macroId && (!params.content || !params.content.trim())) {
       return { ok: false, code: "VALIDATION_FAILED", error: "Message content is required." };
     }
     const isCustomer = params.senderType === "CUSTOMER";
@@ -945,6 +946,9 @@ export class SupportOpsEngine {
       },
       status: isFinal ? (params.type === "REJECTED" || params.type === "UNDER_INVESTIGATION" ? "DECISION" : "RESOLVED") : "UNDER_REVIEW",
       resolvedAt: isFinal && params.type !== "REJECTED" ? now : undefined,
+      // The recovery case is authoritative for any money movement (§31) —
+      // keep the reference on the dispute so support and audit can trace it.
+      ...(recoveryCaseReference ? { recoveryCaseReference } : {}),
     });
     updated!.timeline.push({
       label: `Decision: ${params.type}${recoveryCaseReference ? ` (recovery case ${recoveryCaseReference})` : ""}`,
@@ -1450,6 +1454,52 @@ export class SupportOpsEngine {
         : Math.round((escalations.length / this.store.tickets.length) * 1000) / 10;
     const reopenedCount = this.store.tickets.filter((t) => t.status === "REOPENED").length;
 
+    /* §57–§59 tab payloads — the analytics UI shape (kept alongside
+     * `agents`/`overall` for API consumers). */
+    const agentStats = agents.map((a) => {
+      const mine = this.store.tickets.filter((t) => t.assignedOfficerId === a.officerId);
+      const mineIds = new Set(mine.map((t) => t.id));
+      return {
+        officerId: a.officerId,
+        officerName: a.name,
+        role: a.role,
+        resolved: a.resolved,
+        open: a.open,
+        avgResolutionHours: a.avgResolutionH,
+        csatAvg: a.csat,
+        escalations: this.store.escalations.filter((e) => mineIds.has(e.ticketId)).length,
+        reopens: mine.filter((t) => t.status === "REOPENED").length,
+        slaComplianceRate: a.slaPct,
+      };
+    });
+
+    const resolutionByPriority = (["CRITICAL", "URGENT", "HIGH", "NORMAL", "LOW"] as const).map((p) => {
+      const list = allResolved.filter((t) => t.priority === p);
+      const withinTarget = list.filter((t) => {
+        const spec = SUPPORT_SLA_POLICY[t.priority];
+        return new Date(t.resolvedAt!).getTime() - new Date(t.createdAt).getTime() <= spec.resolutionHours * 3600e3 + 60e3;
+      }).length;
+      return {
+        priority: p,
+        resolved: list.length,
+        withinTarget,
+        rate: list.length === 0 ? 100 : Math.round((withinTarget / list.length) * 100),
+      };
+    });
+
+    const distribution: Record<string, number> = {};
+    for (const r of [1, 2, 3, 4, 5]) distribution[String(r)] = csatAll.filter((c) => c.rating === r).length;
+    const byLanguage = (["en", "fr", "ha"] as const)
+      .map((lang) => {
+        const list = csatAll.filter((c) => c.language === lang);
+        return {
+          language: lang,
+          count: list.length,
+          average: list.length ? Math.round((list.reduce((s, c) => s + c.rating, 0) / list.length) * 10) / 10 : null,
+        };
+      })
+      .filter((l) => l.count > 0);
+
     return {
       agents,
       overall: {
@@ -1460,6 +1510,15 @@ export class SupportOpsEngine {
         escalationRatePct,
         reopenRatePct: this.store.tickets.length ? Math.round((reopenedCount / this.store.tickets.length) * 1000) / 10 : 0,
         nowIso: new Date(now).toISOString(),
+      },
+      agentStats,
+      slaComplianceRate: slaCompliancePct,
+      resolutionByPriority,
+      csat: {
+        average: csatAll.length ? Math.round((csatAll.reduce((s, c) => s + c.rating, 0) / csatAll.length) * 10) / 10 : null,
+        count: csatAll.length,
+        distribution,
+        byLanguage,
       },
     };
   }

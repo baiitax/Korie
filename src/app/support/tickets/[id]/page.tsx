@@ -479,7 +479,7 @@ function ResolveModal({
   );
 }
 
-const ESCALATION_DESTINATIONS = ["FRAUD_RISK", "FINANCE", "COMPLIANCE", "BANKING", "ENGINEERING", "LEGAL", "MANAGEMENT"] as const;
+const ESCALATION_DESTINATIONS = ["FRAUD_RISK", "FINANCE", "COMPLIANCE", "BANKING_OPS", "ENGINEERING", "SETTLEMENT", "MANAGEMENT"] as const;
 
 function EscalateModal({
   open,
@@ -603,7 +603,7 @@ function AssignModal({
           >
             <option value="">{t("supportOps.common.none")}</option>
             {officers
-              .filter((o) => o.active)
+              .filter((o) => o.status !== "OFFLINE")
               .map((o) => (
                 <option key={o.id} value={o.id}>
                   {o.fullName} — {t(`supportOps.roles.${o.role}`)}

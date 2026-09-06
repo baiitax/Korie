@@ -91,8 +91,38 @@ export async function POST(req: NextRequest) {
   }
 
   const engine = SupportOpsEngine.getInstance();
+
+  // The UI accepts an exact customer ID *or* a name in one field. Resolve
+  // both (id, name) server-side — React never guesses (§67).
+  const params = body as Parameters<typeof engine.createTicket>[0];
+  if (!params.customerName) {
+    const { SupportOpsStore } = await import("@/lib/support/SupportOpsStore");
+    const { CustomerLifecycleEngine } = await import("@/lib/customer/CustomerLifecycleEngine");
+    const store = SupportOpsStore.getInstance();
+    const input = String(params.customerId ?? "").trim().toLowerCase();
+    const engineCustomers = CustomerLifecycleEngine.getInstance().getCustomers();
+    const storeCustomers = Object.values(store.entityContexts).map((c) => ({
+      id: c.customerId,
+      name: c.fullName,
+      code: "",
+    }));
+    const all = [
+      ...engineCustomers.map((c) => ({ id: c.id, name: c.fullName, code: c.customerCode ?? "" })),
+      ...storeCustomers,
+    ];
+    const hit =
+      all.find((c) => c.id.toLowerCase() === input) ??
+      all.find((c) => c.code.toLowerCase() === input) ??
+      all.find((c) => c.name.toLowerCase() === input) ??
+      (input.length >= 3 ? all.find((c) => c.name.toLowerCase().includes(input)) : undefined);
+    if (hit) {
+      params.customerId = hit.id;
+      params.customerName = hit.name;
+    }
+  }
+
   const result = engine.createTicket(
-    body as Parameters<typeof engine.createTicket>[0],
+    params,
     access.ctx.actor,
     (req.headers.get("idempotency-key") as string | null) ?? (body.idempotencyKey as string | undefined),
   );

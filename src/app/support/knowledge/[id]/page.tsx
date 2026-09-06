@@ -76,27 +76,44 @@ export default function KnowledgeArticlePage() {
           </span>
         </div>
         <h1 className="mt-3 text-xl font-extrabold leading-tight tracking-tight text-[var(--foreground)]">{article.body.title}</h1>
-        <p className="mt-2 text-sm leading-relaxed text-[var(--foreground-muted)]">{article.body.summary}</p>
+        <p className="mt-2 text-sm leading-relaxed text-[var(--foreground-muted)]">{article.body.problem}</p>
 
-        <div className="mt-4 space-y-3 text-[14px] leading-relaxed text-[var(--foreground)]">
-          {article.body.body.split("\n\n").map((para, i) => (
-            <p key={i}>{para}</p>
-          ))}
-        </div>
+        {article.body.symptoms && article.body.symptoms.length > 0 && (
+          <div className="mt-4">
+            <h2 className="mb-2 text-sm font-extrabold text-[var(--foreground)]">{t("supportOps.knowledge.symptoms")}</h2>
+            <ul className="space-y-1.5">
+              {article.body.symptoms.map((s, i) => (
+                <li key={i} className="flex gap-2 text-[14px] leading-relaxed text-[var(--foreground)]">
+                  <span aria-hidden className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand-primary)]" />
+                  {s}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
-        {article.body.steps && article.body.steps.length > 0 && (
+        {article.body.resolution && (
           <div className="mt-5">
-            <h2 className="mb-2 text-sm font-extrabold text-[var(--foreground)]">{t("supportOps.knowledge.steps")}</h2>
+            <h2 className="mb-2 text-sm font-extrabold text-[var(--foreground)]">{t("supportOps.knowledge.resolution")}</h2>
             <ol className="space-y-2">
-              {article.body.steps.map((step, i) => (
+              {article.body.resolution.split(/\n(?=\d+[.)]\s)/).map((step, i) => (
                 <li key={i} className="flex gap-3 rounded-[10px] bg-[var(--surface-2)] px-3 py-2.5">
                   <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[var(--brand-primary)] text-[11px] font-extrabold text-[var(--brand-on-primary)]">
                     {i + 1}
                   </span>
-                  <span className="text-[13px] leading-relaxed">{step}</span>
+                  <span className="text-[13px] leading-relaxed">{step.replace(/^\d+[.)]\s*/, "")}</span>
                 </li>
               ))}
             </ol>
+          </div>
+        )}
+
+        {article.body.escalationCondition && (
+          <div className="mt-5 rounded-[10px] border border-[var(--state-warning)]/40 bg-[var(--state-warning-soft)] px-3 py-2.5">
+            <p className="text-[11px] font-extrabold uppercase tracking-wide text-[var(--state-warning)]">
+              {t("supportOps.knowledge.escalation")}
+            </p>
+            <p className="mt-1 text-[13px] leading-relaxed text-[var(--foreground)]">{article.body.escalationCondition}</p>
           </div>
         )}
 

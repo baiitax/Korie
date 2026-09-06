@@ -161,7 +161,7 @@ export default function TicketsPage() {
               <button
                 onClick={() => setPage((p) => Math.min(pages, p + 1))}
                 disabled={page === pages}
-                aria-label={t("supportOps.common.actions")}
+                aria-label={t("supportOps.common.nextPage")}
                 className="grid h-8 w-8 place-items-center rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-muted)] disabled:opacity-40"
               >
                 <ChevronRight className="h-4 w-4" />

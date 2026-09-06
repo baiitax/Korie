@@ -30,9 +30,9 @@ import { CustomerAccountRecord } from "@/types/customerProductFactory";
 
 export function maskPhone(phone?: string): string {
   if (!phone) return "—";
-  const digits = phone.replace(/[^\d+]/g, "");
+  const digits = phone.replace(/\D/g, "");
   const plus = phone.startsWith("+") ? "+" : "";
-  if (digits.replace("+", "").length <= 4) return `${plus}${digits.slice(0, 1)}•••••••`;
+  if (digits.length <= 4) return `${plus}${digits.slice(0, 1)}•••••••`;
   return `${plus}${digits.slice(0, 4)} ••• ••• ${digits.slice(-4)}`;
 }
 
