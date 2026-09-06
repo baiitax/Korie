@@ -1,7 +1,7 @@
 # Customer Adashi — Privacy, UX, Real Payment Path, Auto-Collection & Reminders
 
 Date: 2026-09-06 · Scope: `baiitax/Korie` @ `0957c72`
-Status: audit + build (this workstream, staged commits)
+Status: **COMPLETE** — phases 1–6 implemented, verified (see 02-verification.md), committed `330a9f4`
 
 ## 1. Audit findings (evidence)
 
@@ -59,12 +59,12 @@ Status: audit + build (this workstream, staged commits)
 
 | # | Work | Gate |
 |---|---|---|
-| 1 | File-backed `AdashiStore`, `SubledgerEngine`, `LedgerService` (+ escrow accounts); env store paths | tsc 0; cross-route visibility |
-| 2 | `EmailNotificationEngine` (outbox, SMTP when env, honest QUEUED/DEMO) + PIN vault + customer circles seeds (XOF-first + NGN, member = portal customer) | outbox rows; QUEUED when no transport |
-| 3 | `AdashiCustomerCollectionEngine`: real ledger collect, ownership/PIN, mandate, auto-due sweep, overdue flagging, negative-balance reminder monitor | collect ⇒ wallet down + journal up; insufficient ⇒ FAILED + reminder |
-| 4 | `/api/customer/adashi/*` BFF (auth + scope + privacy sanitizer) | 401 unauth; 403 cross-customer; masked roster |
-| 5 | Customer page rework (identity from session, PIN modal, mandate/privacy controls, reminders, states) + EN/FR/HA keys | parity green; page renders from BFF only |
-| 6 | Clean build + smoke suite + commit/push | build 404/404; smoke evidence |
+| 1 ✅ | File-backed `AdashiStore`, `SubledgerEngine`, `LedgerService` (+ escrow & agent cash-in-transit accounts); self-healing chart | tsc 0; cross-route visibility |
+| 2 ✅ | `EmailNotificationEngine` (outbox, SMTP when env, honest QUEUED/DEMO) + PIN vault + customer circles seeds (member = portal customer + external participants) | outbox rows; QUEUED when no transport |
+| 3 ✅ | Engine rewired in place (`AdashiCycleObligationEngine`): real ledger collect, ownership/PIN/mandate, due sweep, overdue flagging, negative-balance reminders | collect ⇒ wallet down + journal up; insufficient ⇒ FAILED + reminder |
+| 4 ✅ | `/api/customer/adashi/*` BFF (auth + scope + privacy sanitizer) | 401 unauth; 403 cross-customer; masked roster |
+| 5 ✅ | Customer page rework (identity from session, PIN modal, mandate/privacy controls, reminders, states) + EN/FR/HA keys | parity green; page renders from BFF only |
+| 6 ✅ | Clean build + smoke suite + commit/push | tsc 0, lint clean, next build clean; smoke evidence in 02-verification.md |
 
 **Out of scope (documented, later):** organizer/agent console privacy parity, payout-side
 disbursement engine, real DB execution (R4 in system audit).
