@@ -2,79 +2,92 @@
 
 import React, { useState } from "react";
 import { useMerchant } from "@/components/merchant/MerchantContext";
-import {
-  FileSpreadsheet,
-  Download,
-  Calendar,
-  FileText,
-  Printer,
-  CheckCircle2,
-  Building2,
-} from "lucide-react";
+import { getMerchantAccessToken } from "@/lib/merchant/merchantSession";
+import { FileSpreadsheet, Download } from "lucide-react";
+
+const REPORTS_LIST = [
+  {
+    id: "DAILY_Z_REPORT",
+    title: "Daily End-of-Day Z-Report",
+    description: "Every transaction recorded today across all channels — reference, amount, fee, and status.",
+    period: "Today",
+    format: "CSV",
+  },
+  {
+    id: "SETTLEMENT_STATEMENT",
+    title: "Settlement Statement",
+    description: "Every settlement batch generated for this business, gross/fees/net and destination bank.",
+    period: "All Time",
+    format: "CSV",
+  },
+  {
+    id: "BRANCH_COMPARATIVE",
+    title: "Multi-Branch Comparative Report",
+    description: "Store-by-store sales totals across all your registered branches.",
+    period: "All Time",
+    format: "CSV",
+  },
+  {
+    id: "TRANSACTION_LEDGER",
+    title: "Full Transaction Ledger",
+    description: "Complete list of your most recent payment transactions (up to 1,000 rows).",
+    period: "Recent",
+    format: "CSV",
+  },
+];
 
 export default function MerchantReportsPage() {
-  const { merchant, branches, formatCurrency, t } = useMerchant();
+  const { merchant, t } = useMerchant();
   const [downloadingReport, setDownloadingReport] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const reportsList = [
-    {
-      id: "z-report-daily",
-      title: "Daily End-of-Day Z-Report",
-      description: "Complete register cash, POS card slips, and dynamic NUBAN bank transfer reconciliation.",
-      period: "Today (Daily EOD)",
-      format: "PDF / CSV",
-    },
-    {
-      id: "providus-settlement-monthly",
-      title: "Providus Bank Settlement Audit Statement",
-      description: "Official NIBSS batch settlement receipts, transaction count, interchange fees, and net payouts.",
-      period: "August 2026",
-      format: "PDF",
-    },
-    {
-      id: "vat-tax-summary",
-      title: "FIRS / Tax VAT Summary Report",
-      description: "7.5% Value Added Tax deductions collected on commercial invoices for statutory filings.",
-      period: "Q3 2026",
-      format: "Excel / PDF",
-    },
-    {
-      id: "branch-comparative",
-      title: "Multi-Branch Profit & Loss Distribution",
-      description: "Store-by-store sales matrix comparing Victoria Island, Kano Central, and Niamey cross-border depot.",
-      period: "Trailing 90 Days",
-      format: "CSV",
-    },
-  ];
-
-  const handleDownload = (id: string, title: string) => {
+  const handleDownload = async (id: string) => {
     setDownloadingReport(id);
-    setTimeout(() => {
-      setDownloadingReport(null);
-      // create simulated download
-      const content = `KORIEPAY MERCHANT REPORT: ${title}\nMerchant: ${merchant.businessName}\nGenerated: ${new Date().toISOString()}\nStatus: Verified\n`;
-      const blob = new Blob([content], { type: "text/plain" });
+    setErrorMessage(null);
+    try {
+      const token = await getMerchantAccessToken();
+      const res = await fetch(`/api/v1/merchant/reports?type=${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        setErrorMessage("Could not generate report.");
+        return;
+      }
+      const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${id}-${Date.now()}.txt`;
+      const disposition = res.headers.get("Content-Disposition") || "";
+      const match = disposition.match(/filename="(.+)"/);
+      a.download = match ? match[1] : `${id.toLowerCase()}-${Date.now()}.csv`;
       a.click();
-    }, 1200);
+      URL.revokeObjectURL(url);
+    } catch {
+      setErrorMessage("Network error generating report.");
+    } finally {
+      setDownloadingReport(null);
+    }
   };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
       {/* Header */}
       <div>
-        <h1 className="text-xl sm:text-2xl font-black text-white">Merchant Financial & Tax Reports</h1>
+        <h1 className="text-xl sm:text-2xl font-black text-white">Merchant Financial Reports</h1>
         <p className="text-xs text-slate-400">
-          Statutory financial statements, End-of-Day POS Z-Reports, VAT returns, and settlement proofs.
+          Real CSV exports computed live from your own transactions, settlements, and branches — no sample data.
         </p>
       </div>
 
+      {errorMessage && (
+        <div className="p-3.5 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-mono">
+          {errorMessage}
+        </div>
+      )}
+
       {/* Reports List */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {reportsList.map((report) => (
+        {REPORTS_LIST.map((report) => (
           <div
             key={report.id}
             className="p-6 rounded-3xl bg-[#0a1122] border border-white/10 hover:border-teal-500/30 transition-all flex flex-col justify-between space-y-4"
@@ -96,7 +109,7 @@ export default function MerchantReportsPage() {
             <div className="pt-2 border-t border-white/5 flex items-center justify-between">
               <span className="text-[11px] font-mono text-slate-400">{report.period}</span>
               <button
-                onClick={() => handleDownload(report.id, report.title)}
+                onClick={() => handleDownload(report.id)}
                 disabled={downloadingReport === report.id}
                 className="px-3.5 py-1.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-colors disabled:opacity-50"
               >

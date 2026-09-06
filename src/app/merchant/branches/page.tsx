@@ -17,7 +17,7 @@ import {
 import { MerchantBranch } from "@/types/merchant";
 
 export default function MerchantBranchesPage() {
-  const { branches, formatCurrency, merchant, t } = useMerchant();
+  const { branches, totalActiveTerminals, formatCurrency, merchant, t } = useMerchant();
   const [selectedBranch, setSelectedBranch] = useState<MerchantBranch | null>(null);
 
   return (
@@ -27,9 +27,12 @@ export default function MerchantBranchesPage() {
         <div>
           <h1 className="text-xl sm:text-2xl font-black text-white">Multi-Branch Store Management</h1>
           <p className="text-xs text-slate-400">
-            Control physical retail branches, POS terminal IDs, cashier assignments, and regional revenue flows.
+            Control physical retail branches, cashier assignments, and regional revenue flows.
           </p>
         </div>
+        <span className="text-[11px] font-mono text-slate-400 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10">
+          {totalActiveTerminals} Active Terminal{totalActiveTerminals === 1 ? "" : "s"} business-wide
+        </span>
       </div>
 
       {/* Branches List */}
@@ -46,7 +49,7 @@ export default function MerchantBranchesPage() {
                   <div className="flex items-center gap-1 text-xs text-slate-400 mt-0.5">
                     <MapPin className="w-3.5 h-3.5 text-teal-400" />
                     <span>
-                      {branch.address}, {branch.city}, {branch.state}
+                      {branch.address}, {branch.city}, {branch.stateOrRegion}
                     </span>
                   </div>
                 </div>
@@ -58,16 +61,12 @@ export default function MerchantBranchesPage() {
               {/* Virtual Pos Transfer Account */}
               <div className="p-3 bg-slate-900 rounded-2xl border border-white/5 space-y-1 mt-4">
                 <div className="text-[10px] font-mono uppercase text-slate-400">Store In-Transfer NUBAN</div>
-                <div className="font-mono font-bold text-teal-300 text-sm">{branch.virtualNuban}</div>
+                <div className="font-mono font-bold text-teal-300 text-sm">{branch.virtualNuban || "Not yet provisioned"}</div>
                 <div className="text-[10px] text-slate-500">Providus Bank Instant Routing</div>
               </div>
             </div>
 
             <div className="space-y-2 pt-2 border-t border-white/5 text-xs">
-              <div className="flex justify-between text-slate-300">
-                <span>Active POS Terminals:</span>
-                <span className="font-mono font-bold text-white">{branch.posTerminalsCount} Terminals</span>
-              </div>
               <div className="flex justify-between text-slate-300">
                 <span>Branch Manager:</span>
                 <span className="text-slate-200 font-medium">{branch.managerName || "Corporate Assigned"}</span>
@@ -77,6 +76,10 @@ export default function MerchantBranchesPage() {
                 <span className="font-mono font-bold text-emerald-400">
                   {formatCurrency(branch.todayGrossSales)}
                 </span>
+              </div>
+              <div className="flex justify-between text-slate-300">
+                <span>Today's Transactions:</span>
+                <span className="font-mono font-bold text-white">{branch.todayTransactionsCount || 0}</span>
               </div>
             </div>
 
@@ -117,12 +120,12 @@ export default function MerchantBranchesPage() {
 
               <div className="p-3 bg-slate-900 rounded-xl border border-white/5 space-y-1">
                 <div className="text-slate-400">Assigned Cashier NUBAN:</div>
-                <div className="font-mono font-bold text-teal-300 text-sm">{selectedBranch.virtualNuban}</div>
+                <div className="font-mono font-bold text-teal-300 text-sm">{selectedBranch.virtualNuban || "Not yet provisioned"}</div>
               </div>
 
               <div className="p-3 bg-slate-900 rounded-xl border border-white/5 space-y-1">
-                <div className="text-slate-400">POS Hardware Terminals:</div>
-                <div className="text-white font-medium">{selectedBranch.posTerminalsCount} Certified PAX & Sunmi Devices</div>
+                <div className="text-slate-400">Today's Transactions:</div>
+                <div className="text-white font-medium">{selectedBranch.todayTransactionsCount || 0}</div>
               </div>
             </div>
 

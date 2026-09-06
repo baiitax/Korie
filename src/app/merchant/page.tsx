@@ -29,6 +29,7 @@ export default function MerchantDashboard() {
     merchant,
     transactions,
     branches,
+    totalActiveTerminals,
     selectedBranchId,
     formatCurrency,
     formatDate,
@@ -85,13 +86,18 @@ export default function MerchantDashboard() {
             <Building2 className="w-3.5 h-3.5 text-teal-400" />
             <span>Store / Branch Performance Network</span>
           </div>
-          <Link
-            href="/merchant/branches"
-            className="text-xs font-bold text-teal-400 hover:text-teal-300 flex items-center gap-1"
-          >
-            <span>Manage Branches ({branches.length})</span>
-            <ChevronRight className="w-3.5 h-3.5" />
-          </Link>
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] font-mono text-slate-400">
+              {totalActiveTerminals} Active Terminal{totalActiveTerminals === 1 ? "" : "s"} (business-wide)
+            </span>
+            <Link
+              href="/merchant/branches"
+              className="text-xs font-bold text-teal-400 hover:text-teal-300 flex items-center gap-1"
+            >
+              <span>Manage Branches ({branches.length})</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -104,7 +110,7 @@ export default function MerchantDashboard() {
                 <div>
                   <h3 className="font-bold text-white text-sm">{branch.branchName}</h3>
                   <div className="text-[11px] text-slate-400">
-                    {branch.city}, {branch.state}
+                    {branch.city}, {branch.stateOrRegion}
                   </div>
                 </div>
                 <span
@@ -121,11 +127,7 @@ export default function MerchantDashboard() {
               <div className="p-2.5 rounded-xl bg-slate-900/80 border border-white/5 space-y-1">
                 <div className="flex justify-between text-[11px]">
                   <span className="text-slate-400 font-mono">Dynamic POS NUBAN:</span>
-                  <span className="font-mono text-teal-300 font-bold">{branch.virtualNuban}</span>
-                </div>
-                <div className="flex justify-between text-[11px]">
-                  <span className="text-slate-400">Terminals Active:</span>
-                  <span className="text-white font-medium">{branch.posTerminalsCount} Terminals</span>
+                  <span className="font-mono text-teal-300 font-bold">{branch.virtualNuban || "Not yet provisioned"}</span>
                 </div>
               </div>
 

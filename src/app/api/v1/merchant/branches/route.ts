@@ -21,6 +21,9 @@ export async function GET(req: NextRequest) {
     return createErrorResponse({ code: 'BRANCHES_LOOKUP_FAILED', message: 'Could not load branches.', requestId: staff.requestId, httpStatus: 500 });
   }
 
+  const { data: terminalCountData } = await admin.rpc('count_merchant_active_terminals', { p_merchant_id: staff.merchantId });
+  const totalActiveTerminals = Number(terminalCountData || 0);
+
   const branchIds = (data || []).map((b: any) => b.id);
   let salesByBranch: Record<string, { total: number; count: number }> = {};
   if (branchIds.length > 0) {
@@ -55,5 +58,13 @@ export async function GET(req: NextRequest) {
     status: b.status,
   }));
 
-  return createSuccessResponse({ branches: mapped }, { code: 'BRANCHES_RETRIEVED', requestId: staff.requestId, environment: 'PRODUCTION' });
+  // Real merchant-wide active terminal count from public.terminals
+  // (assigned_merchant_id). The terminals/terminal_assignments schema has
+  // no branch_id column, so a genuine per-branch breakdown is not
+  // possible today — this total is reported once at the business level
+  // rather than fabricating a per-branch split.
+  return createSuccessResponse(
+    { branches: mapped, totalActiveTerminals },
+    { code: 'BRANCHES_RETRIEVED', requestId: staff.requestId, environment: 'PRODUCTION' },
+  );
 }

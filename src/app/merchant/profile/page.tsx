@@ -6,11 +6,6 @@ import {
   Building2,
   ShieldCheck,
   FileCheck,
-  CheckCircle2,
-  Mail,
-  Phone,
-  MapPin,
-  ExternalLink,
 } from "lucide-react";
 
 export default function MerchantProfilePage() {
@@ -44,10 +39,22 @@ export default function MerchantProfilePage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              <ShieldCheck className="w-4 h-4" />
-              <span>KYC TIER-3 VERIFIED</span>
-            </span>
+            {merchant.kybStatus === "VERIFIED" ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <ShieldCheck className="w-4 h-4" />
+                <span>KYB VERIFIED</span>
+              </span>
+            ) : merchant.kybStatus === "REJECTED" ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold bg-red-500/10 text-red-400 border border-red-500/20">
+                <ShieldCheck className="w-4 h-4" />
+                <span>KYB REJECTED</span>
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                <ShieldCheck className="w-4 h-4" />
+                <span>KYB PENDING REVIEW</span>
+              </span>
+            )}
           </div>
         </div>
 
@@ -73,37 +80,37 @@ export default function MerchantProfilePage() {
 
           <div className="p-4 rounded-2xl bg-slate-900 border border-white/5 space-y-1">
             <div className="text-[10px] font-mono text-slate-400 uppercase">Registered Headquarters</div>
-            <div className="font-bold text-white text-sm">Plot 1044 Victoria Island</div>
-            <div className="text-slate-400">Lagos State, Nigeria</div>
+            {merchant.registeredAddress ? (
+              <>
+                <div className="font-bold text-white text-sm">{merchant.registeredAddress}</div>
+                <div className="text-slate-400">
+                  {[merchant.registeredCity, merchant.registeredState].filter(Boolean).join(", ") || (merchant.country === "NE" ? "Niger Republic" : "Nigeria")}
+                </div>
+              </>
+            ) : (
+              <div className="text-slate-500 text-sm italic">Not yet on file — contact support to update.</div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Compliance Badges */}
+      {/* KYB Documentation Status */}
       <div className="p-6 rounded-3xl bg-[#0a1122] border border-white/10 space-y-4">
-        <h3 className="font-bold text-white text-base">Regulatory & Payment Certifications</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="p-3.5 rounded-2xl bg-slate-900 border border-white/5 flex items-center gap-3">
-            <CheckCircle2 className="w-5 h-5 text-teal-400 shrink-0" />
-            <div>
-              <div className="font-bold text-xs text-white">CBN Tier-1 Approval</div>
-              <div className="text-[10px] text-slate-400">Central Bank of Nigeria PSP</div>
+        <h3 className="font-bold text-white text-base">Business Verification Status</h3>
+        <div className="p-4 rounded-2xl bg-slate-900 border border-white/5 flex items-center gap-3">
+          <FileCheck className={`w-5 h-5 shrink-0 ${merchant.kybStatus === "VERIFIED" ? "text-emerald-400" : merchant.kybStatus === "REJECTED" ? "text-red-400" : "text-amber-400"}`} />
+          <div>
+            <div className="font-bold text-xs text-white">
+              {merchant.kybStatus === "VERIFIED"
+                ? "Your business is fully verified"
+                : merchant.kybStatus === "REJECTED"
+                ? "Your business KYB was rejected"
+                : "Your business KYB is under manual review"}
             </div>
-          </div>
-
-          <div className="p-3.5 rounded-2xl bg-slate-900 border border-white/5 flex items-center gap-3">
-            <CheckCircle2 className="w-5 h-5 text-teal-400 shrink-0" />
-            <div>
-              <div className="font-bold text-xs text-white">PCI-DSS Level 1</div>
-              <div className="text-[10px] text-slate-400">Cardholder Vault Certified</div>
-            </div>
-          </div>
-
-          <div className="p-3.5 rounded-2xl bg-slate-900 border border-white/5 flex items-center gap-3">
-            <CheckCircle2 className="w-5 h-5 text-teal-400 shrink-0" />
-            <div>
-              <div className="font-bold text-xs text-white">BCEAO UEMOA Gateway</div>
-              <div className="text-[10px] text-slate-400">Francophone West Africa Node</div>
+            <div className="text-[10px] text-slate-400">
+              {merchant.kybStatus === "VERIFIED"
+                ? "Full transaction limits apply based on your tier."
+                : "Some features remain limited until this completes."}
             </div>
           </div>
         </div>

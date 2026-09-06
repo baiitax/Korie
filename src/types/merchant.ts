@@ -62,13 +62,16 @@ export interface MerchantOrganization {
   currency: MerchantCurrency;
   category: string;
   tier: "TIER_1" | "TIER_2" | "ENTERPRISE";
-  kybStatus: "VERIFIED" | "PENDING";
+  kybStatus: "VERIFIED" | "PENDING" | "REJECTED";
   availableBalance: number;
   pendingSettlement: number;
   totalGrossSalesToday: number;
   totalGrossVolume: number;
   settlementBank: string;
   settlementAccountMasked: string;
+  registeredAddress?: string;
+  registeredCity?: string;
+  registeredState?: string;
   activeQRCodesCount: number;
   activePOSCount: number;
   branchesCount: number;
@@ -87,7 +90,6 @@ export interface MerchantBranch {
   country: string;
   managerName?: string;
   virtualNuban?: string;
-  posTerminalsCount?: number;
   todaySales?: number;
   todayGrossSales: number;
   todayTransactionsCount?: number;

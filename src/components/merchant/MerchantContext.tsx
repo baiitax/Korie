@@ -61,6 +61,7 @@ interface MerchantContextType {
   merchantStatus: "PENDING" | "ACTIVE" | "SUSPENDED" | "RESTRICTED" | "DEACTIVATED";
   isLoadingProfile: boolean;
   branches: MerchantBranch[];
+  totalActiveTerminals: number;
   selectedBranchId: string;
   setSelectedBranchId: (id: string) => void;
   currency: MerchantCurrency;
@@ -116,6 +117,7 @@ interface MerchantContextType {
   refundTransaction: (txId: string, reason: string) => Promise<boolean>;
   markInvoicePaid: (invoiceId: string) => Promise<boolean>;
   rotateApiKey: (keyId: string) => Promise<{ secretKey: string } | null>;
+  runSettlement: (currency?: string) => Promise<{ ok: boolean; message: string }>;
 
   notificationsCount: number;
   refreshAll: () => Promise<void>;
@@ -129,6 +131,7 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
   const [merchantStatus, setMerchantStatus] = useState<MerchantContextType["merchantStatus"]>("PENDING");
   const [isLoadingProfile, setIsLoadingProfile] = useState<boolean>(true);
   const [branches, setBranches] = useState<MerchantBranch[]>([]);
+  const [totalActiveTerminals, setTotalActiveTerminals] = useState<number>(0);
   const [selectedBranchId, setSelectedBranchId] = useState<string>("ALL");
   const [currency, setCurrency] = useState<MerchantCurrency>("NGN");
   const [isBalanceHidden, setIsBalanceHidden] = useState<boolean>(false);
@@ -175,6 +178,9 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
           totalGrossVolume: d.totalGrossVolume,
           settlementBank: d.settlementBank || "Not yet configured",
           settlementAccountMasked: d.settlementAccountMasked || "—",
+          registeredAddress: d.registeredAddress || undefined,
+          registeredCity: d.registeredCity || undefined,
+          registeredState: d.registeredState || undefined,
           activeQRCodesCount: 0,
           activePOSCount: 0,
           branchesCount: d.branchesCount,
@@ -196,7 +202,10 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await merchantApiFetch("/api/v1/merchant/branches");
       const json = await res.json();
-      if (res.ok && json.status === "success") setBranches(json.data.branches);
+      if (res.ok && json.status === "success") {
+        setBranches(json.data.branches);
+        setTotalActiveTerminals(json.data.totalActiveTerminals || 0);
+      }
     } catch {}
   }, []);
 
@@ -432,6 +441,23 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const runSettlement = async (currency?: string): Promise<{ ok: boolean; message: string }> => {
+    try {
+      const res = await merchantApiFetch("/api/v1/merchant/settlements/run", {
+        method: "POST",
+        body: JSON.stringify({ currency: currency || merchant.currency }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.status !== "success") {
+        return { ok: false, message: json?.error?.message || json?.message || "Could not run settlement." };
+      }
+      await refreshSettlements();
+      return { ok: true, message: `Settlement batch ${json.data.batchReference} created for ${json.data.transactionCount} transaction(s).` };
+    } catch {
+      return { ok: false, message: "Network error running settlement." };
+    }
+  };
+
   return (
     <MerchantContext.Provider
       value={{
@@ -439,6 +465,7 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
         merchantStatus,
         isLoadingProfile,
         branches,
+        totalActiveTerminals,
         selectedBranchId,
         setSelectedBranchId,
         currency,
@@ -471,6 +498,7 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
         refundTransaction,
         markInvoicePaid,
         rotateApiKey,
+        runSettlement,
         notificationsCount,
         refreshAll,
       }}

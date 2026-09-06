@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
 
   const { data: merchant, error } = await admin
     .from('merchant_profiles')
-    .select('id, merchant_code, business_name, trading_name, cac_number, tin_number, email, phone, country, currency, category, tier, status, kyb_status, settlement_bank, settlement_account_number, settlement_ledger_account_id, created_at, ledger_accounts(balance)')
+    .select('id, merchant_code, business_name, trading_name, cac_number, tin_number, email, phone, country, currency, category, tier, status, kyb_status, settlement_bank, settlement_account_number, settlement_ledger_account_id, registered_address, registered_city, registered_state, created_at, ledger_accounts(balance)')
     .eq('id', staff.merchantId)
     .single();
 
@@ -81,6 +81,9 @@ export async function GET(req: NextRequest) {
       kybStatus: merchant.kyb_status,
       settlementBank: merchant.settlement_bank,
       settlementAccountMasked: merchant.settlement_account_number ? `****${String(merchant.settlement_account_number).slice(-4)}` : null,
+      registeredAddress: merchant.registered_address,
+      registeredCity: merchant.registered_city,
+      registeredState: merchant.registered_state,
       availableBalance,
       pendingSettlement,
       totalGrossSalesToday,

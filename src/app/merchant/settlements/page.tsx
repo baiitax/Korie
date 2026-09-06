@@ -14,7 +14,18 @@ import {
 } from "lucide-react";
 
 export default function MerchantSettlementsPage() {
-  const { settlementBatches, merchant, formatCurrency, formatDate, t } = useMerchant();
+  const { settlementBatches, merchant, formatCurrency, formatDate, runSettlement, t } = useMerchant();
+  const [isRunning, setIsRunning] = useState(false);
+  const [runMessage, setRunMessage] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const handleRunSettlement = async () => {
+    setIsRunning(true);
+    setRunMessage(null);
+    const result = await runSettlement();
+    setRunMessage({ ok: result.ok, text: result.message });
+    setIsRunning(false);
+    setTimeout(() => setRunMessage(null), 6000);
+  };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
@@ -23,10 +34,24 @@ export default function MerchantSettlementsPage() {
         <div>
           <h1 className="text-xl sm:text-2xl font-black text-white">Batch Bank Settlements</h1>
           <p className="text-xs text-slate-400">
-            NIBSS Direct Settlement Batches transferred to {merchant.settlementBank} ({merchant.settlementAccountMasked}).
+            Settlement batches computed from your collected transactions, payable to {merchant.settlementBank || "your linked bank"} ({merchant.settlementAccountMasked}).
           </p>
         </div>
+        <button
+          onClick={handleRunSettlement}
+          disabled={isRunning}
+          className="px-4 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold flex items-center gap-2 shadow-lg shadow-teal-500/20 transition-all self-start sm:self-auto disabled:opacity-50"
+        >
+          <ArrowDownLeft className="w-4 h-4" />
+          <span>{isRunning ? "Running settlement..." : "Run Settlement Now"}</span>
+        </button>
       </div>
+
+      {runMessage && (
+        <div className={`p-3.5 rounded-2xl border text-xs font-mono ${runMessage.ok ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-amber-500/10 border-amber-500/30 text-amber-400"}`}>
+          {runMessage.text}
+        </div>
+      )}
 
       {/* Overview Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -74,7 +99,6 @@ export default function MerchantSettlementsPage() {
                 <tr key={batch.id} className="hover:bg-white/[0.02] transition-colors">
                   <td className="px-4 py-3.5">
                     <div className="font-mono font-bold text-white">{batch.batchReference}</div>
-                    <div className="text-[10px] text-slate-400 font-mono">NIBSS: {batch.nibssSessionId}</div>
                   </td>
                   <td className="px-4 py-3.5">
                     <div className="text-white font-bold">{batch.bankName}</div>

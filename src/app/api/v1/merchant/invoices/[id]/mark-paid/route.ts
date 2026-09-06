@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { authenticateMerchantRequest } from '@/lib/security/merchantAuth';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { createSuccessResponse, createErrorResponse } from '@/lib/security/apiResponse';
+import { dispatchMerchantWebhookEvent } from '@/lib/merchant/webhookDispatch';
 
 /**
  * POST /api/v1/merchant/invoices/:id/mark-paid
@@ -56,6 +57,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     target_id: params.id,
     result: 'SUCCESS',
     reason: 'Merchant-attested manual payment confirmation.',
+  });
+
+  await dispatchMerchantWebhookEvent(admin, staff.merchantId, 'invoice.paid', {
+    invoiceId: updated.id,
+    paidAmount: Number(updated.paid_amount),
+    paidAt: updated.paid_at,
   });
 
   return createSuccessResponse(

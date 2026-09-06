@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { authenticateMerchantRequest } from '@/lib/security/merchantAuth';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { createSuccessResponse, createErrorResponse } from '@/lib/security/apiResponse';
+import { dispatchMerchantWebhookEvent } from '@/lib/merchant/webhookDispatch';
 
 /**
  * POST /api/v1/merchant/transactions/:id/refund
@@ -63,6 +64,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     target_type: 'merchant_payment_transactions',
     target_id: params.id,
     result: 'SUCCESS',
+    reason,
+  });
+
+  await dispatchMerchantWebhookEvent(admin, staff.merchantId, 'payment.refunded', {
+    transactionId: updated.id,
+    status: updated.status,
     reason,
   });
 

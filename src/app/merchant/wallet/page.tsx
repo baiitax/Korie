@@ -1,43 +1,129 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useMerchant } from "@/components/merchant/MerchantContext";
+import { merchantApiFetch } from "@/lib/merchant/merchantSession";
 import {
-  Coins,
   Building2,
   ArrowUpRight,
-  ArrowDownLeft,
-  RefreshCw,
-  Clock,
   ShieldCheck,
-  CheckCircle2,
-  AlertCircle,
-  Sliders,
   Check,
+  AlertTriangle,
+  Loader2,
 } from "lucide-react";
 
+interface PayoutRequest {
+  id: string;
+  amount: number;
+  currency: string;
+  destination_bank: string;
+  destination_account: string;
+  status: string;
+  created_at: string;
+  completed_at: string | null;
+}
+
+const STATUS_STYLES: Record<string, string> = {
+  PENDING_PROVIDER_INTEGRATION: "bg-amber-500/10 text-amber-400 border border-amber-500/20",
+  PROCESSING: "bg-blue-500/10 text-blue-400 border border-blue-500/20",
+  COMPLETED: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20",
+  FAILED: "bg-red-500/10 text-red-400 border border-red-500/20",
+  CANCELLED: "bg-slate-500/10 text-slate-400 border border-slate-500/20",
+};
+
 export default function MerchantWalletPage() {
-  const { merchant, formatCurrency, formatDate, isBalanceHidden, t } = useMerchant();
+  const { merchant, formatCurrency, formatDate, isBalanceHidden, refreshAll } = useMerchant();
 
   const [payoutAmount, setPayoutAmount] = useState<string>("");
   const [isPayoutProcessing, setIsPayoutProcessing] = useState(false);
-  const [payoutSuccess, setPayoutSuccess] = useState(false);
+  const [payoutSuccess, setPayoutSuccess] = useState<{ amount: number } | null>(null);
+  const [payoutError, setPayoutError] = useState<string | null>(null);
+
+  const [payoutHistory, setPayoutHistory] = useState<PayoutRequest[]>([]);
+
   const [autoSweepEnabled, setAutoSweepEnabled] = useState(true);
   const [sweepFrequency, setSweepFrequency] = useState("DAILY_EOD");
+  const [isSweepSaving, setIsSweepSaving] = useState(false);
+  const [isLoadingSweep, setIsLoadingSweep] = useState(true);
 
-  const handleManualPayout = (e: React.FormEvent) => {
+  const loadSweepSettings = useCallback(async () => {
+    try {
+      const res = await merchantApiFetch("/api/v1/merchant/settings/sweep");
+      const json = await res.json();
+      if (res.ok && json.status === "success") {
+        setAutoSweepEnabled(json.data.autoSweepEnabled);
+        setSweepFrequency(json.data.sweepFrequency);
+      }
+    } catch {
+    } finally {
+      setIsLoadingSweep(false);
+    }
+  }, []);
+
+  const loadPayoutHistory = useCallback(async () => {
+    try {
+      const res = await merchantApiFetch("/api/v1/merchant/wallet/payout");
+      const json = await res.json();
+      if (res.ok && json.status === "success") setPayoutHistory(json.data.payouts);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    loadSweepSettings();
+    loadPayoutHistory();
+  }, [loadSweepSettings, loadPayoutHistory]);
+
+  const saveSweepSettings = async (nextEnabled: boolean, nextFrequency: string) => {
+    setIsSweepSaving(true);
+    try {
+      await merchantApiFetch("/api/v1/merchant/settings/sweep", {
+        method: "PUT",
+        body: JSON.stringify({ autoSweepEnabled: nextEnabled, sweepFrequency: nextFrequency }),
+      });
+    } catch {
+    } finally {
+      setIsSweepSaving(false);
+    }
+  };
+
+  const handleToggleSweep = () => {
+    const next = !autoSweepEnabled;
+    setAutoSweepEnabled(next);
+    saveSweepSettings(next, sweepFrequency);
+  };
+
+  const handleFrequencyChange = (freq: string) => {
+    setSweepFrequency(freq);
+    saveSweepSettings(autoSweepEnabled, freq);
+  };
+
+  const handleManualPayout = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!payoutAmount || Number(payoutAmount) <= 0) return;
 
     setIsPayoutProcessing(true);
-    setTimeout(() => {
+    setPayoutError(null);
+    try {
+      const res = await merchantApiFetch("/api/v1/merchant/wallet/payout", {
+        method: "POST",
+        body: JSON.stringify({ amount: Number(payoutAmount) }),
+      });
+      const json = await res.json();
+      if (res.ok && json.status === "success") {
+        setPayoutSuccess({ amount: Number(payoutAmount) });
+        await Promise.all([refreshAll(), loadPayoutHistory()]);
+        setTimeout(() => {
+          setPayoutSuccess(null);
+          setPayoutAmount("");
+        }, 4000);
+      } else {
+        setPayoutError(json?.error?.message || "Could not create payout request.");
+      }
+    } catch {
+      setPayoutError("Network error requesting payout.");
+    } finally {
       setIsPayoutProcessing(false);
-      setPayoutSuccess(true);
-      setTimeout(() => {
-        setPayoutSuccess(false);
-        setPayoutAmount("");
-      }, 3000);
-    }, 1200);
+    }
   };
 
   return (
@@ -46,7 +132,7 @@ export default function MerchantWalletPage() {
       <div>
         <h1 className="text-xl sm:text-2xl font-black text-white">Merchant Wallet & Settlements</h1>
         <p className="text-xs text-slate-400">
-          Automated end-of-day bank sweeps to Providus Bank, manual on-demand payouts, and reserves.
+          Real ledger balance, on-demand payout requests, and auto-sweep preferences.
         </p>
       </div>
 
@@ -69,7 +155,7 @@ export default function MerchantWalletPage() {
                 <div className="font-bold text-white flex items-center gap-1.5">
                   <Building2 className="w-3.5 h-3.5 text-teal-400" />
                   <span>
-                    {merchant.settlementBank} • {merchant.settlementAccountMasked}
+                    {merchant.settlementBank || "Not yet configured"} • {merchant.settlementAccountMasked || "—"}
                   </span>
                 </div>
               </div>
@@ -97,14 +183,15 @@ export default function MerchantWalletPage() {
           <div className="p-6 rounded-3xl bg-[#0a1122] border border-white/10 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-white text-base">Automatic Bank Sweep Protocol</h3>
+                <h3 className="font-bold text-white text-base">Automatic Bank Sweep Preference</h3>
                 <p className="text-xs text-slate-400">
-                  Daily automated clearing via NIBSS Direct Credit to Providus Bank settlement account.
+                  Controls how your settlement batches are scheduled — saved to your real account.
                 </p>
               </div>
               <button
-                onClick={() => setAutoSweepEnabled(!autoSweepEnabled)}
-                className={`w-12 h-6 rounded-full transition-colors p-1 flex items-center ${
+                onClick={handleToggleSweep}
+                disabled={isLoadingSweep || isSweepSaving}
+                className={`w-12 h-6 rounded-full transition-colors p-1 flex items-center disabled:opacity-50 ${
                   autoSweepEnabled ? "bg-teal-500 justify-end" : "bg-slate-700 justify-start"
                 }`}
               >
@@ -114,7 +201,7 @@ export default function MerchantWalletPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
               <div
-                onClick={() => setSweepFrequency("DAILY_EOD")}
+                onClick={() => handleFrequencyChange("DAILY_EOD")}
                 className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
                   sweepFrequency === "DAILY_EOD"
                     ? "bg-teal-500/10 border-teal-500 text-white"
@@ -123,23 +210,60 @@ export default function MerchantWalletPage() {
               >
                 <div className="font-bold text-xs text-white">End-of-Day Auto-Sweep (23:59 WAT)</div>
                 <div className="text-[11px] text-slate-400 mt-0.5">
-                  Full net daily revenue automatically transferred with zero manual effort.
+                  Net daily revenue included in the nightly settlement run.
                 </div>
               </div>
 
               <div
-                onClick={() => setSweepFrequency("INSTANT_PER_TX")}
+                onClick={() => handleFrequencyChange("INSTANT_PER_TX")}
                 className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
                   sweepFrequency === "INSTANT_PER_TX"
                     ? "bg-teal-500/10 border-teal-500 text-white"
                     : "bg-slate-900 border-white/5 text-slate-400"
                 }`}
               >
-                <div className="font-bold text-xs text-white">Instant Real-time Forwarding</div>
+                <div className="font-bold text-xs text-white">Per-Transaction Forwarding</div>
                 <div className="text-[11px] text-slate-400 mt-0.5">
-                  Each transaction is settled within 60 seconds of confirmation.
+                  Preference saved for when instant-forwarding rails are enabled for your tier.
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Payout History */}
+          <div className="rounded-3xl bg-[#091020] border border-white/10 overflow-hidden shadow-xl">
+            <div className="p-4 sm:p-5 border-b border-white/10 bg-[#0c1426]">
+              <h3 className="font-bold text-white text-sm">Payout Request History</h3>
+            </div>
+            <div className="overflow-x-auto">
+              {payoutHistory.length === 0 ? (
+                <div className="p-6 text-center text-xs text-slate-500">No payout requests yet.</div>
+              ) : (
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-[#080d1a] text-slate-400 font-mono uppercase text-[10px] border-b border-white/5">
+                    <tr>
+                      <th className="px-4 py-3">Requested</th>
+                      <th className="px-4 py-3 text-right">Amount</th>
+                      <th className="px-4 py-3 text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5 font-medium">
+                    {payoutHistory.map((p) => (
+                      <tr key={p.id}>
+                        <td className="px-4 py-3.5 font-mono text-slate-400">{formatDate(p.created_at)}</td>
+                        <td className="px-4 py-3.5 text-right font-mono font-bold text-white">
+                          {formatCurrency(Number(p.amount))}
+                        </td>
+                        <td className="px-4 py-3.5 text-center">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${STATUS_STYLES[p.status] || "bg-slate-500/10 text-slate-400"}`}>
+                            {p.status.replace(/_/g, " ")}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
         </div>
@@ -148,18 +272,18 @@ export default function MerchantWalletPage() {
         <div className="p-6 rounded-3xl bg-[#0a1122] border border-white/10 flex flex-col justify-between space-y-4">
           <div className="space-y-4">
             <div>
-              <h3 className="font-bold text-white text-base">On-Demand Instant Payout</h3>
+              <h3 className="font-bold text-white text-base">On-Demand Payout Request</h3>
               <p className="text-xs text-slate-400 mt-0.5">
-                Manually push funds to Providus settlement account without waiting for nightly batch.
+                Reserves funds from your available balance and queues a payout request pending our bank-rail integration.
               </p>
             </div>
 
             {payoutSuccess ? (
               <div className="p-6 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-center space-y-2">
                 <Check className="w-10 h-10 text-emerald-400 mx-auto" />
-                <div className="font-bold text-white text-sm">Payout Dispatched!</div>
+                <div className="font-bold text-white text-sm">Payout Requested!</div>
                 <div className="text-xs text-slate-300 font-mono">
-                  Transferred to {merchant.settlementBank} • {merchant.settlementAccountMasked}
+                  {formatCurrency(payoutSuccess.amount)} reserved, pending settlement to {merchant.settlementBank}.
                 </div>
               </div>
             ) : (
@@ -188,18 +312,24 @@ export default function MerchantWalletPage() {
                     <span className="text-white font-mono">₦0.00 (Tier-1 Free)</span>
                   </div>
                   <div className="flex justify-between text-slate-400">
-                    <span>Settlement SLA:</span>
-                    <span className="text-emerald-400 font-bold">Instant (NIP 30s)</span>
+                    <span>Status After Request:</span>
+                    <span className="text-amber-400 font-bold">Pending Bank Rail</span>
                   </div>
                 </div>
+
+                {payoutError && (
+                  <div className="text-[11px] text-red-400 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5" /> {payoutError}
+                  </div>
+                )}
 
                 <button
                   type="submit"
                   disabled={isPayoutProcessing || !payoutAmount}
                   className="w-full py-3 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs shadow-lg shadow-teal-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                 >
-                  <ArrowUpRight className="w-4 h-4" />
-                  <span>{isPayoutProcessing ? "Processing via Providus Node..." : "Initiate Instant Payout"}</span>
+                  {isPayoutProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowUpRight className="w-4 h-4" />}
+                  <span>{isPayoutProcessing ? "Submitting Request..." : "Request Payout"}</span>
                 </button>
               </form>
             )}
@@ -207,7 +337,7 @@ export default function MerchantWalletPage() {
 
           <div className="p-3 rounded-xl bg-slate-900/40 border border-white/5 text-[11px] text-slate-500 flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-teal-400 shrink-0" />
-            <span>Dual-authorized bank payout node with Providus API integration.</span>
+            <span>Requests are reserved against your real ledger balance immediately and settled once bank-rail dispatch is enabled.</span>
           </div>
         </div>
       </div>
