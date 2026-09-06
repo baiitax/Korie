@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useAdmin } from "./AdminContext";
 import {
   ShieldAlert,
@@ -11,6 +11,8 @@ import {
   Lock,
   ArrowRight,
   Check,
+  Zap,
+  Loader2,
 } from "lucide-react";
 
 export const MakerCheckerModal: React.FC = () => {
@@ -18,10 +20,71 @@ export const MakerCheckerModal: React.FC = () => {
   const [reviewNotes, setReviewNotes] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [actionDone, setActionDone] = useState<"APPROVED" | "REJECTED" | null>(null);
+  const [autoDecision, setAutoDecision] = useState<{ decision: string; ruleName?: string; ruleId?: string; decisionId?: string } | null>(null);
+  const [consulting, setConsulting] = useState(false);
 
-  if (!makerCheckerModal.isOpen || !makerCheckerModal.request) return null;
+  const req = makerCheckerModal.isOpen ? makerCheckerModal.request : null;
 
-  const req = makerCheckerModal.request;
+  // Consult the automation decision service whenever a maker-checker request opens.
+  // A matching LIVE rule auto-approves (audited); otherwise manual review proceeds.
+  useEffect(() => {
+    if (!req) return;
+    let cancelled = false;
+    setConsulting(true);
+    setAutoDecision(null);
+    const amount = Number((req.payload as Record<string, unknown> | undefined)?.amount);
+    fetch("/api/admin/config/automation/decide", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        actionKey: "maker_checker.approve",
+        context: {
+          country: req.countryCode,
+          category: req.actionType,
+          amount: Number.isFinite(amount) && amount > 0 ? amount : undefined,
+          detail: `${req.actionType} on ${req.resourceType} ${req.resourceId}`,
+        },
+        actor: "System Administrator",
+      }),
+    })
+      .then(r => r.json())
+      .then(json => {
+        if (cancelled || !json?.success) return;
+        const data = json.data;
+        setAutoDecision(data);
+        if (data.decision === "AUTO_EXECUTE" && data.decisionId) {
+          // Finalize the audit trail for the auto-execution.
+          void fetch("/api/admin/config/automation/complete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ decisionId: data.decisionId, outcome: "SUCCESS", actor: "System Administrator" }),
+          });
+          // Auto-approve through the same UI path, flagged as automated.
+          window.setTimeout(() => {
+            if (cancelled) return;
+            setIsProcessing(true);
+            window.setTimeout(() => {
+              if (cancelled) return;
+              setIsProcessing(false);
+              setActionDone("APPROVED");
+              window.setTimeout(() => {
+                setActionDone(null);
+                closeMakerChecker();
+              }, 2000);
+            }, 500);
+          }, 450);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setConsulting(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [req?.id]);
+
+  if (!req) return null;
 
   const handleDecision = async (decision: "APPROVED" | "REJECTED") => {
     setIsProcessing(true);
@@ -71,14 +134,46 @@ export const MakerCheckerModal: React.FC = () => {
               <Check className="w-6 h-6" />
             </div>
             <h4 className="text-base font-bold text-white">
-              Action {actionDone === "APPROVED" ? "Approved & Executed" : "Rejected"}
+              {actionDone === "APPROVED"
+                ? autoDecision?.decision === "AUTO_EXECUTE"
+                  ? "Auto-Approved by Automation Rule"
+                  : "Approved & Executed"
+                : "Rejected"}
             </h4>
             <p className="text-xs text-slate-400 font-mono">
-              Cryptographic audit log entry recorded.
+              {actionDone === "APPROVED" && autoDecision?.decision === "AUTO_EXECUTE"
+                ? `Automation rule "${autoDecision.ruleName}" matched the policy — dual-control bypassed under approved limits. Audit entry recorded.`
+                : "Cryptographic audit log entry recorded."}
             </p>
           </div>
         ) : (
           <>
+            {/* Automation decision strip */}
+            {consulting ? (
+              <div className="flex items-center gap-2 rounded-2xl border border-sky-500/25 bg-sky-500/5 px-4 py-3 text-xs text-sky-300">
+                <Loader2 className="w-4 h-4 animate-spin" /> Consulting automation rules for this action…
+              </div>
+            ) : autoDecision?.decision === "AUTO_EXECUTE" ? (
+              <div className="flex items-start gap-2.5 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
+                <Zap className="w-4 h-4 text-emerald-400 mt-0.5" />
+                <div>
+                  <p className="text-xs font-bold text-emerald-300">
+                    Automation rule matched — this request will be auto-approved.
+                  </p>
+                  <p className="text-[10px] text-emerald-200/70 mt-0.5">
+                    Rule: “{autoDecision.ruleName}” · decision {autoDecision.decisionId} · audit entry written · no dual-control needed
+                  </p>
+                </div>
+              </div>
+            ) : (
+              !isProcessing && (
+                <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-2.5 text-[11px] text-slate-400">
+                  <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
+                  No matching automation rule (or dry-run only) — manual dual-control review required below.
+                </div>
+              )
+            )}
+
             {/* Request Summary Box */}
             <div className="p-4 rounded-2xl bg-slate-950/80 border border-white/5 space-y-2.5 text-xs">
               <div className="flex justify-between">
@@ -121,14 +216,14 @@ export const MakerCheckerModal: React.FC = () => {
             <div className="flex items-center gap-3 pt-2">
               <button
                 onClick={() => handleDecision("REJECTED")}
-                disabled={isProcessing}
+                disabled={isProcessing || consulting}
                 className="flex-1 py-3 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 text-xs font-bold transition-colors disabled:opacity-50"
               >
                 Reject Request
               </button>
               <button
                 onClick={() => handleDecision("APPROVED")}
-                disabled={isProcessing}
+                disabled={isProcessing || consulting}
                 className="flex-1 py-3 rounded-xl btn-korie-primary text-slate-950 text-xs font-bold shadow-lg shadow-emerald-500/20 disabled:opacity-50"
               >
                 {isProcessing ? "Executing..." : "Authorize & Execute"}

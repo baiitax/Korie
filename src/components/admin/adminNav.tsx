@@ -120,7 +120,7 @@ export const adminNavGroups: AdminNavGroup[] = [
       { label: "Support Tickets", href: "/admin/support", icon: LifeBuoy },
       { label: "Security & Sessions", href: "/admin/security", icon: Lock },
       { label: "Immutable Audit Log", href: "/admin/audit", icon: History },
-      { label: "Platform Settings", href: "/admin/settings", icon: Settings },
+      { label: "Configuration & Automation", href: "/admin/settings", icon: Settings },
     ],
   },
 ];
