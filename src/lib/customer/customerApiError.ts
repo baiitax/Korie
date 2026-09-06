@@ -191,7 +191,17 @@ export async function safeFetch<T = any>(
   const { token, headers: initHeaders, ...rest } = init;
   const headers = new Headers(initHeaders || {});
   if (!headers.has("Authorization")) {
-    headers.set("Authorization", token ? (token.startsWith("Bearer ") ? token : `Bearer ${token}`) : getPortalBearer());
+    let bearer: string;
+    try {
+      bearer = token ? (token.startsWith("Bearer ") ? token : `Bearer ${token}`) : await getPortalBearer();
+    } catch {
+      clearTimeout(timer);
+      return {
+        ok: false,
+        error: normalizeStatus(401, undefined),
+      };
+    }
+    headers.set("Authorization", bearer);
   }
   if (rest.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   try {

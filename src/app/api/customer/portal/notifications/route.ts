@@ -1,150 +1,89 @@
 import { NextRequest } from "next/server";
-import { authenticateApiRequest } from "@/lib/security/authMiddleware";
+import { authenticateCustomerRequest } from "@/lib/security/customerAuth";
 import { createSuccessResponse, createErrorResponse } from "@/lib/security/apiResponse";
-import { CustomerLifecycleEngine } from "@/lib/customer/CustomerLifecycleEngine";
-import { TransactionService } from "@/lib/services/TransactionService";
-import { customerScopeFromRequest } from "@/lib/customer/customerScope";
-import { openDisputeRefsFor } from "@/lib/customer/disputeStatus";
-import { deriveVerificationSummary, VerificationState } from "@/lib/customer/CustomerVerification";
-import { mapEngineStatusToUi } from "@/lib/customer/CustomerTransactionQuery";
+import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 
 /**
  * GET /api/customer/portal/notifications
  *
- * A DERIVED notification list — deliberately not a stored inbox.
- * ---------------------------------------------------------------------------
- * The portal previously showed a hardcoded unread badge of `3`. That is a
- * fabricated state, so it is removed. Until a real notification store + fan-out
- * exists, the honest answer is: a notification exists only when something in
- * the customer's own account genuinely needs their attention.
+ * Real notification feed, read from public.customer_notifications. Rows are
+ * created automatically by the trg_notify_customer_on_transaction trigger
+ * whenever one of the customer's own transactions is inserted or changes
+ * status — nothing here is derived/fabricated client-side.
  *
- * Sources (all authoritative, all ownership-scoped):
- *   • a transaction of theirs that is not terminal (PENDING / PROCESSING)
- *   • a dispute-bearing transaction (DISPUTED)
- *   • their verification state, when it blocks capability
- *
- * Counting rule: every item is actionable, so `unreadCount` equals the number
- * of items. There is no read/unread ledger yet, which is exactly why the badge
- * must not pretend to track one — when the store lands, add a `readAt` column
- * and this route returns it.
- *
- * Text is NOT composed here: each item carries an i18n key plus params so the
- * customer reads it in English / Français / Hausa.
+ * PATCH marks a notification (or all) as read.
  */
 export const dynamic = "force-dynamic";
 
-interface CustomerNotification {
-  id: string;
-  kind: "TRANSACTION" | "VERIFICATION" | "SECURITY" | "SYSTEM";
-  tone: "info" | "warning" | "danger" | "success";
-  titleKey: string;
-  bodyKey: string;
-  params: Record<string, string | number>;
-  createdAt: string;
-  /** Present when the item links into a real screen. */
-  link?: { href: string; labelKey: string };
-  reference?: string;
-}
-
-const BLOCKING_STATES: VerificationState[] = [
-  "NOT_STARTED",
-  "ACTION_REQUIRED",
-  "REJECTED",
-  "EXPIRED",
-  "RETRY_REQUIRED",
-];
-
 export async function GET(req: NextRequest) {
-  const auth = await authenticateApiRequest(req, ["payments:read"]);
-  if (!auth.isAuthenticated || !auth.context) {
-    return createErrorResponse({
-      code: auth.errorCode || "UNAUTHORIZED",
-      message: "Please sign in to view your notifications.",
-      httpStatus: auth.httpStatus || 401,
-      requestId: `KP-REQ-${Date.now()}`,
-    });
-  }
-  const scope = customerScopeFromRequest(req, auth.context);
-  if (!scope.ok || !scope.ownerCustomerId) {
-    return createErrorResponse({
-      code: "CUSTOMER_IDENTITY_UNRESOLVED",
-      message: "We could not resolve your profile for this session.",
-      httpStatus: 403,
-      requestId: `KP-REQ-${Date.now()}`,
-    });
-  }
-  const ownerCustomerId = scope.ownerCustomerId;
-  const items: CustomerNotification[] = [];
-  // Same join the History route makes, so the bell and the ledger view can
-  // never disagree about what is disputed.
-  const disputedRefs = openDisputeRefsFor(ownerCustomerId);
-
-  // 1. Their own non-terminal transactions.
-  try {
-    for (const tx of TransactionService.listRawForOwner(ownerCustomerId)) {
-      const uiStatus = disputedRefs.has(tx.reference)
-        ? "DISPUTED"
-        : mapEngineStatusToUi(tx.status);
-      if (uiStatus === "PENDING" || uiStatus === "PROCESSING") {
-        items.push({
-          id: `notif-tx-${tx.reference}`,
-          kind: "TRANSACTION",
-          tone: "warning",
-          titleKey: "notifications.transaction.pendingTitle",
-          bodyKey: "notifications.transaction.pendingBody",
-          params: { reference: tx.reference },
-          createdAt: tx.updated_at || tx.created_at,
-          reference: tx.reference,
-          link: { href: "/customer/transactions", labelKey: "notifications.viewTransactions" },
-        });
-      } else if (uiStatus === "DISPUTED") {
-        items.push({
-          id: `notif-tx-${tx.reference}`,
-          kind: "TRANSACTION",
-          tone: "danger",
-          titleKey: "notifications.transaction.disputedTitle",
-          bodyKey: "notifications.transaction.disputedBody",
-          params: { reference: tx.reference },
-          createdAt: tx.updated_at || tx.created_at,
-          reference: tx.reference,
-          link: { href: "/customer/support", labelKey: "notifications.viewCase" },
-        });
-      }
-    }
-  } catch {
-    // A failed source must not fabricate "no notifications". The route still
-    // returns what it did read; the client renders a partial-data warning.
+  const auth = await authenticateCustomerRequest(req);
+  if (!auth.isAuthenticated || !auth.customer) {
+    return createErrorResponse({ code: auth.errorCode || "UNAUTHORIZED", message: "Please sign in to view your notifications.", httpStatus: auth.httpStatus || 401, requestId: `KP-REQ-${Date.now()}` });
   }
 
-  // 2. Verification that blocks capability.
-  const customer = CustomerLifecycleEngine.getInstance().getCustomer(ownerCustomerId);
-  if (customer) {
-    const verification = deriveVerificationSummary(customer);
-    if (BLOCKING_STATES.includes(verification.state)) {
-      items.push({
-        id: `notif-verification-${verification.state}`,
-        kind: "VERIFICATION",
-        tone: verification.state === "REJECTED" ? "danger" : "warning",
-        titleKey: "notifications.verification.title",
-        bodyKey: `notifications.verification.${verification.state}`,
-        params: { remaining: verification.remainingCount },
-        createdAt: customer.updatedAt,
-        link: { href: "/customer/kyc", labelKey: "notifications.continueVerification" },
-      });
-    }
+  const admin = getSupabaseAdminClient();
+  const { data, error } = await admin
+    .from("customer_notifications")
+    .select("id, category, severity, title, body, related_transaction_id, is_read, created_at, read_at")
+    .eq("customer_id", auth.customer.customerId)
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  if (error) {
+    return createErrorResponse({ code: "NOTIFICATIONS_LOOKUP_FAILED", message: "Unable to load notifications right now.", httpStatus: 500, requestId: `KP-REQ-${Date.now()}` });
   }
 
-  items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const items = (data || []).map((n) => ({
+    id: n.id,
+    kind: n.category,
+    tone: n.severity === "CRITICAL" ? "danger" : n.severity === "WARNING" ? "warning" : "info",
+    title: n.title,
+    body: n.body,
+    createdAt: n.created_at,
+    isRead: n.is_read,
+    readAt: n.read_at,
+    relatedTransactionId: n.related_transaction_id,
+  }));
 
   return createSuccessResponse(
     {
       notifications: items,
-      unreadCount: items.length,
-      // Truthful capability flag for the UI: no read-receipt store exists, so
-      // the bell must not render a "mark all read" affordance.
-      supportsMarkRead: false,
+      unreadCount: items.filter((n) => !n.isRead).length,
+      supportsMarkRead: true,
       generatedAt: new Date().toISOString(),
     },
-    { requestId: auth.context.requestId, environment: auth.context.environment },
+    { requestId: auth.customer.requestId, environment: "PRODUCTION" },
   );
+}
+
+export async function PATCH(req: NextRequest) {
+  const auth = await authenticateCustomerRequest(req);
+  if (!auth.isAuthenticated || !auth.customer) {
+    return createErrorResponse({ code: auth.errorCode || "UNAUTHORIZED", message: "Please sign in.", httpStatus: auth.httpStatus || 401, requestId: `KP-REQ-${Date.now()}` });
+  }
+
+  let body: Record<string, unknown> = {};
+  try {
+    body = await req.json();
+  } catch {
+    /* an empty body is treated as "mark all read" */
+  }
+
+  const admin = getSupabaseAdminClient();
+  const id = body.id ? String(body.id) : null;
+  const now = new Date().toISOString();
+
+  let query = admin
+    .from("customer_notifications")
+    .update({ is_read: true, read_at: now })
+    .eq("customer_id", auth.customer.customerId)
+    .eq("is_read", false);
+  if (id) query = query.eq("id", id);
+
+  const { error } = await query;
+  if (error) {
+    return createErrorResponse({ code: "MARK_READ_FAILED", message: "Could not update notifications.", httpStatus: 500, requestId: `KP-REQ-${Date.now()}` });
+  }
+
+  return createSuccessResponse({ updated: true }, { requestId: auth.customer.requestId, environment: "PRODUCTION" });
 }

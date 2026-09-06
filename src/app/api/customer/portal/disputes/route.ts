@@ -1,37 +1,34 @@
 import { NextRequest } from "next/server";
-import { authenticateApiRequest } from "@/lib/security/authMiddleware";
+import { authenticateCustomerRequest } from "@/lib/security/customerAuth";
 import { createSuccessResponse, createErrorResponse } from "@/lib/security/apiResponse";
-import { ComplaintDisputeEngine } from "@/lib/complaints/ComplaintDisputeEngine";
-import { CustomerLifecycleEngine } from "@/lib/customer/CustomerLifecycleEngine";
-import { customerScopeFromRequest } from "@/lib/customer/customerScope";
-import { ComplaintRecord, ComplaintCategory } from "@/types/regulatoryConsumerEngine";
+import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getTransactionByReferenceForCustomer } from "@/lib/customer/customerData";
 
 /**
  * /api/customer/portal/disputes
  *
- * Customer-scoped complaints/disputes. This exists because the portal used to
- * "submit" a dispute by generating `KP-DISP-<random>` in the browser and
- * prepending it to local React state — the ticket never reached any queue, so
- * the customer was told a case existed when nothing did.
+ * Real, DB-backed customer complaints/disputes against public.customer_disputes
+ * — the same table the compliance/admin back office reads. Nothing here
+ * fabricates a ticket in browser state; every dispute created is a genuine row.
  *
- *   GET  → this customer's disputes only (filtered by the session identity,
- *          never by a client-supplied customerId).
- *   POST → creates a real ComplaintRecord in the ComplaintDisputeEngine, which
- *          is the same engine the compliance/admin queues read. The reference
- *          returned is the engine's own `complaintReference`.
- *
- * Amounts come from the transaction the customer is disputing — the route
- * resolves that from the engine rather than trusting a client-entered total.
+ *   GET  → this customer's disputes only (scoped by authenticated identity).
+ *   POST → creates a real customer_disputes row. The disputed amount is
+ *          resolved server-side from the referenced transaction when given —
+ *          a customer cannot inflate a claim by supplying their own total.
  */
 export const dynamic = "force-dynamic";
 
-/**
- * The customer-facing dispute reasons, mapped onto the REAL
- * `ComplaintCategory` enum the compliance engine accepts. (The portal modal
- * previously posted `MONEY_NOT_RECEIVED`, which no engine category matches —
- * so even a connected submission would have been mis-classified.)
- */
-const REASON_TO_CATEGORY: Record<string, ComplaintCategory> = {
+const ALLOWED_CATEGORIES = new Set([
+  "FAILED_TRANSFER",
+  "DUPLICATE_DEBIT",
+  "UNAUTHORIZED_TRANSACTION",
+  "REFUND_DELAY",
+  "FEE_DISPUTE",
+  "ACCOUNT_RESTRICTION",
+  "OTHER",
+]);
+
+const REASON_TO_CATEGORY: Record<string, string> = {
   MONEY_NOT_RECEIVED: "FAILED_TRANSFER",
   FAILED_BUT_DEBITED: "FAILED_TRANSFER",
   DEBITED_TWICE: "DUPLICATE_DEBIT",
@@ -40,164 +37,102 @@ const REASON_TO_CATEGORY: Record<string, ComplaintCategory> = {
   REFUND_DELAYED: "REFUND_DELAY",
   ACCOUNT_RESTRICTED: "ACCOUNT_RESTRICTION",
 };
-const ALLOWED_CATEGORIES = new Set<string>([
-  "FAILED_TRANSFER",
-  "DUPLICATE_DEBIT",
-  "AGENT_OVERCHARGING",
-  "AGENT_HARASSMENT",
-  "UNAUTHORIZED_TRANSACTION",
-  "POS_TERMINAL_GLITCH",
-  "REFUND_DELAY",
-  "FEE_DISPUTE",
-  "ACCOUNT_RESTRICTION",
-]);
 
-function toCustomerView(c: ComplaintRecord) {
+function toCustomerView(row: any) {
   return {
-    id: c.id,
-    ticketNumber: c.complaintReference,
-    status: c.status,
-    priority: c.priority,
-    category: c.category,
-    disputedAmount: c.disputedAmount,
-    currency: c.currency,
-    description: c.description,
-    createdAt: c.createdAt,
-    resolvedAt: c.resolvedAt,
-    transactionReference: c.transactionReference,
-    // Deliberately NOT returned: internal queue assignment (assignedTo/Email),
-    // SLA timers and breach flags, resolution notes, GL journal id, and any
-    // regulator-facing commentary — none of it is customer data.
+    id: row.id,
+    ticketNumber: row.ticket_number,
+    status: row.status,
+    priority: row.priority,
+    category: row.category,
+    disputedAmount: row.disputed_amount != null ? Number(row.disputed_amount) : undefined,
+    currency: row.currency,
+    description: row.description,
+    createdAt: row.created_at,
+    resolvedAt: row.resolved_at,
+    transactionReference: row.transaction_reference,
   };
 }
 
 export async function GET(req: NextRequest) {
-  const auth = await authenticateApiRequest(req, ["payments:read"]);
-  if (!auth.isAuthenticated || !auth.context) {
-    return createErrorResponse({
-      code: auth.errorCode || "UNAUTHORIZED",
-      message: "We could not confirm who you are. Please sign in again.",
-      httpStatus: auth.httpStatus || 401,
-      requestId: `KP-REQ-${Date.now()}`,
-    });
-  }
-  const scope = customerScopeFromRequest(req, auth.context);
-  if (!scope.ok || !scope.ownerCustomerId) {
-    return createErrorResponse({
-      code: "CUSTOMER_IDENTITY_UNRESOLVED",
-      message: "We could not resolve your profile for this session.",
-      httpStatus: 403,
-      requestId: `KP-REQ-${Date.now()}`,
-    });
+  const auth = await authenticateCustomerRequest(req);
+  if (!auth.isAuthenticated || !auth.customer) {
+    return createErrorResponse({ code: auth.errorCode || "UNAUTHORIZED", message: "We could not confirm who you are. Please sign in again.", httpStatus: auth.httpStatus || 401, requestId: `KP-REQ-${Date.now()}` });
   }
 
-  const all = ComplaintDisputeEngine.getInstance().getComplaints();
-  const mine = all.filter((c) => c.customerId === scope.ownerCustomerId);
-  return createSuccessResponse(
-    { disputes: mine.map(toCustomerView), totalCount: mine.length },
-    { requestId: auth.context.requestId, environment: auth.context.environment },
-  );
+  const admin = getSupabaseAdminClient();
+  const { data, error } = await admin
+    .from("customer_disputes")
+    .select("id, ticket_number, status, priority, category, disputed_amount, currency, description, created_at, resolved_at, transaction_reference")
+    .eq("customer_id", auth.customer.customerId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    return createErrorResponse({ code: "DISPUTES_LOOKUP_FAILED", message: "Unable to load your cases right now.", httpStatus: 500, requestId: `KP-REQ-${Date.now()}` });
+  }
+
+  const mine = (data || []).map(toCustomerView);
+  return createSuccessResponse({ disputes: mine, totalCount: mine.length }, { requestId: auth.customer.requestId, environment: "PRODUCTION" });
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await authenticateApiRequest(req, ["payments:read"]);
-  if (!auth.isAuthenticated || !auth.context) {
-    return createErrorResponse({
-      code: auth.errorCode || "UNAUTHORIZED",
-      message: "We could not confirm who you are. Please sign in again.",
-      httpStatus: auth.httpStatus || 401,
-      requestId: `KP-REQ-${Date.now()}`,
-    });
-  }
-  const scope = customerScopeFromRequest(req, auth.context);
-  if (!scope.ok || !scope.ownerCustomerId) {
-    return createErrorResponse({
-      code: "CUSTOMER_IDENTITY_UNRESOLVED",
-      message: "We could not resolve your profile for this session.",
-      httpStatus: 403,
-      requestId: `KP-REQ-${Date.now()}`,
-    });
+  const auth = await authenticateCustomerRequest(req);
+  if (!auth.isAuthenticated || !auth.customer) {
+    return createErrorResponse({ code: auth.errorCode || "UNAUTHORIZED", message: "We could not confirm who you are. Please sign in again.", httpStatus: auth.httpStatus || 401, requestId: `KP-REQ-${Date.now()}` });
   }
 
   let body: Record<string, unknown>;
   try {
     body = await req.json();
   } catch {
-    return createErrorResponse({
-      code: "INVALID_BODY",
-      message: "We couldn't read your request. Please try again.",
-      httpStatus: 400,
-      requestId: `KP-REQ-${Date.now()}`,
-    });
+    return createErrorResponse({ code: "INVALID_BODY", message: "We couldn't read your request. Please try again.", httpStatus: 400, requestId: `KP-REQ-${Date.now()}` });
   }
 
   const rawReason = String(body.category || body.reason || "").trim().toUpperCase();
-  const category = (REASON_TO_CATEGORY[rawReason] || rawReason) as string;
+  const category = REASON_TO_CATEGORY[rawReason] || rawReason;
   const description = String(body.description || "").trim();
-  const transactionReference = body.transactionReference
-    ? String(body.transactionReference).trim().slice(0, 64)
-    : undefined;
+  const transactionReference = body.transactionReference ? String(body.transactionReference).trim().slice(0, 64) : undefined;
 
   if (!ALLOWED_CATEGORIES.has(category)) {
-    return createErrorResponse({
-      code: "INVALID_CATEGORY",
-      message: "That dispute reason isn't supported. Please choose another.",
-      httpStatus: 422,
-      requestId: `KP-REQ-${Date.now()}`,
-    });
+    return createErrorResponse({ code: "INVALID_CATEGORY", message: "That dispute reason isn't supported. Please choose another.", httpStatus: 422, requestId: `KP-REQ-${Date.now()}` });
   }
   if (description.length < 10) {
-    return createErrorResponse({
-      code: "DESCRIPTION_TOO_SHORT",
-      message: "Please describe the issue in at least a few words so we can investigate.",
-      httpStatus: 422,
-      requestId: `KP-REQ-${Date.now()}`,
-    });
+    return createErrorResponse({ code: "DESCRIPTION_TOO_SHORT", message: "Please describe the issue in at least a few words so we can investigate.", httpStatus: 422, requestId: `KP-REQ-${Date.now()}` });
   }
 
-  const customer = CustomerLifecycleEngine.getInstance().getCustomer(scope.ownerCustomerId);
-  if (!customer) {
-    return createErrorResponse({
-      code: "CUSTOMER_NOT_FOUND",
-      message: "We couldn't open a case without a customer profile. Please contact support.",
-      httpStatus: 403,
-      requestId: `KP-REQ-${Date.now()}`,
-    });
-  }
-
-  // Resolve the disputed amount from the engine when a reference is supplied,
-  // so a customer cannot inflate a claim (or the claim value cannot be guessed).
-  let disputedAmount = 0;
-  let currency: "NGN" | "XOF" = customer.country === "NE" ? "XOF" : "NGN";
+  let disputedAmount: number | null = null;
+  let currency: "NGN" | "XOF" | null = null;
   if (transactionReference) {
-    const { TransactionService } = await import("@/lib/services/TransactionService");
-    const tx = TransactionService.findRawForOwner(transactionReference, scope.ownerCustomerId);
+    const tx = await getTransactionByReferenceForCustomer(transactionReference, auth.customer.customerId);
     if (tx) {
-      disputedAmount = Math.round(tx.amount) / 100; // minor → whole units
-      currency = (tx.currency as "NGN" | "XOF") || currency;
+      disputedAmount = Number(tx.amount);
+      currency = tx.currency;
     }
   }
 
-  const complaint = ComplaintDisputeEngine.getInstance().createComplaint({
-    customerId: customer.id,
-    customerName: customer.fullName,
-    customerPhone: customer.phone,
-    country: customer.country,
-    category: category as ComplaintCategory,
-    priority: "P1",
-    transactionReference,
-    disputedAmount,
-    currency,
-    description,
-  });
+  const ticketNumber = `KP-DISP-${new Date().getFullYear()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+  const admin = getSupabaseAdminClient();
+  const { data, error } = await admin
+    .from("customer_disputes")
+    .insert({
+      customer_id: auth.customer.customerId,
+      transaction_reference: transactionReference || null,
+      ticket_number: ticketNumber,
+      category,
+      disputed_amount: disputedAmount,
+      currency,
+      description,
+      priority: "P1",
+    })
+    .select("id, ticket_number, status, priority, category, disputed_amount, currency, description, created_at, resolved_at, transaction_reference")
+    .single();
 
-  return createSuccessResponse({ dispute: toCustomerView(complaint) },
-    {
-      code: "DISPUTE_LOGGED",
-      message: "Your claim has been logged with our dispute team.",
-      requestId: auth.context.requestId,
-      correlationId: auth.context.correlationId,
-      environment: auth.context.environment,
-    },
+  if (error) {
+    return createErrorResponse({ code: "DISPUTE_SAVE_FAILED", message: "We couldn't log your case. Please try again.", httpStatus: 500, requestId: `KP-REQ-${Date.now()}` });
+  }
+
+  return createSuccessResponse(
+    { dispute: toCustomerView(data) },
+    { code: "DISPUTE_LOGGED", message: "Your claim has been logged with our dispute team.", requestId: auth.customer.requestId, environment: "PRODUCTION" },
   );
 }

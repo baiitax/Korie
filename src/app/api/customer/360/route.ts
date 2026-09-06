@@ -1,30 +1,30 @@
 import { NextRequest } from "next/server";
-import { authenticateApiRequest } from "@/lib/security/authMiddleware";
+import { authenticateCustomerRequest } from "@/lib/security/customerAuth";
 import { createSuccessResponse, createErrorResponse } from "@/lib/security/apiResponse";
-import { CustomerLifecycleEngine } from "@/lib/customer/CustomerLifecycleEngine";
-import { AccountLifecycleEngine } from "@/lib/customer/AccountLifecycleEngine";
-import { BeneficiarySecurityEngine } from "@/lib/customer/BeneficiarySecurityEngine";
-import { ComplaintDisputeEngine } from "@/lib/complaints/ComplaintDisputeEngine";
-import { PaymentSwitchEngine } from "@/lib/paymentSwitch/PaymentSwitchEngine";
+import {
+  getCustomerById,
+  getWalletsForCustomer,
+  getTransactionsForCustomer,
+  getBeneficiariesForCustomer,
+  customerRowToUser,
+  walletRowToWallet,
+  beneficiaryRowToBeneficiary,
+} from "@/lib/customer/customerData";
+import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 
 /**
  * GET /api/customer/360
  *
- * Customer 360° profile. Hardened against IDOR / broken-object-level
- * authorization:
- *
- *  1. Authenticates the request (Bearer token + required scope).
- *  2. Resolves the caller's customer identity from the AUTHENTICATED context
- *     (NOT from a client-supplied query param).
- *  3. If an explicit `id` is supplied, it MUST match the authenticated caller,
- *     otherwise 403 (a customer can never read another customer's profile).
- *
- * Previously this endpoint trusted `?id=` from the client with no ownership
- * check — anyone could read anyone's customer record.
+ * Customer 360° profile, real-DB backed. Identity is resolved ONLY from the
+ * authenticated Supabase session (never a client-supplied `id`); a request
+ * for a different id than the caller's own is rejected outright, and a
+ * request for the caller's own id (the normal case) is served from
+ * `customers` / `wallets` / `customer_transactions` / `customer_beneficiaries`
+ * / `customer_disputes` directly.
  */
 export async function GET(req: NextRequest) {
-  const auth = await authenticateApiRequest(req, ["payments:read"]);
-  if (!auth.isAuthenticated || !auth.context) {
+  const auth = await authenticateCustomerRequest(req);
+  if (!auth.isAuthenticated || !auth.customer) {
     return createErrorResponse({
       code: auth.errorCode || "UNAUTHORIZED",
       message: auth.errorMessage || "Unauthorized",
@@ -32,94 +32,75 @@ export async function GET(req: NextRequest) {
       httpStatus: auth.httpStatus || 401,
     });
   }
+  const { customer: authedCustomer } = auth;
 
-  const { context } = auth;
+  const requestedId = req.nextUrl.searchParams.get("id");
+  if (requestedId && requestedId !== authedCustomer.customerId) {
+    return createErrorResponse({
+      code: "FORBIDDEN",
+      message: "You do not have access to this customer profile.",
+      requestId: authedCustomer.requestId,
+      httpStatus: 403,
+    });
+  }
+
+  const customerId = authedCustomer.customerId;
 
   try {
-    // Resolve the caller's customer identity from the AUTHENTICATED context.
-    // In production this maps context.userId -> customer row via the ownership
-    // table (Supabase). In this sandbox the authenticated dev session is bound
-    // to the primary seeded customer; in a real deployment this is replaced by
-    // the token->customer lookup. It is NEVER derived from a client param.
-    const authedCustomerId = resolveCustomerId(context.userId);
+    const admin = getSupabaseAdminClient();
+    const [customerRow, wallets, transactions, beneficiaryRows, disputesResult] = await Promise.all([
+      getCustomerById(customerId),
+      getWalletsForCustomer(customerId),
+      getTransactionsForCustomer(customerId, { limit: 200 }),
+      getBeneficiariesForCustomer(customerId),
+      admin
+        .from("customer_disputes")
+        .select("id, ticket_number, status, priority, category, disputed_amount, currency, description, created_at, resolved_at, transaction_reference")
+        .eq("customer_id", customerId)
+        .order("created_at", { ascending: false }),
+    ]);
 
-    const requestedId = req.nextUrl.searchParams.get("id");
-    if (requestedId && requestedId !== authedCustomerId) {
-      // Ownership check: a customer may only load their own profile. A mismatch
-      // (including requesting another customer by id) is rejected.
-      return createErrorResponse({
-        code: "FORBIDDEN",
-        message: "You do not have access to this customer profile.",
-        requestId: `KP-REQ-${Date.now()}`,
-        httpStatus: 403,
-      });
+    if (!customerRow) {
+      return createErrorResponse({ code: "CUSTOMER_NOT_FOUND", message: "Customer not found.", requestId: authedCustomer.requestId, httpStatus: 404 });
     }
 
-    const customerId = requestedId || authedCustomerId;
-
-    const customerEngine = CustomerLifecycleEngine.getInstance();
-    const accountEngine = AccountLifecycleEngine.getInstance();
-    const beneficiaryEngine = BeneficiarySecurityEngine.getInstance();
-    const complaintEngine = ComplaintDisputeEngine.getInstance();
-    const switchEngine = PaymentSwitchEngine.getInstance();
-
-    const customer = customerEngine.getCustomer(customerId);
-    if (!customer) {
-      return createErrorResponse({
-        code: "CUSTOMER_NOT_FOUND",
-        message: "Customer not found.",
-        requestId: `KP-REQ-${Date.now()}`,
-        httpStatus: 404,
-      });
-    }
-
-    const accounts = accountEngine.getAccounts(customerId);
-    const beneficiaries = beneficiaryEngine.getBeneficiaries(customerId);
-    const complaints = complaintEngine.getComplaints().filter((c) => c.customerId === customerId);
-    const payments = switchEngine.getPayments().filter((p) => p.customerId === customerId);
+    const disputes = disputesResult.data || [];
+    const openDisputes = disputes.filter((d) => d.status === "OPEN" || d.status === "IN_PROGRESS");
 
     return createSuccessResponse(
       {
-        customer,
-        accounts,
-        beneficiaries,
-        complaints,
-        payments,
+        customer: customerRowToUser(customerRow),
+        wallets: wallets.map(walletRowToWallet),
+        beneficiaries: beneficiaryRows.map(beneficiaryRowToBeneficiary),
+        complaints: disputes.map((d) => ({
+          id: d.id,
+          ticketNumber: d.ticket_number,
+          status: d.status,
+          priority: d.priority,
+          category: d.category,
+          disputedAmount: d.disputed_amount != null ? Number(d.disputed_amount) : undefined,
+          currency: d.currency,
+          description: d.description,
+          createdAt: d.created_at,
+          resolvedAt: d.resolved_at,
+          transactionReference: d.transaction_reference,
+        })),
         summary: {
-          totalAccounts: accounts.length,
-          totalBeneficiaries: beneficiaries.length,
-          openComplaints: complaints.filter((c) => c.status !== "RESOLVED" && c.status !== "CLOSED").length,
-          totalTransactions: payments.length,
+          totalWallets: wallets.length,
+          totalBeneficiaries: beneficiaryRows.length,
+          openComplaints: openDisputes.length,
+          totalTransactions: transactions.length,
         },
       },
-      {
-        requestId: context.requestId,
-        correlationId: context.correlationId,
-        environment: context.environment,
-      },
+      { requestId: authedCustomer.requestId, environment: "PRODUCTION" },
     );
   } catch (error: any) {
     return createErrorResponse({
       code: "INTERNAL_ERROR",
       message: "Could not load the customer profile.",
-      requestId: `KP-REQ-${Date.now()}`,
+      requestId: authedCustomer.requestId,
       httpStatus: 500,
       details: [{ code: "CUSTOMER_LOAD_ERROR", field: "error", message: String(error?.message ?? "Unknown error") }],
     });
   }
-}
-
-
-/**
- * Map an authenticated session to a customer identity.
- *
- * In production this is a database lookup (context.userId -> customer row).
- * In this sandbox the authenticated dev user is bound to the seeded primary
- * customer. This is the ONLY place a session is mapped to a customer, so the
- * ownership check below is authoritative.
- */
-function resolveCustomerId(userId?: string): string {
-  if (userId === "usr_dev_01") return "cust-ng-001-ibrahim";
-  if (userId) return `cust-${userId.replace("usr_", "")}`;
-  return "cust-ng-001-ibrahim";
 }

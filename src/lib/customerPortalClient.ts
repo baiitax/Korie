@@ -1,39 +1,42 @@
 /**
  * Client-side portal API helper.
  *
- * The customer portal talks to its own `/api/customer/*` routes, which enforce
- * authentication + scope via `authenticateApiRequest`. This wrapper attaches the
- * Bearer credential to every call.
- *
- * SECURITY / SANDBOX NOTE: the customer browser session does not carry a
- * production JWT in the sandbox, so we attach the sandbox test key. In a real
- * deployment `NEXT_PUBLIC_KP_SANDBOX_TOKEN` is unset and the browser sends the
- * real session token from the auth flow instead (override `getPortalToken`).
- * The fallback below is the documented KoriePay test key (kp_test_…) — it is a
- * mock credential, never a production secret. Do NOT ship a production key here.
+ * The customer portal talks to its own `/api/customer/*` routes, which are
+ * now protected by `authenticateCustomerRequest` — a REAL Supabase Bearer
+ * token check against `public.customers.auth_user_id`. This wrapper attaches
+ * whatever the genuinely signed-in customer's live Supabase session token is
+ * (via `customerSession.ts`). There is no sandbox/demo credential fallback:
+ * if nobody is signed in, calls fail loudly with `CUSTOMER_SESSION_UNAVAILABLE`
+ * so the UI can route back to /login instead of rendering someone else's
+ * (or nobody's) data.
  */
 
-export const DEFAULT_SANDBOX_TOKEN = "kp_test_cdb3db2b9b22a98c9c1b";
+import { getCustomerAccessToken } from "@/lib/customer/customerSession";
 
-function getPortalToken(): string {
-  if (typeof process !== "undefined" && process.env.NEXT_PUBLIC_KP_SANDBOX_TOKEN) {
-    return process.env.NEXT_PUBLIC_KP_SANDBOX_TOKEN;
-  }
-  return DEFAULT_SANDBOX_TOKEN;
-}
+/** @deprecated No sandbox token exists anymore — real auth only. Left as an
+ * empty string only so any stale import doesn't crash at module load. */
+export const DEFAULT_SANDBOX_TOKEN = "";
 
 /** Bearer value for customer portal calls (single source for fetch + XHR). */
-export function getPortalBearer(): string {
-  return `Bearer ${getPortalToken()}`;
+export async function getPortalBearer(): Promise<string> {
+  const token = await getCustomerAccessToken();
+  if (!token) {
+    throw new Error("CUSTOMER_SESSION_UNAVAILABLE");
+  }
+  return `Bearer ${token}`;
 }
 
 export async function portalFetch(
   input: RequestInfo | URL,
   init: RequestInit = {},
 ): Promise<Response> {
+  const token = await getCustomerAccessToken();
+  if (!token) {
+    throw new Error("CUSTOMER_SESSION_UNAVAILABLE");
+  }
   const headers = new Headers(init.headers || {});
   if (!headers.has("Authorization")) {
-    headers.set("Authorization", `Bearer ${getPortalToken()}`);
+    headers.set("Authorization", `Bearer ${token}`);
   }
   if (init.body && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");

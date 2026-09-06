@@ -25,6 +25,17 @@ export function getSupabaseAdminClient(): SupabaseClient {
 
   cachedAdminClient = createClient(supabaseUrl, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
+    global: {
+      // Next.js's App Router patches the global `fetch` to apply its own
+      // request-memoization/caching semantics. Supabase-js's REST calls go
+      // through that same `fetch`, so without an explicit no-store directive
+      // a GET issued moments after a write can silently return a stale,
+      // pre-write snapshot within the same render pass — exactly the kind of
+      // "your money is fine, the read is just lying" bug this portal must
+      // never produce. Every admin-client call is always a live read.
+      fetch: (input: RequestInfo | URL, init?: RequestInit) =>
+        fetch(input, { ...init, cache: 'no-store' }),
+    },
   });
 
   return cachedAdminClient;

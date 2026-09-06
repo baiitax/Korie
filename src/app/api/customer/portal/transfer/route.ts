@@ -1,28 +1,29 @@
 import { NextRequest } from "next/server";
-import { authenticateApiRequest } from "@/lib/security/authMiddleware";
+import { randomUUID } from "crypto";
+import { authenticateCustomerRequest } from "@/lib/security/customerAuth";
+import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSuccessResponse, createErrorResponse } from "@/lib/security/apiResponse";
-import { TransactionService } from "@/lib/services/TransactionService";
-import { customerScopeFromRequest } from "@/lib/customer/customerScope";
-import { toCustomerTransaction } from "@/lib/customer/CustomerTransactionQuery";
-import { CustomerCurrency } from "@/types/customer";
+import { quoteAgencyCommission } from "@/lib/agency/commissionPricing";
+import { getWalletsForCustomer, getFxRates, transactionRowToCustomerTransaction, CustomerTransactionRow } from "@/lib/customer/customerData";
 
 /**
  * POST /api/customer/portal/transfer
  *
- * Executes a customer transfer through the REAL engine path:
- *   double-entry ledger post -> provider adapter dispatch -> outbox event.
+ * Real, ledger-backed customer transfer. Calls public.post_customer_transfer(),
+ * which locks the customer's wallet + backing ledger account, checks
+ * status/balance/daily-limit, posts a real double-entry ledger transaction,
+ * and inserts the customer_transactions row with
+ * status = 'PENDING_PROVIDER_INTEGRATION' / provider_status = 'UNSENT'.
  *
- * Amounts in from the client are WHOLE currency units; the engine service uses
- * minor units, so we convert before dispatch (and map the authoritative
- * response back to whole units for display). The response status is whatever
- * the engine/provider returned — never fabricated client-side.
- *
- * Auth + scope required; a generated/received idempotency key is forwarded so
- * the server can deduplicate (see BANKING_INTEGRATION_PLAN.md for the DB guard).
+ * There is no live Providus/Coris payout integration yet, so this endpoint
+ * never claims the money has reached the recipient. The frontend must render
+ * this as "processing" — never a green success confirmation.
  */
+export const dynamic = "force-dynamic";
+
 export async function POST(req: NextRequest) {
-  const auth = await authenticateApiRequest(req, ["transfers:write", "payments:write"]);
-  if (!auth.isAuthenticated || !auth.context) {
+  const auth = await authenticateCustomerRequest(req);
+  if (!auth.isAuthenticated || !auth.customer) {
     return createErrorResponse({
       code: auth.errorCode || "UNAUTHORIZED",
       message: auth.errorMessage || "Unauthorized",
@@ -30,110 +31,130 @@ export async function POST(req: NextRequest) {
       httpStatus: auth.httpStatus || 401,
     });
   }
-
-  const { context } = auth;
+  const { customer } = auth;
 
   let body: any;
   try {
     body = await req.json();
   } catch {
-    return createErrorResponse({
-      code: "INVALID_BODY",
-      message: "Malformed request body.",
-      requestId: `KP-REQ-${Date.now()}`,
-      httpStatus: 400,
-    });
+    return createErrorResponse({ code: "INVALID_BODY", message: "Malformed request body.", requestId: `KP-REQ-${Date.now()}`, httpStatus: 400 });
   }
 
   const amount = Number(body.amount);
-  const currency = String(body.currency) as CustomerCurrency;
-  const reference = String(body.reference || `KP-2026-TX-${Date.now()}`);
-  const destinationCurrency = body.destinationCurrency as CustomerCurrency | undefined;
+  const currency = String(body.currency || "").toUpperCase() as "NGN" | "XOF";
+  const destinationCurrency = body.destinationCurrency
+    ? (String(body.destinationCurrency).toUpperCase() as "NGN" | "XOF")
+    : undefined;
   const isCrossBorder = Boolean(body.isCrossBorder) || Boolean(destinationCurrency && destinationCurrency !== currency);
-  // Identity comes from the SAME resolver every customer route uses. This route
-  // previously carried its own `resolveCustomerId()`, which guessed
-  // `cust-<userId>` from the subject and silently fell back to the demo
-  // customer when it could not — i.e. a second, weaker copy of the ownership
-  // rule on the only route that moves money.
-  const scope = customerScopeFromRequest(req, context);
-  if (!scope.ok || !scope.ownerCustomerId) {
-    return createErrorResponse({
-      code: "CUSTOMER_IDENTITY_UNRESOLVED",
-      message: "We could not resolve your profile for this session, so nothing was sent.",
-      httpStatus: 403,
-      requestId: `KP-REQ-${Date.now()}`,
-    });
-  }
-  const sourceCustomerId = scope.ownerCustomerId;
+  const recipientName = String(body.recipientName || "").trim();
+  const recipientAccount = String(body.recipientAccount || "").trim();
+  const recipientBank = String(body.recipientBank || "").trim();
+  const recipientBankCode = body.recipientBankCode ? String(body.recipientBankCode).trim() : null;
 
+  if (currency !== "NGN" && currency !== "XOF") {
+    return createErrorResponse({ code: "CURRENCY_UNSUPPORTED", message: "Only NGN and XOF are supported.", requestId: `KP-REQ-${Date.now()}`, httpStatus: 400 });
+  }
   if (!Number.isFinite(amount) || amount <= 0) {
+    return createErrorResponse({ code: "INVALID_AMOUNT", message: "Amount must be a positive number.", requestId: `KP-REQ-${Date.now()}`, httpStatus: 400 });
+  }
+  if (!recipientName || !recipientAccount || !recipientBank) {
+    return createErrorResponse({ code: "MISSING_RECIPIENT_DETAILS", message: "Recipient name, account number and bank are required.", requestId: `KP-REQ-${Date.now()}`, httpStatus: 400 });
+  }
+  if (!isCrossBorder && currency !== "NGN") {
     return createErrorResponse({
-      code: "INVALID_AMOUNT",
-      message: "Amount must be a positive number.",
+      code: "XOF_DOMESTIC_NOT_YET_AVAILABLE",
+      message: "Same-currency XOF transfers are coming soon through Coris Bank. You can currently transfer within the NGN<->XOF corridor.",
       requestId: `KP-REQ-${Date.now()}`,
       httpStatus: 400,
     });
   }
 
-  // The engine service uses minor units.
-  const minorUnitAmount = Math.round(amount * 100);
+  const admin = getSupabaseAdminClient();
 
+  // Find the customer's own wallet for the SOURCE currency — never trust a
+  // client-supplied wallet id.
+  const wallets = await getWalletsForCustomer(customer.customerId);
+  const sourceWallet = wallets.find((w) => w.currency === currency);
+  if (!sourceWallet) {
+    return createErrorResponse({ code: "WALLET_NOT_FOUND", message: `You do not have a ${currency} wallet.`, requestId: `KP-REQ-${Date.now()}`, httpStatus: 404 });
+  }
+
+  const txType = isCrossBorder ? "TRANSFER_CROSS_BORDER" : "TRANSFER_NIP";
+
+  let fee = 0;
   try {
-    // XOF -> XOF domestic transfer is NOT yet backed by the transfer engine
-    // (in-sandbox the engine supports NGN NIP + the NGN<->XOF cross-border
-    // corridor via Coris Bank). Return a controlled, honest response rather
-    // than fabricating a success. Coris Bank / GIM-UEMOA domestic routing is
-    // documented in BANKING_INTEGRATION_PLAN.md.
-    if (currency === "XOF" && destinationCurrency === "XOF") {
-      return createErrorResponse({
-        code: "XOF_DOMESTIC_NOT_YET_AVAILABLE",
-        message: "Same-currency XOF transfers are coming soon through Coris Bank. You can currently transfer within the NGN<->XOF corridor.",
-        requestId: `KP-REQ-${Date.now()}`,
-        httpStatus: 400,
-      });
-    }
+    const quote = await quoteAgencyCommission(admin, { transactionType: txType, currency, amount });
+    fee = quote.customerFee;
+  } catch {
+    return createErrorResponse({ code: "FEE_QUOTE_FAILED", message: "Could not price this transfer.", requestId: `KP-REQ-${Date.now()}`, httpStatus: 500 });
+  }
 
-    if (isCrossBorder) {
-      const tx = await TransactionService.executeCrossBorderTransfer(context, {
-        sourceCurrency: currency as "NGN" | "XOF",
-        destinationCurrency: (destinationCurrency || "XOF") as "NGN" | "XOF",
-        amount: minorUnitAmount,
-        reference,
-        recipient: {
-          name: String(body.recipientName || "Recipient"),
-          bankCode: String(body.recipientBankCode || "NE024"),
-          accountNumber: String(body.recipientAccount || ""),
-          phone: body.recipientPhone,
-        },
-        narration: body.description,
-        sourceCustomerId,
-      });
-      return createSuccessResponse(
-        { transaction: toCustomerTransaction(tx) },
-        { requestId: context.requestId, correlationId: context.correlationId, environment: context.environment },
-      );
+  let exchangeRate: number | null = null;
+  let destinationAmount: number | null = null;
+  if (isCrossBorder) {
+    const rates = await getFxRates();
+    const match = rates.find((r) => r.fromCurrency === currency && r.toCurrency === (destinationCurrency || (currency === "NGN" ? "XOF" : "NGN")));
+    if (!match) {
+      return createErrorResponse({ code: "FX_RATE_UNAVAILABLE", message: "Exchange rate unavailable for this corridor.", requestId: `KP-REQ-${Date.now()}`, httpStatus: 409 });
     }
+    exchangeRate = match.rate;
+    destinationAmount = Math.round((amount - fee) * match.rate * 100) / 100;
+  }
 
-    const tx = await TransactionService.executeNipOutward(context, {
-      destinationBankCode: String(body.recipientBankCode || "058"),
-      destinationAccountNumber: String(body.recipientAccount || ""),
-      beneficiaryName: String(body.recipientName || "Recipient"),
-      amount: minorUnitAmount,
-      reference,
-      narration: body.description,
-      sourceCustomerId,
-    });
-    return createSuccessResponse(
-      { transaction: toCustomerTransaction(tx) },
-      { requestId: context.requestId, correlationId: context.correlationId, environment: context.environment },
-    );
-  } catch (error: any) {
+  const reference = String(body.reference || `KP-${new Date().getFullYear()}-CTX-${randomUUID().split("-")[0].toUpperCase()}`);
+  const idempotencyKey = req.headers.get("idempotency-key") || req.headers.get("Idempotency-Key") || `idem-${reference}`;
+
+  const { data, error } = await admin.rpc("post_customer_transfer", {
+    p_customer_id: customer.customerId,
+    p_org_id: customer.orgId,
+    p_wallet_id: sourceWallet.id,
+    p_transaction_type: txType,
+    p_amount: amount,
+    p_currency: currency,
+    p_fee: fee,
+    p_destination_currency: isCrossBorder ? destinationCurrency || (currency === "NGN" ? "XOF" : "NGN") : null,
+    p_exchange_rate: exchangeRate,
+    p_destination_amount: destinationAmount,
+    p_recipient_name: recipientName,
+    p_recipient_account: recipientAccount,
+    p_recipient_bank: recipientBank,
+    p_recipient_bank_code: recipientBankCode,
+    p_narration: body.description ? String(body.description).slice(0, 500) : null,
+    p_idempotency_key: idempotencyKey,
+    p_reference: reference,
+  });
+
+  if (error) {
+    const message = error.message || "";
+    if (message.includes("INSUFFICIENT_WALLET_BALANCE")) {
+      return createErrorResponse({ code: "INSUFFICIENT_WALLET_BALANCE", message: "Insufficient balance to cover this transfer and fee.", requestId: `KP-REQ-${Date.now()}`, httpStatus: 422 });
+    }
+    if (message.includes("DAILY_LIMIT_EXCEEDED")) {
+      return createErrorResponse({ code: "DAILY_LIMIT_EXCEEDED", message: "This transfer would exceed your daily transaction limit.", requestId: `KP-REQ-${Date.now()}`, httpStatus: 422 });
+    }
+    if (message.includes("WALLET_NOT_ACTIVE")) {
+      return createErrorResponse({ code: "WALLET_NOT_ACTIVE", message: "Your wallet is not active. Please contact support.", requestId: `KP-REQ-${Date.now()}`, httpStatus: 403 });
+    }
+    if (message.includes("CLEARING_ACCOUNT_NOT_CONFIGURED")) {
+      return createErrorResponse({ code: "CLEARING_ACCOUNT_NOT_CONFIGURED", message: "Outbound transfer rail is not configured for this currency yet.", requestId: `KP-REQ-${Date.now()}`, httpStatus: 409 });
+    }
     return createErrorResponse({
       code: "TRANSFER_FAILED",
-      message: error?.message || "Transfer could not be completed.",
+      message: "We could not confirm the transfer status yet. Please do not retry immediately — check transaction history first.",
       requestId: `KP-REQ-${Date.now()}`,
-      httpStatus: 400,
+      httpStatus: 502,
     });
   }
-}
 
+  const tx = data as CustomerTransactionRow;
+
+  return createSuccessResponse(
+    { transaction: transactionRowToCustomerTransaction(tx) },
+    {
+      code: "TRANSFER_STAGED",
+      message: "Transfer debited from your wallet and staged for bank confirmation. This has not yet been confirmed as delivered.",
+      requestId: customer.requestId,
+      environment: "PRODUCTION",
+    },
+  );
+}

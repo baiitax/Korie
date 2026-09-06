@@ -1,19 +1,18 @@
 import { NextRequest } from "next/server";
-import { authenticateApiRequest } from "@/lib/security/authMiddleware";
+import { authenticateCustomerRequest } from "@/lib/security/customerAuth";
 import { createSuccessResponse, createErrorResponse } from "@/lib/security/apiResponse";
-import { TransactionService } from "@/lib/services/TransactionService";
+import { getFxRates } from "@/lib/customer/customerData";
 
 /**
  * GET /api/customer/portal/fx
  *
- * Returns the cross-border execution rates the transfer engine actually applies
- * (single source of truth), so the customer is never shown a quote that differs
- * from the rate executed. No invented buys/sells/spreads — the engine applies a
- * single rate per direction.
+ * Returns the administered NGN<->XOF rates from public.fx_rates — the exact
+ * table the transfer route reads when executing a cross-border transfer, so
+ * the customer is never shown a quote that differs from the rate executed.
  */
 export async function GET(req: NextRequest) {
-  const auth = await authenticateApiRequest(req, ["fx:read", "payments:read"]);
-  if (!auth.isAuthenticated || !auth.context) {
+  const auth = await authenticateCustomerRequest(req);
+  if (!auth.isAuthenticated || !auth.customer) {
     return createErrorResponse({
       code: auth.errorCode || "UNAUTHORIZED",
       message: auth.errorMessage || "Unauthorized",
@@ -22,24 +21,11 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  const { context } = auth;
-
-  const quotes = [
-    TransactionService.getCrossBorderRate("NGN"),
-    TransactionService.getCrossBorderRate("XOF"),
-  ].map((q) => ({
-    fromCurrency: q.sourceCurrency,
-    toCurrency: q.destinationCurrency,
-    rate: q.rate,
-    source: "KoriePay Bilateral Sahel Engine",
-  }));
+  const rates = await getFxRates();
+  const quotes = rates.map((r) => ({ ...r, source: "KoriePay Administered Rate" }));
 
   return createSuccessResponse(
     { quotes },
-    {
-      requestId: context.requestId,
-      correlationId: context.correlationId,
-      environment: context.environment,
-    },
+    { requestId: auth.customer.requestId, environment: "PRODUCTION" },
   );
 }

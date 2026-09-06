@@ -1,28 +1,21 @@
 import { NextRequest } from "next/server";
-import { authenticateApiRequest } from "@/lib/security/authMiddleware";
+import { authenticateCustomerRequest } from "@/lib/security/customerAuth";
 import { createSuccessResponse, createErrorResponse } from "@/lib/security/apiResponse";
-import { BeneficiarySecurityEngine } from "@/lib/customer/BeneficiarySecurityEngine";
-import { customerScopeFromRequest } from "@/lib/customer/customerScope";
-import { engineToBeneficiary } from "@/lib/engineAdapters";
+import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getBeneficiariesForCustomer, beneficiaryRowToBeneficiary, BeneficiaryRow } from "@/lib/customer/customerData";
 
 /**
- * /api/customer/portal/beneficiaries — owner-scoped beneficiary management.
- *
- * Why a new route: the pre-existing `/api/beneficiaries` endpoint reads
- * `?customerId=` straight off the query string and defaults it to a real
- * customer when absent, with no authentication at all. That is the exact
- * pattern this brief forbids ("never trust customerId provided by the
- * browser"). The admin/agent surfaces keep using their own routes; this one
- * is the customer portal's, and it derives the owner from the session.
+ * /api/customer/portal/beneficiaries — owner-scoped beneficiary management,
+ * real-DB backed (public.customer_beneficiaries). Identity is derived from
+ * the authenticated Supabase session only — never from a client-supplied id.
  *
  *   GET    → beneficiaries owned by the authenticated customer
- *   POST   → register (24h new-payee cooldown applied by the engine)
- *   DELETE → remove by id, only if the row belongs to this customer
+ *   POST   → register (DB default applies the 24h new-payee cooldown)
+ *   DELETE → soft-remove (status = REMOVED) by id, only if owned by the caller
  */
 export const dynamic = "force-dynamic";
 
-function unauthorized(req: NextRequest, auth: { errorCode?: string; errorMessage?: string; httpStatus?: number }) {
-  void req;
+function unauthorized(auth: { errorCode?: string; httpStatus?: number }) {
   return createErrorResponse({
     code: auth.errorCode || "UNAUTHORIZED",
     message: "We could not confirm who you are. Please sign in again.",
@@ -31,44 +24,26 @@ function unauthorized(req: NextRequest, auth: { errorCode?: string; errorMessage
   });
 }
 
-function forbidden() {
-  return createErrorResponse({
-    code: "CUSTOMER_IDENTITY_UNRESOLVED",
-    message: "We could not resolve your profile for this session.",
-    httpStatus: 403,
-    requestId: `KP-REQ-${Date.now()}`,
-  });
-}
-
 export async function GET(req: NextRequest) {
-  const auth = await authenticateApiRequest(req, ["payments:read"]);
-  if (!auth.isAuthenticated || !auth.context) return unauthorized(req, auth);
-  const scope = customerScopeFromRequest(req, auth.context);
-  if (!scope.ok || !scope.ownerCustomerId) return forbidden();
+  const auth = await authenticateCustomerRequest(req);
+  if (!auth.isAuthenticated || !auth.customer) return unauthorized(auth);
 
-  const rows = BeneficiarySecurityEngine.getInstance().getBeneficiaries(scope.ownerCustomerId);
+  const rows = await getBeneficiariesForCustomer(auth.customer.customerId);
   return createSuccessResponse(
-    { beneficiaries: rows.map(engineToBeneficiary), totalCount: rows.length },
-    { requestId: auth.context.requestId, environment: auth.context.environment },
+    { beneficiaries: rows.map(beneficiaryRowToBeneficiary), totalCount: rows.length },
+    { requestId: auth.customer.requestId, environment: "PRODUCTION" },
   );
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await authenticateApiRequest(req, ["payments:write"]);
-  if (!auth.isAuthenticated || !auth.context) return unauthorized(req, auth);
-  const scope = customerScopeFromRequest(req, auth.context);
-  if (!scope.ok || !scope.ownerCustomerId) return forbidden();
+  const auth = await authenticateCustomerRequest(req);
+  if (!auth.isAuthenticated || !auth.customer) return unauthorized(auth);
 
   let body: Record<string, unknown>;
   try {
     body = await req.json();
   } catch {
-    return createErrorResponse({
-      code: "INVALID_BODY",
-      message: "We couldn't read your request. Please try again.",
-      httpStatus: 400,
-      requestId: `KP-REQ-${Date.now()}`,
-    });
+    return createErrorResponse({ code: "INVALID_BODY", message: "We couldn't read your request. Please try again.", httpStatus: 400, requestId: `KP-REQ-${Date.now()}` });
   }
 
   const name = String(body.name || "").trim();
@@ -76,6 +51,7 @@ export async function POST(req: NextRequest) {
   const bankCode = String(body.bankCode || "").trim();
   const bankName = String(body.bankName || "").trim();
   const currency = String(body.currency || "").toUpperCase();
+  const country = body.country === "NE" ? "NE" : "NG";
 
   const errors: { code: string; message: string; field?: string }[] = [];
   if (name.length < 3) errors.push({ code: "BENEFICIARY_NAME_REQUIRED", field: "name", message: "Enter the beneficiary's full name." });
@@ -87,68 +63,67 @@ export async function POST(req: NextRequest) {
     errors.push({ code: "CURRENCY_UNSUPPORTED", field: "currency", message: "Only XOF and NGN accounts are supported." });
   }
   if (errors.length) {
-    return createErrorResponse({
-      code: "VALIDATION_FAILED",
-      message: "Some details need correcting before we can save this payee.",
-      httpStatus: 422,
-      requestId: `KP-REQ-${Date.now()}`,
-      details: errors,
-    });
+    return createErrorResponse({ code: "VALIDATION_FAILED", message: "Some details need correcting before we can save this payee.", httpStatus: 422, requestId: `KP-REQ-${Date.now()}`, details: errors });
   }
 
-  const created = BeneficiarySecurityEngine.getInstance().addBeneficiary({
-    // customerId comes from the session, never from the body.
-    customerId: scope.ownerCustomerId,
-    beneficiaryName: name,
-    accountNumber,
-    bankName: bankName || "Commercial Bank",
-    bankCode,
-    currency: currency as "NGN" | "XOF",
-    country: (body.country === "NE" ? "NE" : "NG") as "NG" | "NE",
-    nickname: body.nickname ? String(body.nickname).slice(0, 40) : undefined,
-    relationship: body.relationship ? String(body.relationship).slice(0, 40) : undefined,
-  } as never);
+  const admin = getSupabaseAdminClient();
+  const { data, error } = await admin
+    .from("customer_beneficiaries")
+    .insert({
+      customer_id: auth.customer.customerId,
+      beneficiary_name: name,
+      account_number: accountNumber,
+      bank_name: bankName || "Commercial Bank",
+      bank_code: bankCode,
+      currency,
+      country,
+      nickname: body.nickname ? String(body.nickname).slice(0, 40) : null,
+      relationship: body.relationship ? String(body.relationship).slice(0, 40) : null,
+    })
+    .select("id, customer_id, beneficiary_name, account_number, bank_code, bank_name, currency, country, nickname, relationship, status, cooldown_expires_at, created_at, updated_at")
+    .single();
 
+  if (error) {
+    if (error.code === "23505") {
+      return createErrorResponse({ code: "BENEFICIARY_ALREADY_EXISTS", message: "You already have a payee with this account number and bank.", httpStatus: 409, requestId: `KP-REQ-${Date.now()}` });
+    }
+    return createErrorResponse({ code: "BENEFICIARY_SAVE_FAILED", message: "We couldn't save this payee. Please try again.", httpStatus: 500, requestId: `KP-REQ-${Date.now()}` });
+  }
+
+  const created = data as BeneficiaryRow;
   return createSuccessResponse(
-    { beneficiary: engineToBeneficiary(created), cooldownUntil: created.cooldownExpiresAt },
+    { beneficiary: beneficiaryRowToBeneficiary(created), cooldownUntil: created.cooldown_expires_at },
     {
       code: "BENEFICIARY_REGISTERED",
-      // The engine applies a 24h cooldown on new payees; say so, honestly.
       message: "Payee saved. Transfers to a new payee are limited for 24 hours.",
-      requestId: auth.context.requestId,
-      environment: auth.context.environment,
+      requestId: auth.customer.requestId,
+      environment: "PRODUCTION",
     },
   );
 }
 
 export async function DELETE(req: NextRequest) {
-  const auth = await authenticateApiRequest(req, ["payments:write"]);
-  if (!auth.isAuthenticated || !auth.context) return unauthorized(req, auth);
-  const scope = customerScopeFromRequest(req, auth.context);
-  if (!scope.ok || !scope.ownerCustomerId) return forbidden();
+  const auth = await authenticateCustomerRequest(req);
+  if (!auth.isAuthenticated || !auth.customer) return unauthorized(auth);
 
   const id = req.nextUrl.searchParams.get("id")?.trim();
   if (!id) {
-    return createErrorResponse({
-      code: "MISSING_ID",
-      message: "Tell us which payee to remove.",
-      httpStatus: 400,
-      requestId: `KP-REQ-${Date.now()}`,
-    });
+    return createErrorResponse({ code: "MISSING_ID", message: "Tell us which payee to remove.", httpStatus: 400, requestId: `KP-REQ-${Date.now()}` });
   }
 
-  const removed = BeneficiarySecurityEngine.getInstance().removeBeneficiary(id, scope.ownerCustomerId);
-  if (!removed) {
-    // Same answer for "not yours" and "does not exist" — no enumeration.
-    return createErrorResponse({
-      code: "BENEFICIARY_NOT_FOUND",
-      message: "We couldn't find that payee on your account.",
-      httpStatus: 404,
-      requestId: `KP-REQ-${Date.now()}`,
-    });
+  const admin = getSupabaseAdminClient();
+  const { data, error } = await admin
+    .from("customer_beneficiaries")
+    .update({ status: "REMOVED", updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("customer_id", auth.customer.customerId)
+    .eq("status", "ACTIVE")
+    .select("id")
+    .maybeSingle();
+
+  if (error || !data) {
+    return createErrorResponse({ code: "BENEFICIARY_NOT_FOUND", message: "We couldn't find that payee on your account.", httpStatus: 404, requestId: `KP-REQ-${Date.now()}` });
   }
-  return createSuccessResponse(
-    { removed: true, id },
-    { requestId: auth.context.requestId, environment: auth.context.environment },
-  );
+
+  return createSuccessResponse({ removed: true, id }, { requestId: auth.customer.requestId, environment: "PRODUCTION" });
 }

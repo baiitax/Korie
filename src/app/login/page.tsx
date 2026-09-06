@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import AuthShell from "@/components/auth/AuthShell";
 import AuthCard from "@/components/auth/AuthCard";
 import AuthHeader from "@/components/auth/AuthHeader";
@@ -10,19 +9,15 @@ import IdentifierInput from "@/components/auth/IdentifierInput";
 import PasswordInput from "@/components/auth/PasswordInput";
 import SecurityNotice from "@/components/auth/SecurityNotice";
 import AuthErrorAlert from "@/components/auth/AuthErrorAlert";
-import RoleSwitcherDevBar from "@/components/auth/RoleSwitcherDevBar";
 import { useAuth } from "@/components/auth/AuthContext";
 import { KpayInlineLoader } from "@/components/loading";
-import { ArrowRight, Fingerprint, Shield, Sparkles } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 export default function LoginPage() {
-  const router = useRouter();
-  const { login, biometricLogin, language, jurisdiction, activeRole } = useAuth();
+  const { login, language, jurisdiction } = useAuth();
 
-  const [identifier, setIdentifier] = useState(
-    jurisdiction === "NG" ? "+234 803 456 7890" : "+227 90 12 34 56"
-  );
-  const [password, setPassword] = useState("KoriePay@2026!");
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
   const [rememberDevice, setRememberDevice] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +33,6 @@ export default function LoginPage() {
         password,
         rememberDevice,
         country: jurisdiction,
-        selectedRoleOverride: activeRole,
       });
 
       if (!result.success) {
@@ -51,15 +45,6 @@ export default function LoginPage() {
       setError("A network or authentication service error occurred. Please try again.");
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleBiometric = async () => {
-    setError(null);
-    try {
-      await biometricLogin(activeRole);
-    } catch (err: any) {
-      setError("Biometric challenge was not completed. Please use your account password.");
     }
   };
 
@@ -93,7 +78,7 @@ export default function LoginPage() {
           <AuthErrorAlert error={error} onDismiss={() => setError(null)} />
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Intelligent Identifier Input */}
+            {/* Email — customer sign-in is by registered email address only. */}
             <IdentifierInput
               value={identifier}
               onChange={(val) => {
@@ -104,7 +89,6 @@ export default function LoginPage() {
               required
             />
 
-            {/* Password Field with Caps Lock Alert & Forgot Password Link */}
             <PasswordInput
               value={password}
               onChange={(val) => {
@@ -116,7 +100,6 @@ export default function LoginPage() {
               required
             />
 
-            {/* Remember Device Checkbox */}
             <div className="flex items-center justify-between text-xs pt-0.5">
               <label className="flex items-center gap-2 cursor-pointer text-slate-300 select-none">
                 <input
@@ -134,7 +117,6 @@ export default function LoginPage() {
               </span>
             </div>
 
-            {/* Primary Sign In Button */}
             <button
               type="submit"
               disabled={isLoading}
@@ -146,26 +128,21 @@ export default function LoginPage() {
                 <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
               )}
             </button>
-
-            {/* Biometric / WebAuthn Option */}
-            <div className="pt-1">
-              <button
-                type="button"
-                onClick={handleBiometric}
-                disabled={isLoading}
-                className="w-full py-3 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.1] text-slate-200 hover:text-white font-bold text-xs flex items-center justify-center gap-2 transition-all"
-              >
-                <Fingerprint className="w-4 h-4 text-emerald-400" />
-                <span>Biometric / FaceID Login</span>
-              </button>
-            </div>
           </form>
 
           {/* Security Notice Pill */}
           <SecurityNotice />
 
-          {/* Persona & Role Switcher for Developer Review & Audits */}
-          <RoleSwitcherDevBar />
+          {/* Real seeded demo accounts — every field below is a genuine
+              Supabase Auth user with a real wallet balance, not a mock. */}
+          <div className="w-full max-w-md mx-auto pt-4 border-t border-white/[0.08] space-y-1.5">
+            <div className="text-[11px] font-semibold text-slate-300">Demo customer accounts</div>
+            <div className="text-[11px] text-slate-400 font-mono leading-relaxed">
+              amina.bello@test.ng · chukwudi.eze@test.ng<br />
+              amadou.seydou@test.ne · fatima.oumarou@test.ne<br />
+              Password: KorieCustomer@2026!
+            </div>
+          </div>
         </AuthCard>
 
         {/* Create Account Prompt */}

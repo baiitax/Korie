@@ -87,11 +87,22 @@ export const DocumentUploader: React.FC<{
     setState("idle");
   };
 
-  const submit = useCallback(() => {
+  const submit = useCallback(async () => {
     if (!file || state === "uploading") return;
     setState("uploading");
     setError(null);
     setProgress(0);
+
+    // Same bearer source as every other portal call — never a second copy of
+    // a credential string inside a component.
+    let bearer: string;
+    try {
+      bearer = await getPortalBearer();
+    } catch {
+      setState("error");
+      setError("Your session has expired. Please sign in again.");
+      return;
+    }
 
     const form = new FormData();
     form.append("file", file, file.name);
@@ -102,9 +113,7 @@ export const DocumentUploader: React.FC<{
     xhrRef.current = xhr;
     xhr.open("POST", "/api/customer/portal/verification");
     xhr.withCredentials = true;
-    // Same bearer source as every other portal call — never a second copy of
-    // a credential string inside a component.
-    xhr.setRequestHeader("Authorization", getPortalBearer());
+    xhr.setRequestHeader("Authorization", bearer);
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) setProgress(Math.min(99, Math.round((e.loaded / e.total) * 100)));
     };
