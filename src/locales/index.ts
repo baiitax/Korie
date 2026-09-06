@@ -11,8 +11,10 @@ export const translations = {
 
 export type TranslationKey = string;
 
-// Helper to get nested object property via dot notation
-function getNestedValue(obj: Record<string, unknown>, path: string): string | undefined {
+// Helper to get nested object property via dot notation. Returns whatever
+// lives at the path — a string for leaf keys, or a plain object when the
+// path addresses a namespace (which translateNamespace needs).
+function getNestedRaw(obj: Record<string, unknown>, path: string): unknown {
   const keys = path.split(".");
   let current: unknown = obj;
 
@@ -24,7 +26,14 @@ function getNestedValue(obj: Record<string, unknown>, path: string): string | un
     }
   }
 
-  return typeof current === "string" ? current : undefined;
+  return current;
+}
+
+// String-only view of the same walk: `translate()` must never hand back an
+// object, so non-string results collapse to undefined.
+function getNestedValue(obj: Record<string, unknown>, path: string): string | undefined {
+  const value = getNestedRaw(obj, path);
+  return typeof value === "string" ? value : undefined;
 }
 
 // Flatten a nested object namespace into a flat dot-notated record, e.g.
@@ -55,7 +64,10 @@ export function translateNamespace(
   namespace: string,
 ): Record<string, string> {
   const dictionary = (translations[lang] || translations.en) as Record<string, unknown>;
-  const nsObj = getNestedValue(dictionary as unknown as Record<string, unknown>, namespace);
+  // getNestedRaw, not getNestedValue: a namespace is an OBJECT, and the
+  // string-only accessor returned undefined for every namespace, so this
+  // always produced an empty map and receipts rendered raw keys.
+  const nsObj = getNestedRaw(dictionary as unknown as Record<string, unknown>, namespace);
   const flat =
     nsObj && typeof nsObj === "object"
       ? flattenNamespace(nsObj as unknown as Record<string, unknown>, namespace)
@@ -63,7 +75,7 @@ export function translateNamespace(
 
   // English fallback for keys missing in the selected language.
   if (lang !== "en") {
-    const enNsObj = getNestedValue(
+    const enNsObj = getNestedRaw(
       (translations.en as Record<string, unknown>) as unknown as Record<string, unknown>,
       namespace,
     );
