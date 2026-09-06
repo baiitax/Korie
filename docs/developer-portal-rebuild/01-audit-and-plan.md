@@ -84,3 +84,10 @@ Spec §100 (final acceptance) is the definition of done; items that cannot be tr
 - **D2** Confirm full 16-phase scope across sessions; start W1+W2 in the next working session (recommended) or a different slice first.
 - **D3** SDK catalog: keep client-seeded "GA packages" as aspirational demo (labeled) vs honest "SDK unavailable — use REST" until real packages exist. Spec §21-22 demands the honest option unless labels are acceptable; compliance precedent = honest markers.
 - **D4** Bills/VAS + Customers + remaining doc-claimed endpoints: mark all as explicit "Coming Soon" rows (recommended) rather than building new demo endpoints.
+
+---
+
+## 5. Progress log
+
+- **W1 — Shell & design-system (done, `1c601d9`)**: DeveloperShell rebuilt — `KorieFloatingRail` sky/DEV + rail context cards (workspace, application+environment) + member footer; header moved into the content column (app selector, environment pill, ⌘K search, EN/FR/HA, ShellAccount); mobile `KorieDock` + full-section More sheet (environment + language + sign-out); production-switch warning and quick-search modals restyled to light-first tokens. tsc 0 · build 403/403 · `/developers` family 200.
+- **W2 — Workspace engine foundation (in progress)**: `src/lib/developer/DeveloperWorkspaceEngine.ts` (server-owned org/apps/credentials/webhook-endpoints/request-logs/activity/onboarding + production gate; raw secrets revealed once; `kp_test_sec_…`/`kp_live_sec_…` prefixes; envelope via `ApiGatewayEngine`) + BFF routes under `src/app/api/developers/*` (workspace, applications CRUD, credentials create/rotate/revoke, requests, activity, production-access). Next: rewire Dashboard + Applications + Credentials pages to read/write server state (loading/empty/error states, checklist ticks from server state).
