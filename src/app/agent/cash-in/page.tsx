@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useAgent } from "@/components/agent/AgentContext";
+import { LiquidityAmount } from "@/components/agent/ui/LiquidityAmount";
 import { BANK_DIRECTORY } from "@/services/customerDataService";
 import {
   ArrowLeft,
@@ -16,7 +17,7 @@ import {
 } from "lucide-react";
 
 export default function AgentCashInPage() {
-  const { liquidity, executeCashIn, openReceipt, t } = useAgent();
+  const { liquidity, isLiquidityLoading, executeCashIn, openReceipt, t } = useAgent();
 
   const [bankCode, setBankCode] = useState("058");
   const [accountNumber, setAccountNumber] = useState("");
@@ -105,13 +106,13 @@ export default function AgentCashInPage() {
         <div>
           <div className="text-slate-400 uppercase text-[10px]">Available Wallet Float</div>
           <div className="text-base font-extrabold text-emerald-400">
-            ₦{liquidity.walletFloat.toLocaleString()}
+            <LiquidityAmount value={`₦${liquidity.walletFloat.toLocaleString()}`} />
           </div>
         </div>
         <div className="text-right">
           <div className="text-slate-400 uppercase text-[10px]">Physical Cash In Hand</div>
           <div className="text-base font-extrabold text-white">
-            ₦{liquidity.cashInHand.toLocaleString()}
+            <LiquidityAmount value={`₦${liquidity.cashInHand.toLocaleString()}`} />
           </div>
         </div>
       </div>
@@ -227,7 +228,7 @@ export default function AgentCashInPage() {
 
         <button
           type="submit"
-          disabled={isExecuting || !customerName || parsedAmount <= 0}
+          disabled={isExecuting || isLiquidityLoading || !customerName || parsedAmount <= 0}
           className="w-full py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-extrabold text-sm transition-all shadow-xl shadow-emerald-500/20"
         >
           {isExecuting ? "Processing Cash-In..." : t("cashIn.confirmDepositBtn")}

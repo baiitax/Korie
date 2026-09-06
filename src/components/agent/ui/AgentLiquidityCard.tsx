@@ -21,11 +21,24 @@ export const AgentLiquidityCard: React.FC = () => {
     agent,
     liquidity,
     isBalanceHidden,
+    isLiquidityLoading,
     openReconciliation,
     t,
   } = useAgent();
 
   const isLowCash = liquidity.health === "LOW" || liquidity.cashInHand < liquidity.cashThresholdMin;
+
+  // Renders a neutral skeleton instead of any number (including the pre-fetch
+  // placeholder state) until the real ledger balance has been confirmed by
+  // the backend. Never show a plausible-looking figure that isn't real.
+  const renderAmount = (formatted: string) =>
+    isLiquidityLoading ? (
+      <span className="inline-block h-[1em] w-24 rounded bg-white/10 animate-pulse align-middle" />
+    ) : isBalanceHidden ? (
+      <span className="tracking-widest">••••••••••</span>
+    ) : (
+      formatted
+    );
 
   return (
     <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0e172e] via-[#091122] to-[#060a15] border border-white/15 p-5 sm:p-7 shadow-2xl backdrop-blur-xl">
@@ -57,11 +70,7 @@ export const AgentLiquidityCard: React.FC = () => {
           {t("common.availableLiquidity")}
         </div>
         <div className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white font-mono tracking-tight">
-          {isBalanceHidden ? (
-            <span className="tracking-widest">••••••••••</span>
-          ) : (
-            `₦${liquidity.totalLiquidity.toLocaleString()}`
-          )}
+          {renderAmount(`₦${liquidity.totalLiquidity.toLocaleString()}`)}
         </div>
       </div>
 
@@ -78,7 +87,7 @@ export const AgentLiquidityCard: React.FC = () => {
                 {t("common.cashInHand")}
               </div>
               <div className="text-base sm:text-lg font-mono font-extrabold text-white">
-                {isBalanceHidden ? "••••••••" : `₦${liquidity.cashInHand.toLocaleString()}`}
+                {renderAmount(`₦${liquidity.cashInHand.toLocaleString()}`)}
               </div>
             </div>
           </div>
@@ -98,7 +107,7 @@ export const AgentLiquidityCard: React.FC = () => {
                 {t("common.walletFloat")}
               </div>
               <div className="text-base sm:text-lg font-mono font-extrabold text-white">
-                {isBalanceHidden ? "••••••••" : `₦${liquidity.walletFloat.toLocaleString()}`}
+                {renderAmount(`₦${liquidity.walletFloat.toLocaleString()}`)}
               </div>
             </div>
           </div>

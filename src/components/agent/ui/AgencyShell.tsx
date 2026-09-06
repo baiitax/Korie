@@ -38,6 +38,7 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
     agent,
     liquidity,
     isBalanceHidden,
+    isLiquidityLoading,
     toggleHideBalance,
     language,
     setLanguage,
@@ -46,6 +47,15 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
     t,
     notificationsCount,
   } = useAgent();
+
+  const renderShellAmount = (formatted: string) =>
+    isLiquidityLoading ? (
+      <span className="inline-block h-[1em] w-16 rounded bg-white/10 animate-pulse align-middle" />
+    ) : isBalanceHidden ? (
+      "••••••••"
+    ) : (
+      formatted
+    );
 
   const desktopNavGroups = [
     {
@@ -123,11 +133,11 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
                 {t("common.availableLiquidity")}
               </div>
               <div className="text-base font-extrabold text-white font-mono">
-                {isBalanceHidden ? "••••••••" : `₦${liquidity.totalLiquidity.toLocaleString()}`}
+                {renderShellAmount(`₦${liquidity.totalLiquidity.toLocaleString()}`)}
               </div>
               <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono pt-1">
-                <span>Cash: ₦{liquidity.cashInHand.toLocaleString()}</span>
-                <span className="text-emerald-400 font-bold">● {liquidity.health}</span>
+                <span>Cash: ₦{isLiquidityLoading ? "···" : liquidity.cashInHand.toLocaleString()}</span>
+                <span className="text-emerald-400 font-bold">● {isLiquidityLoading ? "SYNCING" : liquidity.health}</span>
               </div>
             </div>
 

@@ -30,6 +30,37 @@ import {
   calculateAgentCommission,
 } from "@/services/agentDataService";
 import { translateAgency } from "@/locales/agency";
+import { agencyApiFetch } from "@/lib/agency/agentSession";
+
+/**
+ * Maps the wire shape returned by /api/v1/agency/cash-in|cash-out|transactions
+ * into the frontend's AgencyTransaction type. This is the ONLY place that
+ * translates backend-confirmed data into UI state for these two flows —
+ * nothing here invents amounts, fees, commissions, or a SUCCESSFUL status.
+ */
+function mapApiTransaction(tx: any, terminalId: string): AgencyTransaction {
+  return {
+    id: tx.id,
+    reference: tx.reference,
+    type: tx.type,
+    title:
+      tx.type === "CASH_IN" ? "Customer Cash-In Deposit" : "Customer Cash-Out Withdrawal",
+    amount: tx.amount,
+    customerFee: tx.customer_fee,
+    agentCommission: tx.agent_commission,
+    totalAmount: tx.type === "CASH_OUT" ? tx.amount + tx.customer_fee : tx.amount,
+    currency: tx.currency,
+    status: tx.status,
+    customerName: tx.customer_name,
+    customerPhone: tx.customer_phone || undefined,
+    customerAccount: tx.customer_account || undefined,
+    customerBank: tx.customer_bank || undefined,
+    terminalId,
+    agentId: "",
+    createdAt: tx.created_at,
+    completedAt: tx.completed_at || undefined,
+  };
+}
 
 interface CashInExecutionParams {
   customerName: string;
@@ -63,6 +94,10 @@ interface AgentContextType {
   alerts: AgencyRiskAlert[];
   reconciliations: DailyCashReconciliation[];
   isOffline: boolean;
+  isLiquidityLoading: boolean;
+  isTransactionsLoading: boolean;
+  refreshLiquidity: () => Promise<void>;
+  refreshTransactions: () => Promise<void>;
 
   // Modals & Sheets
   isReceiptModalOpen: boolean;
@@ -146,6 +181,8 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   const [reconciliations, setReconciliations] = useState<DailyCashReconciliation[]>(DAILY_RECONCILIATIONS);
   const [isOffline, setIsOffline] = useState<boolean>(false);
   const [notificationsCount, setNotificationsCount] = useState<number>(2);
+  const [isLiquidityLoading, setIsLiquidityLoading] = useState<boolean>(true);
+  const [isTransactionsLoading, setIsTransactionsLoading] = useState<boolean>(true);
   const [floatTopUpRequests, setFloatTopUpRequests] = useState<FloatTopUpRequest[]>(FLOAT_TOPUP_REQUESTS);
   const [subAgents, setSubAgents] = useState<SubAgent[]>(SUB_AGENTS);
   const [floatAllocations, setFloatAllocations] = useState<FloatAllocationRecord[]>(FLOAT_ALLOCATIONS);
@@ -178,6 +215,64 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         window.removeEventListener("offline", handleOffline);
       };
     }
+  }, []);
+
+  // Loads the agent's REAL liquidity position and transaction history from
+  // the ledger-backed API. Called on mount and after every confirmed
+  // cash-in/cash-out so the UI always reflects the backend's truth rather
+  // than a client-side running total.
+  const refreshLiquidity = React.useCallback(async () => {
+    try {
+      const res = await agencyApiFetch("/api/v1/agency/float");
+      const json = await res.json();
+      if (res.ok && json.status === "success") {
+        const d = json.data;
+        setLiquidity((prev) => ({
+          ...prev,
+          walletFloat: d.wallet_float,
+          cashInHand: d.cash_in_hand,
+          totalLiquidity: d.total_liquidity,
+          cashThresholdMin: d.cash_threshold_min,
+          currency: d.currency,
+          health: d.health,
+        }));
+      }
+    } catch {
+      // Network/session failure: leave prior known-good state in place
+      // rather than silently zeroing out real balances.
+    } finally {
+      setIsLiquidityLoading(false);
+    }
+  }, []);
+
+  const refreshTransactions = React.useCallback(async () => {
+    try {
+      const res = await agencyApiFetch("/api/v1/agency/transactions?limit=50");
+      const json = await res.json();
+      if (res.ok && json.status === "success") {
+        setTransactions((prev) => {
+          const mapped: AgencyTransaction[] = json.data.transactions.map((tx: any) =>
+            mapApiTransaction(tx, terminal.terminalId)
+          );
+          // Keep demo/seed transactions that are not CASH_IN/CASH_OUT (e.g. bills,
+          // transfers) alongside the real, backend-confirmed cash transactions.
+          const nonCash = prev.filter((t) => t.type !== "CASH_IN" && t.type !== "CASH_OUT");
+          return [...mapped, ...nonCash].sort(
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+        });
+      }
+    } catch {
+      // leave existing transaction list as-is on network failure
+    } finally {
+      setIsTransactionsLoading(false);
+    }
+  }, [terminal.terminalId]);
+
+  useEffect(() => {
+    refreshLiquidity();
+    refreshTransactions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const setLanguage = (lang: SupportedLanguage) => {
@@ -214,7 +309,11 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   const openReconciliation = () => setIsReconciliationModalOpen(true);
   const closeReconciliation = () => setIsReconciliationModalOpen(false);
 
-  // CASH-IN: Agent collects cash (+CashInHand), debits wallet float (-WalletFloat), credits customer bank
+  // CASH-IN: real, backend-confirmed transaction. The frontend never marks a
+  // transaction SUCCESSFUL itself — it only reflects what the API, backed by
+  // the atomic post_agency_cash_transaction() ledger function, confirms.
+  // Network timeouts are surfaced as PENDING/"unknown" (never silently
+  // retried and never presented as a failure), per financial-integrity rules.
   const executeCashIn = async (params: CashInExecutionParams) => {
     if (isOffline) {
       return { success: false, error: "Offline network. Transaction blocked for safety." };
@@ -224,60 +323,58 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       return { success: false, error: "Insufficient wallet float balance. Please fund float." };
     }
 
-    const { customerFee, agentCommission } = calculateAgentCommission("CASH_IN", params.amount);
+    const idempotencyKey =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `cashin-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-    // Update float state
-    setLiquidity((prev) => {
-      const newWalletFloat = prev.walletFloat - params.amount;
-      const newCash = prev.cashInHand + params.amount;
-      const newTotal = newWalletFloat + newCash;
-      const health = newCash < prev.cashThresholdMin ? "LOW" : "HEALTHY";
+    try {
+      const res = await agencyApiFetch("/api/v1/agency/cash-in", {
+        method: "POST",
+        headers: { "Idempotency-Key": idempotencyKey },
+        body: JSON.stringify({
+          customer_name: params.customerName,
+          customer_account: params.customerAccount,
+          customer_bank: params.customerBank,
+          customer_phone: params.customerPhone,
+          amount: params.amount,
+          currency: "NGN",
+        }),
+      });
 
-      return {
+      const json = await res.json().catch(() => null);
+
+      if (!res.ok || !json || json.status !== "success") {
+        const message = json?.error?.message || "Cash-in could not be confirmed by the backend.";
+        return { success: false, error: message };
+      }
+
+      const newTx = mapApiTransaction(json.data, terminal.terminalId);
+      setTransactions((prev) => [newTx, ...prev]);
+
+      // Re-sync from the backend rather than locally computing the new
+      // balance — the ledger is the only source of truth.
+      await refreshLiquidity();
+      setAgent((prev) => ({
         ...prev,
-        walletFloat: newWalletFloat,
-        cashInHand: newCash,
-        totalLiquidity: newTotal,
-        todayCashInVolume: prev.todayCashInVolume + params.amount,
-        health,
+        commissionBalance: prev.commissionBalance + json.data.agent_commission,
+        dailyCashSpent: prev.dailyCashSpent + params.amount,
+      }));
+
+      return { success: true, transaction: newTx };
+    } catch (err) {
+      // A thrown network error (e.g. request never reached the server, or
+      // timed out) is genuinely UNKNOWN — do not tell the agent it failed,
+      // and do not auto-retry a financial mutation on their behalf.
+      return {
+        success: false,
+        error:
+          "Could not confirm this transaction with the server. Do not retry — check transaction history before trying again.",
       };
-    });
-
-    setAgent((prev) => ({
-      ...prev,
-      commissionBalance: prev.commissionBalance + agentCommission,
-      dailyCashSpent: prev.dailyCashSpent + params.amount,
-    }));
-
-    const txId = `ag-tx-${Date.now()}`;
-    const newTx: AgencyTransaction = {
-      id: txId,
-      reference: `KP-2026-CSHIN-${Math.floor(10000 + Math.random() * 90000)}`,
-      providerReference: `PRV-INW-${Math.floor(100000 + Math.random() * 900000)}`,
-      type: "CASH_IN",
-      title: "Customer Cash-In Deposit",
-      amount: params.amount,
-      customerFee,
-      agentCommission,
-      totalAmount: params.amount,
-      currency: "NGN",
-      status: "SUCCESSFUL",
-      customerName: params.customerName,
-      customerPhone: params.customerPhone,
-      customerAccount: params.customerAccount,
-      customerBank: params.customerBank,
-      terminalId: terminal.terminalId,
-      agentId: agent.id,
-      createdAt: new Date().toISOString(),
-      completedAt: new Date().toISOString(),
-    };
-
-    setTransactions((prev) => [newTx, ...prev]);
-
-    return { success: true, transaction: newTx };
+    }
   };
 
-  // CASH-OUT: Customer account is debited, agent wallet float is credited (+WalletFloat), agent dispenses cash (-CashInHand)
+  // CASH-OUT: real, backend-confirmed transaction (same integrity rules as executeCashIn).
   const executeCashOut = async (params: CashOutExecutionParams) => {
     if (isOffline) {
       return { success: false, error: "Offline network. Transaction blocked for safety." };
@@ -290,57 +387,50 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       };
     }
 
-    const { customerFee, agentCommission } = calculateAgentCommission("CASH_OUT", params.amount);
+    const idempotencyKey =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `cashout-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-    // Update float state
-    setLiquidity((prev) => {
-      const newWalletFloat = prev.walletFloat + params.amount;
-      const newCash = prev.cashInHand - params.amount;
-      const newTotal = newWalletFloat + newCash;
-      const health = newCash < prev.cashThresholdMin ? "LOW" : "HEALTHY";
+    try {
+      const res = await agencyApiFetch("/api/v1/agency/cash-out", {
+        method: "POST",
+        headers: { "Idempotency-Key": idempotencyKey },
+        body: JSON.stringify({
+          customer_name: params.customerName,
+          customer_account: params.customerAccount,
+          customer_bank: params.customerBank,
+          customer_phone: params.customerPhone,
+          amount: params.amount,
+          currency: "NGN",
+        }),
+      });
 
-      return {
+      const json = await res.json().catch(() => null);
+
+      if (!res.ok || !json || json.status !== "success") {
+        const message = json?.error?.message || "Cash-out could not be confirmed by the backend.";
+        return { success: false, error: message };
+      }
+
+      const newTx = mapApiTransaction(json.data, terminal.terminalId);
+      setTransactions((prev) => [newTx, ...prev]);
+
+      await refreshLiquidity();
+      setAgent((prev) => ({
         ...prev,
-        walletFloat: newWalletFloat,
-        cashInHand: newCash,
-        totalLiquidity: newTotal,
-        todayCashOutVolume: prev.todayCashOutVolume + params.amount,
-        health,
+        commissionBalance: prev.commissionBalance + json.data.agent_commission,
+        dailyCashSpent: prev.dailyCashSpent + params.amount,
+      }));
+
+      return { success: true, transaction: newTx };
+    } catch (err) {
+      return {
+        success: false,
+        error:
+          "Could not confirm this transaction with the server. Do not retry — check transaction history before trying again.",
       };
-    });
-
-    setAgent((prev) => ({
-      ...prev,
-      commissionBalance: prev.commissionBalance + agentCommission,
-      dailyCashSpent: prev.dailyCashSpent + params.amount,
-    }));
-
-    const txId = `ag-tx-${Date.now()}`;
-    const newTx: AgencyTransaction = {
-      id: txId,
-      reference: `KP-2026-CSHOUT-${Math.floor(10000 + Math.random() * 90000)}`,
-      providerReference: `PRV-OUT-${Math.floor(100000 + Math.random() * 900000)}`,
-      type: "CASH_OUT",
-      title: "Customer Cash-Out Withdrawal",
-      amount: params.amount,
-      customerFee,
-      agentCommission,
-      totalAmount: params.amount + customerFee,
-      currency: "NGN",
-      status: "SUCCESSFUL",
-      customerName: params.customerName,
-      customerPhone: params.customerPhone,
-      customerAccount: params.customerAccount,
-      customerBank: params.customerBank,
-      terminalId: terminal.terminalId,
-      agentId: agent.id,
-      createdAt: new Date().toISOString(),
-      completedAt: new Date().toISOString(),
-    };
-
-    setTransactions((prev) => [newTx, ...prev]);
-
-    return { success: true, transaction: newTx };
+    }
   };
 
   const executeTransfer = async (params: {
@@ -602,6 +692,10 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         alerts,
         reconciliations,
         isOffline,
+        isLiquidityLoading,
+        isTransactionsLoading,
+        refreshLiquidity,
+        refreshTransactions,
         isReceiptModalOpen,
         selectedReceiptTx,
         receiptLanguage,

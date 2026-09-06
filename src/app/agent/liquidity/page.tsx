@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useAgent } from "@/components/agent/AgentContext";
+import { LiquidityAmount } from "@/components/agent/ui/LiquidityAmount";
 import { FloatTopUpMethod } from "@/types/agent";
 import {
   ArrowLeft,
@@ -147,7 +148,7 @@ export default function AgentLiquidityPage() {
         <div className="p-5 rounded-3xl bg-[#090f1e] border border-white/10 space-y-1">
           <div className="text-[10px] uppercase text-slate-400">Digital Wallet Float</div>
           <div className="text-2xl font-extrabold text-emerald-400">
-            {currencySymbol}{liquidity.walletFloat.toLocaleString()}
+            <LiquidityAmount value={`${currencySymbol}${liquidity.walletFloat.toLocaleString()}`} />
           </div>
           <div className="text-[10px] text-slate-400 font-sans">Providus Clearing Rail</div>
         </div>
@@ -155,7 +156,7 @@ export default function AgentLiquidityPage() {
         <div className="p-5 rounded-3xl bg-[#090f1e] border border-white/10 space-y-1">
           <div className="text-[10px] uppercase text-slate-400">Physical Cash In Hand</div>
           <div className="text-2xl font-extrabold text-white">
-            {currencySymbol}{liquidity.cashInHand.toLocaleString()}
+            <LiquidityAmount value={`${currencySymbol}${liquidity.cashInHand.toLocaleString()}`} />
           </div>
           <div className="text-[10px] text-slate-400 font-sans">Vault Physical Count</div>
         </div>
@@ -163,7 +164,7 @@ export default function AgentLiquidityPage() {
         <div className="p-5 rounded-3xl bg-gradient-to-br from-amber-950/40 to-[#090f1e] border border-amber-500/30 space-y-1">
           <div className="text-[10px] uppercase text-amber-400 font-bold">Total Liquidity</div>
           <div className="text-2xl font-extrabold text-white">
-            {currencySymbol}{liquidity.totalLiquidity.toLocaleString()}
+            <LiquidityAmount value={`${currencySymbol}${liquidity.totalLiquidity.toLocaleString()}`} />
           </div>
           <div className="text-[10px] text-emerald-400 font-sans">● {liquidity.health} Status</div>
         </div>

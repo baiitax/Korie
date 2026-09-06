@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useAgent } from "@/components/agent/AgentContext";
+import { LiquidityAmount } from "@/components/agent/ui/LiquidityAmount";
 import { BANK_DIRECTORY } from "@/services/customerDataService";
 import {
   ArrowLeft,
@@ -102,7 +103,7 @@ export default function AgentTransferPage() {
         <div>
           <div className="text-slate-400 uppercase text-[10px]">Available Wallet Float</div>
           <div className="text-base font-extrabold text-emerald-400">
-            ₦{liquidity.walletFloat.toLocaleString()}
+            <LiquidityAmount value={`₦${liquidity.walletFloat.toLocaleString()}`} />
           </div>
         </div>
         <div className="text-right">
