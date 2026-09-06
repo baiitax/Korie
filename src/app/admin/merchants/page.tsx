@@ -1,81 +1,88 @@
 "use client";
 
 import React, { useState } from "react";
+import { PageHeader, fmtDate, TextCell } from "@/components/admin/AdminPageUI";
+import ResourceTable, { StatusChip, ResourceColumn } from "@/components/admin/ResourceTable";
 import { useAdmin } from "@/components/admin/AdminContext";
-import { MERCHANTS } from "@/services/adminDataService";
-import { CreditCard, Search, QrCode, Smartphone, Download, ArrowRight } from "lucide-react";
 
+/**
+ * Merchants — live view of the partner registry and merchant intelligence
+ * profiles. The old page rendered an invented MERCHANTS constant ("Kano
+ * Central Market Electronics" etc.).
+ */
 export default function MerchantsAdminPage() {
-  const { countryFilter } = useAdmin();
-  const [search, setSearch] = useState("");
+  const { openDrawer } = useAdmin();
+  const [tab, setTab] = useState<"registry" | "profiles">("registry");
 
-  const filtered = MERCHANTS.filter((m) => {
-    const matchesCountry = countryFilter === "GLOBAL" || m.countryCode === countryFilter;
-    const matchesSearch =
-      !search.trim() ||
-      m.businessName.toLowerCase().includes(search.toLowerCase()) ||
-      m.ownerName.toLowerCase().includes(search.toLowerCase()) ||
-      m.city.toLowerCase().includes(search.toLowerCase());
-    return matchesCountry && matchesSearch;
-  });
+  const partnerCols: ResourceColumn[] = [
+    { key: "partner_code", label: "Code", render: (r) => <span className="font-bold text-[var(--foreground)]">{r.partner_code}</span> },
+    { key: "legal_entity", label: "Legal entity" },
+    { key: "category", label: "Category", render: (r) => <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-[var(--brand-soft)] text-[var(--brand-primary)] border border-[var(--brand-primary)]/20">{String(r.category ?? "—").replaceAll("_", " ")}</span> },
+    { key: "country", label: "Country" },
+    { key: "tier", label: "Tier", hideOnMobile: true },
+    { key: "kyb_status", label: "KYB", render: (r) => <StatusChip value={r.kyb_status} /> },
+    { key: "lifecycle_status", label: "Lifecycle", render: (r) => <StatusChip value={r.lifecycle_status} /> },
+    { key: "created_at", label: "Onboarded", hideOnMobile: true, render: (r) => <span className="text-[var(--foreground-muted)]">{fmtDate(r.created_at)}</span> },
+  ];
+
+  const profileCols: ResourceColumn[] = [
+    { key: "business_name", label: "Merchant", render: (r) => <span className="font-bold text-[var(--foreground)]">{r.business_name}</span> },
+    { key: "monthly_gmv_ngn", label: "Monthly GMV", className: "text-right", render: (r) => <span className="font-bold">{fmtNGN(r.monthly_gmv_ngn)}</span> },
+    { key: "processing_margin_pct", label: "Margin", className: "text-right", render: (r) => <span>{r.processing_margin_pct ?? "—"}%</span> },
+    { key: "dispute_ratio_pct", label: "Disputes", className: "text-right", render: (r) => <span className={Number(r.dispute_ratio_pct) > 1 ? "text-rose-400" : "text-emerald-400"}>{r.dispute_ratio_pct ?? "—"}%</span> },
+    { key: "growth_trend_pct", label: "Growth", hideOnMobile: true, className: "text-right", render: (r) => <span className={Number(r.growth_trend_pct) >= 0 ? "text-emerald-400" : "text-rose-400"}>{r.growth_trend_pct ?? "—"}%</span> },
+    { key: "status", label: "Status", render: (r) => <StatusChip value={r.status} /> },
+    { key: "updated_at", label: "Updated", hideOnMobile: true, render: (r) => <span className="text-[var(--foreground-muted)]">{fmtDate(r.updated_at)}</span> },
+  ];
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
-        <div>
-          <span className="px-2.5 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-orange-500/10 text-orange-400 border border-orange-500/20">
-            MERCHANT PAYMENT ACCEPTANCE
-          </span>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-white mt-1">Merchant Directory & Settlements</h1>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Monitor registered retail merchants, dynamic counter QR standees, card terminals, and gross checkout volumes.
-          </p>
-        </div>
+      <PageHeader
+        eyebrow="Agency & Merchants"
+        title="Merchant Network"
+        subtitle="Partner registry with KYB standing, plus merchant intelligence profiles (GMV, margins, dispute ratios) as computed by the analytics pipeline."
+      />
+
+      <div className="flex gap-2 text-xs font-bold">
+        {(["registry", "profiles"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`px-4 py-2 rounded-xl border transition-colors ${tab === t ? "bg-[var(--brand-primary)] text-white border-[var(--brand-primary)]" : "bg-[var(--surface)] text-[var(--foreground-muted)] border-[var(--border)] hover:border-[var(--brand-primary)]"}`}
+          >
+            {t === "registry" ? "Partner registry" : "Intelligence profiles"}
+          </button>
+        ))}
       </div>
 
-      <div className="rounded-3xl bg-[#0b1324] border border-white/10 shadow-2xl overflow-hidden">
-        <table className="w-full text-left text-xs">
-          <thead>
-            <tr className="text-[10px] font-mono uppercase text-slate-400 bg-slate-950/60 border-b border-white/10">
-              <th className="p-4 font-semibold">Business Name</th>
-              <th className="p-4 font-semibold">City / Market</th>
-              <th className="p-4 font-semibold">Settlement Bank</th>
-              <th className="p-4 font-semibold">QR Codes</th>
-              <th className="p-4 font-semibold">30D Gross Sales</th>
-              <th className="p-4 font-semibold">Pending Settlement</th>
-              <th className="p-4 font-semibold">Success SLA</th>
-              <th className="p-4 font-semibold">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/5">
-            {filtered.map((m) => (
-              <tr key={m.id} className="hover:bg-white/5 transition-colors">
-                <td className="p-4">
-                  <div className="font-bold text-white">{m.businessName}</div>
-                  <div className="text-[10px] text-slate-400 font-mono">{m.ownerName} • {m.businessType}</div>
-                </td>
-                <td className="p-4 font-mono">{m.countryCode === "NG" ? "🇳🇬 " : "🇳🇪 "}{m.city}</td>
-                <td className="p-4 font-mono text-slate-300">{m.settlementBank}</td>
-                <td className="p-4 font-mono text-amber-400 font-bold">{m.activeQRCodes} Standees</td>
-                <td className="p-4 font-mono font-bold text-white">
-                  {m.currency === "NGN" ? "₦" : "CFA "}
-                  {m.grossSales30d.toLocaleString()}
-                </td>
-                <td className="p-4 font-mono text-emerald-400 font-semibold">
-                  {m.currency === "NGN" ? "₦" : "CFA "}
-                  {m.netSettlementPending.toLocaleString()}
-                </td>
-                <td className="p-4 font-mono text-white font-bold">{m.successRate}%</td>
-                <td className="p-4">
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-emerald-500/10 text-emerald-400">
-                    ● {m.status}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {tab === "registry" ? (
+        <ResourceTable
+          resource="partners"
+          columns={partnerCols}
+          exportName="partners"
+          searchPlaceholder="Search partner code, legal entity…"
+          filters={[
+            { key: "lifecycle_status", label: "Lifecycle" },
+            { key: "category", label: "Category" },
+            { key: "country", label: "Country" },
+          ]}
+          onRowClick={(row) => openDrawer("MERCHANT", row)}
+        />
+      ) : (
+        <ResourceTable
+          resource="merchant-profiles"
+          columns={profileCols}
+          exportName="merchant-profiles"
+          searchPlaceholder="Search business name…"
+          filters={[{ key: "status", label: "Status" }]}
+        />
+      )}
     </div>
   );
+}
+
+function fmtNGN(v: unknown): string {
+  const n = Number(v);
+  if (!isFinite(n)) return "—";
+  return `₦${n.toLocaleString()}`;
 }

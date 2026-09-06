@@ -1,72 +1,87 @@
 "use client";
 
 import React from "react";
-import { LifeBuoy, Clock, CheckCircle2 } from "lucide-react";
+import { PageHeader, fmtDate, TextCell } from "@/components/admin/AdminPageUI";
+import ResourceTable, { StatusChip, ResourceColumn } from "@/components/admin/ResourceTable";
 
+/**
+ * Support center — live view of support_tickets, escalations and officers.
+ * The old page shipped invented tickets ("TCK-8812 POS Terminal Paper
+ * Roll…"); every ticket below was actually raised by a customer.
+ */
 export default function SupportAdminPage() {
-  const tickets = [
-    {
-      id: "TCK-8812",
-      subject: "POS Terminal Paper Roll & Hardware Replacement (Kano)",
-      creator: "Alhaji Garba Sani (Agent)",
-      priority: "HIGH",
-      status: "ASSIGNED",
-      sla: "< 2h Remaining",
-    },
-    {
-      id: "TCK-8813",
-      subject: "Cross-Border Settlement Rate Inquiry (Maradi)",
-      creator: "Mamadou Oumarou (Merchant)",
-      priority: "MEDIUM",
-      status: "RESOLVED",
-      sla: "Resolved in 18m",
-    },
+  const ticketCols: ResourceColumn[] = [
+    { key: "created_at", label: "Raised", render: (r) => <span className="text-[var(--foreground-muted)]">{fmtDate(r.created_at)}</span> },
+    { key: "ticket_number", label: "Ticket", render: (r) => <span className="font-bold text-[var(--foreground)]">{r.ticket_number}</span> },
+    { key: "subject", label: "Subject" },
+    { key: "customer_name", label: "Customer", hideOnMobile: true, render: (r) => <TextCell value={r.customer_name} /> },
+    { key: "priority", label: "Priority", render: (r) => <StatusChip value={r.priority as string} /> },
+    { key: "status", label: "Status", render: (r) => <StatusChip value={r.status as string} /> },
+    { key: "jurisdiction", label: "Market", hideOnMobile: true },
+  ];
+
+  const escalationCols: ResourceColumn[] = [
+    { key: "created_at", label: "Raised", render: (r) => <span className="text-[var(--foreground-muted)]">{fmtDate(r.created_at)}</span> },
+    { key: "escalation_number", label: "Escalation", render: (r) => <span className="font-bold text-[var(--foreground)]">{r.escalation_number}</span> },
+    { key: "reason", label: "Reason" },
+    { key: "priority", label: "Priority", render: (r) => <StatusChip value={r.priority as string} /> },
+    { key: "status", label: "Status", render: (r) => <StatusChip value={r.status as string} /> },
+    { key: "sla_due_at", label: "SLA due", hideOnMobile: true, render: (r) => <span className="text-[var(--foreground-muted)]">{fmtDate(r.sla_due_at)}</span> },
+  ];
+
+  const officerCols: ResourceColumn[] = [
+    { key: "full_name", label: "Officer", render: (r) => <span className="font-bold text-[var(--foreground)]">{r.full_name}</span> },
+    { key: "officer_code", label: "Code" },
+    { key: "tier", label: "Tier" },
+    { key: "jurisdiction", label: "Market", hideOnMobile: true },
+    { key: "languages", label: "Languages", hideOnMobile: true, render: (r) => <span className="text-[var(--foreground-muted)]">{Array.isArray(r.languages) ? r.languages.join(", ") : (r.languages ?? "—")}</span> },
+    { key: "status", label: "Status", render: (r) => <StatusChip value={r.status as string} /> },
   ];
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
-        <div>
-          <span className="px-2.5 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-blue-500/10 text-blue-400 border border-blue-500/20">
-            REGIONAL SUPPORT & HELP DESK
-          </span>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-white mt-1">Agent & Customer Support Tickets</h1>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Track customer inquiries, agent terminal support requests, and regional service desk SLAs.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Support"
+        title="Customer Support Command"
+        subtitle="Tickets, escalations and officer staffing from the support platform tables — SLA clocks and priorities exactly as the system recorded them."
+      />
 
-      <div className="rounded-3xl bg-[#0b1324] border border-white/10 shadow-2xl overflow-hidden">
-        <table className="w-full text-left text-xs">
-          <thead>
-            <tr className="text-[10px] font-mono uppercase text-slate-400 bg-slate-950/60 border-b border-white/10">
-              <th className="p-4 font-semibold">Ticket ID</th>
-              <th className="p-4 font-semibold">Subject & Context</th>
-              <th className="p-4 font-semibold">Creator</th>
-              <th className="p-4 font-semibold">Priority</th>
-              <th className="p-4 font-semibold">SLA Status</th>
-              <th className="p-4 font-semibold">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/5">
-            {tickets.map((t) => (
-              <tr key={t.id} className="hover:bg-white/5 transition-colors">
-                <td className="p-4 font-mono font-bold text-white">{t.id}</td>
-                <td className="p-4 text-white font-semibold">{t.subject}</td>
-                <td className="p-4 text-slate-300">{t.creator}</td>
-                <td className="p-4 font-mono font-bold text-amber-400">{t.priority}</td>
-                <td className="p-4 font-mono text-slate-400">{t.sla}</td>
-                <td className="p-4">
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-emerald-500/10 text-emerald-400">
-                    ● {t.status}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <section className="space-y-3">
+        <h2 className="text-xs font-mono font-bold uppercase tracking-wider text-[var(--foreground-muted)]">Tickets</h2>
+        <ResourceTable
+          resource="support-tickets"
+          columns={ticketCols}
+          exportName="support-tickets"
+          searchPlaceholder="Search ticket number, subject, customer…"
+          filters={[
+            { key: "status", label: "Status" },
+            { key: "priority", label: "Priority" },
+            { key: "jurisdiction", label: "Market" },
+          ]}
+        />
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-xs font-mono font-bold uppercase tracking-wider text-[var(--foreground-muted)]">Escalations</h2>
+        <ResourceTable
+          resource="support-escalations"
+          columns={escalationCols}
+          exportName="support-escalations"
+          searchPlaceholder="Search escalation number…"
+          filters={[{ key: "status", label: "Status" }]}
+        />
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-xs font-mono font-bold uppercase tracking-wider text-[var(--foreground-muted)]">Officers</h2>
+        <ResourceTable
+          resource="support-officers"
+          columns={officerCols}
+          exportName="support-officers"
+          searchPlaceholder="Search officer code, name…"
+          filters={[{ key: "status", label: "Status" }, { key: "tier", label: "Tier" }]}
+        />
+      </section>
     </div>
   );
 }
