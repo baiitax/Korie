@@ -1,9 +1,13 @@
 // Subledger Engine for Granular Wallets, Merchant Payables, Agent Floats & Clearing
 
+import fs from 'fs';
+import path from 'path';
 import {
   SubledgerAccount,
   SubledgerType,
 } from '@/types/financeGlEngine';
+
+const SUBLEDGER_STORE_PATH = process.env.SUBLEDGER_STORE_PATH || '/tmp/korie-subledger-store.json';
 
 export class SubledgerEngine {
   private static instance: SubledgerEngine;
@@ -12,6 +16,34 @@ export class SubledgerEngine {
 
   private constructor() {
     this.seedSubledgers();
+    this.hydrate();
+  }
+
+  private hydrate() {
+    try {
+      if (!fs.existsSync(SUBLEDGER_STORE_PATH)) return;
+      const data = JSON.parse(fs.readFileSync(SUBLEDGER_STORE_PATH, 'utf8'));
+      if (Array.isArray(data.subledgers)) {
+        this.subledgers.clear();
+        for (const sub of data.subledgers) {
+          this.subledgers.set(`${sub.subledgerType}:${sub.entityId}:${sub.currency}`, sub);
+        }
+      }
+    } catch {
+      /* corrupt/missing store — keep seeds */
+    }
+  }
+
+  private persist() {
+    try {
+      fs.mkdirSync(path.dirname(SUBLEDGER_STORE_PATH), { recursive: true });
+      fs.writeFileSync(
+        SUBLEDGER_STORE_PATH,
+        JSON.stringify({ subledgers: Array.from(this.subledgers.values()) }),
+      );
+    } catch {
+      /* non-fatal */
+    }
   }
 
   public static getInstance(): SubledgerEngine {
@@ -101,10 +133,12 @@ export class SubledgerEngine {
   }
 
   public getSubledger(type: SubledgerType, entityId: string, currency: string): SubledgerAccount | undefined {
+    this.hydrate();
     return this.subledgers.get(`${type}:${entityId}:${currency}`);
   }
 
   public getAllSubledgers(): SubledgerAccount[] {
+    this.hydrate();
     return Array.from(this.subledgers.values());
   }
 
@@ -125,6 +159,7 @@ export class SubledgerEngine {
     account.availableBalance = account.currentBalance - account.heldBalance;
     account.updatedAt = new Date().toISOString();
     this.subledgers.set(key, account);
+    this.persist();
 
     return { success: true };
   }
@@ -140,6 +175,7 @@ export class SubledgerEngine {
     account.availableBalance = account.currentBalance - account.heldBalance;
     account.updatedAt = new Date().toISOString();
     this.subledgers.set(key, account);
+    this.persist();
 
     return { success: true };
   }
@@ -183,6 +219,7 @@ export class SubledgerEngine {
     account.updatedAt = new Date().toISOString();
 
     this.subledgers.set(key, account);
+    this.persist();
     return { success: true, account };
   }
 }

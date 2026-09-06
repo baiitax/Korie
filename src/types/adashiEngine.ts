@@ -9,6 +9,8 @@ export type AdashiCadence = 'DAILY' | 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY';
 
 export type AdashiProductStatus = 'DRAFT' | 'ACTIVE' | 'DEPRECATED' | 'ARCHIVED';
 
+export type AdashiGroupPrivacyMode = 'INITIALS_ONLY' | 'MEMBERS_ONLY';
+
 export type AdashiGroupStatus =
   | 'DRAFT'
   | 'INVITING_MEMBERS'
@@ -122,6 +124,7 @@ export interface AdashiGroup {
   currentCycleNumber: number;
   totalPoolVolume: number;
   escrowVaultAccountId: string;
+  privacyMode?: AdashiGroupPrivacyMode;
   status: AdashiGroupStatus;
   lockedAt?: string;
   startedAt?: string;

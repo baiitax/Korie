@@ -22,7 +22,8 @@ export type SubledgerType =
   | 'MERCHANT_PAYABLE'
   | 'AGENT_FLOAT'
   | 'PROVIDER_CLEARING'
-  | 'COMMISSION_PAYABLE';
+  | 'COMMISSION_PAYABLE'
+  | 'ESCROW_POOL';
 
 export type PeriodStatus = 'OPEN' | 'SOFT_CLOSED' | 'CLOSED' | 'LOCKED';
 

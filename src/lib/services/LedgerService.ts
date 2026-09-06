@@ -7,6 +7,10 @@ import {
   MinorUnitsAmount,
   WalletHold,
 } from '@/types/ledger';
+import fs from 'fs';
+import path from 'path';
+
+const LEDGER_STORE_PATH = process.env.LEDGER_STORE_PATH || '/tmp/korie-ledger-store.json';
 
 // In-memory cluster state representing double-entry ledger accounts
 const ledgerAccountsStore = new Map<string, LedgerAccount>();
@@ -113,11 +117,87 @@ function initializeDefaultChartOfAccounts() {
       createdAt: '2026-01-01T00:00:00Z',
       updatedAt: '2026-09-03T12:00:00Z',
     },
+    // 5. Adashi / Ajo Escrow Pools (customer contribution custody)
+    {
+      id: 'acc_liab_adashi_escrow_ngn',
+      orgId: 'org_kor_99182',
+      accountNumber: '2020-ADASHI-ESCROW-NGN',
+      name: 'Adashi / Ajo Contribution Escrow Pool (NGN)',
+      type: 'LIABILITY',
+      currency: 'NGN',
+      country: 'NG',
+      balance: 0,
+      lockedBalance: 0,
+      availableBalance: 0,
+      status: 'ACTIVE',
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-09-03T12:00:00Z',
+    },
+    {
+      id: 'acc_liab_adashi_escrow_xof',
+      orgId: 'org_kor_99182',
+      accountNumber: '2021-ADASHI-ESCROW-XOF',
+      name: 'Adashi / Ajo Contribution Escrow Pool (XOF)',
+      type: 'LIABILITY',
+      currency: 'XOF',
+      country: 'NE',
+      balance: 0,
+      lockedBalance: 0,
+      availableBalance: 0,
+      status: 'ACTIVE',
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-09-03T12:00:00Z',
+    },
   ];
 
   defaultAccounts.forEach(acc => ledgerAccountsStore.set(acc.id, acc));
 }
 
+function hydrateLedgerStore() {
+  try {
+    if (!fs.existsSync(LEDGER_STORE_PATH)) return;
+    const data = JSON.parse(fs.readFileSync(LEDGER_STORE_PATH, 'utf8'));
+    if (data.accounts) {
+      ledgerAccountsStore.clear();
+      data.accounts.forEach((acc: LedgerAccount) => ledgerAccountsStore.set(acc.id, acc));
+    }
+    if (data.transactions) {
+      ledgerTransactionsStore.clear();
+      data.transactions.forEach((tx: LedgerTransaction) => ledgerTransactionsStore.set(tx.id, tx));
+    }
+    if (data.entries) {
+      ledgerEntriesStore.clear();
+      data.entries.forEach((en: LedgerEntry[]) => {
+        if (en.length > 0) ledgerEntriesStore.set(en[0].transactionId, en);
+      });
+    }
+    if (data.holds) {
+      walletHoldsStore.clear();
+      data.holds.forEach((h: WalletHold) => walletHoldsStore.set(h.id, h));
+    }
+  } catch {
+    /* corrupt/missing store — keep chart seeds */
+  }
+}
+
+function persistLedgerStore() {
+  try {
+    fs.mkdirSync(path.dirname(LEDGER_STORE_PATH), { recursive: true });
+    fs.writeFileSync(
+      LEDGER_STORE_PATH,
+      JSON.stringify({
+        accounts: Array.from(ledgerAccountsStore.values()),
+        transactions: Array.from(ledgerTransactionsStore.values()),
+        entries: Array.from(ledgerEntriesStore.values()),
+        holds: Array.from(walletHoldsStore.values()),
+      }),
+    );
+  } catch {
+    /* non-fatal */
+  }
+}
+
+hydrateLedgerStore();
 initializeDefaultChartOfAccounts();
 
 export class LedgerService {
@@ -233,6 +313,7 @@ export class LedgerService {
 
     ledgerTransactionsStore.set(txId, ledgerTx);
     ledgerEntriesStore.set(txId, createdEntries);
+    persistLedgerStore();
 
     return { transaction: ledgerTx, entries: createdEntries };
   }
@@ -276,6 +357,7 @@ export class LedgerService {
     };
 
     walletHoldsStore.set(hold.id, hold);
+    persistLedgerStore();
     return hold;
   }
 }
