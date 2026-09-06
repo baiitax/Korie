@@ -28,13 +28,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'obligationId is required' }, { status: 400 });
     }
 
-    const result = AdashiCycleObligationEngine.processContributionPayment(
-      body.obligationId,
-      body.paymentMethod || 'WALLET_AUTO_DEBIT',
-      idempotencyKey
-    );
+    // Agent console legacy path: cash collected offline from a member. The
+    // engine books it as agent cash-in-transit → escrow (real journal), never
+    // as a fabricated wallet debit. Wallet paths are only reachable through
+    // the scoped customer BFF routes with PIN / mandate enforcement.
+    const initiatedBy =
+      body.initiatedBy === 'AUTO_MANDATE_DEBIT' || body.initiatedBy === 'CUSTOMER_MANUAL_PIN'
+        ? body.initiatedBy
+        : 'AGENT_COLLECTION';
 
-    return NextResponse.json({ success: true, data: result });
+    const outcome = await AdashiCycleObligationEngine.processContributionPayment({
+      obligationId: body.obligationId,
+      initiatedBy,
+      idempotencyKey,
+    });
+
+    if (outcome.success) {
+      return NextResponse.json({ success: true, data: outcome.obligation });
+    }
+    return NextResponse.json(
+      {
+        success: false,
+        code: outcome.code,
+        error: outcome.message,
+      },
+      { status: 400 },
+    );
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 400 });
   }
