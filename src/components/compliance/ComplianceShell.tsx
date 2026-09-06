@@ -14,7 +14,7 @@ import {
   Bell, FileSearch, FolderSearch, CheckSquare, ListTodo, ArrowUpRight, FileBarChart2, BarChart3,
   History, Activity, Lock, FileCheck2, Calendar, BookOpen, UserCog, Plug2, HeartPulse, Settings,
   Search, Menu, X, ChevronsLeft, ChevronDown, LogOut, Sun, Moon, Globe, CircleAlert, CircleCheck,
-  Clock3, Gauge, AlertOctagon, Sparkles, Home, MoreHorizontal, ScrollText,
+  Clock3, Gauge, AlertOctagon, Sparkles, Home, MoreHorizontal, ScrollText, ChevronRight,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useCompliance } from './ComplianceContext';
@@ -245,16 +245,18 @@ export const ComplianceShell: React.FC<{ children: React.ReactNode }> = ({ child
   const initials = (portal.currentOfficer.fullName || 'KO').split(' ').map((s) => s[0]).slice(0, 2).join('').toUpperCase();
 
   const renderNav = (onNavigate?: () => void) => (
-    <nav className="flex-1 overflow-y-auto kpc-scroll px-2 py-3 space-y-3" aria-label={t.nav.main || 'Compliance navigation'}>
+    <nav className="flex-1 overflow-y-auto kpc-scroll px-2 py-2.5 space-y-3" aria-label={t.nav.main || 'Compliance navigation'}>
       {NAV_GROUPS.map((g) => {
         const badgeTotal = g.items.reduce((acc, it) => acc + badgeFor(it.badge, portal.stats), 0);
         return (
           <div key={g.groupKey}>
-            <div className="kpc-nav-group flex items-center justify-between">
-              {gt(t, 'groups.' + g.groupKey)}
-              {badgeTotal > 0 && <span className="kpc-nav-badge">{badgeTotal}</span>}
-            </div>
-            <div className="space-y-0.5">
+            {sidebarOpen && (
+              <div className="kpc-nav-group flex items-center justify-between px-1.5">
+                {gt(t, 'groups.' + g.groupKey)}
+                {badgeTotal > 0 && <span className="kpc-nav-badge">{badgeTotal}</span>}
+              </div>
+            )}
+            <div className={sidebarOpen ? 'space-y-0.5' : 'space-y-1'}>
               {g.items.map((it) => {
                 const Icon = it.icon;
                 const active = activeKey === it.key;
@@ -266,11 +268,14 @@ export const ComplianceShell: React.FC<{ children: React.ReactNode }> = ({ child
                     aria-current={active ? 'page' : undefined}
                     title={!sidebarOpen ? gt(t, it.labelKey) : undefined}
                     onClick={onNavigate}
-                    className="kpc-nav-item"
+                    className={`kpc-nav-item${!sidebarOpen ? ' kpc-nav-item--icon' : ''}`}
                   >
-                    <Icon className="w-[17px] h-[17px] shrink-0" strokeWidth={active ? 2.2 : 1.9} />
-                    <span className="flex-1 truncate">{gt(t, it.labelKey)}</span>
-                    {badge > 0 && <span className={`kpc-nav-badge ${it.badge === 'alerts' || it.badge === 'matches' || it.badge === 'approvals' ? 'kpc-nav-badge-hot' : ''}`}>{badge}</span>}
+                    <Icon className="w-[17px] h-[17px] shrink-0" strokeWidth={active ? 2.3 : 1.9} />
+                    {sidebarOpen && <span className="flex-1 truncate">{gt(t, it.labelKey)}</span>}
+                    {sidebarOpen && badge > 0 && !active && (
+                      <span className={`kpc-nav-badge ${it.badge === 'alerts' || it.badge === 'matches' || it.badge === 'approvals' ? 'kpc-nav-badge-hot' : ''}`}>{badge}</span>
+                    )}
+                    {sidebarOpen && active && <ChevronRight className="w-3.5 h-3.5 shrink-0 opacity-90" strokeWidth={2.6} />}
                   </Link>
                 );
               })}
@@ -283,36 +288,96 @@ export const ComplianceShell: React.FC<{ children: React.ReactNode }> = ({ child
 
   const SidebarInner = () => (
     <div className="flex flex-col h-full">
-      {/* brand */}
-      <div className={`flex items-center gap-3 px-4 pt-4 pb-3 ${sidebarOpen ? '' : 'justify-center px-0'}`}>
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center shadow-md shadow-emerald-600/25 ring-1 ring-emerald-500/20 shrink-0">
-          <img src="/brand/koriepay-icon-tight.png" alt="KoriePay" className="w-6 h-6 rounded-[7px]" />
-        </div>
-        {sidebarOpen && (
-          <div className="leading-tight min-w-0">
-            <div className="text-[0.94rem] font-extrabold tracking-tight text-[var(--kpc-ink)]">KoriePay</div>
-            <div className="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-[var(--kpc-brand-ink)]">Compliance Ops</div>
+      {/* brand header — logo + portal badge (Super Admin / Aggregator style) */}
+      <div className={`flex items-center gap-2.5 ${sidebarOpen ? 'px-3.5 pt-3.5 pb-2' : 'justify-center px-0 pt-3.5 pb-2'}`}>
+        <Link href="/compliance" aria-label="KoriePay" className="flex items-center gap-2.5 min-w-0">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center shadow-md shadow-emerald-600/25 ring-1 ring-emerald-500/20 shrink-0">
+            <img src="/brand/koriepay-icon-tight.png" alt="" className="w-6 h-6 rounded-[7px]" />
           </div>
+          {sidebarOpen && (
+            <span className="leading-tight min-w-0">
+              <span className="block text-[0.95rem] font-extrabold tracking-tight text-[var(--kpc-ink)]">KoriePay</span>
+            </span>
+          )}
+        </Link>
+        {sidebarOpen && (
+          <span className="ml-auto px-2 py-0.5 rounded-md text-[0.56rem] font-mono font-extrabold uppercase tracking-[0.14em] text-[var(--kpc-brand-ink)] bg-[var(--kpc-brand-ink)]/10 border border-[var(--kpc-brand-ink)]/25 shrink-0">
+            Compliance
+          </span>
         )}
       </div>
-      <div className="mx-3 mb-1 flex items-center gap-2">
-        <span className="kpc-chip tone-dim"><span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse inline-block" />Demo Mode</span>
-        <span className="kpc-chip tone-ok">Niger Rep. + Nigeria</span>
-      </div>
-      {renderNav()}
-      {/* officer footer */}
-      <div className={`p-3 border-t border-[var(--kpc-line)] m-2 mt-0 rounded-xl ${sidebarOpen ? '' : 'p-2'}`}>
-        {sidebarOpen ? (
-          <Link href="/compliance/settings" className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 hover:bg-[rgba(13,148,136,0.07)] transition">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-500 to-emerald-700 text-white flex items-center justify-center text-[0.68rem] font-extrabold shrink-0">{initials}</div>
-            <div className="min-w-0 flex-1 leading-tight">
-              <div className="text-[0.76rem] font-bold text-[var(--kpc-ink)] truncate">{portal.currentOfficer.fullName}</div>
-              <div className="text-[0.62rem] text-[var(--kpc-ink-3)] truncate">{portal.currentOfficer.role}</div>
-            </div>
-            <LogOut className="w-3.5 h-3.5 text-[var(--kpc-ink-3)]" />
+
+      {/* context strip — markets & rails + jurisdiction (rounded card like Admin/Aggregator) */}
+      {sidebarOpen ? (
+        <div className="mx-3 my-2 rounded-2xl border border-[rgba(var(--kpc-ring),0.65)] bg-[var(--kpc-card-solid)] shadow-[var(--kpc-shadow-sm,0_1px_2px_rgba(15,23,42,.05))] p-2.5 space-y-1.5">
+          <div className="flex items-center justify-between text-[0.56rem] font-mono font-extrabold uppercase tracking-[0.12em] text-[var(--kpc-ink-3)]">
+            <span>{t.header.jurisdiction} &amp; Rails</span>
+            <span className="px-1.5 py-px rounded-full text-[0.48rem] tracking-wide bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 flex items-center gap-1">
+              <span className="w-1 h-1 rounded-full bg-amber-500 animate-pulse inline-block" />Demo
+            </span>
+          </div>
+          <Link href="/compliance/system-health" title="System health" className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-[rgba(13,148,136,0.08)] text-[var(--kpc-ink-2)] hover:text-[var(--kpc-ink)] transition-colors">
+            <span className="flex items-center gap-2 text-[0.72rem] font-bold">
+              <span className="w-1.5 h-1.5 rounded-full bg-teal-500" />
+              <span>&#x1F1F3;&#x1F1EA; Coris Bank</span>
+            </span>
+            <span className="text-[0.58rem] kpc-mono font-bold text-[var(--kpc-ink-3)]">XOF (CFA)</span>
           </Link>
-        ) : (
-          <div className="flex justify-center"><div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-500 to-emerald-700 text-white flex items-center justify-center text-[0.68rem] font-extrabold">{initials}</div></div>
+          <Link href="/compliance/system-health" title="System health" className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-[rgba(13,148,136,0.08)] text-[var(--kpc-ink-2)] hover:text-[var(--kpc-ink)] transition-colors">
+            <span className="flex items-center gap-2 text-[0.72rem] font-bold">
+              <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
+              <span>&#x1F1F3;&#x1F1F4; Providus Bank</span>
+            </span>
+            <span className="text-[0.58rem] kpc-mono font-bold text-[var(--kpc-ink-3)]">NGN</span>
+          </Link>
+          <div className="pt-1.5 border-t border-[rgba(var(--kpc-ring),0.5)]">
+            <div className="grid grid-cols-3 gap-1 p-1 rounded-lg bg-[rgba(var(--kpc-ring),0.3)] border border-[rgba(var(--kpc-ring),0.45)] text-[0.58rem] kpc-mono font-extrabold">
+              {(['NE', 'NG', 'ALL'] as const).map((code) => {
+                const on = (legacy.selectedJurisdiction as string) === code;
+                return (
+                  <button
+                    key={code}
+                    onClick={() => legacy.setSelectedJurisdiction(code as never)}
+                    aria-pressed={on}
+                    className={`py-1 rounded-md transition-colors ${on ? 'bg-teal-600 text-white shadow-sm' : 'text-[var(--kpc-ink-3)] hover:text-[var(--kpc-ink)]'}`}
+                  >
+                    {code === 'NE' ? '&#x1F1F3;&#x1F1EA; NE' : code === 'NG' ? '&#x1F1F3;&#x1F1F4; NG' : '&#x1F310; All'}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="flex justify-center py-2" title="Demo data · XOF-first (NE), NGN second (NG)">
+          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+        </div>
+      )}
+
+      {renderNav()}
+
+      {/* officer footer card — profile + public site (Super Admin style) */}
+      <div className="mt-auto p-2.5 border-t border-[rgba(var(--kpc-ring),0.55)]">
+        <div className={`flex items-center gap-2 rounded-xl border border-[rgba(var(--kpc-ring),0.55)] bg-[var(--kpc-card-solid)] px-2.5 py-2 ${sidebarOpen ? '' : 'justify-center px-0 border-0 bg-transparent'}`}>
+          <Link href="/compliance/settings" className="flex items-center gap-2.5 min-w-0 flex-1" title={t.header.myProfile}>
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-teal-500 to-emerald-700 text-white flex items-center justify-center text-[0.68rem] font-extrabold shadow-sm shrink-0">{initials}</div>
+            {sidebarOpen && (
+              <span className="min-w-0 leading-tight block">
+                <span className="block text-[0.74rem] font-bold text-[var(--kpc-ink)] truncate">{portal.currentOfficer.fullName}</span>
+                <span className="block text-[0.58rem] kpc-mono font-bold text-[var(--kpc-ink-3)] truncate">{portal.currentOfficer.role.replace(/_/g, ' ')} · {portal.currentOfficer.id}</span>
+              </span>
+            )}
+          </Link>
+          {sidebarOpen && (
+            <Link href="/" title={t.header.logout} className="text-[var(--kpc-ink-3)] hover:text-rose-600 dark:hover:text-rose-400 transition-colors shrink-0">
+              <LogOut className="w-4 h-4" />
+            </Link>
+          )}
+        </div>
+        {sidebarOpen && (
+          <p className="px-1 pt-1.5 flex items-center gap-1.5 text-[0.56rem] font-semibold text-[var(--kpc-ink-3)]">
+            <span className="w-1 h-1 rounded-full bg-teal-500" />{t.header.demo} · XOF first &#x1F1F3;&#x1F1EA; · {legacy.selectedJurisdiction !== 'ALL' ? legacy.selectedJurisdiction : 'NG + NE'}
+          </p>
         )}
       </div>
     </div>
@@ -384,7 +449,7 @@ export const ComplianceShell: React.FC<{ children: React.ReactNode }> = ({ child
       {/* ============ BODY ============ */}
       <div className="flex flex-1 min-h-0">
         {/* desktop sidebar */}
-        <aside className={`hidden lg:flex flex-col shrink-0 transition-[width] duration-200 border-r border-[rgba(var(--kpc-ring),0.6)] bg-[var(--kpc-glass)] backdrop-blur-xl ${sidebarOpen ? 'w-[236px]' : 'w-[64px]'}`}>
+        <aside className={`hidden lg:flex flex-col shrink-0 transition-[width] duration-200 border-r border-[rgba(var(--kpc-ring),0.6)] bg-[var(--kpc-card-solid)] ${sidebarOpen ? 'w-[248px]' : 'w-[64px]'}`}>
           <SidebarInner />
         </aside>
         <main className="flex-1 min-w-0 px-3 md:px-6 py-4 md:py-5 pb-24 lg:pb-8">{children}</main>

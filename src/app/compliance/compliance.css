@@ -219,3 +219,23 @@
 
 /* top progress accent line */
 .kp-c .kpc-topline { height: 3px; background: linear-gradient(90deg, #0d9488, #2dd4bf 40%, #f59e0b 100%); }
+
+/* ============ console-family sidebar (Admin / Aggregator / Merchant design) ============ */
+.kp-c .kpc-nav-item {
+  border-radius: .7rem;
+  padding: .44rem .62rem;
+  gap: .6rem;
+  border-color: transparent;
+}
+.kp-c .kpc-nav-item:hover { background: rgba(var(--kpc-ring), .5); }
+.kp-c .kpc-nav-item[aria-current="page"] {
+  background: linear-gradient(135deg, #0f766e, #0d9488);
+  color: #fff;
+  border-color: transparent;
+  font-weight: 800;
+  box-shadow: 0 10px 22px -14px rgba(13, 148, 136, .95);
+}
+.kp-c .kpc-nav-item[aria-current="page"]:hover { background: linear-gradient(135deg, #0f766e, #0d9488); color: #fff; }
+.kp-c .kpc-nav-item[aria-current="page"]::before { display: none; }
+.kp-c .kpc-nav-item--icon { justify-content: center; padding: .5rem .3rem; }
+.kp-c .kpc-nav-item--icon span.kpc-nav-badge { display: none; }
