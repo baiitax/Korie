@@ -1236,9 +1236,9 @@
   --input-bg: rgba(255, 255, 255, 0.94);
 
   /* Primary: teal — reads as "support" against the customer emerald */
-  --brand-primary: #0f7f7c;            /* 4.9:1 on white, 5.3:1 on #f7f9fb */
-  --brand-primary-hover: #0c6a68;
-  --brand-primary-active: #095654;
+  --brand-primary: #0c6a68;            /* 5.5:1 on brand-soft, 6.4:1 with white text (WCAG AA) */
+  --brand-primary-hover: #0a5f5d;
+  --brand-primary-active: #085653;
   --brand-on-primary: #ffffff;
   --brand-accent: #158987;             /* literal logo teal */
   --brand-emerald: #0b7a63;            /* action success */
@@ -1256,7 +1256,7 @@
 
   /* Semantic state colours (badges, KPI deltas, health) — all ≥ 4.5:1 on
      --surface for text, ≥ 3:1 for fills. */
-  --state-success: #0b7a63;
+  --state-success: #096a59;
   --state-success-soft: rgba(11, 122, 99, 0.12);
   --state-warning: #a3490a;
   --state-warning-soft: rgba(248, 141, 37, 0.15);

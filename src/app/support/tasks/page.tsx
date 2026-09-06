@@ -56,7 +56,7 @@ export default function TasksPage() {
       toast(supportErrorMessage(res), "error");
       return;
     }
-    toast(status === "DONE" ? t("supportOps.toasts.taskDone") : t("supportOps.toasts.statusChanged", { status: t(`supportOps.statuses.${status}`) ?? status }));
+    toast(status === "DONE" ? t("supportOps.toasts.taskDone") : t("supportOps.toasts.statusChanged", { status: t(`supportOps.tasks.statusLabels.${status}`) ?? status }));
     void load();
   };
 
@@ -133,7 +133,7 @@ export default function TasksPage() {
                   <p className={`text-[13px] font-extrabold ${task.status === "DONE" ? "text-[var(--muted)] line-through" : "text-[var(--foreground)]"}`}>{task.title}</p>
                   <PriorityBadge priority={task.priority} t={t} />
                   <span className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${tone(task.status)}`}>
-                    {t(`supportOps.statuses.${task.status}`) ?? task.status}
+                    {t(`supportOps.tasks.statusLabels.${task.status}`) ?? task.status}
                   </span>
                   {task.overdue && (
                     <span className="rounded-full bg-[var(--state-danger-soft)] px-2 py-0.5 text-[10px] font-extrabold text-[var(--state-danger)]">
@@ -243,7 +243,7 @@ function CreateTaskModal({ open, onClose, onCreated }: { open: boolean; onClose:
           <select id="task-assignee" value={assignedToId} onChange={(e) => setAssignedToId(e.target.value)}
             className="w-full rounded-[var(--support-radius-input)] border border-[var(--border)] bg-[var(--input-bg)] px-3 py-2 text-sm outline-none focus:border-[var(--brand-border)]">
             <option value="">{t("supportOps.common.none")}</option>
-            {officers.filter((o) => o.active).map((o) => (
+            {officers.filter((o) => o.status !== "OFFLINE").map((o) => (
               <option key={o.id} value={o.id}>{o.fullName}</option>
             ))}
           </select>

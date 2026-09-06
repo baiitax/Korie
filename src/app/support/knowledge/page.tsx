@@ -13,7 +13,20 @@ import { useSupportOps } from "@/components/support/SupportOpsProvider";
 import { EmptyState, ErrorState, LoadingPanel, OfflineBanner, relTime } from "@/components/support/SupportUI";
 import { supportOps, isSupportApiError, KnowledgeDto } from "@/services/supportOpsClient";
 
-const CATEGORIES = ["TRANSFER", "CARD", "ACCOUNT", "KYC", "AGENT", "MERCHANT", "FX"] as const;
+const CATEGORIES = [
+  "TRANSFER",
+  "PENDING_TRANSACTION",
+  "FAILED_TRANSACTION",
+  "REFUND",
+  "REVERSAL",
+  "AGENT_FLOAT",
+  "FRAUD_SECURITY",
+  "KYC_TIER",
+  "LOGIN_ACCESS",
+  "MERCHANT_SETTLEMENT",
+  "TECHNICAL_API",
+  "UNAUTHORIZED",
+] as const;
 
 export default function KnowledgePage() {
   const { t, lang, setLang, activeOfficer, isOnline } = useSupportOps();
@@ -117,7 +130,7 @@ export default function KnowledgePage() {
               <h2 className="mt-2 text-[14px] font-extrabold leading-snug text-[var(--foreground)] group-hover:text-[var(--brand-primary)]">
                 {k.body.title}
               </h2>
-              <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-[var(--foreground-muted)]">{k.body.summary}</p>
+              <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-[var(--foreground-muted)]">{k.body.problem}</p>
               <p className="mt-3 text-[10px] text-[var(--muted)]">
                 {t("supportOps.knowledge.version", { version: k.version })} · {t("supportOps.knowledge.updatedBy", { author: k.author })} · {relTime(k.updatedAt, t)}
               </p>

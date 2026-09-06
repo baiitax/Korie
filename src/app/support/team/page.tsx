@@ -46,10 +46,10 @@ export default function TeamPage() {
                   <p className="truncate text-[13px] font-extrabold text-[var(--foreground)]">{o.fullName}</p>
                   <p className="text-[11px] text-[var(--muted)]">{t(`supportOps.roles.${o.role}`)}</p>
                 </div>
-                <ToneBadge tone={o.active ? "success" : "neutral"}>{o.active ? t("supportOps.common.active") : t("supportOps.common.disabled")}</ToneBadge>
+                <ToneBadge tone={o.status === "ONLINE" ? "success" : "neutral"}>{o.status === "ONLINE" ? t("supportOps.common.active") : t("supportOps.common.disabled")}</ToneBadge>
               </div>
               <p className="mt-2 text-[11px] text-[var(--muted)]">
-                {o.languages.join(" · ")} · {o.jurisdictions.map((j) => t(`supportOps.jurisdictions.${j}`)).join(" · ")}
+                {o.languages.join(" · ")} · {t(`supportOps.jurisdictions.${o.jurisdiction}`)}
               </p>
             </div>
           ))}

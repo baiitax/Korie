@@ -169,7 +169,7 @@ export default function DisputeDetailPage() {
               </Link>
             </SectionCard>
           )}
-          <SectionCard title={t("supportOps.customers.customerPanel") ?? "Customer"}>
+          <SectionCard title={t("supportOps.customers.customer")}>
             <Link href={`/support/customers/${d.customerId}`} className="block">
               <p className="text-[13px] font-extrabold text-[var(--foreground)]">{d.customerName}</p>
               <p className="mt-0.5 text-[11px] text-[var(--muted)]">{d.customerId}</p>

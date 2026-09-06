@@ -55,7 +55,7 @@ export default function EscalationsPage() {
           className="rounded-[var(--support-radius-input)] border border-[var(--border)] bg-[var(--input-bg)] px-2.5 py-2 text-xs font-semibold outline-none focus:border-[var(--brand-border)]"
         >
           <option value="">{t("supportOps.escalations.destination")}: {t("supportOps.common.all")}</option>
-          {["FRAUD_RISK", "FINANCE", "COMPLIANCE", "BANKING", "ENGINEERING", "LEGAL", "MANAGEMENT"].map((d) => (
+          {["FRAUD_RISK", "FINANCE", "COMPLIANCE", "BANKING_OPS", "ENGINEERING", "SETTLEMENT", "MANAGEMENT"].map((d) => (
             <option key={d} value={d}>{t(`supportOps.escalations.destinationLabels.${d}`)}</option>
           ))}
         </select>

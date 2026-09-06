@@ -100,10 +100,14 @@ export interface SupportOfficerDto {
   role: string;
   tier: string;
   email: string;
-  phone: string;
-  active: boolean;
+  jurisdiction: string;
   languages: string[];
-  jurisdictions: string[];
+  activeTicketCount: number;
+  maxCapacity: number;
+  status: "ONLINE" | "BUSY" | "ON_BREAK" | "OFFLINE";
+  qaScore: number;
+  avatarUrl?: string;
+  skills: string[];
   capabilities: string[];
 }
 
@@ -326,12 +330,18 @@ export interface KnowledgeDto {
   category: string;
   audience: string;
   status: string;
-  version: number;
+  version: string;
   updatedAt: string;
   author: string;
   tags: string[];
   helpfulCount: number;
-  body: { title: string; summary: string; body: string; steps?: string[] };
+  body: {
+    title: string;
+    problem: string;
+    symptoms: string[];
+    resolution: string;
+    escalationCondition?: string;
+  };
 }
 
 export interface MacroDto {

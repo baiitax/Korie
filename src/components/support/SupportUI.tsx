@@ -295,9 +295,13 @@ export function Modal({
   wide?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const restoreRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!open) return;
+    // WCAG 2.4.3/2.1.2: move focus into the dialog on open, restore on close.
+    restoreRef.current = (document.activeElement as HTMLElement) ?? null;
+    ref.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
@@ -306,6 +310,7 @@ export function Modal({
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
+      restoreRef.current?.focus();
     };
   }, [open, onClose]);
 
@@ -319,6 +324,7 @@ export function Modal({
     >
       <div
         ref={ref}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label={title}

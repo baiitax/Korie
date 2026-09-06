@@ -39,7 +39,7 @@ export default function SupportSettingsPage() {
               {t(`supportOps.roles.${activeOfficer.role}`)} · {activeOfficer.tier}
             </p>
             <p className="mt-0.5 text-[11px] text-[var(--muted)]">
-              {activeOfficer.email} · {activeOfficer.phone}
+              {activeOfficer.email} · {t(`supportOps.jurisdictions.${activeOfficer.jurisdiction}`)}
             </p>
           </div>
         </div>
