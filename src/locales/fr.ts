@@ -1594,6 +1594,14 @@ export const fr = {
     guideCorners: "Les quatre coins sont dans le cadre",
     guideReadable: "Le texte est net et lisible",
     guideNoGlare: "Aucun reflet ni ombre sur le document",
+    profileForm: {
+      title: "Complétez votre profil",
+      subtitle: "Ces informations sont requises pour votre palier de compte et ne sont stockées que sur votre dossier client.",
+      dobHint: "Vous devez avoir au moins 18 ans.",
+      addressPlaceholder: "ex. 14 Marina Road, Onitsha, État d'Anambra",
+      addressHint: "Utilisez l'adresse indiquée sur une facture récente ou un relevé bancaire.",
+      save: "Enregistrer",
+    },
   },
   compliance: {
       common: {

@@ -6,6 +6,7 @@ import { useCustomer } from "@/components/customer/CustomerContext";
 import { safeFetch, NormalizedCustomerError } from "@/lib/customer/customerApiError";
 import CustomerProfileGate from "@/components/customer/ui/CustomerProfileGate";
 import DocumentUploader from "@/components/customer/ui/DocumentUploader";
+import ProfileDetailsForm from "@/components/customer/ui/ProfileDetailsForm";
 import { DataErrorState } from "@/components/customer/ui/CustomerStateViews";
 import { KpaySectionLoader } from "@/components/loading";
 import {
@@ -196,6 +197,15 @@ export default function CustomerVerificationPage() {
               </div>
             </div>
           )}
+
+          {/* Complete profile — the write path behind "Add your date of
+              birth" / "Add your residential address" in the checklist below. */}
+          <ProfileDetailsForm
+            needsDateOfBirth={summary.steps.some((s) => s.id === "date_of_birth" && s.status === "ACTION_REQUIRED")}
+            needsAddress={summary.steps.some((s) => s.id === "address" && s.status === "ACTION_REQUIRED")}
+            t={t}
+            onSaved={() => void load()}
+          />
 
           {/* Checklist from backend requirements only */}
           <section className="space-y-2.5">

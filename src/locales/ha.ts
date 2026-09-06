@@ -1579,6 +1579,14 @@ export const ha = {
     guideCorners: "Dusurruna huɗu suna cikin tsari",
     guideReadable: "Rubutun a fili kuma a karbabbe",
     guideNoGlare: "Babu haske inuwa a kan takardar",
+    profileForm: {
+      title: "Kammala bayanan martabar ka",
+      subtitle: "Ana buƙatar waɗannan bayanan don matakin asusun ka kuma ana ajiye su ne kawai a rikodin abokin cinikin ka.",
+      dobHint: "Dole ne ka kai shekaru 18 ko sama da haka.",
+      addressPlaceholder: "misali 14 Marina Road, Onitsha, Jihar Anambra",
+      addressHint: "Yi amfani da adireshin da aka nuna a kan wata takardar kuɗin ruwa/haske na kwanan nan ko bayanin banki.",
+      save: "Ajiye bayanai",
+    },
   },
   compliance: {
       common: {

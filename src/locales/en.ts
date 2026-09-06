@@ -1581,6 +1581,14 @@ export const en = {
     guideCorners: "All four corners are inside the frame",
     guideReadable: "The text is sharp and readable",
     guideNoGlare: "No glare or shadow on the document",
+    profileForm: {
+      title: "Complete your profile",
+      subtitle: "These details are required for your account tier and are stored on your customer record only.",
+      dobHint: "You must be at least 18 years old.",
+      addressPlaceholder: "e.g. 14 Marina Road, Onitsha, Anambra State",
+      addressHint: "Use the address shown on a recent utility bill or bank statement.",
+      save: "Save details",
+    },
   },
   compliance: {
       common: {
