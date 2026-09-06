@@ -4,35 +4,11 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSupport } from './SupportContext';
-import {
-  LifeBuoy,
-  Inbox,
-  CheckCircle2,
-  ListFilter,
-  Users,
-  Search,
-  Radio,
-  SlidersHorizontal,
-  BookOpen,
-  FileCheck2,
-  GraduationCap,
-  Award,
-  BarChart3,
-  TrendingUp,
-  History,
-  Settings,
-  X,
-  Menu,
-  ChevronDown,
-  AlertTriangle,
-  Zap,
-  Globe,
-  Bell,
-  Layers,
-  Sparkles,
-} from 'lucide-react';
+import { AlertTriangle, Award, BarChart3, Bell, BookOpen, CheckCircle2, ChevronDown, FileCheck2, Globe, GraduationCap, History, Inbox, Layers, LifeBuoy, ListFilter, Menu, MoreHorizontal, Radio, Search, Settings, SlidersHorizontal, Sparkles, TrendingUp, Users, X, Zap } from 'lucide-react';
 import { SupportLocale } from '@/locales/support';
 import ShellAccount from '@/components/ui/ShellAccount';
+import { useAuth } from '@/components/auth/AuthContext';
+import { KorieFloatingRail, KorieDock } from '@/components/nav/KorieFloatingRail';
 import PortalFooter from '@/components/ui/PortalFooter';
 
 export const SupportShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -103,6 +79,37 @@ export const SupportShell: React.FC<{ children: React.ReactNode }> = ({ children
         { name: 'SLA Settings', href: '/support/settings', icon: Settings, badge: null, alert: false },
       ],
     },
+  ];
+
+  const railGroups = navItems.map((grp) => ({
+    title: grp.group,
+    items: grp.items
+      .filter((it) => typeof it.badge !== 'string' || /^\+?\d+$/.test(it.badge))
+      .map((it) => ({
+        label: it.name,
+        href: it.href,
+        icon: it.icon,
+        badge: it.badge != null && (typeof it.badge === 'number' || /^\+?\d+$/.test(String(it.badge))) ? it.badge : undefined,
+        hot: it.alert === true,
+      })),
+  }));
+
+  const { logout } = useAuth();
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {
+      /* noop */
+    }
+    await logout();
+  };
+
+  const supportDockItems = [
+    { label: 'Overview', href: '/support', icon: BarChart3 },
+    { label: 'Inbox', href: '/support/inbox', icon: Inbox },
+    { label: 'My Queue', href: '/support/my-queue', icon: CheckCircle2 },
+    { label: 'Tickets', href: '/support/tickets', icon: ListFilter },
+    { label: 'More', icon: MoreHorizontal, onClick: () => setMobileMenuOpen(true) },
   ];
 
   return (
@@ -253,14 +260,75 @@ export const SupportShell: React.FC<{ children: React.ReactNode }> = ({ children
 
       {/* Main Workspace Frame */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar */}
-        <aside
-          className={`${
-            mobileMenuOpen ? 'fixed inset-0 z-50 bg-[var(--nav-bg)]' : 'hidden'
-          } lg:block lg:static w-72 flex-shrink-0 bg-[var(--nav-bg)] border-r border-slate-800/80 overflow-y-auto`}
-        >
-          {mobileMenuOpen && (
-            <div className="p-4 flex items-center justify-between border-b border-slate-800 lg:hidden">
+        {/* Desktop: premium floating navigation rail (console-inset variant) */}
+        <KorieFloatingRail
+          inset
+          tone="sky"
+          word="KoriePay"
+          role="OPS"
+          settingsHref="/support/settings"
+          onLogout={handleLogout}
+          storeKey="korie_support_rail"
+          groups={railGroups}
+          primary={[
+            '/support',
+            '/support/inbox',
+            '/support/my-queue',
+            '/support/tickets',
+            '/support/customers',
+            '/support/transactions',
+            '/support/incidents',
+            '/support/automation',
+            '/support/knowledge-base',
+            '/support/analytics',
+            '/support/audit',
+            '/support/team',
+          ]}
+          context={
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)] p-2.5 space-y-1.5">
+              <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--foreground-muted)]">
+                Banking &amp; Clearing Rails
+              </p>
+              <div className="flex items-center justify-between text-[10px]">
+                <span className="text-[var(--foreground-muted)]">Providus NIP (NG)</span>
+                <span className="font-mono font-bold text-amber-500">DEGRADED</span>
+              </div>
+              <div className="flex items-center justify-between text-[10px]">
+                <span className="text-[var(--foreground-muted)]">Coris Bank (NE)</span>
+                <span className="font-mono font-bold text-emerald-500">ONLINE</span>
+              </div>
+              <div className="flex items-center justify-between text-[10px]">
+                <span className="text-[var(--foreground-muted)]">Interswitch</span>
+                <span className="font-mono font-bold text-emerald-500">ONLINE</span>
+              </div>
+            </div>
+          }
+          footer={
+            <Link
+              href="/support/team"
+              className="flex items-center justify-between gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)] px-2 py-1.5 transition-colors hover:border-[var(--brand-border)]"
+            >
+              <span className="flex items-center gap-2 min-w-0">
+                <span className="w-7 h-7 shrink-0 rounded-lg bg-[var(--brand-soft)] text-[var(--brand-primary)] flex items-center justify-center text-[11px] font-bold">
+                  {currentOfficer.fullName.slice(0, 2).toUpperCase()}
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[11px] font-bold text-[var(--foreground)] truncate">
+                    {currentOfficer.fullName}
+                  </span>
+                  <span className="block text-[9px] font-mono uppercase tracking-wide text-[var(--brand-primary)] truncate">
+                    {currentOfficer.role.replace(/_/g, ' ')}
+                  </span>
+                </span>
+              </span>
+            </Link>
+          }
+        />
+
+        {/* Mobile: full-screen operations menu (dock → More) */}
+        {mobileMenuOpen && (
+          <div className="lg:hidden fixed inset-0 z-[70] overflow-y-auto bg-[var(--nav-bg)] backdrop-blur-md">
+            <div className="p-4 flex items-center justify-between border-b border-[var(--border)]">
               <span className="font-bold text-slate-200">Support Operations Menu</span>
               <button
                 onClick={() => setMobileMenuOpen(false)}
@@ -269,9 +337,7 @@ export const SupportShell: React.FC<{ children: React.ReactNode }> = ({ children
                 <X className="w-6 h-6" />
               </button>
             </div>
-          )}
-
-          <div className="p-4 space-y-6">
+<div className="p-4 space-y-6">
             {navItems.map((grp) => (
               <div key={grp.group} className="space-y-1">
                 <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-3 mb-2">
@@ -335,7 +401,11 @@ export const SupportShell: React.FC<{ children: React.ReactNode }> = ({ children
               </div>
             </div>
           </div>
-        </aside>
+        </div>
+      )}
+
+        <KorieDock items={supportDockItems} />
+
 
         {/* Center Main Stage */}
         <main className="flex-1 overflow-y-auto bg-[var(--background)] p-4 lg:p-8 space-y-6">

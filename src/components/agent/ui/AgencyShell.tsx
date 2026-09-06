@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAgent } from "../AgentContext";
+import { KorieFloatingRail, KorieDock } from "@/components/nav/KorieFloatingRail";
 import KorieLogo from "@/components/brand/KorieLogo";
 import ShellAccount from "@/components/ui/ShellAccount";
 import PortalFooter from "@/components/ui/PortalFooter";
@@ -101,77 +102,44 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
       )}
 
       <div className="flex flex-1">
-        {/* Desktop Sidebar */}
-        <aside className="hidden lg:flex flex-col justify-between w-64 bg-[var(--surface)]/80 border-r border-[var(--border)] sticky top-0 shadow-[var(--shadow-sm)] h-screen overflow-y-auto z-40 shrink-0">
-          <div>
-            {/* Header Brand */}
-            <div className="p-4 border-b border-white/10 flex items-center justify-between">
-              <Link href="/agent" className="flex items-center gap-2">
-                <KorieLogo variant="compact" theme="dark" height={28} linkHref="" />
-              </Link>
-              <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                AGENCY OPS
-              </span>
-            </div>
-
-            {/* Quick Liquidity Summary */}
-            <div className="p-3 mx-3 my-3 rounded-2xl bg-[var(--surface-2)] border border-white/5 space-y-1">
-              <div className="text-[10px] font-mono text-slate-400 uppercase">
+        {/* Desktop floating navigation rail (premium spec) */}
+        <KorieFloatingRail
+          groups={desktopNavGroups.map((g) => ({ title: g.title, items: g.items.map((it) => ({ label: it.label, href: it.href, icon: it.icon })) }))}
+          primary={[
+            '/agent', '/agent/cash-in', '/agent/cash-out', '/agent/transfer',
+            '/agent/transactions', '/agent/customers', '/agent/liquidity',
+            '/agent/commissions', '/agent/settings',
+          ]}
+          role="AGENCY OPS"
+          tone="amber"
+          word="KoriePay Agent"
+          settingsHref="/agent/settings"
+          storeKey="korie_agent_rail"
+          context={
+            <div className="p-2.5 rounded-2xl bg-[var(--surface-2)] border border-[var(--border)] space-y-1.5">
+              <div className="text-[10px] font-mono text-[var(--muted,#64748b)] uppercase tracking-wider">
                 {t("common.availableLiquidity")}
               </div>
-              <div className="text-base font-extrabold text-white font-mono">
+              <div className="text-base font-extrabold text-[var(--foreground)] font-mono">
                 {isBalanceHidden ? "••••••••" : `₦${liquidity.totalLiquidity.toLocaleString()}`}
               </div>
-              <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono pt-1">
+              <div className="flex items-center justify-between text-[10px] text-[var(--muted,#64748b)] font-mono pt-1">
                 <span>Cash: ₦{liquidity.cashInHand.toLocaleString()}</span>
-                <span className="text-emerald-400 font-bold">● {liquidity.health}</span>
+                <span className="text-[var(--brand-primary,#059669)] font-bold">● {liquidity.health}</span>
               </div>
             </div>
-
-            {/* Desktop Navigation */}
-            <nav className="p-3 space-y-5">
-              {desktopNavGroups.map((group, idx) => (
-                <div key={idx} className="space-y-1">
-                  <div className="px-3 text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 mb-1">
-                    {group.title}
-                  </div>
-                  {group.items.map((item) => {
-                    const isActive = pathname === item.href;
-                    const Icon = item.icon;
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
-                          isActive
-                            ? "bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/20"
-                            : "text-slate-400 hover:text-white hover:bg-white/5"
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <Icon className={`w-4 h-4 ${isActive ? "text-slate-950" : "text-slate-400"}`} />
-                          <span>{item.label}</span>
-                        </div>
-                        {isActive && <ChevronRight className="w-3.5 h-3.5" />}
-                      </Link>
-                    );
-                  })}
-                </div>
-              ))}
-            </nav>
-          </div>
-
-          {/* Sidebar Terminal Footer */}
-          <div className="p-3 border-t border-white/10 bg-[var(--surface)]">
-            <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900 border border-white/5 text-xs">
-              <div>
-                <div className="font-bold text-white truncate max-w-[130px]">{agent.agentName}</div>
-                <div className="text-[10px] text-emerald-400 font-mono">{agent.agentCode}</div>
+          }
+          footer={
+            <div className="flex items-center justify-between rounded-xl bg-[var(--surface-2)] border border-[var(--border)] px-2.5 py-2 text-xs">
+              <div className="min-w-0">
+                <div className="font-bold text-[var(--foreground)] truncate">{agent.agentName}</div>
+                <div className="text-[10px] text-[var(--brand-primary,#059669)] font-mono">{agent.agentCode}</div>
               </div>
-              <span className="text-[10px] font-mono text-slate-400">{terminal.model.slice(-2)}</span>
+              <span className="text-[10px] font-mono text-[var(--muted,#64748b)]">{terminal.model.slice(-2)}</span>
             </div>
-          </div>
-        </aside>
+          }
+        />
+
 
         {/* Center Main Column */}
         <div className="flex-1 flex flex-col min-w-0 pb-20 lg:pb-8">
@@ -256,28 +224,7 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
       </div>
 
       {/* Mobile Fixed Bottom Navigation (48px+ touch targets) */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[var(--nav-bg)] backdrop-blur-2xl border-t border-white/10 px-2 py-1.5 flex items-center justify-around safe-area-bottom shadow-2xl">
-        {mobileBottomNavItems.map((item) => {
-          const isActive = pathname === item.href;
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex flex-col items-center justify-center py-1 px-3 min-w-[56px] min-h-[48px] rounded-2xl transition-all ${
-                isActive ? "text-amber-400 font-bold" : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              <div className={`p-1 rounded-xl transition-all ${isActive ? "bg-amber-500/20" : ""}`}>
-                <Icon className={`w-5 h-5 ${isActive ? "text-amber-400 stroke-[2.5]" : "text-slate-400"}`} />
-              </div>
-              <span className="text-[10px] mt-0.5 leading-tight font-medium tracking-tight">
-                {item.label}
-              </span>
-            </Link>
-          );
-        })}
-      </nav>
+      <KorieDock items={mobileBottomNavItems} />
 
       {/* Universal Agency Modals */}
       <AgentReceiptModal />

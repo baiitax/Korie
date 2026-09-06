@@ -34,6 +34,7 @@ import {
   Moon,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthContext";
+import { KorieFloatingRail } from "@/components/nav/KorieFloatingRail";
 import { useTheme } from "@/components/ui/ThemeContext";
 import { useLoading } from "@/components/loading";
 
@@ -181,26 +182,26 @@ export const CustomerShell: React.FC<{
       ) : null}
 
       <div className="flex flex-1">
-        {/* Desktop sidebar */}
-        <aside className="hidden lg:flex flex-col justify-between w-64 bg-[var(--surface)]/80 backdrop-blur-xl border-r border-[var(--border)] sticky top-0 shadow-[var(--shadow-sm)] h-screen overflow-y-auto z-[var(--z-page)] shrink-0">
-          <div>
-            <div className="p-5 border-b border-[var(--border)] flex items-center justify-between">
-              <Link href="/customer" className="flex min-h-[40px] items-center gap-2 rounded-xl px-1">
-                {/* linkHref="" — the logo component links by default, and an <a>
-                    inside this <a> is invalid HTML that costs a hydration pass and
-                    a duplicate focus stop. Here the wrapper owns the navigation. */}
-                <KorieLogo variant="compact" theme={logoTheme} height={28} linkHref="" />
-              </Link>
-              {/* XOF is the primary currency — never reordered, never swapped for USD. */}
-              <span className="px-2 py-0.5 rounded-md bg-[var(--brand-soft)] border border-[var(--brand-border)] text-[10px] font-mono text-[var(--brand-primary)] font-bold">
-                XOF
-              </span>
-            </div>
-
-            {/* Balance preview. Mirrors the masking preference; carries no extra
-                toggle so there is exactly one control beside the money. */}
-            <div className="p-3 mx-3 my-3 rounded-2xl bg-[var(--surface-elevated)] border border-[var(--border)] space-y-1">
-              <div className="text-[10px] font-mono text-[var(--foreground-muted)] uppercase">
+        {/* Desktop floating navigation rail (premium spec) */}
+        <KorieFloatingRail
+          groups={[
+            { title: "", items: primaryNav.map((it) => ({ label: it.label, href: it.href, icon: it.icon, badge: it.service && !isServiceAvailable(it.service) ? "SOON" : undefined })) },
+            { title: t("customer.shell.servicesGroup"), items: serviceNav.map((it) => ({ label: it.label, href: it.href, icon: it.icon, badge: it.service && !isServiceAvailable(it.service) ? "SOON" : undefined })) },
+            { title: "", items: secondaryNav.map((it) => ({ label: it.label, href: it.href, icon: it.icon })) },
+          ]}
+          primary={[
+            '/customer', '/customer/transactions', '/customer/send-money', '/customer/wallets',
+            '/customer/security', '/customer/support',
+          ]}
+          role="XOF · CFA"
+          tone="emerald"
+          word="KoriePay"
+          settingsHref="/customer/profile"
+          onLogout={handleLogout}
+          storeKey="korie_customer_rail"
+          context={
+            <div className="mx-0.5 rounded-2xl bg-[var(--surface-elevated)] border border-[var(--border)] p-3 space-y-1">
+              <div className="text-[10px] font-mono text-[var(--foreground-muted)] uppercase tracking-wider">
                 {activeWallet ? t("dashboard.availableBalance") : t("customer.shell.loadingAccount")}
               </div>
               <div className="text-base font-extrabold text-[var(--foreground)] font-mono tabular-nums">
@@ -216,41 +217,17 @@ export const CustomerShell: React.FC<{
                 {activeWallet?.bankName ?? ""}
               </div>
             </div>
-
-            <nav className="p-3 space-y-0.5" aria-label={t("customer.shell.primaryNav")}>
-              {primaryNav.map((item) => (
-                <NavRow key={item.href} item={item} />
-              ))}
-            </nav>
-
-            <div className="px-3 pt-2 pb-1">
-              <span className="text-[9px] font-mono uppercase tracking-wider text-[var(--foreground-muted)]">
-                {t("customer.shell.servicesGroup")}
-              </span>
-            </div>
-            <nav className="p-3 pt-0 space-y-0.5 border-t border-[var(--border)]" aria-label={t("customer.shell.servicesNav")}>
-              {serviceNav.map((item) => (
-                <NavRow key={item.href} item={item} />
-              ))}
-            </nav>
-
-            <nav className="p-3 pt-2 space-y-0.5 border-t border-[var(--border)]" aria-label={t("customer.shell.accountNav")}>
-              {secondaryNav.map((item) => (
-                <NavRow key={item.href} item={item} />
-              ))}
-            </nav>
-          </div>
-
-          <div className="p-3 border-t border-[var(--border)] bg-[var(--surface-elevated)]">
+          }
+          footer={
             <Link
               href="/customer/profile"
-              className="flex items-center justify-between p-2 rounded-xl bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--brand-border)] transition-colors"
+              className="flex items-center justify-between rounded-xl bg-[var(--surface-elevated)] border border-[var(--border)] px-2 py-2 hover:border-[var(--brand-border)] transition-colors"
             >
               <span className="flex items-center gap-2 min-w-0">
                 <span className="w-8 h-8 rounded-lg bg-[var(--brand-soft)] text-[var(--brand-primary)] flex items-center justify-center text-xs font-bold font-mono shrink-0">
                   {customer ? `${customer.firstName[0]}${customer.lastName[0] || ""}` : "••"}
                 </span>
-                <span className="truncate max-w-[110px]">
+                <span className="truncate max-w-[130px]">
                   <span className="block text-xs font-bold text-[var(--foreground)] truncate">
                     {customer?.fullName ?? t("common.loading")}
                   </span>
@@ -261,8 +238,9 @@ export const CustomerShell: React.FC<{
               </span>
               <ChevronRight className="w-4 h-4 text-[var(--foreground-muted)] shrink-0" aria-hidden="true" />
             </Link>
-          </div>
-        </aside>
+          }
+        />
+
 
         {/* Content column — extra bottom padding clears the floating pill */}
         <div className="flex-1 flex flex-col min-w-0 pb-[var(--kp-content-clearance)] lg:pb-10">
