@@ -106,7 +106,8 @@ export default function ComplianceCalendarPage() {
                 <div className="min-w-0 space-y-1.5">
                   <div className="flex flex-wrap items-center gap-2">
                     <Chip tone="neutral">
-                      <CalendarDays className="h-3 w-3" aria-hidden="true" /> {row.regulator}
+                      <CalendarDays className="h-3 w-3 flex-none" aria-hidden="true" />{' '}
+                      <span className="min-w-0 truncate">{row.regulator}</span>
                     </Chip>
                     {row.jurisdiction ? <span className="cmp-ref">{row.jurisdiction}</span> : null}
                     {row.frequency ? <span className="cmp-ref">{humanizeEnum(row.frequency)}</span> : null}

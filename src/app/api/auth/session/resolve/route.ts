@@ -61,16 +61,6 @@ export async function GET(req: NextRequest) {
     return createSuccessResponse({ role: "AGGREGATOR", redirectTo: "/aggregator", status: aggregatorRow?.status }, { requestId: `KP-REQ-${Date.now()}`, environment: "PRODUCTION" });
   }
 
-  // Support officers live in their own table, resolved by auth_user_id.
-  const { data: supportRow } = await admin
-    .from("support_officers")
-    .select("id, status")
-    .eq("auth_user_id", authUserId)
-    .maybeSingle();
-  if (supportRow) {
-    return createSuccessResponse({ role: "SUPPORT", redirectTo: "/support", status: supportRow.status }, { requestId: `KP-REQ-${Date.now()}`, environment: "PRODUCTION" });
-  }
-
   // Internal workforce personas. Staff live in user_profiles +
   // organization_members (one ACTIVE role per user), not in the self-serve
   // persona tables above. Route them to the operator portal their role
@@ -108,6 +98,19 @@ export async function GET(req: NextRequest) {
         { requestId: `KP-REQ-${Date.now()}`, environment: "PRODUCTION" },
       );
     }
+  }
+
+  // Support officers live in their own table, resolved by auth_user_id.
+  // Deliberately LAST among staff checks: several internal staff (e.g. the
+  // compliance officer) also carry a support-desk row for cross-desk work —
+  // their primary organization role must win the routing decision.
+  const { data: supportRow } = await admin
+    .from("support_officers")
+    .select("id, status")
+    .eq("auth_user_id", authUserId)
+    .maybeSingle();
+  if (supportRow) {
+    return createSuccessResponse({ role: "SUPPORT", redirectTo: "/support", status: supportRow.status }, { requestId: `KP-REQ-${Date.now()}`, environment: "PRODUCTION" });
   }
 
   return createErrorResponse({ code: "NO_PROFILE_FOUND", message: "No KoriePay profile is associated with this account.", requestId: `KP-REQ-${Date.now()}`, httpStatus: 404 });

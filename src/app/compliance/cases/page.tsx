@@ -136,7 +136,7 @@ export default function CasesPage() {
               mobileLabel: t('compliance.cases.col.subject'),
               hideBelow: 'md',
               sortValue: (row: CaseRow) => row.subjectId,
-              render: (row: CaseRow) => <span className="cmp-ref truncate">{row.subjectId}</span>,
+              render: (row: CaseRow) => <span className="cmp-ref block truncate">{row.subjectId}</span>,
             },
             {
               key: 'priority',
@@ -170,7 +170,7 @@ export default function CasesPage() {
               mobileLabel: t('compliance.cases.col.investigator'),
               hideBelow: 'lg',
               sortValue: (row: CaseRow) => row.leadInvestigator,
-              render: (row: CaseRow) => <span className="cmp-ref truncate">{row.leadInvestigator}</span>,
+              render: (row: CaseRow) => <span className="cmp-ref block truncate">{row.leadInvestigator}</span>,
             },
             {
               key: 'created',

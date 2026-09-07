@@ -1622,6 +1622,11 @@
   letter-spacing: 0.02em;
   line-height: 1.6;
   white-space: nowrap;
+  /* A long label must never drag a card past the phone viewport: the chip
+     caps at its parent and clips (callers that want an ellipsis wrap the
+     label in a min-w-0 truncate span). */
+  max-width: 100%;
+  overflow: hidden;
 }
 .cmp-chip svg {
   width: 12px;

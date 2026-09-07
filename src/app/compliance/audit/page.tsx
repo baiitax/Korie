@@ -106,7 +106,7 @@ export default function ComplianceAuditPage() {
               mobileLabel: t('compliance.audit.col.actor'),
               hideBelow: 'md',
               sortValue: (row: AuditRow) => row.actor,
-              render: (row: AuditRow) => <span className="cmp-ref truncate">{row.actor}</span>,
+              render: (row: AuditRow) => <span className="cmp-ref block truncate">{row.actor}</span>,
             },
             {
               key: 'entity',

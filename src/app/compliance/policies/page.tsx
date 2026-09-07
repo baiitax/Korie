@@ -100,7 +100,7 @@ export default function CompliancePoliciesPage() {
               mobileLabel: t('compliance.policies.col.owner'),
               hideBelow: 'md',
               sortValue: (row: PolicyRow) => row.owner ?? '',
-              render: (row: PolicyRow) => <span className="cmp-ref truncate">{row.owner || '—'}</span>,
+              render: (row: PolicyRow) => <span className="cmp-ref block truncate">{row.owner || '—'}</span>,
             },
             {
               key: 'status',

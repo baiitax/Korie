@@ -145,7 +145,7 @@ export default function SystemHealthPage() {
             {health.providers.length === 0 ? (
               <p className="text-[12.5px] text-[var(--foreground-muted)]">{t('compliance.health.noProviders')}</p>
             ) : (
-              <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {health.providers.map((provider) => (
                   <li key={provider.code} className="rounded-[10px] border border-[var(--border)] p-2.5">
                     <div className="flex items-center justify-between gap-2">
