@@ -73,6 +73,22 @@ export class AccountingRuleEngine {
         creditAccountCode: '1010', // Bank payout disbursed
       },
     },
+    RULE_MERCHANT_SETTLEMENT_XOF_v1: {
+      ruleCode: 'RULE_MERCHANT_SETTLEMENT_XOF_v1',
+      name: 'Merchant Batch Settlement Payout (Niger XOF)',
+      version: 'v1',
+      transactionType: 'SETTLEMENT',
+      product: 'MERCHANT',
+      country: 'NE',
+      currency: 'XOF',
+      effectiveFrom: '2026-01-01T00:00:00Z',
+      status: 'ACTIVE',
+      approvedBy: 'CHIEF_FINANCIAL_OFFICER',
+      template: {
+        debitAccountCode: '2060', // Merchant liability cleared (XOF)
+        creditAccountCode: '1020', // Bank payout disbursed (Coris Bank XOF)
+      },
+    },
     RULE_AGENCY_CASH_IN_v1: {
       ruleCode: 'RULE_AGENCY_CASH_IN_v1',
       name: 'Agency Cash-in Deposit',

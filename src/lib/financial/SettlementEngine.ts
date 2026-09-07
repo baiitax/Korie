@@ -91,7 +91,7 @@ export class SettlementEngine {
     // Generate balanced double entry lines
     // Debit: 2050 (Merchant Payables)
     // Credit: 1010 (Providus Settlement Pool NGN)
-    const ruleCode = batch.currency === 'NGN' ? 'RULE_MERCHANT_SETTLEMENT_NGN_v1' : 'RULE_MERCHANT_SETTLEMENT_NGN_v1';
+    const ruleCode = batch.currency === 'NGN' ? 'RULE_MERCHANT_SETTLEMENT_NGN_v1' : 'RULE_MERCHANT_SETTLEMENT_XOF_v1';
     
     const lines = AccountingRuleEngine.generateLines({
       journalEntryId: '',

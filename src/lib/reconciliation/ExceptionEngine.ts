@@ -216,8 +216,8 @@ export class ExceptionEngine {
           {
             id: `jl_exc_${exc.id}_2`,
             journalEntryId: '',
-            accountCode: '1010', // Providus Settlement Pool
-            accountName: 'Providus Settlement Pool NGN',
+            accountCode: exc.currency === 'XOF' ? '1020' : '1010', // Coris Bank Settlement Pool XOF / Providus Settlement Pool NGN
+            accountName: exc.currency === 'XOF' ? 'Coris Bank Settlement Pool XOF' : 'Providus Settlement Pool NGN',
             category: 'ASSET',
             direction: 'CREDIT',
             debitAmount: 0,

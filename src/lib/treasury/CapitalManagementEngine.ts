@@ -43,9 +43,9 @@ export class CapitalManagementEngine {
         statutoryReserves: 1050000000,
         currentPeriodProfit: 780000000,
         totalQualifyingCapital: 8930000000,
-        regulatoryMinimumCapital: 3000000000, // BCEAO WAEMU E-Money Issuer Minimum
-        capitalHeadroom: 5930000000,
-        solvencyRatioPct: 297.66,
+        regulatoryMinimumCapital: 300000000, // BCEAO WAEMU E-Money Issuer (EME) Minimum: XOF 300 million per Instruction No. 008-05-2015, Art. 11
+        capitalHeadroom: 8630000000,
+        solvencyRatioPct: 2976.67,
         updatedAt: new Date().toISOString(),
       },
     ];

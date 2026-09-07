@@ -193,7 +193,7 @@ export class SettlementEngine {
     // Credit: 1010/1020 (Bank Settlement pool reduced)
     const journal = DoubleEntryLedgerEngine.postJournalEntry({
       journalNumber: `JE-${batch.batchReference}`,
-      ruleCode: batch.currency === 'NGN' ? 'RULE_MERCHANT_SETTLEMENT_NGN_v1' : 'RULE_MERCHANT_SETTLEMENT_NGN_v1',
+      ruleCode: batch.currency === 'NGN' ? 'RULE_MERCHANT_SETTLEMENT_NGN_v1' : 'RULE_MERCHANT_SETTLEMENT_XOF_v1',
       ruleVersion: 'v1',
       description: `Settlement Payout [${batch.batchReference}] for ${batch.partnerName} (${batch.payoutAccountNumber})`,
       currency: batch.currency,

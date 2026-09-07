@@ -109,12 +109,18 @@ export class FinancialReportEngine {
     const glEngine = GeneralLedgerEngine.getInstance();
     const accounts = glEngine.getAccounts().filter((a) => a.currency === currency);
 
+    // SUSPENSE accounts are not uniformly one-sided: a DEBIT-normal suspense
+    // account behaves like an asset (e.g. failed outbound payouts awaiting
+    // clearance), while a CREDIT-normal suspense account behaves like a
+    // liability (e.g. unallocated inbound deposits held for a customer). Route
+    // each suspense account to the correct side by its own normal balance
+    // rather than lumping the whole category under liabilities.
     const assetRows = accounts
-      .filter((a) => a.category === 'ASSET' || a.category === 'CLEARING')
+      .filter((a) => a.category === 'ASSET' || a.category === 'CLEARING' || (a.category === 'SUSPENSE' && a.normalBalance === 'DEBIT'))
       .map((a) => ({ accountCode: a.accountCode, accountName: a.accountName, amount: a.currentBalance }));
 
     const liabilityRows = accounts
-      .filter((a) => a.category === 'LIABILITY' || a.category === 'SUSPENSE')
+      .filter((a) => a.category === 'LIABILITY' || (a.category === 'SUSPENSE' && a.normalBalance === 'CREDIT'))
       .map((a) => ({ accountCode: a.accountCode, accountName: a.accountName, amount: a.currentBalance }));
 
     const equityRows = accounts

@@ -419,8 +419,14 @@ export class DoubleEntryLedgerEngine {
           projection.postedCreditTotal += line.creditAmount;
           projection.lastJournalId = entry.id;
 
-          // Compute balance according to normal balance category
-          const isDebitNormal = ['ASSET', 'EXPENSE', 'CONTROL', 'CLEARING'].includes(projection.category);
+          // Compute balance according to the account's actual normal balance (from the
+          // Chart of Accounts), not a category-name heuristic: SUSPENSE and other
+          // categories are not uniformly one-sided (e.g. 7100 is CREDIT-normal while
+          // 7200/7300/7400 are DEBIT-normal).
+          const chartAcc = getAccountByCode(line.accountCode);
+          const isDebitNormal = chartAcc
+            ? chartAcc.normalBalance === 'DEBIT'
+            : ['ASSET', 'EXPENSE', 'CONTROL', 'CLEARING'].includes(projection.category);
           if (isDebitNormal) {
             projection.calculatedBalance = projection.postedDebitTotal - projection.postedCreditTotal;
           } else {
@@ -463,7 +469,13 @@ export class DoubleEntryLedgerEngine {
       projection.postedCreditTotal += line.creditAmount;
       projection.lastJournalId = entry.id;
 
-      const isDebitNormal = ['ASSET', 'EXPENSE', 'CONTROL', 'CLEARING'].includes(projection.category);
+      // Determine normal balance from the Chart of Accounts record itself, not a
+      // category-name heuristic: SUSPENSE (and other) categories are not uniformly
+      // one-sided (e.g. 7100 is CREDIT-normal while 7200/7300/7400 are DEBIT-normal).
+      const chartAcc = getAccountByCode(line.accountCode);
+      const isDebitNormal = chartAcc
+        ? chartAcc.normalBalance === 'DEBIT'
+        : ['ASSET', 'EXPENSE', 'CONTROL', 'CLEARING'].includes(projection.category);
       if (isDebitNormal) {
         projection.calculatedBalance = projection.postedDebitTotal - projection.postedCreditTotal;
       } else {
@@ -534,7 +546,10 @@ export class DoubleEntryLedgerEngine {
 
     for (const acc of getAllAccounts()) {
       const tot = accountTotals.get(acc.code)!;
-      const isDebitNormal = ['ASSET', 'EXPENSE', 'CONTROL', 'CLEARING'].includes(acc.category);
+      // Use the account's actual normal balance rather than a category-name
+      // heuristic: SUSPENSE (and potentially other) categories are not uniformly
+      // one-sided (e.g. 7100 is CREDIT-normal while 7200/7300/7400 are DEBIT-normal).
+      const isDebitNormal = acc.normalBalance === 'DEBIT';
       
       let debitBal = 0;
       let creditBal = 0;
