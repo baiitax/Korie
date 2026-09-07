@@ -253,7 +253,7 @@ export default function CaseDetailPage() {
             </InlineNotice>
           ) : null}
           <form onSubmit={handleApplyDecision} className="mt-3 space-y-4">
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label htmlFor="case-final-decision" className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-[var(--foreground-muted)]">
                   {t('compliance.caseDetail.finalDecision')}

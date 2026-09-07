@@ -31,7 +31,7 @@ export const SectionSkeleton: React.FC<{ rows?: number; label: string; variant?:
     <div role="status" aria-live="polite" aria-busy="true" className="space-y-2.5">
       <span className="sr-only">{label}</span>
       {variant === 'cards' ? (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: rows }).map((_, i) => (
             <div key={i} className="cmp-kpi">
               <div className="cmp-skeleton-line" style={{ width: '55%', height: 10 }} />
@@ -43,7 +43,7 @@ export const SectionSkeleton: React.FC<{ rows?: number; label: string; variant?:
       ) : variant === 'detail' ? (
         <div className="space-y-3">
           <div className="cmp-skeleton-line" style={{ width: '40%', height: 22 }} />
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="cmp-skeleton-line" style={{ height: 40 }} />
             ))}

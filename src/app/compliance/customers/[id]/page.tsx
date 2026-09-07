@@ -167,7 +167,7 @@ export default function CustomerFilePage() {
 
           <div className="mt-4 space-y-4">
             {tab === 'overview' ? (
-              <div className="grid gap-4 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                 <Panel title={t('compliance.customer.tab.overview')}>
                   <KeyList
                     items={[

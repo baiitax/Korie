@@ -542,7 +542,7 @@ export const SourceNotes: React.FC<{
     <div className="border-t border-[var(--border)] p-3">
       <ul className="divide-y divide-[var(--border)]">
         {rows.map((row) => (
-          <li key={row.section} className="grid gap-1 py-2 sm:grid-cols-[minmax(140px,1fr)_minmax(180px,1.4fr)] sm:gap-3">
+          <li key={row.section} className="grid grid-cols-1 gap-1 py-2 sm:grid-cols-[minmax(140px,1fr)_minmax(180px,1.4fr)] sm:gap-3">
             <span className="text-[12px] font-bold text-[var(--foreground)]">{row.section}</span>
             <span className="min-w-0">
               <span className="cmp-ref block break-all">{row.source}</span>

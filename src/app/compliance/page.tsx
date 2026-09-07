@@ -145,7 +145,7 @@ export default function ComplianceDashboardPage() {
 
       {/* ── Attention: the counters that change what someone does next ──── */}
       {summaryLoading && !summary ? (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="cmp-kpi">
               <div className="cmp-skeleton-line" style={{ width: '55%', height: 10 }} />
@@ -154,7 +154,7 @@ export default function ComplianceDashboardPage() {
           ))}
         </div>
       ) : summary ? (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <Kpi
             label={t('compliance.dashboard.kpi.openAlerts')}
             value={summary.openAlerts}
@@ -226,7 +226,7 @@ export default function ComplianceDashboardPage() {
       ) : null}
 
       {/* ── What to work on first + platform state ──────────────────────── */}
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <Panel
           title={t('compliance.dashboard.workQueue')}
           subtitle={t('compliance.dashboard.workQueueSub')}
@@ -360,7 +360,7 @@ export default function ComplianceDashboardPage() {
       </div>
 
       {/* ── Queues, sortable where the officer needs it ─────────────────── */}
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Panel
           title={t('compliance.dashboard.recentAlerts')}
           subtitle={t('compliance.dashboard.recentAlertsSub')}
@@ -506,7 +506,7 @@ export default function ComplianceDashboardPage() {
       </div>
 
       {/* ── Shape of the risk: volume, mix, deadlines ───────────────────── */}
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <Panel
           title={t('compliance.dashboard.volume')}
           subtitle={t('compliance.dashboard.volumeSub')}

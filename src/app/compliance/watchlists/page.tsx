@@ -92,7 +92,7 @@ export default function WatchlistsPage() {
         {t('compliance.watchlists.registerNotice')}
       </InlineNotice>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
         <ResourceState
           resource={resource}
           isLoading={isLoading}

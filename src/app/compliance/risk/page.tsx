@@ -93,7 +93,7 @@ export default function RiskPage() {
         <LoadingBlock label={t('compliance.risk.loading')} variant="cards" rows={4} />
       ) : (
         <div className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Kpi label={t('compliance.risk.kpi.evaluated')} value={stats.total} note={t('compliance.risk.kpi.evaluatedNote')} icon={<Gauge className="h-3.5 w-3.5" aria-hidden="true" />} resource={decisions.resource} />
             <Kpi
               label={t('compliance.risk.kpi.held')}
@@ -117,7 +117,7 @@ export default function RiskPage() {
             />
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
             <Panel
               title={t('compliance.risk.bandsTitle')}
               subtitle={t('compliance.risk.bandsSubtitle', { policy: stats.policy ?? t('compliance.shell.notReported'), model: stats.model ?? t('compliance.shell.notReported') })}

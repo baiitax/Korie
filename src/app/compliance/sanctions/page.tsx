@@ -51,7 +51,7 @@ export default function SanctionsPage() {
 
       <Panel title={t('compliance.sanctions.runTitle')} subtitle={t('compliance.sanctions.runSubtitle')}>
         <form onSubmit={screen} className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_150px_auto]">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_150px_auto]">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--muted)]" aria-hidden="true" />
               <input

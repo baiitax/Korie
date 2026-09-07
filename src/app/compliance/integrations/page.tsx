@@ -82,7 +82,7 @@ export default function IntegrationsPage() {
         {isLoading ? (
           <LoadingBlock label={t('compliance.integrations.loading')} variant="cards" rows={4} />
         ) : (
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
             {rows.map((row: ProviderRow) => {
               const healthy = row.status === 'CONNECTED' && (!row.circuitBreaker || row.circuitBreaker === 'CLOSED');
               return (

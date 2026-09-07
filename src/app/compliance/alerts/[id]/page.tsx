@@ -106,7 +106,7 @@ export default function AlertDetailPage() {
             <InlineNotice tone="danger">{action.result?.error?.message ?? t('compliance.actions.failedOutcome')}</InlineNotice>
           ) : null}
 
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
             <div className="space-y-4">
               <Panel title={t('compliance.alertDetail.whatHappened')}>
                 <p className="text-[13.5px] leading-[1.55] text-[var(--foreground)]">
@@ -120,7 +120,7 @@ export default function AlertDetailPage() {
                 </p>
               </Panel>
 
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <Panel title={t('compliance.alertDetail.whoInvolved')}>
                   <p className="text-[13px] leading-[1.5] text-[var(--foreground)]">{alert.whoInvolved ?? t('compliance.alertDetail.notProvided')}</p>
                   <div className="mt-3 flex flex-wrap gap-2">

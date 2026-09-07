@@ -248,7 +248,7 @@ export default function ApprovalsPage() {
       </ResourceState>
 
       <Panel title={t('compliance.approvals.rulesTitle')}>
-        <div className="grid gap-2 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
           {[
             { term: t('compliance.approvals.rule1'), value: t('compliance.approvals.rule1Body') },
             { term: t('compliance.approvals.rule2'), value: t('compliance.approvals.rule2Body') },

@@ -396,7 +396,7 @@ const EvaluateModal: React.FC<{ open: boolean; onClose: () => void; officer: str
       }
     >
       <div className="space-y-3">
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label={t('compliance.transactions.f.reference')} htmlFor="eval-ref" required hint={t('compliance.transactions.f.referenceHint')}>
             <TextInput id="eval-ref" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="TXN-2026-000123" invalid={!reference.trim()} />
           </Field>

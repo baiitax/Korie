@@ -63,7 +63,7 @@ export default function ComplianceSettingsPage() {
         }
       />
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_400px]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_400px]">
         <div className="space-y-4">
           <Panel title={t('compliance.settings.securityTitle')} subtitle={t('compliance.settings.securitySubtitle')}>
             {posture.isLoading ? (
