@@ -87,12 +87,19 @@ export interface TierCapability {
   unlocked: string[];
 }
 
-/** Mirrors what post_customer_transfer / wallets.daily_limit actually enforce. */
+/**
+ * Mirrors what public.get_customer_tier_volume_consumed() / wallets.daily_limit
+ * actually enforce for the NGN corridor — see src/lib/compliance/tierLimits.ts
+ * (the real source of truth, also mirrored in public.kyc_tier_volume_limits)
+ * for the cited CBN figures and the equivalent BCEAO/XOF schedule. This table
+ * used to carry unrelated, uncited numbers (100k/5M/20M); it is now derived
+ * directly from the enforced NGN ceilings so it can never drift from them.
+ */
 export const TIER_CAPABILITIES: Record<CustomerRow["kyc_tier"], TierCapability> = {
   TIER_0: { dailyTransferLimitMajor: 0, maxBalanceMajor: 0, unlocked: [] },
-  TIER_1: { dailyTransferLimitMajor: 100000, maxBalanceMajor: 300000, unlocked: ["receive", "send_domestic"] },
-  TIER_2: { dailyTransferLimitMajor: 5000000, maxBalanceMajor: null, unlocked: ["receive", "send_domestic", "send_cross_border"] },
-  TIER_3: { dailyTransferLimitMajor: 20000000, maxBalanceMajor: null, unlocked: ["receive", "send_domestic", "send_cross_border", "bulk"] },
+  TIER_1: { dailyTransferLimitMajor: 50000, maxBalanceMajor: 300000, unlocked: ["receive", "send_domestic"] },
+  TIER_2: { dailyTransferLimitMajor: 200000, maxBalanceMajor: 500000, unlocked: ["receive", "send_domestic", "send_cross_border"] },
+  TIER_3: { dailyTransferLimitMajor: 5000000, maxBalanceMajor: null, unlocked: ["receive", "send_domestic", "send_cross_border", "bulk"] },
 };
 
 export async function getKycDocumentsForCustomer(customerId: string): Promise<KycDocumentRow[]> {

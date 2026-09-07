@@ -1,20 +1,38 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useCustomer } from "@/components/customer/CustomerContext";
 import { FX_RATES } from "@/services/customerDataService";
 import { formatMoney } from "@/lib/money";
 import { CustomerCurrency } from "@/types/customer";
-import { ArrowLeft, Repeat2, Clock, ShieldCheck, Zap } from "lucide-react";
+import { ArrowLeft, Repeat2, Clock, ShieldCheck, Zap, Loader2, AlertTriangle, Lock } from "lucide-react";
 
+/**
+ * BDC / FX Swap — real execution.
+ *
+ * What was wrong here: pressing "Instant Swap" never called a backend at
+ * all. It computed a number client-side and showed a "quote ready" card
+ * that linked to Send Money — no wallet was ever actually debited or
+ * credited, and there was no tier-based volume restriction of any kind.
+ *
+ * Now: this posts to /api/customer/portal/fx/swap, which executes a real,
+ * ledger-backed swap between the customer's own NGN and XOF wallets via
+ * public.post_customer_fx_swap(), enforcing KYC-tier-based volume ceilings
+ * grounded in CBN (NGN) and BCEAO (XOF) rules
+ * (see src/lib/compliance/tierLimits.ts). A tier that has hit its ceiling,
+ * or an unverified (Tier 0) customer, gets a specific, honest error instead
+ * of a fabricated success screen.
+ */
 export default function CustomerFxPage() {
-  const { t, fxRates } = useCustomer();
+  const { t, fxRates, customer, executeFxSwap } = useCustomer();
   const [fromCurrency, setFromCurrency] = useState<CustomerCurrency>("XOF");
   const [toCurrency, setToCurrency] = useState<CustomerCurrency>("NGN");
   const [fromAmount, setFromAmount] = useState<string>("500");
   const [countdown, setCountdown] = useState<number>(60);
-  const [swappedResult, setSwappedResult] = useState<{ from: string; to: string } | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [swapResult, setSwapResult] = useState<{ from: string; to: string; reference: string } | null>(null);
 
   useEffect(() => {
     const timer = setInterval(() => setCountdown((p) => (p <= 1 ? 60 : p - 1)), 1000);
@@ -32,21 +50,35 @@ export default function CustomerFxPage() {
 
   const parsedFromAmount = parseFloat(fromAmount) || 0;
   const rate = currentQuote.midRate;
-  // 0.5% cross-border fee matches the amount the transfer engine applies.
+  // 0.5% platform fee — matches what /api/customer/portal/fx/swap actually charges.
   const fee = parsedFromAmount * 0.005;
-  const estimatedToAmount = parsedFromAmount * rate;
+  const estimatedToAmount = (parsedFromAmount - fee) * rate;
+
+  const kycTier = customer?.kycTier || "TIER_1";
 
   const handleSwapCurrencies = () => {
     setFromCurrency(toCurrency);
     setToCurrency(fromCurrency);
   };
 
-  const handleExecuteSwap = (e: React.FormEvent) => {
+  const handleExecuteSwap = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (parsedFromAmount <= 0) return;
-    setSwappedResult({
-      from: formatMoney(parsedFromAmount, fromCurrency),
-      to: formatMoney(estimatedToAmount, toCurrency),
+    if (parsedFromAmount <= 0 || submitting) return;
+    setSubmitting(true);
+    setFormError(null);
+
+    const result = await executeFxSwap({ fromCurrency, toCurrency, fromAmount: parsedFromAmount });
+
+    setSubmitting(false);
+    if (!result.success || !result.swap) {
+      setFormError(result.error || t("fx.swapFailed"));
+      return;
+    }
+
+    setSwapResult({
+      from: formatMoney(result.swap.fromAmount, fromCurrency),
+      to: formatMoney(result.swap.toAmount, toCurrency),
+      reference: result.swap.reference || "",
     });
   };
 
@@ -63,25 +95,34 @@ export default function CustomerFxPage() {
         </div>
       </div>
 
-      {swappedResult ? (
+      {/* Tier ceiling disclosure — the whole point of this feature's fix */}
+      <div className="flex items-start gap-2 p-3 rounded-2xl bg-[var(--info-soft)] border border-[var(--info-soft)] text-[11px] text-[var(--info)]">
+        <Lock className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+        <span>{t("fx.tierLimitNotice", { tier: kycTier.replace("TIER_", "Tier ") })}</span>
+      </div>
+
+      {swapResult ? (
         <div className="rounded-3xl bg-[var(--surface)] border border-[var(--brand-border)] p-8 text-center space-y-5 shadow-[var(--shadow-card)] animate-in zoom-in-95">
           <div className="w-16 h-16 rounded-full bg-[var(--brand-soft)] text-[var(--brand-primary)] flex items-center justify-center mx-auto">
             <Zap className="w-8 h-8" />
           </div>
           <div className="space-y-1">
-            <h2 className="text-2xl font-extrabold text-[var(--foreground)] tracking-tight">{t("fx.quoteReady")}</h2>
+            <h2 className="text-2xl font-extrabold text-[var(--foreground)] tracking-tight">{t("fx.swapComplete")}</h2>
             <p className="text-xs text-[var(--foreground-muted)]">
-              {t("fx.quoteReadyDesc", { fromAmount: swappedResult.from, toAmount: swappedResult.to })}
+              {t("fx.swapCompleteDesc", { fromAmount: swapResult.from, toAmount: swapResult.to })}
             </p>
+            {swapResult.reference && (
+              <p className="text-[10px] font-mono text-[var(--foreground-muted)]">{swapResult.reference}</p>
+            )}
           </div>
           <Link
-            href="/customer/send-money"
+            href="/customer/wallets"
             className="w-full inline-flex items-center justify-center py-3.5 rounded-2xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-on-primary)] font-bold text-xs transition-colors shadow-[var(--shadow-md)]"
           >
-            {t("fx.proceedToSend")}
+            {t("fx.viewWallets")}
           </Link>
           <button
-            onClick={() => setSwappedResult(null)}
+            onClick={() => setSwapResult(null)}
             className="w-full py-3.5 rounded-2xl bg-[var(--surface)] hover:bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground)] font-bold text-xs transition-colors"
           >
             {t("fx.executeAnother")}
@@ -163,9 +204,17 @@ export default function CustomerFxPage() {
             </div>
           </div>
 
-          <button type="submit" disabled={parsedFromAmount <= 0}
-            className="w-full py-4 rounded-2xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-on-primary)] font-extrabold text-sm transition-all shadow-[var(--shadow-md)] disabled:opacity-50">
-            {t("fx.instantSwapBtn")}
+          {formError && (
+            <div className="flex items-start gap-2 p-3 rounded-2xl bg-[var(--danger-soft)] border border-[var(--danger-soft)] text-[11px] text-[var(--danger)]" role="alert">
+              <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+              <span>{formError}</span>
+            </div>
+          )}
+
+          <button type="submit" disabled={parsedFromAmount <= 0 || submitting}
+            className="w-full py-4 rounded-2xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-on-primary)] font-extrabold text-sm transition-all shadow-[var(--shadow-md)] disabled:opacity-50 flex items-center justify-center gap-2">
+            {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+            {submitting ? t("fx.processing") : t("fx.instantSwapBtn")}
           </button>
         </form>
       )}

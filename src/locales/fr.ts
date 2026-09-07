@@ -816,6 +816,12 @@ export const fr = {
     quoteReady: "Votre estimation est prête",
     quoteReadyDesc: "{{fromAmount}} ≈ {{toAmount}}. Le taux réel est appliqué lors de l'envoi.",
     proceedToSend: "Envoyer de l'argent",
+    swapComplete: "Échange effectué",
+    swapCompleteDesc: "{{fromAmount}} a été converti en {{toAmount}} et crédité sur votre portefeuille.",
+    viewWallets: "Voir mes portefeuilles",
+    processing: "Échange en cours…",
+    swapFailed: "L'échange n'a pas pu être effectué. Aucun fonds n'a été déplacé.",
+    tierLimitNotice: "Votre niveau de vérification {{tier}} détermine le montant que vous pouvez échanger sur une période, selon les règles de la CBN (NGN) et de la BCEAO (XOF). Améliorez votre vérification pour relever ce plafond.",
 },
   transactions: {
     title: "Historique des Transactions",

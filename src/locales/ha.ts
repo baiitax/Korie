@@ -802,6 +802,12 @@ export const ha = {
     quoteReady: "An shirya kimantawarku",
     quoteReadyDesc: "{{fromAmount}} ≈ {{toAmount}}. Ana amfani da adadin na gaske lokacin aikawa.",
     proceedToSend: "Aika kuɗi",
+    swapComplete: "An Kammala Canjin",
+    swapCompleteDesc: "An canza {{fromAmount}} zuwa {{toAmount}} kuma an ƙara shi cikin walat ɗinku.",
+    viewWallets: "Duba Walat Na",
+    processing: "Ana aiwatar da canjin…",
+    swapFailed: "Ba a iya kammala canjin ba. Babu kuɗin da ya motsa.",
+    tierLimitNotice: "Matakin tabbatarwar ku na {{tier}} ne ke ƙaddara adadin da za ku iya canzawa a cikin wani lokaci, bisa ƙa'idodin CBN (NGN) da BCEAO (XOF). Ɗaga matakin tabbatarwar ku don ƙara wannan iyaka.",
 },
   transactions: {
     title: "Tarihin Ma'amaloli",

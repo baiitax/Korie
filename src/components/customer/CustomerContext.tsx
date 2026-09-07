@@ -147,6 +147,16 @@ interface CustomerContextType {
     error?: string;
   }>;
 
+  executeFxSwap: (params: {
+    fromCurrency: CustomerCurrency;
+    toCurrency: CustomerCurrency;
+    fromAmount: number;
+  }) => Promise<{
+    success: boolean;
+    swap?: { fromAmount: number; toAmount: number; fromCurrency: string; toCurrency: string; reference: string };
+    error?: string;
+  }>;
+
   executeBillPayment: (params: {
     billerCategory: string;
     billerProvider: string;
@@ -597,6 +607,47 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
   );
 
   /**
+   * BDC/FX swap between the customer's own NGN and XOF wallets. Unlike
+   * executeTransfer this is NOT pending-provider: both legs are
+   * KoriePay-custodied, so a successful response means the swap already
+   * happened and both wallet balances are already correct. Server-enforced
+   * KYC-tier volume ceilings (CBN for NGN, BCEAO for XOF — see
+   * src/lib/compliance/tierLimits.ts) are what actually gate this; the
+   * error message returned here is the real, specific reason.
+   */
+  const executeFxSwap = useCallback(
+    async (params: { fromCurrency: CustomerCurrency; toCurrency: CustomerCurrency; fromAmount: number }) => {
+      if (isOffline) {
+        return { success: false, error: "You're offline. We didn't run the swap — nothing moved." };
+      }
+      if (!params.fromAmount || params.fromAmount <= 0) return { success: false, error: "Enter a valid amount." };
+
+      const res = await portalFetch("/api/customer/portal/fx/swap", {
+        method: "POST",
+        headers: { "Idempotency-Key": `cust-fx-${Date.now()}-${Math.random().toString(36).slice(2, 10)}` },
+        body: JSON.stringify({ ...params }),
+      });
+      const json = await res.json().catch(() => undefined);
+      if (!res.ok) {
+        return {
+          success: false,
+          error: json?.error?.message || "Swap could not be completed. No money has moved.",
+        };
+      }
+      const swap = json?.data?.swap;
+      if (!swap) {
+        return {
+          success: false,
+          error: "We didn't receive a confirmation for this swap. Please check your wallets before retrying.",
+        };
+      }
+      await invalidateFinancialState();
+      return { success: true, swap };
+    },
+    [isOffline, invalidateFinancialState],
+  );
+
+  /**
    * Bills are COMING_SOON in CUSTOMER_CONFIG. `executeBillPayment` used to
    * fabricate a token, a reference and a balance mutation entirely in the
    * browser. That is now removed: no service call, no ledger write ⇒ no
@@ -680,6 +731,7 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
         closeDispute,
         submitDispute,
         executeTransfer,
+        executeFxSwap,
         executeBillPayment,
         toggleCardFreeze,
         saveBeneficiary,

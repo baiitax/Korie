@@ -805,6 +805,12 @@ export const en = {
     quoteReady: "Your quote is ready",
     quoteReadyDesc: "{{fromAmount}} ≈ {{toAmount}}. The actual rate is applied when you send.",
     proceedToSend: "Send Money",
+    swapComplete: "Swap Complete",
+    swapCompleteDesc: "{{fromAmount}} was converted to {{toAmount}} and credited to your wallet.",
+    viewWallets: "View My Wallets",
+    processing: "Processing swap…",
+    swapFailed: "Swap could not be completed. No money has moved.",
+    tierLimitNotice: "Your {{tier}} verification level sets how much you can swap in a period, per CBN (NGN) and BCEAO (XOF) rules. Upgrade your verification to raise this ceiling.",
 },
   transactions: {
     title: "Transaction Activity",
