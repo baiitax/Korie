@@ -14,7 +14,7 @@ import { SupportShell } from "@/components/support/SupportShell";
  */
 export default function SupportLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  if (pathname === "/support/login") {
+  if (pathname === "/support/login") {  // legacy bookmark route; it redirects to /login
     return <>{children}</>;
   }
 

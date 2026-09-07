@@ -213,6 +213,11 @@ export default function LoginPage() {
                 <>Configured via NEXT_PUBLIC_COMPLIANCE_QUICK_EMAIL / _PASSWORD</>
               )}
             </div>
+            <div className="text-[11px] font-semibold text-slate-300 pt-2">Support officer (staff)</div>
+            <div className="text-[11px] text-slate-400 font-mono leading-relaxed">
+              zainab.support@koriepay.internal<br />
+              Password: KorieSupport@2026!
+            </div>
           </div>
         </AuthCard>
 

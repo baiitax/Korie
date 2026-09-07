@@ -85,7 +85,7 @@ export function SupportOpsProvider({ children }: { children: React.ReactNode }) 
       if (!token) {
         if (!cancelled) {
           setSessionState("unauthenticated");
-          if (pathname !== "/support/login") router.replace("/support/login");
+          if (pathname !== "/login") router.replace("/login");
         }
         return;
       }
@@ -95,7 +95,7 @@ export function SupportOpsProvider({ children }: { children: React.ReactNode }) 
 
       if (isSupportApiError(res)) {
         setSessionState("unauthenticated");
-        if (pathname !== "/support/login") router.replace("/support/login");
+        if (pathname !== "/login") router.replace("/login");
         return;
       }
 
@@ -108,7 +108,7 @@ export function SupportOpsProvider({ children }: { children: React.ReactNode }) 
       if (cancelled) return;
       if (isSupportApiError(meRes)) {
         setSessionState("unauthenticated");
-        if (pathname !== "/support/login") router.replace("/support/login");
+        if (pathname !== "/login") router.replace("/login");
         return;
       }
       setActiveOfficer(meRes.officer);
@@ -125,7 +125,7 @@ export function SupportOpsProvider({ children }: { children: React.ReactNode }) 
     setActiveOfficer(null);
     setOfficers([]);
     setSessionState("unauthenticated");
-    router.replace("/support/login");
+    router.replace("/login");
   }, [router]);
 
   const dismissToast = useCallback((id: number) => {

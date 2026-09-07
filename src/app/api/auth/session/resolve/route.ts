@@ -7,14 +7,15 @@ import { createSuccessResponse, createErrorResponse } from "@/lib/security/apiRe
  *
  * Given a real Supabase Bearer token, tells the caller which real KoriePay
  * persona table it belongs to — public.customers, public.agents,
- * public.merchant_staff_users, or public.aggregator_staff_users — and for
- * internal staff (user_profiles + organization_members) which operator
- * portal their ACTIVE role unlocks (/compliance, /admin), so a single
- * generic /login page can route to the correct dashboard without the
- * frontend guessing or the backend fabricating a role. If more than one
- * persona somehow matches the same auth user, customer takes precedence
- * (the common case is an individual who is also a wallet customer), then
- * agent, then merchant, then aggregator, then staff.
+ * public.merchant_staff_users, public.aggregator_staff_users, or
+ * public.support_officers — and for internal staff (user_profiles +
+ * organization_members) which operator portal their ACTIVE role unlocks
+ * (/compliance, /admin), so the single central /login page can route to the
+ * correct dashboard without the frontend guessing or the backend
+ * fabricating a role. If more than one persona somehow matches the same
+ * auth user, customer takes precedence (the common case is an individual
+ * who is also a wallet customer), then agent, then merchant, then
+ * aggregator, then support, then staff.
  */
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization") || req.headers.get("Authorization");
@@ -58,6 +59,16 @@ export async function GET(req: NextRequest) {
   if (aggregatorStaffRow) {
     const aggregatorRow: any = Array.isArray(aggregatorStaffRow.aggregators) ? aggregatorStaffRow.aggregators[0] : aggregatorStaffRow.aggregators;
     return createSuccessResponse({ role: "AGGREGATOR", redirectTo: "/aggregator", status: aggregatorRow?.status }, { requestId: `KP-REQ-${Date.now()}`, environment: "PRODUCTION" });
+  }
+
+  // Support officers live in their own table, resolved by auth_user_id.
+  const { data: supportRow } = await admin
+    .from("support_officers")
+    .select("id, status")
+    .eq("auth_user_id", authUserId)
+    .maybeSingle();
+  if (supportRow) {
+    return createSuccessResponse({ role: "SUPPORT", redirectTo: "/support", status: supportRow.status }, { requestId: `KP-REQ-${Date.now()}`, environment: "PRODUCTION" });
   }
 
   // Internal workforce personas. Staff live in user_profiles +

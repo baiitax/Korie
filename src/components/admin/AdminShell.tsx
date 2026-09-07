@@ -30,6 +30,7 @@ export const AdminShell: React.FC<{ children: React.ReactNode }> = ({ children }
   const pathname = usePathname();
   const { phase } = useAdminData();
 
+  // Legacy bookmark route only; the page itself redirects to /login.
   if (pathname.startsWith("/admin/login")) return <>{children}</>;
 
   if (phase === "checking") {
@@ -51,7 +52,7 @@ export const AdminShell: React.FC<{ children: React.ReactNode }> = ({ children }
         icon={<LockKeyhole className="h-6 w-6" />}
         title="Admin session required"
         body="Sign in with your KoriePay staff credentials to open the command center."
-        action={{ href: "/admin/login", label: "Go to sign-in" }}
+        action={{ href: "/login", label: "Go to sign-in" }}
       />
     );
   }
@@ -62,7 +63,7 @@ export const AdminShell: React.FC<{ children: React.ReactNode }> = ({ children }
         icon={<ShieldAlert className="h-6 w-6" />}
         title="Role not authorized"
         body="Your account is signed in, but it does not hold an active admin role (SUPER_ADMIN, ORGANIZATION_OWNER or ORGANIZATION_ADMIN)."
-        action={{ href: "/admin/login", label: "Use a different account" }}
+        action={{ href: "/login", label: "Use a different account" }}
       />
     );
   }

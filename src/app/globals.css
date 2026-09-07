@@ -1970,6 +1970,12 @@
   left: 0;
   right: 0;
   bottom: 0;
+  /* Explicit width beats the shrink-to-fit a fixed element would otherwise
+     compute: with unshrinkable tabs the nav could size itself to the sum of
+     its labels and drag the whole page sideways on phones. */
+  width: 100%;
+  max-width: 100vw;
+  overflow: hidden;
   z-index: var(--z-nav);
   display: flex;
   align-items: stretch;
@@ -1982,6 +1988,9 @@
 }
 .cmp-mobile-nav__item {
   flex: 1;
+  /* Allow the tab to shrink so long labels truncate instead of widening
+     the fixed bottom bar past the phone viewport. */
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;

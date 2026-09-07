@@ -197,7 +197,7 @@ export const CompliancePortalShell: React.FC<{ children: React.ReactNode }> = ({
 
       <div className="flex min-h-screen flex-1">
         {/* ── Desktop rail ───────────────────────────────────────────────── */}
-        <aside className="cmp-rail sticky top-0 hidden h-screen lg:flex" aria-label={t('compliance.shell.navAria')}>
+        <aside className="cmp-rail sticky top-0 !hidden h-screen lg:!flex" aria-label={t('compliance.shell.navAria')}>
           <div className="flex items-center gap-2.5 px-1 pb-1">
             <Link href="/compliance" className="flex min-h-[40px] items-center gap-2 rounded-[10px] px-1">
               <KorieLogo variant="compact" theme={theme === 'dark' ? 'dark' : 'light'} height={26} linkHref="" />
@@ -258,7 +258,7 @@ export const CompliancePortalShell: React.FC<{ children: React.ReactNode }> = ({
             <button
               type="button"
               onClick={() => setSearchOpen(true)}
-              className="cmp-btn cmp-btn--ghost hidden h-[38px] min-w-[220px] justify-start gap-2 border-[var(--border-strong)] bg-[var(--input-bg)] px-2.5 text-[12.5px] font-semibold text-[var(--foreground-muted)] lg:flex lg:max-w-[360px] lg:flex-1"
+              className="cmp-btn cmp-btn--ghost !hidden h-[38px] min-w-[220px] justify-start gap-2 border-[var(--border-strong)] bg-[var(--input-bg)] px-2.5 text-[12.5px] font-semibold text-[var(--foreground-muted)] lg:!flex lg:max-w-[360px] lg:flex-1"
             >
               <Search className="h-4 w-4 flex-none" aria-hidden="true" />
               <span className="truncate">{t('compliance.shell.searchPlaceholder')}</span>
@@ -270,7 +270,7 @@ export const CompliancePortalShell: React.FC<{ children: React.ReactNode }> = ({
             <button
               type="button"
               onClick={() => setSearchOpen(true)}
-              className="cmp-btn cmp-btn--icon cmp-btn--ghost lg:hidden"
+              className="cmp-btn cmp-btn--icon cmp-btn--ghost lg:!hidden"
               aria-label={t('compliance.shell.searchAria')}
             >
               <Search className="h-[18px] w-[18px]" aria-hidden="true" />
@@ -425,7 +425,7 @@ export const CompliancePortalShell: React.FC<{ children: React.ReactNode }> = ({
       </div>
 
       {/* ── Mobile bar ─────────────────────────────────────────────────── */}
-      <nav className="cmp-mobile-nav lg:hidden" aria-label={t('compliance.shell.mobileNavAria')}>
+      <nav className="cmp-mobile-nav lg:!hidden" aria-label={t('compliance.shell.mobileNavAria')}>
         {COMPLIANCE_MOBILE_TABS.map((tab) => (
           <Link key={tab.href} href={tab.href} className="cmp-mobile-nav__item" aria-current={isActive(tab.href) ? 'page' : undefined}>
             <tab.icon aria-hidden="true" />

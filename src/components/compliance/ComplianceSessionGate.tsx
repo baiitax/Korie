@@ -50,7 +50,7 @@ export function ComplianceSessionGate({ children }: { children: React.ReactNode 
   const [phase, setPhase] = useState<Phase>("checking");
 
   // The sign-in route renders bare: it must not gate (or redirect) on itself.
-  const isLoginRoute = pathname?.startsWith("/compliance/login");
+  const isLoginRoute = pathname?.startsWith("/compliance/login")  // legacy bookmark route; it redirects to /login;
 
   useEffect(() => {
     if (isLoginRoute) return;
@@ -95,7 +95,7 @@ export function ComplianceSessionGate({ children }: { children: React.ReactNode 
         title="Officer session required"
         body="Sign in with your KoriePay officer credentials to open the compliance portal. The portal no longer accepts sandbox tokens."
         action={
-          <a href="/compliance/login" className="cmp-btn inline-flex">
+          <a href="/login" className="cmp-btn inline-flex">
             Go to sign-in
           </a>
         }
@@ -115,7 +115,7 @@ export function ComplianceSessionGate({ children }: { children: React.ReactNode 
             className="cmp-btn inline-flex"
             onClick={() => {
               void signOutCompliance().finally(() => {
-                window.location.href = "/compliance/login";
+                window.location.href = "/login";
               });
             }}
           >
