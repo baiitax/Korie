@@ -6,13 +6,15 @@ import { createSuccessResponse, createErrorResponse } from "@/lib/security/apiRe
  * GET /api/auth/session/resolve
  *
  * Given a real Supabase Bearer token, tells the caller which real KoriePay
- * persona table it belongs to — public.customers, public.agents, or
- * public.merchant_staff_users — so a single generic /login page can route
- * to the correct dashboard (/customer, /agent, /merchant) without the
+ * persona table it belongs to — public.customers, public.agents,
+ * public.merchant_staff_users, or public.aggregator_staff_users — and for
+ * internal staff (user_profiles + organization_members) which operator
+ * portal their ACTIVE role unlocks (/compliance, /admin), so a single
+ * generic /login page can route to the correct dashboard without the
  * frontend guessing or the backend fabricating a role. If more than one
  * persona somehow matches the same auth user, customer takes precedence
  * (the common case is an individual who is also a wallet customer), then
- * agent, then merchant.
+ * agent, then merchant, then aggregator, then staff.
  */
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization") || req.headers.get("Authorization");
@@ -56,6 +58,45 @@ export async function GET(req: NextRequest) {
   if (aggregatorStaffRow) {
     const aggregatorRow: any = Array.isArray(aggregatorStaffRow.aggregators) ? aggregatorStaffRow.aggregators[0] : aggregatorStaffRow.aggregators;
     return createSuccessResponse({ role: "AGGREGATOR", redirectTo: "/aggregator", status: aggregatorRow?.status }, { requestId: `KP-REQ-${Date.now()}`, environment: "PRODUCTION" });
+  }
+
+  // Internal workforce personas. Staff live in user_profiles +
+  // organization_members (one ACTIVE role per user), not in the self-serve
+  // persona tables above. Route them to the operator portal their role
+  // actually unlocks — the portal's own server-side gate re-verifies the
+  // role on every request, so this is a redirect hint, not an authorization.
+  const { data: workforceRow } = await admin
+    .from("user_profiles")
+    .select("id, organization_members(status, roles(name))")
+    .eq("auth_user_id", authUserId)
+    .maybeSingle();
+  if (workforceRow) {
+    const memberships: any[] = Array.isArray(workforceRow.organization_members)
+      ? workforceRow.organization_members
+      : workforceRow.organization_members
+        ? [workforceRow.organization_members]
+        : [];
+    const roleNames = new Set<string>(
+      memberships
+        .filter((m) => m?.status === "ACTIVE")
+        .flatMap((m) => {
+          const r = m?.roles;
+          const arr = Array.isArray(r) ? r : r ? [r] : [];
+          return arr.map((x: any) => x?.name).filter(Boolean) as string[];
+        }),
+    );
+    if (roleNames.has("COMPLIANCE_OFFICER")) {
+      return createSuccessResponse(
+        { role: "COMPLIANCE_OFFICER", redirectTo: "/compliance" },
+        { requestId: `KP-REQ-${Date.now()}`, environment: "PRODUCTION" },
+      );
+    }
+    if (["SUPER_ADMIN", "ORGANIZATION_OWNER", "ORGANIZATION_ADMIN"].some((r) => roleNames.has(r))) {
+      return createSuccessResponse(
+        { role: "ADMIN", redirectTo: "/admin" },
+        { requestId: `KP-REQ-${Date.now()}`, environment: "PRODUCTION" },
+      );
+    }
   }
 
   return createErrorResponse({ code: "NO_PROFILE_FOUND", message: "No KoriePay profile is associated with this account.", requestId: `KP-REQ-${Date.now()}`, httpStatus: 404 });

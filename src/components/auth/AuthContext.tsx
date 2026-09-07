@@ -209,6 +209,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const { role, redirectTo } = resolveJson.data;
 
+      // Operator portals (compliance, admin command center, aggregator
+      // console) verify the session server-side on every call and run their
+      // own session contexts — they deliberately don't ride this customer
+      // AuthContext. Route there and let their gates take over.
+      if (role === "COMPLIANCE_OFFICER" || role === "ADMIN" || role === "AGGREGATOR") {
+        router.push(redirectTo);
+        return { success: true, redirectTo };
+      }
+
       if (role === "AGENT") {
         setActiveRoleState("AGENT");
         router.push(redirectTo);
