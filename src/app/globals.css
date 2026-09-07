@@ -2061,6 +2061,23 @@
   from { transform: translateX(18px); opacity: 0.7; }
   to { transform: none; opacity: 1; }
 }
+/* Bottom sheet (the mobile "More" menu). The wrapper is a stacking context
+   at --z-sheet, and the scrim inside it sits at --z-scrim (45): a sheet
+   without its own higher z-index paints UNDER its own scrim, which reads
+   as "the menu never opened". z-index here is what makes the sheet win. */
+.cmp-sheet {
+  z-index: var(--z-sheet);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-bottom: 0;
+  border-radius: 18px 18px 0 0;
+  box-shadow: var(--shadow-xl);
+  animation: cmpSheetRise 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes cmpSheetRise {
+  from { transform: translateY(18px); opacity: 0.7; }
+  to { transform: none; opacity: 1; }
+}
 .cmp-menu {
   position: absolute;
   right: 0;
@@ -2183,5 +2200,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .cmp-drawer { animation: none; }
+  .cmp-sheet { animation: none; }
   .cmp-btn, .cmp-rail__link { transition: none; }
 }
