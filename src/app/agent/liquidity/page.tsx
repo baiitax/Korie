@@ -1,120 +1,200 @@
 "use client";
 
+// =============================================================================
+// Float & liquidity — engine truth: AGENT_FLOAT subledger + till position.
+// "Sweep float" posts a real double-entry journal (no canned messages).
+// =============================================================================
+
 import React, { useState } from "react";
 import Link from "next/link";
-import { useAgent } from "@/components/agent/AgentContext";
+import { useAgentPortal } from "@/components/agent/AgentContext";
 import {
-  ArrowLeft,
-  Coins,
-  Wallet,
-  ShieldCheck,
-  AlertTriangle,
-  RefreshCw,
-  Building2,
-  CheckCircle2,
-} from "lucide-react";
+  AgentPageHeader,
+  AgentPageSkeleton,
+  AgentErrorState,
+  AgentStatCard,
+  AgentChip,
+  AgentFreshnessBar,
+} from "@/components/agent/ui/AgentUi";
+import { Copy, Check, RefreshCw, AlertTriangle, CheckCircle2, Landmark, Wallet, Banknote } from "lucide-react";
+import { formatMoney } from "@/lib/money";
 
 export default function AgentLiquidityPage() {
-  const { liquidity, agent, t } = useAgent();
-  const [isSweeping, setIsSweeping] = useState(false);
-  const [sweepMessage, setSweepMessage] = useState<string | null>(null);
+  const { phase, errorMessage, summary, refresh, refreshedAt, sweepFloat, isBalanceHidden } = useAgentPortal();
+  const [sweeping, setSweeping] = useState(false);
+  const [notice, setNotice] = useState<{ ok: boolean; message: string } | null>(null);
+  const [copied, setCopied] = useState(false);
 
-  const handleSweepFloat = () => {
-    setIsSweeping(true);
-    setTimeout(() => {
-      setIsSweeping(false);
-      setSweepMessage("Float balance synchronized with Providus Bank settlement vault.");
-      setTimeout(() => setSweepMessage(null), 3000);
-    }, 1000);
+  if (phase === "loading") return <AgentPageSkeleton rows={4} />;
+  if (phase === "error" || !summary) {
+    return <AgentErrorState title="We could not load your liquidity" message={errorMessage} onRetry={() => void refresh()} />;
+  }
+
+  const { float, till } = summary;
+  const hide = isBalanceHidden;
+
+  const handleSweep = async () => {
+    setSweeping(true);
+    setNotice(null);
+    const res = await sweepFloat();
+    setSweeping(false);
+    setNotice(
+      res.success
+        ? { ok: true, message: `Float of ${formatMoney(float.availableFloat, "NGN")} swept to Providus Bank — journal recorded.` }
+        : { ok: false, message: res.message || "Sweep failed." },
+    );
   };
 
+  const copyNuban = async () => {
+    try {
+      await navigator.clipboard.writeText("0123984123");
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* noop */
+    }
+  };
+
+  const lowCash = till.availablePhysicalCash < till.targetSafetyBuffer;
+
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between pb-2 border-b border-white/10">
-        <div className="flex items-center gap-3">
-          <Link
-            href="/agent"
-            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </Link>
-          <div>
-            <h1 className="text-xl sm:text-2xl font-extrabold text-white">
-              {t("common.liquidityCenter")}
-            </h1>
-            <p className="text-xs text-slate-400">
-              Agent float management, cash thresholds and bank vault sweeping.
-            </p>
-          </div>
-        </div>
+    <div className="space-y-5 p-4 sm:p-6 lg:p-8">
+      <AgentPageHeader
+        title="Float & Liquidity"
+        subtitle="Digital e-float, physical till cash and their engine-level movements — every change is journaled."
+      />
 
-        <button
-          onClick={handleSweepFloat}
-          disabled={isSweeping}
-          className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-white transition-colors"
+      <AgentFreshnessBar refreshedAt={refreshedAt} refreshing={false} onRefresh={() => void refresh({ silent: true })} />
+
+      {notice ? (
+        <div
+          role="status"
+          aria-live="polite"
+          className={`flex items-start gap-2 rounded-xl px-4 py-3 text-sm ring-1 ${
+            notice.ok ? "bg-emerald-50 text-emerald-800 ring-emerald-200" : "bg-rose-50 text-rose-800 ring-rose-200"
+          }`}
         >
-          <RefreshCw className={`w-3.5 h-3.5 text-emerald-400 ${isSweeping ? "animate-spin" : ""}`} />
-          <span>Sync Float</span>
-        </button>
-      </div>
-
-      {sweepMessage && (
-        <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span>{sweepMessage}</span>
+          {notice.ok ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> : <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />}
+          {notice.message}
         </div>
-      )}
+      ) : null}
 
-      {/* Float Overview Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 font-mono">
-        <div className="p-5 rounded-3xl bg-[#090f1e] border border-white/10 space-y-1">
-          <div className="text-[10px] uppercase text-slate-400">Digital Wallet Float</div>
-          <div className="text-2xl font-extrabold text-emerald-400">
-            ₦{liquidity.walletFloat.toLocaleString()}
+      {/* Posture */}
+      <section aria-label="Liquidity position" className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <AgentStatCard
+          label="Digital wallet float"
+          value={hide ? "••••••" : formatMoney(float.availableFloat, "NGN")}
+          sub="Agent float subledger · Providus clearing rail"
+          accent="emerald"
+          icon={<Wallet className="h-4 w-4 text-emerald-500" />}
+        />
+        <AgentStatCard
+          label="Physical cash in till"
+          value={hide ? "••••••" : formatMoney(till.availablePhysicalCash, "NGN")}
+          sub={`Expected ${formatMoney(till.expectedPhysicalCash, "NGN")} · ${till.locationName}`}
+          accent={lowCash ? "amber" : "neutral"}
+          icon={<Banknote className="h-4 w-4 text-amber-500" />}
+        />
+        <AgentStatCard
+          label="Safety buffer"
+          value={hide ? "••••••" : formatMoney(till.targetSafetyBuffer, "NGN")}
+          sub={<AgentChip label={till.liquidityStatus} tone={lowCash ? "amber" : "green"} />}
+          accent={lowCash ? "rose" : "neutral"}
+        />
+      </section>
+
+      {/* Sweep + top-up */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <section aria-labelledby="sweep-title" className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-2">
+            <Landmark className="h-4 w-4 text-stone-400" aria-hidden="true" />
+            <h2 id="sweep-title" className="text-sm font-bold text-stone-900">
+              Sweep float to settlement
+            </h2>
           </div>
-          <div className="text-[10px] text-slate-400 font-sans">Providus Clearing Rail</div>
-        </div>
-
-        <div className="p-5 rounded-3xl bg-[#090f1e] border border-white/10 space-y-1">
-          <div className="text-[10px] uppercase text-slate-400">Physical Cash In Hand</div>
-          <div className="text-2xl font-extrabold text-white">
-            ₦{liquidity.cashInHand.toLocaleString()}
+          <p className="mt-2 text-xs leading-relaxed text-stone-500">
+            Moves the full digital float to your Providus settlement account as a real double-entry journal
+            (float liability debit → clearing pool credit). Nothing here is simulated.
+          </p>
+          <div className="mt-4 flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => void handleSweep()}
+              disabled={sweeping || float.availableFloat <= 0}
+              className="inline-flex items-center gap-2 rounded-xl bg-stone-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-stone-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-500 focus-visible:ring-offset-2 disabled:opacity-50"
+            >
+              <RefreshCw className={`h-4 w-4 ${sweeping ? "animate-spin" : ""}`} aria-hidden="true" />
+              {sweeping ? "Sweeping…" : `Sweep ${hide ? "" : formatMoney(float.availableFloat, "NGN")}`}
+            </button>
+            {summary.settlements.length > 0 ? (
+              <span className="text-[11px] text-stone-400">
+                Last sweep {new Date(summary.settlements[0].requestedAt).toLocaleDateString("en-GB")} ·{" "}
+                {formatMoney(summary.settlements[0].amount, "NGN")}
+              </span>
+            ) : null}
           </div>
-          <div className="text-[10px] text-slate-400 font-sans">Vault Physical Count</div>
-        </div>
+        </section>
 
-        <div className="p-5 rounded-3xl bg-gradient-to-br from-amber-950/40 to-[#090f1e] border border-amber-500/30 space-y-1">
-          <div className="text-[10px] uppercase text-amber-400 font-bold">Total Liquidity</div>
-          <div className="text-2xl font-extrabold text-white">
-            ₦{liquidity.totalLiquidity.toLocaleString()}
+        <section aria-labelledby="topup-title" className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-2">
+            <Wallet className="h-4 w-4 text-emerald-600" aria-hidden="true" />
+            <h2 id="topup-title" className="text-sm font-bold text-stone-900">
+              Dedicated float top-up account
+            </h2>
           </div>
-          <div className="text-[10px] text-emerald-400 font-sans">● {liquidity.health} Status</div>
-        </div>
-      </div>
-
-      {/* Dedicated Float Top-Up Account */}
-      <div className="rounded-3xl bg-[#090f1e] border border-white/10 p-5 space-y-3 shadow-xl text-xs">
-        <h2 className="text-xs font-mono uppercase font-bold text-slate-400 tracking-wider">
-          Dedicated Float Top-Up Account
-        </h2>
-        <p className="text-slate-400">
-          Transfer funds from any Nigerian bank to this dedicated NUBAN to instantly top up your agency wallet float.
-        </p>
-
-        <div className="p-4 rounded-2xl bg-slate-950/70 border border-white/5 flex items-center justify-between font-mono">
-          <div>
-            <div className="text-slate-400 text-[10px]">Providus Bank (Agent Float Sweeper)</div>
-            <div className="text-base font-extrabold text-white mt-0.5">0123984123</div>
-            <div className="text-slate-400 text-[11px] font-sans">
-              KoriePay / {agent.businessName}
+          <p className="mt-2 text-xs leading-relaxed text-stone-500">
+            Transfer from any Nigerian bank to instantly top up your agency wallet float.
+          </p>
+          <div className="mt-4 flex items-center justify-between rounded-xl bg-stone-50 p-4 ring-1 ring-stone-100">
+            <div>
+              <p className="text-[11px] text-stone-400">Providus Bank (Agent Float)</p>
+              <p className="font-mono text-lg font-bold text-stone-900">0123984123</p>
+              <p className="text-[11px] text-stone-500">KoriePay / {summary.agent.tradingName}</p>
+            </div>
+            <div className="flex flex-col items-end gap-2">
+              <AgentChip label="Real-time credit" tone="green" />
+              <button
+                type="button"
+                onClick={() => void copyNuban()}
+                className="inline-flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-stone-600 shadow-sm hover:bg-stone-100"
+              >
+                {copied ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
+                {copied ? "Copied" : "Copy"}
+              </button>
             </div>
           </div>
-          <span className="px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 text-[10px] font-bold">
-            ● Real-Time Credit
-          </span>
-        </div>
+        </section>
       </div>
+
+      {/* Settlement history */}
+      <section aria-labelledby="settlement-history-title">
+        <h2 id="settlement-history-title" className="text-sm font-bold text-stone-900">
+          Settlement history
+        </h2>
+        {summary.settlements.length === 0 ? (
+          <p className="mt-2 rounded-xl border border-dashed border-stone-300 bg-white p-6 text-center text-xs text-stone-500">
+            No sweeps yet — the sweep button above posts the first one with a real journal.
+          </p>
+        ) : (
+          <ul className="mt-2 space-y-2">
+            {summary.settlements.map((s) => (
+              <li key={s.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-stone-200 bg-white p-3 shadow-sm">
+                <span className="font-mono text-sm font-bold text-stone-900">{formatMoney(s.amount, "NGN")}</span>
+                <AgentChip label={s.status} tone="green" />
+                <span className="text-xs text-stone-500">
+                  {s.destinationBank} ({s.destinationAccountMasked})
+                </span>
+                <span className="ml-auto font-mono text-[10px] text-stone-400">{s.reference}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="mt-4">
+          <Link href="/agent/settlement" className="text-xs font-semibold text-emerald-700 hover:text-emerald-800">
+            View full settlement page →
+          </Link>
+        </p>
+      </section>
     </div>
   );
 }

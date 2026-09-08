@@ -1,203 +1,115 @@
 "use client";
 
-import React, { useRef } from "react";
-import { useAgent } from "../AgentContext";
-import KorieLogo from "@/components/brand/KorieLogo";
-import { SupportedLanguage } from "@/types/customer";
-import {
-  X,
-  Printer,
-  Share2,
-  CheckCircle2,
-  Copy,
-  Building2,
-  Smartphone,
-  QrCode,
-  ShieldCheck,
-} from "lucide-react";
+// =============================================================================
+// Agent operation receipt — light design. Shows the REAL ledger journal id +
+// payment reference recorded by the engine for the operation.
+// =============================================================================
 
-export const AgentReceiptModal: React.FC = () => {
-  const {
-    isReceiptModalOpen,
-    selectedReceiptTx: tx,
-    closeReceipt,
-    agent,
-    receiptLanguage,
-    setReceiptLanguage,
-    t,
-  } = useAgent();
+import React from "react";
+import { useAgentPortal } from "../AgentContext";
+import { AgentModal, AgentChip, statusTone } from "./AgentUi";
+import { CheckCircle2, X, Printer, ReceiptText } from "lucide-react";
+import { formatMoney } from "@/lib/money";
+import type { AgentPortalOperationType } from "@/types/agentPortal";
 
-  const [copiedRef, setCopiedRef] = React.useState(false);
+export function formatAgentDateTime(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return iso;
+  }
+}
 
-  if (!isReceiptModalOpen || !tx) return null;
+export default function AgentReceiptModal() {
+  const { isReceiptOpen, closeReceipt, selectedReceipt } = useAgentPortal();
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(tx.reference);
-    setCopiedRef(true);
-    setTimeout(() => setCopiedRef(false), 2000);
-  };
+  if (!isReceiptOpen || !selectedReceipt) return null;
+  const op: AgentPortalOperationType = selectedReceipt;
 
-  const handlePrint = () => {
-    window.print();
-  };
-
-  const handleShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `KoriePay Agency Receipt — ${tx.reference}`,
-          text: `Official Receipt: ₦${tx.amount.toLocaleString()} ${tx.type.replace(/_/g, " ")} via Agent ${agent.agentName} (${agent.agentCode}). Ref: ${tx.reference}`,
-          url: window.location.href,
-        });
-      } catch {
-        handleCopy();
-      }
-    } else {
-      handleCopy();
-    }
-  };
+  const rows: { label: string; value: React.ReactNode }[] = [
+    { label: "Reference", value: <span className="font-mono text-xs">{op.reference}</span> },
+    op.ledgerJournalId
+      ? { label: "Ledger journal", value: <span className="font-mono text-xs">{op.ledgerJournalId}</span> }
+      : null,
+    { label: "Type", value: op.type },
+    { label: "Amount", value: formatMoney(op.amount, op.currency) },
+    { label: "Customer fee", value: formatMoney(op.customerFee || 0, op.currency) },
+    { label: "Agent commission", value: formatMoney(op.agentCommission || 0, op.currency) },
+    op.customerName ? { label: "Customer", value: op.customerName } : null,
+    op.customerBank ? { label: "Destination bank", value: `${op.customerBank}${op.customerAccount ? ` (••${op.customerAccount.slice(-4)})` : ""}` } : null,
+    { label: "Terminal", value: <span className="font-mono text-xs">{op.terminalId}</span> },
+    { label: "Completed", value: formatAgentDateTime(op.completedAt || op.createdAt) },
+  ].filter(Boolean) as { label: string; value: React.ReactNode }[];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg rounded-3xl bg-[#090f1e] border border-white/15 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/10 bg-slate-950/50">
-          <div className="flex items-center gap-2">
-            <KorieLogo variant="compact" theme="dark" height={22} />
-            <span className="text-[10px] font-mono font-bold uppercase text-slate-400">
-              Agency POS Transaction Slip
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {/* Customer Receipt Language Selector (EN / HA / FR) */}
-            <select
-              value={receiptLanguage}
-              onChange={(e) => setReceiptLanguage(e.target.value as SupportedLanguage)}
-              className="px-2 py-1 rounded-lg bg-slate-900 border border-white/10 text-[11px] font-mono font-bold text-white focus:outline-none"
-            >
-              <option value="ha">🇳🇬 Hausa Receipt</option>
-              <option value="en">🇬🇧 English Receipt</option>
-              <option value="fr">🇳🇪 Français Receipt</option>
-            </select>
-
-            <button
-              onClick={closeReceipt}
-              className="p-1.5 rounded-full hover:bg-white/10 text-slate-400 hover:text-white"
-            >
-              <X className="w-5 h-5" />
-            </button>
+    <AgentModal open onClose={closeReceipt} labelledBy="agent-receipt-title">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200">
+            <ReceiptText className="h-5 w-5" aria-hidden="true" />
+          </span>
+          <div>
+            <h2 id="agent-receipt-title" className="text-base font-bold text-stone-900">
+              {op.title}
+            </h2>
+            <div className="mt-0.5 flex items-center gap-2">
+              <AgentChip label={op.status} tone={statusTone(op.status)} />
+              {op.type === "CASH_OUT" ? <AgentChip label="Cash-out" tone="amber" /> : null}
+            </div>
           </div>
         </div>
-
-        {/* Scrollable Receipt Body */}
-        <div className="p-6 overflow-y-auto space-y-5 text-xs">
-          {/* Status & Amount */}
-          <div className="text-center space-y-1 py-1">
-            <div className="w-12 h-12 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mx-auto mb-2">
-              <CheckCircle2 className="w-7 h-7" />
-            </div>
-
-            <div className="text-3xl font-extrabold text-white font-mono tracking-tight">
-              ₦{tx.amount.toLocaleString()}
-            </div>
-
-            <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-              ● {tx.status}
-            </div>
-
-            <p className="text-xs text-slate-400 pt-1">{tx.title}</p>
-          </div>
-
-          {/* Vended Token if Electricity */}
-          {tx.billerToken && (
-            <div className="p-4 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-center space-y-1">
-              <span className="text-[10px] font-mono uppercase text-amber-300 font-bold">
-                ⚡ ELECTRICITY TOKEN (KEDCO / AEDC)
-              </span>
-              <div className="text-lg font-mono font-extrabold text-amber-200 select-all">
-                {tx.billerToken}
-              </div>
-            </div>
-          )}
-
-          {/* Key Slip Fields */}
-          <div className="rounded-2xl bg-white/[0.03] border border-white/5 divide-y divide-white/5">
-            <div className="flex items-center justify-between p-3">
-              <span className="text-slate-400">Transaction Reference</span>
-              <span className="font-mono text-emerald-400 font-bold">{tx.reference}</span>
-            </div>
-
-            <div className="flex items-center justify-between p-3">
-              <span className="text-slate-400">Customer Name</span>
-              <span className="font-bold text-white">{tx.customerName}</span>
-            </div>
-
-            {tx.customerAccount && (
-              <div className="flex items-center justify-between p-3">
-                <span className="text-slate-400">Account / Bank</span>
-                <span className="text-slate-200 font-mono">
-                  {tx.customerBank} ({tx.customerAccount})
-                </span>
-              </div>
-            )}
-
-            <div className="flex items-center justify-between p-3">
-              <span className="text-slate-400">Agent Business</span>
-              <span className="text-white font-semibold">{agent.businessName}</span>
-            </div>
-
-            <div className="flex items-center justify-between p-3">
-              <span className="text-slate-400">Agent Code / Terminal</span>
-              <span className="font-mono text-slate-300">
-                {agent.agentCode} • {tx.terminalId}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between p-3">
-              <span className="text-slate-400">Customer Fee</span>
-              <span className="font-mono text-slate-200">₦{tx.customerFee}</span>
-            </div>
-
-            <div className="flex items-center justify-between p-3 bg-emerald-500/5">
-              <span className="text-emerald-400 font-semibold">Agent Commission Earned</span>
-              <span className="font-mono font-bold text-emerald-400">+₦{tx.agentCommission}</span>
-            </div>
-
-            <div className="flex items-center justify-between p-3 bg-white/[0.02]">
-              <span className="text-white font-bold">Total Settled Amount</span>
-              <span className="text-white font-bold font-mono text-sm">
-                ₦{tx.totalAmount.toLocaleString()}
-              </span>
-            </div>
-          </div>
-
-          <div className="text-[10px] text-slate-500 text-center font-mono leading-relaxed">
-            Issued via KoriePay Agency Terminal Rail. Supervised by CBN & BCEAO frameworks.
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="p-4 border-t border-white/10 bg-slate-950/70 flex items-center justify-between gap-2">
-          <button
-            onClick={handleShare}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-white transition-colors"
-          >
-            <Share2 className="w-4 h-4" />
-            <span>Share Slip</span>
-          </button>
-
-          <button
-            onClick={handlePrint}
-            className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-colors shadow-lg shadow-amber-500/20"
-          >
-            <Printer className="w-4 h-4" />
-            <span>Print POS Receipt</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={closeReceipt}
+          aria-label="Close receipt"
+          className="rounded-lg p-1.5 text-stone-400 transition hover:bg-stone-100 hover:text-stone-700"
+        >
+          <X className="h-5 w-5" />
+        </button>
       </div>
-    </div>
-  );
-};
 
-export default AgentReceiptModal;
+      <div className="mt-4 rounded-xl bg-stone-50 p-4 ring-1 ring-stone-100">
+        <p className="font-mono text-2xl font-bold text-stone-900">
+          {formatMoney(op.amount + (op.customerFee || 0), op.currency)}
+        </p>
+        <p className="mt-0.5 flex items-center gap-1 text-[11px] text-emerald-600">
+          <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+          Recorded on the engine ledger · {formatAgentDateTime(op.createdAt)}
+        </p>
+      </div>
+
+      <dl className="mt-4 divide-y divide-stone-100">
+        {rows.map((r) => (
+          <div key={r.label} className="flex items-start justify-between gap-4 py-2.5">
+            <dt className="text-xs text-stone-500">{r.label}</dt>
+            <dd className="text-right text-xs font-semibold text-stone-800">{r.value}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <div className="mt-4 flex gap-2">
+        <button
+          type="button"
+          onClick={() => window.print()}
+          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-stone-300 px-4 py-2.5 text-sm font-semibold text-stone-700 transition hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+        >
+          <Printer className="h-4 w-4" aria-hidden="true" />
+          Print
+        </button>
+        <button
+          type="button"
+          onClick={closeReceipt}
+          className="inline-flex flex-1 items-center justify-center rounded-xl bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-stone-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-500"
+        >
+          Done
+        </button>
+      </div>
+    </AgentModal>
+  );
+}

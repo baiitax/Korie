@@ -1,84 +1,99 @@
 "use client";
 
+// =============================================================================
+// Agency shell — light customer-portal design language. Consumes the engine-
+// backed AgentPortal context (no mock constants). Modals render receipt +
+// daily cash reconciliation over the new light kit.
+// =============================================================================
+
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useAgent } from "../AgentContext";
+import { useAgentPortal } from "../AgentContext";
 import { KorieFloatingRail, KorieDock } from "@/components/nav/KorieFloatingRail";
 import KorieLogo from "@/components/brand/KorieLogo";
 import ShellAccount from "@/components/ui/ShellAccount";
 import PortalFooter from "@/components/ui/PortalFooter";
 import AgentReceiptModal from "./AgentReceiptModal";
-import DailyReconciliationModal from "./DailyReconciliationModal";
 import {
   Home,
   ArrowDownLeft,
   ArrowUpRight,
   ArrowRightLeft,
-  Zap,
   Users,
   Activity,
   Coins,
   FileSpreadsheet,
-  CheckCircle2,
-  Smartphone,
+  BadgePercent,
   ShieldCheck,
+  Smartphone,
   LifeBuoy,
   Settings,
-  Bell,
   Eye,
   EyeOff,
   WifiOff,
   Radio,
-  ChevronRight,
+  Store,
 } from "lucide-react";
+import { AgentFreshnessBar } from "./AgentUi";
+import { formatMoney } from "@/lib/money";
 
 export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
   const {
-    agent,
-    liquidity,
+    summary,
     isBalanceHidden,
     toggleHideBalance,
     language,
     setLanguage,
-    terminal,
-    isOffline,
-    t,
-    notificationsCount,
-  } = useAgent();
+    phase,
+    refresh,
+    refreshedAt,
+  } = useAgentPortal();
+
+  const profile = summary?.agent;
+  const float = summary?.float;
+  const till = summary?.till;
+
+  const isOnPortalHome = pathname === "/agent" || pathname === "/agent/";
+  const railActive = new Set([
+    "/agent", "/agent/cash-in", "/agent/cash-out", "/agent/transfer",
+    "/agent/transactions", "/agent/customers", "/agent/liquidity",
+    "/agent/commissions", "/agent/settlement", "/agent/reconciliation",
+    "/agent/terminals", "/agent/support", "/agent/adashi", "/agent/profile",
+  ]);
 
   const desktopNavGroups = [
     {
-      title: "COMMAND CENTER",
+      title: "Overview",
       items: [{ label: "Executive Overview", href: "/agent", icon: Home }],
     },
     {
-      title: "OPERATIONS",
+      title: "Operations",
       items: [
-        { label: t("common.cashIn"), href: "/agent/cash-in", icon: ArrowDownLeft },
-        { label: t("common.cashOut"), href: "/agent/cash-out", icon: ArrowUpRight },
+        { label: "Cash In", href: "/agent/cash-in", icon: ArrowDownLeft },
+        { label: "Cash Out", href: "/agent/cash-out", icon: ArrowUpRight },
+        { label: "Send Transfer", href: "/agent/transfer", icon: ArrowRightLeft },
+        { label: "Customers", href: "/agent/customers", icon: Users },
+        { label: "Transactions", href: "/agent/transactions", icon: Activity },
         { label: "Adashi / Ajo (ROSCA)", href: "/agent/adashi", icon: Coins },
-        { label: t("common.sendTransfer"), href: "/agent/transfer", icon: ArrowRightLeft },
-        { label: t("common.customers"), href: "/agent/customers", icon: Users },
-        { label: t("common.transactions"), href: "/agent/transactions", icon: Activity },
       ],
     },
     {
-      title: "FINANCIAL & FLOAT",
+      title: "Float & Money",
       items: [
-        { label: t("common.liquidityCenter"), href: "/agent/liquidity", icon: Coins },
-        { label: t("common.commissions"), href: "/agent/commissions", icon: CheckCircle2 },
-        { label: t("common.reconciliation"), href: "/agent/reconciliation", icon: FileSpreadsheet },
+        { label: "Float & Liquidity", href: "/agent/liquidity", icon: Coins },
+        { label: "Commissions", href: "/agent/commissions", icon: BadgePercent },
+        { label: "Cash Reconciliation", href: "/agent/reconciliation", icon: FileSpreadsheet },
         { label: "Bank Settlements", href: "/agent/settlement", icon: ShieldCheck },
       ],
     },
     {
-      title: "HARDWARE & SETTINGS",
+      title: "Device & Support",
       items: [
-        { label: t("common.terminals"), href: "/agent/terminals", icon: Smartphone },
-        { label: t("common.support"), href: "/agent/support", icon: LifeBuoy },
-        { label: t("common.settings"), href: "/agent/settings", icon: Settings },
+        { label: "POS Terminal", href: "/agent/terminals", icon: Smartphone },
+        { label: "Support & Disputes", href: "/agent/support", icon: LifeBuoy },
+        { label: "Settings", href: "/agent/settings", icon: Settings },
       ],
     },
   ];
@@ -91,144 +106,132 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
     { label: "More", href: "/agent/settings", icon: Settings },
   ];
 
+  const offline = typeof navigator !== "undefined" && !navigator.onLine;
+
   return (
-    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] flex flex-col antialiased selection:bg-amber-500 selection:text-slate-950">
-      {/* Offline Warning Banner */}
-      {isOffline && (
-        <div className="bg-rose-600 text-white text-xs font-semibold px-4 py-2 flex items-center justify-center gap-2 sticky top-0 z-50">
-          <WifiOff className="w-4 h-4 animate-pulse" />
-          <span>Offline Network: Financial transactions blocked for liquidity safety.</span>
+    <div className="flex min-h-screen flex-col bg-[var(--background,#f5f8fc)] text-[var(--foreground,#0e1a2b)] antialiased">
+      {offline && (
+        <div className="sticky top-0 z-50 flex items-center justify-center gap-2 bg-rose-600 px-4 py-2 text-xs font-semibold text-white">
+          <WifiOff className="h-4 w-4" />
+          <span>Offline — financial transactions are blocked until you reconnect.</span>
         </div>
       )}
 
       <div className="flex flex-1">
-        {/* Desktop floating navigation rail (premium spec) */}
         <KorieFloatingRail
           groups={desktopNavGroups.map((g) => ({ title: g.title, items: g.items.map((it) => ({ label: it.label, href: it.href, icon: it.icon })) }))}
-          primary={[
-            '/agent', '/agent/cash-in', '/agent/cash-out', '/agent/transfer',
-            '/agent/transactions', '/agent/customers', '/agent/liquidity',
-            '/agent/commissions', '/agent/settings',
-          ]}
+          primary={Array.from(railActive)}
           role="AGENCY OPS"
-          tone="amber"
+          tone="emerald"
           word="KoriePay Agent"
           settingsHref="/agent/settings"
           storeKey="korie_agent_rail"
           context={
-            <div className="p-2.5 rounded-2xl bg-[var(--surface-2)] border border-[var(--border)] space-y-1.5">
-              <div className="text-[10px] font-mono text-[var(--muted,#64748b)] uppercase tracking-wider">
-                {t("common.availableLiquidity")}
+            <div className="space-y-1.5 rounded-2xl border border-stone-200 bg-white p-3 shadow-sm">
+              <div className="text-[10px] font-mono uppercase tracking-wider text-stone-400">
+                Wallet float
               </div>
-              <div className="text-base font-extrabold text-[var(--foreground)] font-mono">
-                {isBalanceHidden ? "••••••••" : `₦${liquidity.totalLiquidity.toLocaleString()}`}
+              <div className="font-mono text-base font-extrabold text-stone-900">
+                {isBalanceHidden || !float ? "••••••••" : formatMoney(float.availableFloat, "NGN")}
               </div>
-              <div className="flex items-center justify-between text-[10px] text-[var(--muted,#64748b)] font-mono pt-1">
-                <span>Cash: ₦{liquidity.cashInHand.toLocaleString()}</span>
-                <span className="text-[var(--brand-primary,#059669)] font-bold">● {liquidity.health}</span>
+              <div className="flex items-center justify-between border-t border-stone-100 pt-1.5 font-mono text-[10px] text-stone-500">
+                <span>Cash: {isBalanceHidden ? "•••••" : formatMoney(till?.availablePhysicalCash || 0, "NGN")}</span>
+                <span className="font-bold text-emerald-600">● {till?.liquidityStatus || "HEALTHY"}</span>
               </div>
             </div>
           }
           footer={
-            <div className="flex items-center justify-between rounded-xl bg-[var(--surface-2)] border border-[var(--border)] px-2.5 py-2 text-xs">
+            <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-white px-2.5 py-2 shadow-sm">
               <div className="min-w-0">
-                <div className="font-bold text-[var(--foreground)] truncate">{agent.agentName}</div>
-                <div className="text-[10px] text-[var(--brand-primary,#059669)] font-mono">{agent.agentCode}</div>
+                <div className="truncate text-xs font-bold text-stone-800">{profile?.tradingName || "Agency"}</div>
+                <div className="font-mono text-[10px] text-emerald-600">{profile?.agentCode || ""}</div>
               </div>
-              <span className="text-[10px] font-mono text-[var(--muted,#64748b)]">{terminal.model.slice(-2)}</span>
+              <span className="font-mono text-[10px] text-stone-400">{profile?.tier || ""}</span>
             </div>
           }
         />
 
-
-        {/* Center Main Column */}
-        <div className="flex-1 flex flex-col min-w-0 pb-20 lg:pb-8">
-          {/* Top Sticky Header */}
-          <header className="sticky top-0 z-30 glass-nav px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <Link href="/agent" className="lg:hidden flex items-center">
-                <KorieLogo variant="compact" theme="dark" height={26} linkHref="" />
-              </Link>
-              <div className="hidden lg:block">
-                <span className="text-xs text-slate-400">{agent.businessName}</span>
-                <div className="text-sm font-bold text-white flex items-center gap-2">
-                  <span>{agent.agentName}</span>
-                  <span className="px-2 py-0.2 rounded text-[10px] font-mono bg-amber-500/15 text-amber-300 border border-amber-500/20">
-                    {agent.tier}
-                  </span>
+        <div className="flex min-w-0 flex-1 flex-col pb-20 lg:pb-8">
+          <header className="glass-nav sticky top-0 z-30 border-b border-stone-200/70 px-4 py-3 sm:px-6">
+            <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <Link href="/agent" className="flex items-center lg:hidden">
+                  <KorieLogo variant="compact" height={26} linkHref="" />
+                </Link>
+                <div className="hidden lg:block">
+                  <span className="text-xs text-stone-500">{profile?.tradingName || "Agency"}</span>
+                  <div className="flex items-center gap-2 text-sm font-bold text-stone-900">
+                    <span>{profile?.legalName || "Agency"}</span>
+                    <span className="rounded bg-emerald-50 px-1.5 py-0.5 font-mono text-[10px] font-bold text-emerald-700 ring-1 ring-emerald-200">
+                      {profile?.tier || "TIER_2"}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Right Controls */}
-            <div className="flex items-center gap-2 sm:gap-3">
-              {/* POS Status Badge */}
-              <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono font-bold">
-                <Radio className="w-3.5 h-3.5 animate-pulse" />
-                <span>{terminal.terminalId}</span>
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="hidden items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 font-mono text-xs font-bold text-emerald-700 sm:flex">
+                  <Radio className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>{summary?.terminal.terminalId || ""}</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={toggleHideBalance}
+                  aria-label={isBalanceHidden ? "Show balances" : "Hide balances"}
+                  className="rounded-lg border border-stone-200 bg-white p-2 text-stone-500 shadow-sm transition hover:bg-stone-50 hover:text-stone-800"
+                >
+                  {isBalanceHidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                </button>
+
+                <div className="flex items-center rounded-lg border border-stone-200 bg-white p-0.5 text-xs font-bold shadow-sm">
+                  {(["en", "ha", "fr"] as const).map((code) => (
+                    <button
+                      key={code}
+                      type="button"
+                      onClick={() => setLanguage(code)}
+                      aria-pressed={language === code}
+                      className={`rounded-md px-2 py-1 uppercase transition-colors ${
+                        language === code ? "bg-emerald-600 text-white" : "text-stone-400 hover:text-stone-600"
+                      }`}
+                    >
+                      {code}
+                    </button>
+                  ))}
+                </div>
+
+                <Link
+                  href="/agent/profile"
+                  aria-label="Agency profile"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-emerald-600 to-teal-500 text-xs font-extrabold text-white shadow-sm"
+                >
+                  {profile?.tradingName?.[0] || "A"}
+                </Link>
+                <ShellAccount />
               </div>
-
-              {/* Hide Balance Eye */}
-              <button
-                onClick={toggleHideBalance}
-                className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 transition-colors"
-                title={isBalanceHidden ? "Show Balance" : "Hide Balance"}
-              >
-                {isBalanceHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-              </button>
-
-              {/* Language Switcher */}
-              <div className="flex items-center p-0.5 rounded-xl bg-white/5 border border-white/10 text-xs font-mono font-bold">
-                <button
-                  onClick={() => setLanguage("ha")}
-                  className={`px-2 py-1 rounded-lg transition-colors ${
-                    language === "ha" ? "bg-amber-500 text-slate-950" : "text-slate-400"
-                  }`}
-                >
-                  HA
-                </button>
-                <button
-                  onClick={() => setLanguage("en")}
-                  className={`px-2 py-1 rounded-lg transition-colors ${
-                    language === "en" ? "bg-amber-500 text-slate-950" : "text-slate-400"
-                  }`}
-                >
-                  EN
-                </button>
-                <button
-                  onClick={() => setLanguage("fr")}
-                  className={`px-2 py-1 rounded-lg transition-colors ${
-                    language === "fr" ? "bg-amber-500 text-slate-950" : "text-slate-400"
-                  }`}
-                >
-                  FR
-                </button>
-              </div>
-
-              {/* Profile Avatar */}
-              <Link
-                href="/agent/profile"
-                className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-500 text-slate-950 flex items-center justify-center font-extrabold text-xs shadow-md shadow-amber-500/20"
-              >
-                AG
-              </Link>
-
-              {/* Day / Night + Sign out */}
-              <ShellAccount />
             </div>
           </header>
 
-          <main className="flex-1 w-full max-w-6xl mx-auto">{children}</main>
+          <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-6 pt-5 sm:px-6">
+            {isOnPortalHome && phase === "ready" ? (
+              <div className="mb-4">
+                <AgentFreshnessBar
+                  refreshedAt={refreshedAt}
+                  refreshing={false}
+                  onRefresh={() => void refresh({ silent: true })}
+                  note={`${summary?.recentOperations.length ?? 0} operations today`}
+                />
+              </div>
+            ) : null}
+            {children}
+          </main>
           <PortalFooter portal="agency" />
         </div>
       </div>
 
-      {/* Mobile Fixed Bottom Navigation (48px+ touch targets) */}
       <KorieDock items={mobileBottomNavItems} />
 
-      {/* Universal Agency Modals */}
       <AgentReceiptModal />
-      <DailyReconciliationModal />
     </div>
   );
 };

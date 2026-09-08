@@ -1,438 +1,267 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
-import {
-  AgentUser,
-  AgentLiquidity,
-  AgentCustomer,
-  AgencyTransaction,
-  DailyCashReconciliation,
-  AgentTerminalInfo,
-  AgencyRiskAlert,
-  AgentCurrency,
-} from "@/types/agent";
+// =============================================================================
+// Agent portal context — v2 (customer-portal discipline).
+// ---------------------------------------------------------------------------
+// Everything on screen comes from /api/agent/* (engine truth), fetched with a
+// bearer credential and normalized error states. Client state only holds
+// preferences (language, hide-balance) and modal UI. There are no mock
+// constants here — the previous context imported agentDataService mocks.
+// =============================================================================
+
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { SupportedLanguage } from "@/types/customer";
-import {
-  CURRENT_AGENT,
-  INITIAL_LIQUIDITY,
-  AGENT_CUSTOMERS,
-  AGENCY_TRANSACTIONS,
-  DAILY_RECONCILIATIONS,
-  ACTIVE_TERMINAL,
-  AGENCY_ALERTS,
-  calculateAgentCommission,
-} from "@/services/agentDataService";
-import { translateAgency } from "@/locales/agency";
+import { getPortalBearer } from "@/lib/customerPortalClient";
+import { AgentPortalOperationType, AgentPortalSummary } from "@/types/agentPortal";
 
-interface CashInExecutionParams {
-  customerName: string;
-  customerAccount: string;
-  customerBank: string;
-  customerPhone?: string;
-  amount: number;
-}
+export type AgentLoadPhase = "loading" | "ready" | "error";
 
-interface CashOutExecutionParams {
-  customerName: string;
-  customerAccount: string;
-  customerBank: string;
-  customerPhone?: string;
-  amount: number;
-}
+export interface AgentPortalContextValue {
+  phase: AgentLoadPhase;
+  errorMessage: string;
+  refreshedAt: string | null;
+  summary: AgentPortalSummary | null;
+  refresh: (opts?: { silent?: boolean }) => Promise<void>;
 
-interface AgentContextType {
-  agent: AgentUser;
-  liquidity: AgentLiquidity;
-  currency: AgentCurrency;
-  setCurrency: (c: AgentCurrency) => void;
-  isBalanceHidden: boolean;
-  toggleHideBalance: () => void;
+  // Preferences (local)
   language: SupportedLanguage;
   setLanguage: (lang: SupportedLanguage) => void;
-  t: (key: string, params?: Record<string, string | number>) => string;
-  customers: AgentCustomer[];
-  transactions: AgencyTransaction[];
-  terminal: AgentTerminalInfo;
-  alerts: AgencyRiskAlert[];
-  reconciliations: DailyCashReconciliation[];
-  isOffline: boolean;
+  isBalanceHidden: boolean;
+  toggleHideBalance: () => void;
 
-  // Modals & Sheets
-  isReceiptModalOpen: boolean;
-  selectedReceiptTx: AgencyTransaction | null;
-  receiptLanguage: SupportedLanguage;
-  setReceiptLanguage: (lang: SupportedLanguage) => void;
-  openReceipt: (tx: AgencyTransaction) => void;
-  closeReceipt: () => void;
-
-  isReconciliationModalOpen: boolean;
-  openReconciliation: () => void;
-  closeReconciliation: () => void;
-
-  // Operations
-  executeCashIn: (params: CashInExecutionParams) => Promise<{
-    success: boolean;
-    transaction?: AgencyTransaction;
-    error?: string;
-  }>;
-
-  executeCashOut: (params: CashOutExecutionParams) => Promise<{
-    success: boolean;
-    transaction?: AgencyTransaction;
-    error?: string;
-  }>;
-
-  executeTransfer: (params: {
-    recipientName: string;
-    recipientBank: string;
-    recipientAccount: string;
+  // Money operations (BFF-backed, idempotent)
+  executeOperation: (params: {
+    kind: "CASH_IN" | "CASH_OUT" | "TRANSFER_NIP";
     amount: number;
-  }) => Promise<{
+    customerName?: string;
+    customerPhone?: string;
+    customerAccount?: string;
+    customerBank?: string;
+  }) => Promise<{ success: boolean; operation?: AgentPortalOperationType; code?: string; message?: string }>;
+
+  submitDailyCashCount: (denominations: Record<string, number>) => Promise<{
     success: boolean;
-    transaction?: AgencyTransaction;
-    error?: string;
+    message?: string;
   }>;
 
-  submitReconciliation: (actualPhysicalCash: number, notes?: string) => Promise<{
+  sweepFloat: () => Promise<{ success: boolean; message?: string }>;
+
+  submitTicket: (params: {
+    category: string;
+    description: string;
+    disputedAmount: number;
+    transactionReference?: string;
+    customerName?: string;
+    customerPhone?: string;
+  }) => Promise<{ success: boolean; message?: string }>;
+
+  onboardCustomer: (params: { fullName: string; phone: string; email: string }) => Promise<{
     success: boolean;
-    record?: DailyCashReconciliation;
+    message?: string;
   }>;
 
-  notificationsCount: number;
+  toggleBookmark: (customerKey: string) => Promise<{ bookmarked: boolean }>;
+
+  // Receipt modal
+  isReceiptOpen: boolean;
+  selectedReceipt: AgentPortalOperationType | null;
+  openReceipt: (op: AgentPortalOperationType) => void;
+  closeReceipt: () => void;
 }
 
-const AgentContext = createContext<AgentContextType | undefined>(undefined);
+const AgentPortalContext = createContext<AgentPortalContextValue | undefined>(undefined);
 
-export function AgentProvider({ children }: { children: React.ReactNode }) {
-  const [agent, setAgent] = useState<AgentUser>(CURRENT_AGENT);
-  const [liquidity, setLiquidity] = useState<AgentLiquidity>(INITIAL_LIQUIDITY);
-  const [currency, setCurrency] = useState<AgentCurrency>("NGN");
-  const [isBalanceHidden, setIsBalanceHidden] = useState<boolean>(false);
-  const [language, setLanguageState] = useState<SupportedLanguage>("ha");
-  const [receiptLanguage, setReceiptLanguage] = useState<SupportedLanguage>("ha");
-  const [customers, setCustomers] = useState<AgentCustomer[]>(AGENT_CUSTOMERS);
-  const [transactions, setTransactions] = useState<AgencyTransaction[]>(AGENCY_TRANSACTIONS);
-  const [terminal, setTerminal] = useState<AgentTerminalInfo>(ACTIVE_TERMINAL);
-  const [alerts, setAlerts] = useState<AgencyRiskAlert[]>(AGENCY_ALERTS);
-  const [reconciliations, setReconciliations] = useState<DailyCashReconciliation[]>(DAILY_RECONCILIATIONS);
-  const [isOffline, setIsOffline] = useState<boolean>(false);
-  const [notificationsCount, setNotificationsCount] = useState<number>(2);
+interface OperationOutcome {
+  success: boolean;
+  operation?: AgentPortalOperationType;
+  code?: string;
+  message?: string;
+}
 
-  // Modals
-  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
-  const [selectedReceiptTx, setSelectedReceiptTx] = useState<AgencyTransaction | null>(null);
-  const [isReconciliationModalOpen, setIsReconciliationModalOpen] = useState(false);
+async function postJson<T>(path: string, body: unknown): Promise<{ ok: boolean; data: T; status: number; message?: string }> {
+  try {
+    const res = await fetch(path, {
+      method: "POST",
+      headers: {
+        Authorization: getPortalBearer(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+    const payload = await res.json().catch(() => null);
+    const data = (payload as any)?.data;
+    if (!res.ok) {
+      return {
+        ok: false,
+        status: res.status,
+        data: undefined as never,
+        message: (payload as any)?.error?.message || `Request failed (${res.status})`,
+      };
+    }
+    return { ok: true, status: res.status, data: data as T };
+  } catch (err: any) {
+    return { ok: false, status: 0, data: undefined as never, message: err?.message || "Network error" };
+  }
+}
+
+export function AgentPortalProvider({ children }: { children: React.ReactNode }) {
+  const [phase, setPhase] = useState<AgentLoadPhase>("loading");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [summary, setSummary] = useState<AgentPortalSummary | null>(null);
+  const [refreshedAt, setRefreshedAt] = useState<string | null>(null);
+  const [language, setLanguageState] = useState<SupportedLanguage>("en");
+  const [isBalanceHidden, setIsBalanceHidden] = useState(false);
+
+  const [isReceiptOpen, setIsReceiptOpen] = useState(false);
+  const [selectedReceipt, setSelectedReceipt] = useState<AgentPortalOperationType | null>(null);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedLang = localStorage.getItem("koriepay_agent_lang") as SupportedLanguage;
-      if (savedLang) {
-        setLanguageState(savedLang);
-        setReceiptLanguage(savedLang);
-      }
-      const savedHide = localStorage.getItem("koriepay_agent_hide_balance");
-      if (savedHide) {
-        setIsBalanceHidden(savedHide === "true");
-      }
+    if (typeof window === "undefined") return;
+    const saved = localStorage.getItem("koriepay_agent_lang") as SupportedLanguage | null;
+    if (saved) setLanguageState(saved);
+    const savedHide = localStorage.getItem("koriepay_agent_hide_balance");
+    if (savedHide) setIsBalanceHidden(savedHide === "true");
+  }, []);
 
-      const handleOnline = () => setIsOffline(false);
-      const handleOffline = () => setIsOffline(true);
-      window.addEventListener("online", handleOnline);
-      window.addEventListener("offline", handleOffline);
-      setIsOffline(!navigator.onLine);
-
-      return () => {
-        window.removeEventListener("online", handleOnline);
-        window.removeEventListener("offline", handleOffline);
-      };
+  const refresh = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setPhase((p) => (p === "ready" ? p : "loading"));
+    try {
+      const res = await fetch("/api/agent/portal", {
+        headers: { Authorization: getPortalBearer(), Accept: "application/json" },
+      });
+      const payload = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error((payload as any)?.error?.message || "Could not load your agency portal.");
+      }
+      setSummary((payload as any)?.data as AgentPortalSummary);
+      setRefreshedAt(new Date().toISOString());
+      setPhase("ready");
+      setErrorMessage("");
+    } catch (err: any) {
+      setErrorMessage(err?.message || "Could not load your agency portal.");
+      setPhase("error");
     }
   }, []);
 
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
   const setLanguage = (lang: SupportedLanguage) => {
     setLanguageState(lang);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("koriepay_agent_lang", lang);
-    }
+    if (typeof window !== "undefined") localStorage.setItem("koriepay_agent_lang", lang);
   };
 
   const toggleHideBalance = () => {
     setIsBalanceHidden((prev) => {
       const next = !prev;
-      if (typeof window !== "undefined") {
-        localStorage.setItem("koriepay_agent_hide_balance", String(next));
-      }
+      if (typeof window !== "undefined") localStorage.setItem("koriepay_agent_hide_balance", String(next));
       return next;
     });
   };
 
-  const t = (key: string, params?: Record<string, string | number>): string => {
-    return translateAgency(language, key, params);
+  const executeOperation: AgentPortalContextValue["executeOperation"] = async (params) => {
+    const idempotencyKey = `op-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const outcome: OperationOutcome = await (
+      await postJson<OperationOutcome>("/api/agent/operations", {
+        kind: params.kind,
+        amount: params.amount,
+        customerName: params.customerName,
+        customerPhone: params.customerPhone,
+        customerAccount: params.customerAccount,
+        customerBank: params.customerBank,
+        idempotencyKey,
+      })
+    ).data;
+    if (outcome.success) {
+      await refresh({ silent: true });
+      return { success: true, operation: outcome.operation, code: outcome.code };
+    }
+    return { success: false, code: outcome.code, message: outcome.message };
   };
 
-  const openReceipt = (tx: AgencyTransaction) => {
-    setSelectedReceiptTx(tx);
-    setIsReceiptModalOpen(true);
+  const submitDailyCashCount: AgentPortalContextValue["submitDailyCashCount"] = async (denominations) => {
+    const res = await postJson<{ reconciliation: unknown }>("/api/agent/reconciliations", { denominations });
+    if (res.ok) {
+      await refresh({ silent: true });
+      return { success: true };
+    }
+    return { success: false, message: res.message };
   };
 
+  const sweepFloat: AgentPortalContextValue["sweepFloat"] = async () => {
+    const res = await postJson<{ settlement: unknown }>("/api/agent/float/sweep", {});
+    if (res.ok) {
+      await refresh({ silent: true });
+      return { success: true };
+    }
+    return { success: false, message: res.message };
+  };
+
+  const submitTicket: AgentPortalContextValue["submitTicket"] = async (params) => {
+    const res = await postJson<{ ticket: unknown }>("/api/agent/support-tickets", params);
+    if (res.ok) {
+      await refresh({ silent: true });
+      return { success: true };
+    }
+    return { success: false, message: res.message };
+  };
+
+  const onboardCustomer: AgentPortalContextValue["onboardCustomer"] = async (params) => {
+    const res = await postJson<{ customer: unknown }>("/api/agent/customers/onboard", params);
+    if (res.ok) {
+      await refresh({ silent: true });
+      return { success: true };
+    }
+    return { success: false, message: res.message };
+  };
+
+  const toggleBookmark: AgentPortalContextValue["toggleBookmark"] = async (customerKey) => {
+    const res = await postJson<{ bookmarked: boolean }>("/api/agent/customers/bookmark", { customerKey });
+    if (res.ok) return res.data;
+    return { bookmarked: false };
+  };
+
+  const openReceipt = (op: AgentPortalOperationType) => {
+    setSelectedReceipt(op);
+    setIsReceiptOpen(true);
+  };
   const closeReceipt = () => {
-    setIsReceiptModalOpen(false);
-    setSelectedReceiptTx(null);
-  };
-
-  const openReconciliation = () => setIsReconciliationModalOpen(true);
-  const closeReconciliation = () => setIsReconciliationModalOpen(false);
-
-  // CASH-IN: Agent collects cash (+CashInHand), debits wallet float (-WalletFloat), credits customer bank
-  const executeCashIn = async (params: CashInExecutionParams) => {
-    if (isOffline) {
-      return { success: false, error: "Offline network. Transaction blocked for safety." };
-    }
-
-    if (liquidity.walletFloat < params.amount) {
-      return { success: false, error: "Insufficient wallet float balance. Please fund float." };
-    }
-
-    const { customerFee, agentCommission } = calculateAgentCommission("CASH_IN", params.amount);
-
-    // Update float state
-    setLiquidity((prev) => {
-      const newWalletFloat = prev.walletFloat - params.amount;
-      const newCash = prev.cashInHand + params.amount;
-      const newTotal = newWalletFloat + newCash;
-      const health = newCash < prev.cashThresholdMin ? "LOW" : "HEALTHY";
-
-      return {
-        ...prev,
-        walletFloat: newWalletFloat,
-        cashInHand: newCash,
-        totalLiquidity: newTotal,
-        todayCashInVolume: prev.todayCashInVolume + params.amount,
-        health,
-      };
-    });
-
-    setAgent((prev) => ({
-      ...prev,
-      commissionBalance: prev.commissionBalance + agentCommission,
-      dailyCashSpent: prev.dailyCashSpent + params.amount,
-    }));
-
-    const txId = `ag-tx-${Date.now()}`;
-    const newTx: AgencyTransaction = {
-      id: txId,
-      reference: `KP-2026-CSHIN-${Math.floor(10000 + Math.random() * 90000)}`,
-      providerReference: `PRV-INW-${Math.floor(100000 + Math.random() * 900000)}`,
-      type: "CASH_IN",
-      title: "Customer Cash-In Deposit",
-      amount: params.amount,
-      customerFee,
-      agentCommission,
-      totalAmount: params.amount,
-      currency: "NGN",
-      status: "SUCCESSFUL",
-      customerName: params.customerName,
-      customerPhone: params.customerPhone,
-      customerAccount: params.customerAccount,
-      customerBank: params.customerBank,
-      terminalId: terminal.terminalId,
-      agentId: agent.id,
-      createdAt: new Date().toISOString(),
-      completedAt: new Date().toISOString(),
-    };
-
-    setTransactions((prev) => [newTx, ...prev]);
-
-    return { success: true, transaction: newTx };
-  };
-
-  // CASH-OUT: Customer account is debited, agent wallet float is credited (+WalletFloat), agent dispenses cash (-CashInHand)
-  const executeCashOut = async (params: CashOutExecutionParams) => {
-    if (isOffline) {
-      return { success: false, error: "Offline network. Transaction blocked for safety." };
-    }
-
-    if (liquidity.cashInHand < params.amount) {
-      return {
-        success: false,
-        error: `Insufficient physical cash in hand. Available physical cash: ₦${liquidity.cashInHand.toLocaleString()}`,
-      };
-    }
-
-    const { customerFee, agentCommission } = calculateAgentCommission("CASH_OUT", params.amount);
-
-    // Update float state
-    setLiquidity((prev) => {
-      const newWalletFloat = prev.walletFloat + params.amount;
-      const newCash = prev.cashInHand - params.amount;
-      const newTotal = newWalletFloat + newCash;
-      const health = newCash < prev.cashThresholdMin ? "LOW" : "HEALTHY";
-
-      return {
-        ...prev,
-        walletFloat: newWalletFloat,
-        cashInHand: newCash,
-        totalLiquidity: newTotal,
-        todayCashOutVolume: prev.todayCashOutVolume + params.amount,
-        health,
-      };
-    });
-
-    setAgent((prev) => ({
-      ...prev,
-      commissionBalance: prev.commissionBalance + agentCommission,
-      dailyCashSpent: prev.dailyCashSpent + params.amount,
-    }));
-
-    const txId = `ag-tx-${Date.now()}`;
-    const newTx: AgencyTransaction = {
-      id: txId,
-      reference: `KP-2026-CSHOUT-${Math.floor(10000 + Math.random() * 90000)}`,
-      providerReference: `PRV-OUT-${Math.floor(100000 + Math.random() * 900000)}`,
-      type: "CASH_OUT",
-      title: "Customer Cash-Out Withdrawal",
-      amount: params.amount,
-      customerFee,
-      agentCommission,
-      totalAmount: params.amount + customerFee,
-      currency: "NGN",
-      status: "SUCCESSFUL",
-      customerName: params.customerName,
-      customerPhone: params.customerPhone,
-      customerAccount: params.customerAccount,
-      customerBank: params.customerBank,
-      terminalId: terminal.terminalId,
-      agentId: agent.id,
-      createdAt: new Date().toISOString(),
-      completedAt: new Date().toISOString(),
-    };
-
-    setTransactions((prev) => [newTx, ...prev]);
-
-    return { success: true, transaction: newTx };
-  };
-
-  const executeTransfer = async (params: {
-    recipientName: string;
-    recipientBank: string;
-    recipientAccount: string;
-    amount: number;
-  }) => {
-    if (isOffline) {
-      return { success: false, error: "Network offline." };
-    }
-
-    if (liquidity.walletFloat < params.amount + 50) {
-      return { success: false, error: "Insufficient wallet float." };
-    }
-
-    const { customerFee, agentCommission } = calculateAgentCommission("TRANSFER_NIP", params.amount);
-
-    setLiquidity((prev) => ({
-      ...prev,
-      walletFloat: prev.walletFloat - (params.amount + 50),
-      totalLiquidity: prev.totalLiquidity - 50,
-    }));
-
-    setAgent((prev) => ({
-      ...prev,
-      commissionBalance: prev.commissionBalance + agentCommission,
-    }));
-
-    const newTx: AgencyTransaction = {
-      id: `ag-tx-${Date.now()}`,
-      reference: `KP-2026-XFER-${Math.floor(10000 + Math.random() * 90000)}`,
-      type: "TRANSFER_NIP",
-      title: `Transfer to ${params.recipientName}`,
-      amount: params.amount,
-      customerFee,
-      agentCommission,
-      totalAmount: params.amount + customerFee,
-      currency: "NGN",
-      status: "SUCCESSFUL",
-      customerName: params.recipientName,
-      customerAccount: params.recipientAccount,
-      customerBank: params.recipientBank,
-      terminalId: terminal.terminalId,
-      agentId: agent.id,
-      createdAt: new Date().toISOString(),
-      completedAt: new Date().toISOString(),
-    };
-
-    setTransactions((prev) => [newTx, ...prev]);
-
-    return { success: true, transaction: newTx };
-  };
-
-  const submitReconciliation = async (actualPhysicalCash: number, notes?: string) => {
-    const openingCash = 500000;
-    const expectedClosingCash = openingCash + liquidity.todayCashInVolume - liquidity.todayCashOutVolume;
-    const difference = actualPhysicalCash - expectedClosingCash;
-    const status = difference === 0 ? "BALANCED" : "DISCREPANCY";
-
-    const record: DailyCashReconciliation = {
-      id: `rec-${Date.now()}`,
-      reconciliationDate: new Date().toISOString().slice(0, 10),
-      openingCash,
-      todayCashIn: liquidity.todayCashInVolume,
-      todayCashOut: liquidity.todayCashOutVolume,
-      expectedClosingCash,
-      actualPhysicalCash,
-      difference,
-      status: status === "BALANCED" ? "APPROVED" : "DISCREPANCY",
-      notes: notes || (status === "BALANCED" ? "Vault balanced with internal ledger." : "Cash variance recorded for supervisor review."),
-      submittedAt: new Date().toISOString(),
-      reviewedBy: "Kano Central Agency Lead",
-    };
-
-    setReconciliations((prev) => [record, ...prev]);
-    closeReconciliation();
-
-    return { success: true, record };
+    setIsReceiptOpen(false);
+    setSelectedReceipt(null);
   };
 
   return (
-    <AgentContext.Provider
+    <AgentPortalContext.Provider
       value={{
-        agent,
-        liquidity,
-        currency,
-        setCurrency,
-        isBalanceHidden,
-        toggleHideBalance,
+        phase,
+        errorMessage,
+        refreshedAt,
+        summary,
+        refresh,
         language,
         setLanguage,
-        t,
-        customers,
-        transactions,
-        terminal,
-        alerts,
-        reconciliations,
-        isOffline,
-        isReceiptModalOpen,
-        selectedReceiptTx,
-        receiptLanguage,
-        setReceiptLanguage,
+        isBalanceHidden,
+        toggleHideBalance,
+        executeOperation,
+        submitDailyCashCount,
+        sweepFloat,
+        submitTicket,
+        onboardCustomer,
+        toggleBookmark,
+        isReceiptOpen,
+        selectedReceipt,
         openReceipt,
         closeReceipt,
-        isReconciliationModalOpen,
-        openReconciliation,
-        closeReconciliation,
-        executeCashIn,
-        executeCashOut,
-        executeTransfer,
-        submitReconciliation,
-        notificationsCount,
       }}
     >
       {children}
-    </AgentContext.Provider>
+    </AgentPortalContext.Provider>
   );
 }
 
-export function useAgent() {
-  const context = useContext(AgentContext);
-  if (!context) {
-    throw new Error("useAgent must be used within an AgentProvider");
-  }
-  return context;
+export function useAgentPortal(): AgentPortalContextValue {
+  const ctx = useContext(AgentPortalContext);
+  if (!ctx) throw new Error("useAgentPortal must be used within AgentPortalProvider");
+  return ctx;
 }

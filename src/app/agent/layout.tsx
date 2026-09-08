@@ -1,13 +1,17 @@
 "use client";
 
+// =============================================================================
+// Agent portal root layout — engine-backed portal provider + light shell.
+// =============================================================================
+
 import React from "react";
-import { AgentProvider } from "@/components/agent/AgentContext";
+import { AgentPortalProvider } from "@/components/agent/AgentContext";
 import AgencyShell from "@/components/agent/ui/AgencyShell";
 
 export default function AgentRootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <AgentProvider>
+    <AgentPortalProvider>
       <AgencyShell>{children}</AgencyShell>
-    </AgentProvider>
+    </AgentPortalProvider>
   );
 }
