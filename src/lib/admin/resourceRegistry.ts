@@ -781,6 +781,11 @@ export const RESOURCES: Record<string, ResourceDef> = {
       status: { column: "status", op: "eq" },
       group_id: { column: "group_id", op: "eq" },
     },
+    // Read-only via the generic PATCH: PENDING payouts (maker-checker gate)
+    // must go through /api/admin/adashi/payouts/[id]/authorize, which calls
+    // public.authorize_adashi_payout() and enforces segregation of duties —
+    // a blind status PATCH here would let one admin fake-approve their own
+    // initiation, which is exactly the honesty rule this gate exists for.
   },
   "adashi-exceptions": {
     table: "adashi.exceptions",
@@ -815,7 +820,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
   },
   "board-reports": {
     table: "board_reports",
-    orderBy: "created_at",
+    orderBy: "published_at",
     search: ["report_code"],
     filters: { status: { column: "status", op: "eq" } },
   },

@@ -218,6 +218,11 @@ export default function LoginPage() {
               zainab.support@koriepay.internal<br />
               Password: KorieSupport@2026!
             </div>
+            <div className="text-[11px] font-semibold text-slate-300 pt-2">Command center admin (staff)</div>
+            <div className="text-[11px] text-slate-400 font-mono leading-relaxed">
+              admin@koriepay.internal<br />
+              Password: KorieAdmin@2026!
+            </div>
           </div>
         </AuthCard>
 

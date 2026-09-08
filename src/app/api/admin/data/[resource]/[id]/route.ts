@@ -170,19 +170,38 @@ export async function PATCH(
     );
   }
 
-  // Audit trail — the mutation is real and traceable.
-  await admin.from("audit_events").insert({
+  // Audit trail — the mutation is real and traceable. audit_events carries
+  // NOT NULL ip_address/request_id/correlation_id columns (see the same
+  // fix already applied to /api/compliance/actions/[action]); this insert
+  // was previously missing them, so it violated the NOT NULL constraint
+  // and failed silently on every single admin PATCH — no admin mutation
+  // was ever actually being recorded to the audit trail despite the
+  // response looking successful. Fixed to match the working pattern.
+  const requestId =
+    request.headers.get("x-kp-request-id") ??
+    request.headers.get("x-request-id") ??
+    `admin-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const { error: auditError } = await admin.from("audit_events").insert({
     org_id: auth.orgId ?? null,
-    actor_id: auth.userId ?? null,
-    actor_email: auth.email ?? null,
-    actor_role: auth.roleName ?? null,
+    actor_id: auth.userId ?? "00000000-0000-0000-0000-000000000000",
+    actor_email: auth.email ?? "unknown",
+    actor_role: auth.roleName ?? "UNKNOWN",
     action: "ADMIN_RESOURCE_UPDATE",
     resource_type: `admin:${params.resource}`,
     resource_id: params.id,
     details: { fields: Object.keys(patch) },
     before_state: before,
     after_state: updated,
+    ip_address: request.headers.get("x-forwarded-for") ?? "unrecorded",
+    request_id: requestId,
+    correlation_id: requestId,
   });
+  if (auditError) {
+    // The mutation itself already succeeded; surface the audit failure
+    // honestly rather than hiding it, since traceability is the whole
+    // point of this endpoint existing.
+    console.error(`[admin audit] failed to record mutation of ${params.resource}/${params.id}:`, auditError.message);
+  }
 
   return NextResponse.json({ status: "ok", resource: params.resource, record: updated });
 }

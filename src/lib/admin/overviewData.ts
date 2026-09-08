@@ -103,19 +103,23 @@ export async function buildAdminOverview(db: OverviewDb): Promise<AdminOverviewP
   const started = Date.now();
 
   // ── Database reachability (tiny probe) ────────────────────────────────
-  let database: AdminOverviewPayload["systemHealth"]["database"] = "unknown";
-  let databaseLatencyMs: number | undefined;
-  try {
-    const t0 = Date.now();
-    const { error } = await db.from("roles").select("name").limit(1);
-    databaseLatencyMs = Date.now() - t0;
-    database = error ? "unreachable" : "operational";
-  } catch {
-    database = "unreachable";
-  }
+  // Every section below is independent of every other section (and of this
+  // probe) — they previously ran as a chain of sequentially-awaited IIFEs,
+  // which meant the dashboard's total load time was the SUM of ~10 separate
+  // round trips instead of the time of the SLOWEST one. Kicked off first as
+  // its own promise and awaited together with everything else at the end.
+  const databaseProbe = (async () => {
+    try {
+      const t0 = Date.now();
+      const { error } = await db.from("roles").select("name").limit(1);
+      return { database: (error ? "unreachable" : "operational") as AdminOverviewPayload["systemHealth"]["database"], databaseLatencyMs: Date.now() - t0 };
+    } catch {
+      return { database: "unreachable" as AdminOverviewPayload["systemHealth"]["database"], databaseLatencyMs: undefined };
+    }
+  })();
 
   // ── Customers ─────────────────────────────────────────────────────────
-  const customers = await (async () => {
+  const customersPromise = (async () => {
     try {
       const [total, active] = await Promise.all([
         countRows(db, "customers"),
@@ -128,7 +132,7 @@ export async function buildAdminOverview(db: OverviewDb): Promise<AdminOverviewP
   })();
 
   // ── Agents ────────────────────────────────────────────────────────────
-  const agents = await (async () => {
+  const agentsPromise = (async () => {
     try {
       const [total, active, pendingApplications] = await Promise.all([
         countRows(db, "agents"),
@@ -142,7 +146,7 @@ export async function buildAdminOverview(db: OverviewDb): Promise<AdminOverviewP
   })();
 
   // ── Customer transactions: exact counts + bounded volume window ───────
-  const customerTransactions = await (async () => {
+  const customerTransactionsPromise = (async () => {
     try {
       const total = await countRows(db, "customer_transactions");
       const { data: recent, error } = await db
@@ -184,7 +188,7 @@ export async function buildAdminOverview(db: OverviewDb): Promise<AdminOverviewP
   })();
 
   // ── Agency transactions ───────────────────────────────────────────────
-  const agencyTransactions = await (async () => {
+  const agencyTransactionsPromise = (async () => {
     try {
       const total = await countRows(db, "agency_transactions");
       return { status: "ok" as const, data: { total } };
@@ -194,7 +198,7 @@ export async function buildAdminOverview(db: OverviewDb): Promise<AdminOverviewP
   })();
 
   // ── Work queues ───────────────────────────────────────────────────────
-  const [kycQueue, disputes, reconciliation, incidents, outbox] = await Promise.all([
+  const workQueuesPromise = Promise.all([
     (async () => {
       try {
         return { status: "ok" as const, data: { pending: await countRows(db, "customer_kyc_documents", { status: "PENDING" }) } };
@@ -241,7 +245,7 @@ export async function buildAdminOverview(db: OverviewDb): Promise<AdminOverviewP
   ]);
 
   // ── Banking nodes: telemetry from provider_nodes, else honest unknown ─
-  const bankingNodes = await (async () => {
+  const bankingNodesPromise = (async () => {
     try {
       const { data, error } = await db.from("provider_nodes").select("*");
       if (error) throw new Error(error.message);
@@ -281,7 +285,7 @@ export async function buildAdminOverview(db: OverviewDb): Promise<AdminOverviewP
   })();
 
   // ── Activity: recent audit events (the immutable operational record) ──
-  const activity = await (async () => {
+  const activityPromise = (async () => {
     try {
       const { data, error } = await db
         .from("audit_events")
@@ -303,6 +307,29 @@ export async function buildAdminOverview(db: OverviewDb): Promise<AdminOverviewP
       return { events: [] };
     }
   })();
+
+  // Every section above was assembled as an unawaited promise; run them all
+  // concurrently now so the endpoint's total latency is bounded by the
+  // single slowest section instead of the sum of all of them.
+  const [
+    { database, databaseLatencyMs },
+    customers,
+    agents,
+    customerTransactions,
+    agencyTransactions,
+    [kycQueue, disputes, reconciliation, incidents, outbox],
+    bankingNodes,
+    activity,
+  ] = await Promise.all([
+    databaseProbe,
+    customersPromise,
+    agentsPromise,
+    customerTransactionsPromise,
+    agencyTransactionsPromise,
+    workQueuesPromise,
+    bankingNodesPromise,
+    activityPromise,
+  ]);
 
   return {
     generatedAt: new Date().toISOString(),
