@@ -1,86 +1,125 @@
 // =============================================================================
 // File: src/app/agent/adashi/page.tsx
-// Description: Agent Adashi / Ajo Command Center for Agent Operations
+// Description: Agent Adashi / Ajo Command Center — real DB-backed lifecycle
 // =============================================================================
 
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
 import {
   Coins,
-  Users,
   Plus,
-  QrCode,
   Lock,
-  Share2,
-  CheckCircle2,
-  Clock,
-  AlertTriangle,
   ArrowRight,
-  RefreshCw,
-  Search,
-  Sliders,
-  DollarSign,
-  ChevronRight,
   X,
-  Copy,
-  Check,
   Send,
+  ShieldCheck,
+  Wallet,
 } from 'lucide-react';
-import {
-  AdashiGroup,
-  AdashiProduct,
-  AdashiGroupMember,
-  AdashiCycle,
-  AdashiContributionObligation,
-} from '@/types/adashiEngine';
+import { agencyApiFetch } from '@/lib/agency/agentSession';
+
+interface AdashiProductSummary {
+  id: string;
+  productCode: string;
+  productName: string;
+  currency: 'NGN' | 'XOF';
+  contributionAmount: number;
+  cadence: string;
+  minMembers: number;
+  maxMembers: number;
+  platformFeePercent: number;
+  agentCommissionPercent: number;
+  payoutMakerCheckerThreshold: number;
+}
+
+interface AdashiGroupSummary {
+  id: string;
+  reference: string;
+  name: string;
+  currency: 'NGN' | 'XOF';
+  contributionAmount: number;
+  frequency: string;
+  targetMembers: number;
+  currentMembersCount: number;
+  totalCycles: number;
+  currentCycleNumber: number;
+  totalPoolVolume: number;
+  status: string;
+}
+
+interface GroupDetail {
+  id: string;
+  groupCode: string;
+  groupName: string;
+  currency: string;
+  cadence: string;
+  contributionAmount: number;
+  targetMembers: number;
+  currentMembersCount: number;
+  totalCycles: number;
+  currentCycleNumber: number;
+  totalPoolVolume: number;
+  status: string;
+  members: {
+    id: string;
+    customerName: string;
+    customerPhone: string | null;
+    status: string;
+    kycTier: number;
+    assignedPosition: number | null;
+    mandateAuthorized: boolean;
+    totalContributedAmount: number;
+    totalPayoutReceived: number;
+  }[];
+  cycles: {
+    id: string;
+    cycleNumber: number;
+    beneficiaryName: string;
+    expectedCollectionAmount: number;
+    actualCollectedAmount: number;
+    netPayoutAmount: number;
+    currency: string;
+    status: string;
+    obligations: { id: string; amount: number; currency: string; status: string; dueDate: string; paidAt: string | null }[];
+  }[];
+}
+
+function symbol(currency: string) {
+  return currency === 'NGN' ? '₦' : 'CFA';
+}
 
 export default function AgentAdashiPage() {
-  const [groups, setGroups] = useState<AdashiGroup[]>([]);
-  const [products, setProducts] = useState<AdashiProduct[]>([]);
+  const [groups, setGroups] = useState<AdashiGroupSummary[]>([]);
+  const [products, setProducts] = useState<AdashiProductSummary[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
-  const [selectedGroupDetails, setSelectedGroupDetails] = useState<any | null>(null);
+  const [selectedGroupDetails, setSelectedGroupDetails] = useState<GroupDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
 
-  // Wizard State
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createStep, setCreateStep] = useState(1);
-  const [createForm, setCreateForm] = useState({
-    productId: '',
-    groupName: '',
-    targetMembers: 6,
-  });
+  const [createForm, setCreateForm] = useState({ productId: '', groupName: '', targetMembers: 6 });
 
-  // Invite Member Modal State
   const [showInviteModal, setShowInviteModal] = useState(false);
-  const [inviteForm, setInviteForm] = useState({
-    customerName: '',
-    customerPhone: '',
-    customerEmail: '',
-    kycTier: 2,
-  });
-  const [copiedLink, setCopiedLink] = useState(false);
+  const [invitePhone, setInvitePhone] = useState('');
 
   const fetchAgentData = async () => {
     try {
       setLoading(true);
       const [groupsRes, productsRes] = await Promise.all([
-        fetch('/api/v1/adashi/groups').then((r) => r.json()),
-        fetch('/api/v1/adashi/products').then((r) => r.json()),
+        agencyApiFetch('/api/v1/agency/adashi/groups').then((r) => r.json()),
+        agencyApiFetch('/api/v1/agency/adashi/products').then((r) => r.json()),
       ]);
-
-      if (groupsRes.success) {
-        setGroups(groupsRes.data);
-        if (groupsRes.data.length > 0 && !selectedGroupId) {
-          setSelectedGroupId(groupsRes.data[0].id);
-        }
+      if (groupsRes.data) {
+        const list: AdashiGroupSummary[] = groupsRes.data.groups || [];
+        setGroups(list);
+        if (list.length > 0 && !selectedGroupId) setSelectedGroupId(list[0].id);
       }
-      if (productsRes.success) {
-        setProducts(productsRes.data);
-        if (productsRes.data.length > 0 && !createForm.productId) {
-          setCreateForm((prev) => ({ ...prev, productId: productsRes.data[0].id }));
+      if (productsRes.data) {
+        const list: AdashiProductSummary[] = productsRes.data.products || [];
+        setProducts(list);
+        if (list.length > 0 && !createForm.productId) {
+          setCreateForm((prev) => ({ ...prev, productId: list[0].id }));
         }
       }
     } catch (err) {
@@ -92,11 +131,9 @@ export default function AgentAdashiPage() {
 
   const fetchGroupDetails = async (id: string) => {
     try {
-      const res = await fetch(`/api/v1/adashi/groups/${id}`);
+      const res = await agencyApiFetch(`/api/v1/agency/adashi/groups/${id}`);
       const data = await res.json();
-      if (data.success) {
-        setSelectedGroupDetails(data.data);
-      }
+      if (data.data) setSelectedGroupDetails(data.data);
     } catch (err) {
       console.error(err);
     }
@@ -104,225 +141,85 @@ export default function AgentAdashiPage() {
 
   useEffect(() => {
     fetchAgentData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    if (selectedGroupId) {
-      fetchGroupDetails(selectedGroupId);
-    }
+    if (selectedGroupId) fetchGroupDetails(selectedGroupId);
   }, [selectedGroupId]);
+
+  const runAction = async (fn: () => Promise<Response>, successRefresh = true) => {
+    try {
+      setActionLoading(true);
+      setNotice(null);
+      const res = await fn();
+      const data = await res.json();
+      if (res.ok) {
+        setNotice({ ok: true, text: data.message || 'Done.' });
+        if (successRefresh && selectedGroupId) fetchGroupDetails(selectedGroupId);
+        fetchAgentData();
+        return true;
+      } else {
+        setNotice({ ok: false, text: data.error?.message || 'Action failed.' });
+        return false;
+      }
+    } catch (err: any) {
+      setNotice({ ok: false, text: err.message });
+      return false;
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   const handleCreateGroup = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      setActionLoading(true);
-      const res = await fetch('/api/v1/adashi/groups', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...createForm,
-          creatorId: 'usr-agent-001',
-          creatorRole: 'AGENT',
-          creatorName: 'Ibrahim Danladi',
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setShowCreateModal(false);
-        setCreateStep(1);
-        await fetchAgentData();
-        setSelectedGroupId(data.data.id);
-      } else {
-        alert(data.error || 'Creation failed');
-      }
-    } catch (err: any) {
-      alert(err.message);
-    } finally {
-      setActionLoading(false);
+    const ok = await runAction(() =>
+      agencyApiFetch('/api/v1/agency/adashi/groups', { method: 'POST', body: JSON.stringify(createForm) }),
+      false,
+    );
+    if (ok) {
+      setShowCreateModal(false);
+      setCreateForm({ productId: products[0]?.id || '', groupName: '', targetMembers: 6 });
     }
   };
 
   const handleInviteMember = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedGroupId) return;
-    try {
-      setActionLoading(true);
-      const res = await fetch(`/api/v1/adashi/groups/${selectedGroupId}/members`, {
+    const ok = await runAction(() =>
+      agencyApiFetch(`/api/v1/agency/adashi/groups/${selectedGroupId}/members`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-id': 'usr-agent-001' },
-        body: JSON.stringify({
-          customerId: `cust-agent-${Date.now().toString().slice(-4)}`,
-          ...inviteForm,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setShowInviteModal(false);
-        setInviteForm({ customerName: '', customerPhone: '', customerEmail: '', kycTier: 2 });
-        fetchGroupDetails(selectedGroupId);
-        fetchAgentData();
-      } else {
-        alert(data.error || 'Failed to invite member');
-      }
-    } catch (err: any) {
-      alert(err.message);
-    } finally {
-      setActionLoading(false);
+        body: JSON.stringify({ customerPhone: invitePhone }),
+      }),
+    );
+    if (ok) {
+      setShowInviteModal(false);
+      setInvitePhone('');
     }
   };
 
-  const handleAcceptMemberConsent = async (memberId: string) => {
-    if (!selectedGroupId) return;
-    try {
-      setActionLoading(true);
-      const res = await fetch(`/api/v1/adashi/groups/${selectedGroupId}/members`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          memberId,
-          consentGranted: true,
-          mandateAuthorized: true,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        fetchGroupDetails(selectedGroupId);
-      } else {
-        alert(data.error || 'Consent recording failed');
-      }
-    } catch (err: any) {
-      alert(err.message);
-    } finally {
-      setActionLoading(false);
-    }
-  };
+  const handleLockQuorum = () =>
+    selectedGroupId && runAction(() => agencyApiFetch(`/api/v1/agency/adashi/groups/${selectedGroupId}/lock`, { method: 'POST' }));
 
-  const handleLockQuorum = async () => {
-    if (!selectedGroupId) return;
-    try {
-      setActionLoading(true);
-      const res = await fetch(`/api/v1/adashi/groups/${selectedGroupId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'x-user-id': 'usr-agent-001' },
-        body: JSON.stringify({ action: 'LOCK_MEMBERSHIP' }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        fetchGroupDetails(selectedGroupId);
-        fetchAgentData();
-      } else {
-        alert(data.error || 'Lock failed');
-      }
-    } catch (err: any) {
-      alert(err.message);
-    } finally {
-      setActionLoading(false);
-    }
-  };
+  const handleGenerateRotation = () =>
+    selectedGroupId && runAction(() => agencyApiFetch(`/api/v1/agency/adashi/groups/${selectedGroupId}/allocate`, { method: 'POST' }));
 
-  const handleGenerateRotation = async () => {
-    if (!selectedGroupId) return;
-    try {
-      setActionLoading(true);
-      const res = await fetch(`/api/v1/adashi/groups/${selectedGroupId}/rotations`, {
+  const handleStartGroup = () =>
+    selectedGroupId && runAction(() => agencyApiFetch(`/api/v1/agency/adashi/groups/${selectedGroupId}/start`, { method: 'POST' }));
+
+  const handleCollectObligation = (obligationId: string) =>
+    runAction(() =>
+      agencyApiFetch(`/api/v1/agency/adashi/obligations/${obligationId}/collect`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-id': 'usr-agent-001' },
-        body: JSON.stringify({}),
-      });
-      const data = await res.json();
-      if (data.success) {
-        fetchGroupDetails(selectedGroupId);
-        fetchAgentData();
-      } else {
-        alert(data.error || 'Rotation failed');
-      }
-    } catch (err: any) {
-      alert(err.message);
-    } finally {
-      setActionLoading(false);
-    }
-  };
+        headers: { 'idempotency-key': `idemp-agent-${obligationId}-${Date.now()}` },
+      }),
+    );
 
-  const handleStartGroup = async () => {
-    if (!selectedGroupId) return;
-    try {
-      setActionLoading(true);
-      const res = await fetch(`/api/v1/adashi/groups/${selectedGroupId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'x-user-id': 'usr-agent-001' },
-        body: JSON.stringify({ action: 'START_GROUP' }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        fetchGroupDetails(selectedGroupId);
-        fetchAgentData();
-      } else {
-        alert(data.error || 'Start failed');
-      }
-    } catch (err: any) {
-      alert(err.message);
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleCollectObligation = async (obligationId: string) => {
-    try {
-      setActionLoading(true);
-      const res = await fetch('/api/v1/adashi/obligations', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'idempotency-key': `idemp-agent-${obligationId}-${Date.now()}`,
-        },
-        body: JSON.stringify({ obligationId, paymentMethod: 'CASH_AGENT_COLLECTED' }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        if (selectedGroupId) fetchGroupDetails(selectedGroupId);
-      } else {
-        alert(data.error || 'Collection failed');
-      }
-    } catch (err: any) {
-      alert(err.message);
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleTriggerPayout = async (cycleId: string) => {
-    if (!selectedGroupId) return;
-    try {
-      setActionLoading(true);
-      const res = await fetch('/api/v1/adashi/payouts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': 'usr-agent-001',
-          'x-user-name': 'Agent Ibrahim Danladi',
-        },
-        body: JSON.stringify({ adashiId: selectedGroupId, cycleId }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        alert('Payout initiated! If amount is >= 500k, it is routed to Super Admin Maker-Checker dual control queue.');
-        fetchGroupDetails(selectedGroupId);
-        fetchAgentData();
-      } else {
-        alert(data.error || 'Payout initiation failed');
-      }
-    } catch (err: any) {
-      alert(err.message);
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const currentGroup = groups.find((g) => g.id === selectedGroupId);
+  const handleTriggerPayout = (cycleId: string) =>
+    runAction(() => agencyApiFetch(`/api/v1/agency/adashi/cycles/${cycleId}/payout`, { method: 'POST' }));
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-white/10 pb-5">
         <div>
           <div className="flex items-center gap-2">
@@ -330,14 +227,12 @@ export default function AgentAdashiPage() {
               AGENT ROSCA HUB
             </span>
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              Commission: 0.5% - 1.0%
+              Live escrow ledger
             </span>
           </div>
-          <h1 className="text-xl font-bold tracking-tight text-white mt-1">
-            Adashi / Ajo Agent Command Center
-          </h1>
+          <h1 className="text-xl font-bold tracking-tight text-white mt-1">Adashi / Ajo Agent Command Center</h1>
           <p className="text-xs text-slate-400 mt-1">
-            Create trusted community savings circles, verify member quorum, enforce electronic mandates, and trigger guaranteed cycle payouts.
+            Create trusted community savings circles, verify member quorum, enforce electronic mandates, and trigger real ledger-backed cycle payouts.
           </p>
         </div>
 
@@ -350,14 +245,24 @@ export default function AgentAdashiPage() {
         </button>
       </div>
 
-      {/* Main Grid: Left Group Selector, Right Group Workspace */}
+      {notice && (
+        <div className={`p-3 rounded-xl border text-xs ${notice.ok ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300' : 'bg-rose-500/10 border-rose-500/20 text-rose-300'}`}>
+          {notice.text}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: Circle List */}
         <div className="space-y-3">
           <div className="text-xs font-mono uppercase text-slate-400 font-bold flex items-center justify-between">
             <span>MY ADASHI CIRCLES</span>
             <span className="text-amber-400">{groups.length}</span>
           </div>
+
+          {!loading && groups.length === 0 && (
+            <div className="p-6 text-center rounded-2xl bg-[#0d162a] border border-white/5 text-slate-400 text-xs">
+              You have no assigned circles yet. Create one to get started.
+            </div>
+          )}
 
           <div className="space-y-2">
             {groups.map((g) => {
@@ -367,38 +272,31 @@ export default function AgentAdashiPage() {
                   key={g.id}
                   onClick={() => setSelectedGroupId(g.id)}
                   className={`w-full text-left p-3.5 rounded-2xl border transition-all ${
-                    isSelected
-                      ? 'bg-[#0d162a] border-amber-500/50 shadow-lg shadow-amber-500/10'
-                      : 'bg-[#070b16] border-white/5 hover:border-white/10'
+                    isSelected ? 'bg-[#0d162a] border-amber-500/50 shadow-lg shadow-amber-500/10' : 'bg-[#070b16] border-white/5 hover:border-white/10'
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-white text-xs truncate max-w-[180px]">
-                      {g.groupName}
-                    </span>
-                    <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase ${
-                      g.status === 'ACTIVE_IN_PROGRESS'
-                        ? 'bg-emerald-500/10 text-emerald-400'
-                        : g.status === 'MEMBERSHIP_LOCKED'
-                        ? 'bg-blue-500/10 text-blue-400'
-                        : 'bg-amber-500/10 text-amber-400'
-                    }`}>
-                      {g.status}
+                    <span className="font-bold text-white text-xs truncate max-w-[180px]">{g.name}</span>
+                    <span
+                      className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase ${
+                        g.status === 'ACTIVE_IN_PROGRESS'
+                          ? 'bg-emerald-500/10 text-emerald-400'
+                          : g.status === 'MEMBERSHIP_LOCKED' || g.status === 'ROTATION_PUBLISHED'
+                          ? 'bg-blue-500/10 text-blue-400'
+                          : 'bg-amber-500/10 text-amber-400'
+                      }`}
+                    >
+                      {g.status.replaceAll('_', ' ')}
                     </span>
                   </div>
-
                   <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 mt-2">
                     <span className="text-amber-400 font-bold">
-                      {g.currency === 'NGN' ? '₦' : 'CFA'}{g.contributionAmount.toLocaleString()}
+                      {symbol(g.currency)}{g.contributionAmount.toLocaleString()}
                     </span>
                     <span>{g.currentMembersCount}/{g.targetMembers} Savers</span>
                   </div>
-
                   <div className="w-full bg-slate-800 h-1 rounded-full mt-2 overflow-hidden">
-                    <div
-                      className="bg-amber-500 h-full rounded-full"
-                      style={{ width: `${(g.currentCycleNumber / g.totalCycles) * 100}%` }}
-                    />
+                    <div className="bg-amber-500 h-full rounded-full" style={{ width: `${g.totalCycles ? (g.currentCycleNumber / g.totalCycles) * 100 : 0}%` }} />
                   </div>
                 </button>
               );
@@ -406,40 +304,32 @@ export default function AgentAdashiPage() {
           </div>
         </div>
 
-        {/* Right: Selected Group Workspace */}
         <div className="lg:col-span-2 space-y-5">
           {selectedGroupDetails ? (
             <div className="space-y-5">
-              {/* Group Hero Card */}
               <div className="p-5 rounded-2xl bg-[#0d162a] border border-white/10 space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-mono text-amber-400 font-bold">
-                        {selectedGroupDetails.groupCode}
-                      </span>
+                      <span className="text-[10px] font-mono text-amber-400 font-bold">{selectedGroupDetails.groupCode}</span>
                       <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-white/5 text-slate-300">
                         {selectedGroupDetails.currency} • {selectedGroupDetails.cadence}
                       </span>
                     </div>
-                    <h2 className="text-lg font-bold text-white mt-1">
-                      {selectedGroupDetails.groupName}
-                    </h2>
+                    <h2 className="text-lg font-bold text-white mt-1">{selectedGroupDetails.groupName}</h2>
                   </div>
 
-                  {/* Stage Action Button */}
                   <div className="flex items-center gap-2">
-                    {selectedGroupDetails.status === 'INVITING_MEMBERS' && (
+                    {selectedGroupDetails.status === 'OPEN_FOR_MEMBERS' && (
                       <button
                         onClick={handleLockQuorum}
-                        disabled={actionLoading || selectedGroupDetails.members?.length !== selectedGroupDetails.targetMembers}
+                        disabled={actionLoading || selectedGroupDetails.members.length !== selectedGroupDetails.targetMembers}
                         className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-500 hover:bg-blue-400 disabled:opacity-50 text-slate-950 text-xs font-bold shadow-lg shadow-blue-500/20"
                       >
                         <Lock className="w-3.5 h-3.5" />
                         <span>Lock Membership Quorum</span>
                       </button>
                     )}
-
                     {selectedGroupDetails.status === 'MEMBERSHIP_LOCKED' && (
                       <button
                         onClick={handleGenerateRotation}
@@ -450,7 +340,6 @@ export default function AgentAdashiPage() {
                         <span>Publish Deterministic Rotation</span>
                       </button>
                     )}
-
                     {selectedGroupDetails.status === 'ROTATION_PUBLISHED' && (
                       <button
                         onClick={handleStartGroup}
@@ -464,24 +353,23 @@ export default function AgentAdashiPage() {
                   </div>
                 </div>
 
-                {/* KPI Metrics */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 text-xs font-mono">
                   <div className="p-3 rounded-xl bg-slate-900/60 border border-white/5">
                     <div className="text-[10px] text-slate-400 uppercase">Total Pool Volume</div>
                     <div className="text-sm font-extrabold text-white mt-0.5">
-                      {selectedGroupDetails.currency === 'NGN' ? '₦' : 'CFA'}{selectedGroupDetails.totalPoolVolume.toLocaleString()}
+                      {symbol(selectedGroupDetails.currency)}{selectedGroupDetails.totalPoolVolume.toLocaleString()}
                     </div>
                   </div>
                   <div className="p-3 rounded-xl bg-slate-900/60 border border-white/5">
                     <div className="text-[10px] text-slate-400 uppercase">Contribution / Slot</div>
                     <div className="text-sm font-extrabold text-amber-400 mt-0.5">
-                      {selectedGroupDetails.currency === 'NGN' ? '₦' : 'CFA'}{selectedGroupDetails.contributionAmount.toLocaleString()}
+                      {symbol(selectedGroupDetails.currency)}{selectedGroupDetails.contributionAmount.toLocaleString()}
                     </div>
                   </div>
                   <div className="p-3 rounded-xl bg-slate-900/60 border border-white/5">
                     <div className="text-[10px] text-slate-400 uppercase">Quorum Savers</div>
                     <div className="text-sm font-extrabold text-white mt-0.5">
-                      {selectedGroupDetails.members?.length || 0} / {selectedGroupDetails.targetMembers}
+                      {selectedGroupDetails.members.length} / {selectedGroupDetails.targetMembers}
                     </div>
                   </div>
                   <div className="p-3 rounded-xl bg-slate-900/60 border border-white/5">
@@ -493,16 +381,13 @@ export default function AgentAdashiPage() {
                 </div>
               </div>
 
-              {/* Members Enrolled Section */}
               <div className="p-5 rounded-2xl bg-[#0d162a] border border-white/5 space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-sm font-bold text-white">Enrolled Circle Savers</h3>
-                    <p className="text-[11px] text-slate-400">
-                      All members must grant electronic debit mandate before membership locking.
-                    </p>
+                    <p className="text-[11px] text-slate-400">Each member accepts their own invitation and authorizes their debit mandate in the customer app.</p>
                   </div>
-                  {selectedGroupDetails.status === 'INVITING_MEMBERS' && (
+                  {selectedGroupDetails.status === 'OPEN_FOR_MEMBERS' && (
                     <button
                       onClick={() => setShowInviteModal(true)}
                       className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-amber-300 border border-amber-500/20 text-xs font-bold"
@@ -514,51 +399,36 @@ export default function AgentAdashiPage() {
                 </div>
 
                 <div className="space-y-2">
-                  {selectedGroupDetails.members?.map((m: AdashiGroupMember) => (
-                    <div
-                      key={m.id}
-                      className="p-3 rounded-xl bg-slate-900/40 border border-white/5 flex items-center justify-between text-xs"
-                    >
+                  {selectedGroupDetails.members.length === 0 && (
+                    <div className="p-4 rounded-xl bg-slate-900/40 border border-white/5 text-xs text-slate-400">No members invited yet.</div>
+                  )}
+                  {selectedGroupDetails.members.map((m) => (
+                    <div key={m.id} className="p-3 rounded-xl bg-slate-900/40 border border-white/5 flex items-center justify-between text-xs">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-mono font-bold text-xs">
                           {m.assignedPosition ? `#${m.assignedPosition}` : '•'}
                         </div>
                         <div>
                           <div className="font-bold text-white">{m.customerName}</div>
-                          <div className="text-[10px] text-slate-400 font-mono">
-                            {m.customerPhone} • Tier {m.kycTier}
-                          </div>
+                          <div className="text-[10px] text-slate-400 font-mono">{m.customerPhone} • Tier {m.kycTier}</div>
                         </div>
                       </div>
 
                       <div className="flex items-center gap-3">
                         <div className="text-right font-mono">
-                          <div className="text-slate-300">
-                            Contributed: {selectedGroupDetails.currency === 'NGN' ? '₦' : 'CFA'}{m.totalContributedAmount.toLocaleString()}
-                          </div>
-                          <div className="text-[10px] text-emerald-400">
-                            Payout: {selectedGroupDetails.currency === 'NGN' ? '₦' : 'CFA'}{m.totalPayoutReceived.toLocaleString()}
-                          </div>
+                          <div className="text-slate-300">Contributed: {symbol(selectedGroupDetails.currency)}{m.totalContributedAmount.toLocaleString()}</div>
+                          <div className="text-[10px] text-emerald-400">Payout: {symbol(selectedGroupDetails.currency)}{m.totalPayoutReceived.toLocaleString()}</div>
                         </div>
 
                         {m.status === 'INVITED' && (
-                          <button
-                            onClick={() => handleAcceptMemberConsent(m.id)}
-                            disabled={actionLoading}
-                            className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold"
-                          >
-                            Record Consent
-                          </button>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-white/5 text-slate-400 border border-white/10 flex items-center gap-1">
+                            <ShieldCheck className="w-3 h-3" /> Awaiting saver consent
+                          </span>
                         )}
-
                         {m.mandateAuthorized ? (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
-                            Mandate Active
-                          </span>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">Mandate Active</span>
                         ) : (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                            Mandate Pending
-                          </span>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/10 text-amber-400 border border-amber-500/20">Mandate Pending</span>
                         )}
                       </div>
                     </div>
@@ -566,36 +436,49 @@ export default function AgentAdashiPage() {
                 </div>
               </div>
 
-              {/* Active Cycle Operations */}
-              {selectedGroupDetails.cycles?.length > 0 && (
+              {selectedGroupDetails.cycles.length > 0 && (
                 <div className="p-5 rounded-2xl bg-[#0d162a] border border-white/5 space-y-4">
                   <h3 className="text-sm font-bold text-white">Active Cycle Execution</h3>
-                  {selectedGroupDetails.cycles.map((cyc: AdashiCycle) => (
+                  {selectedGroupDetails.cycles.map((cyc) => (
                     <div key={cyc.id} className="p-4 rounded-xl bg-slate-900/60 border border-white/5 space-y-3">
                       <div className="flex items-center justify-between">
                         <div>
                           <div className="text-xs font-mono text-emerald-400 font-bold">CYCLE #{cyc.cycleNumber}</div>
                           <div className="text-sm font-bold text-white">Beneficiary: {cyc.beneficiaryName}</div>
                         </div>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-white/5 text-slate-300">
-                          {cyc.status}
-                        </span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-white/5 text-slate-300">{cyc.status.replaceAll('_', ' ')}</span>
                       </div>
 
                       <div className="flex items-center justify-between text-xs font-mono pt-2 border-t border-white/5">
                         <div>
                           <span className="text-slate-400">Collected: </span>
                           <span className="font-bold text-white">
-                            {cyc.currency === 'NGN' ? '₦' : 'CFA'}{cyc.actualCollectedAmount.toLocaleString()} / {cyc.expectedCollectionAmount.toLocaleString()}
+                            {symbol(cyc.currency)}{cyc.actualCollectedAmount.toLocaleString()} / {cyc.expectedCollectionAmount.toLocaleString()}
                           </span>
                         </div>
                         <div>
                           <span className="text-slate-400">Net Beneficiary Payout: </span>
-                          <span className="font-bold text-emerald-400">
-                            {cyc.currency === 'NGN' ? '₦' : 'CFA'}{cyc.netPayoutAmount.toLocaleString()}
-                          </span>
+                          <span className="font-bold text-emerald-400">{symbol(cyc.currency)}{cyc.netPayoutAmount.toLocaleString()}</span>
                         </div>
                       </div>
+
+                      {cyc.obligations.some((o) => o.status !== 'PAID') && (
+                        <div className="pt-2 border-t border-white/5 space-y-1.5">
+                          <div className="text-[10px] text-slate-400 uppercase font-mono">Outstanding contributions</div>
+                          {cyc.obligations.filter((o) => o.status !== 'PAID').map((o) => (
+                            <div key={o.id} className="flex items-center justify-between text-[11px] font-mono bg-slate-950/40 rounded-lg px-2.5 py-1.5">
+                              <span className="text-slate-300">{symbol(o.currency)}{o.amount.toLocaleString()} • {o.status}</span>
+                              <button
+                                onClick={() => handleCollectObligation(o.id)}
+                                disabled={actionLoading}
+                                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-[10px] font-bold"
+                              >
+                                <Wallet className="w-3 h-3" /> Collect Cash
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
 
                       {cyc.status === 'COLLECTION_COMPLETED' && (
                         <div className="flex justify-end pt-2">
@@ -606,6 +489,11 @@ export default function AgentAdashiPage() {
                           >
                             Disburse Beneficiary Payout
                           </button>
+                        </div>
+                      )}
+                      {cyc.status === 'PAYOUT_PENDING_APPROVAL' && (
+                        <div className="flex justify-end pt-2">
+                          <span className="text-[11px] font-mono text-amber-400">Awaiting compliance officer approval (maker-checker threshold).</span>
                         </div>
                       )}
                     </div>
@@ -621,7 +509,6 @@ export default function AgentAdashiPage() {
         </div>
       </div>
 
-      {/* CREATE MODAL */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="w-full max-w-md bg-[#0a0f1d] border border-white/10 rounded-2xl p-6 space-y-4 shadow-2xl">
@@ -642,7 +529,7 @@ export default function AgentAdashiPage() {
                 >
                   {products.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.productName} ({p.currency} - {p.currency === 'NGN' ? '₦' : 'CFA'}{p.contributionAmount.toLocaleString()})
+                      {p.productName} ({p.currency} - {symbol(p.currency)}{p.contributionAmount.toLocaleString()})
                     </option>
                   ))}
                 </select>
@@ -674,18 +561,10 @@ export default function AgentAdashiPage() {
               </div>
 
               <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 font-semibold"
-                >
+                <button type="button" onClick={() => setShowCreateModal(false)} className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 font-semibold">
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  disabled={actionLoading}
-                  className="px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold"
-                >
+                <button type="submit" disabled={actionLoading} className="px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold">
                   Create Circle
                 </button>
               </div>
@@ -694,7 +573,6 @@ export default function AgentAdashiPage() {
         </div>
       )}
 
-      {/* INVITE MEMBER MODAL */}
       {showInviteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="w-full max-w-md bg-[#0a0f1d] border border-white/10 rounded-2xl p-6 space-y-4 shadow-2xl">
@@ -707,56 +585,27 @@ export default function AgentAdashiPage() {
 
             <form onSubmit={handleInviteMember} className="space-y-3 text-xs">
               <div>
-                <label className="text-[10px] text-slate-400 uppercase font-mono">Saver Full Name</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Halima Danbaba"
-                  value={inviteForm.customerName}
-                  onChange={(e) => setInviteForm({ ...inviteForm, customerName: e.target.value })}
-                  className="w-full mt-1 p-2 rounded-xl bg-[#0d162a] border border-white/10 text-white"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] text-slate-400 uppercase font-mono">Phone Number (WhatsApp/SMS)</label>
+                <label className="text-[10px] text-slate-400 uppercase font-mono">Saver's Phone Number</label>
                 <input
                   type="text"
                   required
                   placeholder="+2348012345678"
-                  value={inviteForm.customerPhone}
-                  onChange={(e) => setInviteForm({ ...inviteForm, customerPhone: e.target.value })}
+                  value={invitePhone}
+                  onChange={(e) => setInvitePhone(e.target.value)}
                   className="w-full mt-1 p-2 rounded-xl bg-[#0d162a] border border-white/10 text-white font-mono"
                 />
-              </div>
-
-              <div>
-                <label className="text-[10px] text-slate-400 uppercase font-mono">KYC Verification Tier</label>
-                <select
-                  value={inviteForm.kycTier}
-                  onChange={(e) => setInviteForm({ ...inviteForm, kycTier: Number(e.target.value) })}
-                  className="w-full mt-1 p-2 rounded-xl bg-[#0d162a] border border-white/10 text-white font-mono"
-                >
-                  <option value={1}>Tier 1 (Phone Verified - Max 20k)</option>
-                  <option value={2}>Tier 2 (BVN / NIN / National ID Verified)</option>
-                  <option value={3}>Tier 3 (Address & Biometric Certified)</option>
-                </select>
+                <p className="text-[10px] text-slate-500 mt-1">
+                  The saver must already have a KoriePay account. We'll send them the invitation to accept and authorize their contribution mandate.
+                </p>
               </div>
 
               <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
-                <button
-                  type="button"
-                  onClick={() => setShowInviteModal(false)}
-                  className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 font-semibold"
-                >
+                <button type="button" onClick={() => setShowInviteModal(false)} className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 font-semibold">
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  disabled={actionLoading}
-                  className="px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold"
-                >
-                  Send Invitation
+                <button type="submit" disabled={actionLoading} className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold">
+                  <Send className="w-3.5 h-3.5" />
+                  <span>Send Invitation</span>
                 </button>
               </div>
             </form>
