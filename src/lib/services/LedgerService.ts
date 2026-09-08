@@ -146,6 +146,22 @@ function buildDefaultChartAccounts(): LedgerAccount[] {
       createdAt: '2026-01-01T00:00:00Z',
       updatedAt: '2026-09-03T12:00:00Z',
     },
+    // 6b. Agency Banking Float Liabilities (agent e-float custody)
+    {
+      id: 'acc_liab_agent_floats_ngn',
+      orgId: 'org_kor_99182',
+      accountNumber: '2110-AGENT-FLOATS-NGN',
+      name: 'Agency Banking Agent Float Liabilities (NGN)',
+      type: 'LIABILITY',
+      currency: 'NGN',
+      country: 'NG',
+      balance: 185000000, // ₦1,850,000.00 minor units (registry seed for agt-ng-001)
+      lockedBalance: 0,
+      availableBalance: 185000000,
+      status: 'ACTIVE',
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-09-03T12:00:00Z',
+    },
     // 6. Agent Cash Collections in Transit (offline agent Adashi collections)
     {
       id: 'acc_asset_agent_cash_ngn',
