@@ -37,6 +37,8 @@ export interface AgentPortalContextValue {
     customerPhone?: string;
     customerAccount?: string;
     customerBank?: string;
+    /** Stage 4: deposit/withdraw on the customer's opened KoriePay account rail. */
+    accountMode?: boolean;
   }) => Promise<{ success: boolean; operation?: AgentPortalOperationType; code?: string; message?: string }>;
 
   submitDailyCashCount: (denominations: Record<string, number>) => Promise<{
@@ -170,6 +172,7 @@ export function AgentPortalProvider({ children }: { children: React.ReactNode })
         customerPhone: params.customerPhone,
         customerAccount: params.customerAccount,
         customerBank: params.customerBank,
+        accountMode: params.accountMode,
         idempotencyKey,
       })
     ).data;

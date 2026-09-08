@@ -94,6 +94,10 @@ export interface AgentPortalOperationType {
   terminalId: string;
   agentId: string;
   feeRuleApplied?: string;
+  /** Stage 4: product-service tag (BILL, CARD, FX, ACCOUNT_OPENING, ACCOUNT_DEPOSIT, ACCOUNT_WITHDRAWAL). */
+  service?: string;
+  /** Stage 4: cross-store reference (application ref, order ref, account number…). */
+  serviceRef?: string;
   errorMessage?: string;
   createdAt: string;
   completedAt?: string;
@@ -193,6 +197,9 @@ export interface AgentOperationRequest {
   customerAccount?: string;
   customerBank?: string;
   idempotencyKey: string;
+  /** Stage 4: true when the customerAccount is an opened KoriePay account and
+   * the value must move on the customer wallet rail (not e-float). */
+  accountMode?: boolean;
 }
 
 export interface AgentOperationResult {

@@ -10,7 +10,39 @@ import React, { useState } from "react";
 import { useAgentPortal } from "../AgentContext";
 import { AgentPageHeader, AgentChip, statusTone } from "./AgentUi";
 import { formatMoney } from "@/lib/money";
-import { ArrowLeft, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
+import { getPortalBearer } from "@/lib/customerPortalClient";
+import { ArrowLeft, CheckCircle2, AlertTriangle, Loader2, Landmark } from "lucide-react";
+
+interface KorrieAccountOption {
+  accountNumber: string;
+  accountName: string;
+  holderName: string;
+  holderPhone: string;
+}
+
+async function fetchKorrieAccounts(): Promise<KorrieAccountOption[]> {
+  try {
+    const res = await fetch("/api/agent/accounts", {
+      headers: { Authorization: getPortalBearer(), Accept: "application/json" },
+    });
+    const payload = await res.json().catch(() => null);
+    const rows = (payload as any)?.data?.rows || [];
+    const out: KorrieAccountOption[] = [];
+    for (const row of rows) {
+      for (const a of row.accounts || []) {
+        out.push({
+          accountNumber: a.accountNumber,
+          accountName: a.accountName,
+          holderName: row.customer?.fullName || a.accountName,
+          holderPhone: row.customer?.phone || "",
+        });
+      }
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
 
 const BANKS = [
   "Providus Bank",
@@ -50,6 +82,8 @@ export function AgentOperationForm({
   const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ ok: boolean; message: string } | null>(null);
+  const [accountMode, setAccountMode] = useState(false);
+  const [korrieAccounts, setKorrieAccounts] = useState<KorrieAccountOption[] | null>(null);
 
   const float = summary?.float.availableFloat ?? 0;
   const tillCash = summary?.till.availablePhysicalCash ?? 0;
@@ -86,6 +120,7 @@ export function AgentOperationForm({
       customerPhone: customerPhone || undefined,
       customerAccount: customerAccount || undefined,
       customerBank: customerBank || undefined,
+      accountMode: accountMode || undefined,
     });
     setBusy(false);
     if (res.success) {
@@ -93,14 +128,40 @@ export function AgentOperationForm({
       setCustomerPhone("");
       setCustomerAccount("");
       setAmount("");
-      setNotice({ ok: true, message: `${confirmLabel} successful — receipt recorded with a real ledger journal.` });
+      setAccountMode(false);
+      setNotice({
+        ok: true,
+        message: accountMode
+          ? `${confirmLabel} successful — value moved on the customer's KoriePay account rail (ledger journal + wallet subledger).`
+          : `${confirmLabel} successful — receipt recorded with a real ledger journal.`,
+      });
     } else {
       setNotice({ ok: false, message: res.message || "Operation failed." });
     }
   };
 
   const canSubmit =
-    customerName.trim().length > 0 && amountNum > 0 && (kind === "CASH_IN" || kind === "TRANSFER_NIP" ? customerAccount.trim().length >= 10 : true);
+    customerName.trim().length > 0 &&
+    amountNum > 0 &&
+    (!accountMode ? kind === "CASH_IN" || kind === "TRANSFER_NIP" ? customerAccount.trim().length >= 10 : true : Boolean(customerAccount));
+
+  const toggleAccountMode = async () => {
+    const next = !accountMode;
+    setAccountMode(next);
+    if (next && korrieAccounts === null) {
+      setKorrieAccounts(await fetchKorrieAccounts());
+    }
+  };
+
+  const pickAccount = (accountNumber: string) => {
+    const found = (korrieAccounts || []).find((a) => a.accountNumber === accountNumber);
+    setCustomerAccount(accountNumber);
+    setCustomerBank("Providus Bank");
+    if (found) {
+      setCustomerName(found.holderName);
+      setCustomerPhone(found.holderPhone);
+    }
+  };
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
@@ -143,33 +204,125 @@ export function AgentOperationForm({
             </label>
           </div>
 
-          {kind !== "CASH_OUT" ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <label className="block text-xs">
-                <span className="font-semibold text-stone-700">Destination account number</span>
-                <input
-                  value={customerAccount}
-                  onChange={(e) => setCustomerAccount(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                  placeholder="10-digit NUBAN"
-                  inputMode="numeric"
-                  className="mt-1 w-full rounded-xl border border-stone-300 px-3 py-2.5 font-mono text-sm text-stone-900 placeholder:text-stone-300 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </label>
-              <label className="block text-xs">
-                <span className="font-semibold text-stone-700">Destination bank</span>
-                <select
-                  value={customerBank}
-                  onChange={(e) => setCustomerBank(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-stone-300 bg-white px-3 py-2.5 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                >
-                  {BANKS.map((b) => (
-                    <option key={b} value={b}>
-                      {b}
-                    </option>
-                  ))}
-                </select>
-              </label>
+          {kind === "CASH_IN" || kind === "TRANSFER_NIP" ? (
+            <div className="space-y-3">
+              {kind !== "TRANSFER_NIP" ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wide text-stone-400">Rail</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAccountMode(false);
+                      setCustomerAccount("");
+                    }}
+                    className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition ${
+                      !accountMode ? "bg-emerald-600 text-white" : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+                    }`}
+                  >
+                    Bank account (NIP)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void toggleAccountMode()}
+                    className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-bold transition ${
+                      accountMode ? "bg-emerald-600 text-white" : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+                    }`}
+                  >
+                    <Landmark className="h-3 w-3" aria-hidden="true" />
+                    KoriePay account (account rail)
+                  </button>
+                </div>
+              ) : null}
+
+              {accountMode ? (
+                <label className="block text-xs">
+                  <span className="font-semibold text-stone-700">Opened KoriePay account</span>
+                  <select
+                    value={customerAccount}
+                    onChange={(e) => pickAccount(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-stone-300 bg-white px-3 py-2.5 font-mono text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <option value="">Choose an account opened at this terminal…</option>
+                    {(korrieAccounts || []).map((a) => (
+                      <option key={a.accountNumber} value={a.accountNumber}>
+                        {a.accountNumber} · {a.holderName}
+                      </option>
+                    ))}
+                  </select>
+                  {korrieAccounts !== null && korrieAccounts.length === 0 ? (
+                    <p className="mt-1 text-[11px] text-stone-500">
+                      No opened accounts yet — onboard the customer and open the account from the Products &gt; Open Accounts page first.
+                    </p>
+                  ) : null}
+                </label>
+              ) : (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <label className="block text-xs">
+                    <span className="font-semibold text-stone-700">Destination account number</span>
+                    <input
+                      value={customerAccount}
+                      onChange={(e) => setCustomerAccount(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                      placeholder="10-digit NUBAN"
+                      inputMode="numeric"
+                      className="mt-1 w-full rounded-xl border border-stone-300 px-3 py-2.5 font-mono text-sm text-stone-900 placeholder:text-stone-300 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </label>
+                  <label className="block text-xs">
+                    <span className="font-semibold text-stone-700">Destination bank</span>
+                    <select
+                      value={customerBank}
+                      onChange={(e) => setCustomerBank(e.target.value)}
+                      className="mt-1 w-full rounded-xl border border-stone-300 bg-white px-3 py-2.5 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    >
+                      {BANKS.map((b) => (
+                        <option key={b} value={b}>
+                          {b}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              )}
             </div>
+          ) : null}
+
+          {kind === "CASH_OUT" ? (
+            <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-xs font-semibold text-stone-700">
+              <span className="flex items-center gap-2">
+                <Landmark className="h-4 w-4 text-stone-400" aria-hidden="true" />
+                Withdraw from the customer's opened KoriePay account (account rail)
+              </span>
+              <input
+                type="checkbox"
+                checked={accountMode}
+                onChange={(e) => {
+                  if (e.target.checked) void toggleAccountMode();
+                  else {
+                    setAccountMode(false);
+                    setCustomerAccount("");
+                  }
+                }}
+                className="h-4 w-4 accent-emerald-600"
+              />
+            </label>
+          ) : null}
+
+          {accountMode && kind === "CASH_OUT" ? (
+            <label className="block text-xs">
+              <span className="font-semibold text-stone-700">Customer KoriePay account to debit</span>
+              <select
+                value={customerAccount}
+                onChange={(e) => pickAccount(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-stone-300 bg-white px-3 py-2.5 font-mono text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              >
+                <option value="">Choose an account opened at this terminal…</option>
+                {(korrieAccounts || []).map((a) => (
+                  <option key={a.accountNumber} value={a.accountNumber}>
+                    {a.accountNumber} · {a.holderName}
+                  </option>
+                ))}
+              </select>
+            </label>
           ) : null}
 
           <div>

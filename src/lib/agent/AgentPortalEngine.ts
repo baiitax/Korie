@@ -22,6 +22,7 @@ import { CashReconciliationEngine } from "../agency/CashReconciliationEngine";
 import { ComplaintDisputeEngine } from "../complaints/ComplaintDisputeEngine";
 import { FeeAndCommissionEngine } from "../financial/FeeAndCommissionEngine";
 import { CustomerLifecycleEngine } from "../customer/CustomerLifecycleEngine";
+import { AccountLifecycleEngine } from "../customer/AccountLifecycleEngine";
 import { AgentKioskStore } from "./AgentKioskStore";
 import {
   AGENT_PORTAL_AGENT_EMAIL,
@@ -362,13 +363,40 @@ export class AgentPortalEngine {
     const float = walletFloat();
     const tillCash = AgentKioskStore.getRunningTill();
 
-    if (kind === "CASH_IN" || kind === "TRANSFER_NIP") {
-      if (float < amount) {
-        return {
-          success: false,
-          code: "INSUFFICIENT_FLOAT",
-          message: `Wallet float ₦${float.toLocaleString()} cannot cover ₦${amount.toLocaleString()}. Top up the float first.`,
-        };
+    // Stage 4 account rail: value moves on the customer's opened KoriePay
+    // account (wallet liability + subledger), not the agent e-float.
+    const accountMode = req.accountMode === true && kind !== "TRANSFER_NIP";
+    const accountDeposit = accountMode && kind === "CASH_IN";
+    const accountWithdrawal = accountMode && kind === "CASH_OUT";
+    let account:
+      | { customerId: string; accountNumber: string; status: string; currency: string; accountName: string }
+      | undefined;
+    if (accountMode) {
+      const accountRec = AccountLifecycleEngine.getInstance().getAccount(String(req.customerAccount || ""));
+      if (!accountRec || accountRec.status !== "OPEN") {
+        return { success: false, code: "ACCOUNT_NOT_OPEN", message: "We could not find an open KoriePay account with that number." };
+      }
+      if (accountRec.currency !== "NGN") {
+        return { success: false, code: "ACCOUNT_CURRENCY_UNSUPPORTED", message: "This till serves naira accounts; the account is not an NGN account." };
+      }
+      account = {
+        customerId: accountRec.customerId,
+        accountNumber: accountRec.accountNumber,
+        status: accountRec.status,
+        currency: accountRec.currency,
+        accountName: accountRec.accountName,
+      };
+    }
+
+    if (!accountMode) {
+      if (kind === "CASH_IN" || kind === "TRANSFER_NIP") {
+        if (float < amount) {
+          return {
+            success: false,
+            code: "INSUFFICIENT_FLOAT",
+            message: `Wallet float ₦${float.toLocaleString()} cannot cover ₦${amount.toLocaleString()}. Top up the float first.`,
+          };
+        }
       }
     }
     if (kind === "CASH_OUT") {
@@ -379,6 +407,17 @@ export class AgentPortalEngine {
           message: `Physical till ₦${tillCash.toLocaleString()} cannot cover ₦${amount.toLocaleString()}.`,
         };
       }
+      if (accountMode && account) {
+        const wallet = SubledgerEngine.getInstance().getSubledger("CUSTOMER_WALLET", account.customerId, "NGN");
+        const available = wallet && wallet.isActive ? wallet.availableBalance : 0;
+        if (available < amount) {
+          return {
+            success: false,
+            code: "INSUFFICIENT_ACCOUNT_BALANCE",
+            message: `The customer's account balance (₦${available.toLocaleString()}) cannot cover ₦${amount.toLocaleString()}.`,
+          };
+        }
+      }
     }
 
     const minor = wholeToMinor(amount);
@@ -387,15 +426,39 @@ export class AgentPortalEngine {
     const agentCommission = Math.round(feeCalc.agentCommission / 100);
 
     const isDebitFloat = kind === "CASH_IN" || kind === "TRANSFER_NIP";
-    const entries = isDebitFloat
-      ? [
-          { accountId: FLOAT_ACCOUNT_ID, entryType: "DEBIT" as const, amount: minor, narration: `${kind} — e-float delivered to clearing` },
-          { accountId: CLEARING_POOL_ACCOUNT_ID, entryType: "CREDIT" as const, amount: minor, narration: `${kind} — settlement pool credit` },
-        ]
-      : [
-          { accountId: CLEARING_POOL_ACCOUNT_ID, entryType: "DEBIT" as const, amount: minor, narration: `${kind} — settlement pool debit` },
-          { accountId: FLOAT_ACCOUNT_ID, entryType: "CREDIT" as const, amount: minor, narration: `${kind} — e-float replenished to agent` },
-        ];
+    const entries = accountMode
+      ? account
+        ? [
+            // Account rail: physical cash ↔ customer wallet liability (Stage 4)
+            {
+              accountId: "acc_asset_agent_cash_ngn",
+              entryType: (kind === "CASH_OUT" ? "CREDIT" : "DEBIT") as "DEBIT" | "CREDIT",
+              amount: minor,
+              narration:
+                kind === "CASH_OUT"
+                  ? `Account withdrawal to ${account.accountName} (${account.accountNumber}) — till cash paid out`
+                  : `Account deposit from ${account.accountName} (${account.accountNumber}) — till cash received`,
+            },
+            {
+              accountId: "acc_liab_customer_wallets_ngn",
+              entryType: (kind === "CASH_OUT" ? "DEBIT" : "CREDIT") as "DEBIT" | "CREDIT",
+              amount: minor,
+              narration:
+                kind === "CASH_OUT"
+                  ? `Customer wallet debit — withdrawal ${account.accountNumber}`
+                  : `Customer wallet credit — deposit ${account.accountNumber}`,
+            },
+          ]
+        : []
+      : isDebitFloat
+        ? [
+            { accountId: FLOAT_ACCOUNT_ID, entryType: "DEBIT" as const, amount: minor, narration: `${kind} — e-float delivered to clearing` },
+            { accountId: CLEARING_POOL_ACCOUNT_ID, entryType: "CREDIT" as const, amount: minor, narration: `${kind} — settlement pool credit` },
+          ]
+        : [
+            { accountId: CLEARING_POOL_ACCOUNT_ID, entryType: "DEBIT" as const, amount: minor, narration: `${kind} — settlement pool debit` },
+            { accountId: FLOAT_ACCOUNT_ID, entryType: "CREDIT" as const, amount: minor, narration: `${kind} — e-float replenished to agent` },
+          ];
 
     let ledgerTx;
     try {
@@ -414,23 +477,34 @@ export class AgentPortalEngine {
       };
     }
 
-    // Move the float subledger (whole units, display truth)
-    SubledgerEngine.getInstance().mutateBalance({
-      subledgerType: "AGENT_FLOAT",
-      entityId: agentId(),
-      accountCode: "2110",
-      currency: AGENT_PORTAL_CURRENCY,
-      country: "NG",
-      deltaAmount: isDebitFloat ? -amount : amount,
-    });
+    // Move the wallet/float subledger (whole units, display truth)
+    if (accountMode && account) {
+      SubledgerEngine.getInstance().mutateBalance({
+        subledgerType: "CUSTOMER_WALLET",
+        entityId: account.customerId,
+        accountCode: "2010",
+        currency: "NGN",
+        country: "NG",
+        deltaAmount: kind === "CASH_OUT" ? -amount : amount,
+      });
+    } else {
+      SubledgerEngine.getInstance().mutateBalance({
+        subledgerType: "AGENT_FLOAT",
+        entityId: agentId(),
+        accountCode: "2110",
+        currency: AGENT_PORTAL_CURRENCY,
+        country: "NG",
+        deltaAmount: isDebitFloat ? -amount : amount,
+      });
+    }
 
     // Track the physical till (anchored to the engine till seed)
-    AgentKioskStore.setRunningTill(isDebitFloat ? tillCash + amount : tillCash - amount);
+    AgentKioskStore.setRunningTill(isDebitFloat || accountDeposit ? tillCash + amount : tillCash - amount);
 
     const now = new Date().toISOString();
     const titleByKind: Record<string, string> = {
-      CASH_IN: "Customer cash-in deposit",
-      CASH_OUT: "Customer cash-out withdrawal",
+      CASH_IN: accountMode ? "Deposit to customer account" : "Customer cash-in deposit",
+      CASH_OUT: accountMode ? "Withdrawal from customer account" : "Customer cash-out withdrawal",
       TRANSFER_NIP: "Bank transfer (NIP)",
     };
     const operation: AgentPortalOperationType = {
@@ -452,6 +526,8 @@ export class AgentPortalEngine {
       terminalId: AGENT_PORTAL_TERMINAL_ID,
       agentId: agentId(),
       feeRuleApplied: feeCalc.feeRuleApplied,
+      service: accountWithdrawal ? "ACCOUNT_WITHDRAWAL" : accountDeposit ? "ACCOUNT_DEPOSIT" : undefined,
+      serviceRef: accountMode ? account?.accountNumber : undefined,
       createdAt: now,
       completedAt: now,
     };
@@ -604,14 +680,17 @@ export class AgentPortalEngine {
     if (!params.fullName || params.fullName.trim().length < 3) {
       return { code: "NAME_REQUIRED", message: "Enter the customer's full name." };
     }
-    if (!/^\+?\d{10,15}$/.test(params.phone.replace(/\s/g, ""))) {
+    // Canonical form: strip every space — the phone is the kiosk identity key
+    // used by account opening, card applications and the served-customer rollup.
+    const phone = params.phone.replace(/\s+/g, "");
+    if (!/^\+?\d{10,15}$/.test(phone)) {
       return { code: "PHONE_REQUIRED", message: "Enter a valid phone number." };
     }
     const customer = CustomerLifecycleEngine.getInstance().registerCustomer({
       tenantId: "tenant-korie-core",
       fullName: params.fullName.trim(),
-      email: params.email.trim() || `${params.phone.replace(/\D/g, "")}@walkin.koriepay.ng`,
-      phone: params.phone.trim(),
+      email: params.email.trim() || `${phone.replace(/\D/g, "")}@walkin.koriepay.ng`,
+      phone,
       country: "NG",
       customerType: "PERSONAL",
       kycTier: "TIER_1",

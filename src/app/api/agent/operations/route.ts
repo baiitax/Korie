@@ -27,6 +27,7 @@ export async function POST(req: NextRequest) {
       body.idempotencyKey || req.headers.get("idempotency-key") || "",
     );
     const amount = Number(body.amount);
+    const accountMode = body.accountMode === true;
 
     const result = await agentPortalEngine.executeOperation({
       kind,
@@ -36,6 +37,7 @@ export async function POST(req: NextRequest) {
       customerPhone: body.customerPhone ? String(body.customerPhone) : undefined,
       customerAccount: body.customerAccount ? String(body.customerAccount) : undefined,
       customerBank: body.customerBank ? String(body.customerBank) : undefined,
+      accountMode,
     });
 
     if (result.success) {
