@@ -34,6 +34,11 @@ import {
   WifiOff,
   Radio,
   Store,
+  LayoutGrid,
+  Receipt,
+  CreditCard,
+  Landmark,
+  Wallet,
 } from "lucide-react";
 import { AgentFreshnessBar } from "./AgentUi";
 import { formatMoney } from "@/lib/money";
@@ -61,12 +66,23 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
     "/agent/transactions", "/agent/customers", "/agent/liquidity",
     "/agent/commissions", "/agent/settlement", "/agent/reconciliation",
     "/agent/terminals", "/agent/support", "/agent/adashi", "/agent/profile",
+    "/agent/services", "/agent/bills", "/agent/cards", "/agent/fx", "/agent/accounts",
   ]);
 
   const desktopNavGroups = [
     {
       title: "Overview",
       items: [{ label: "Executive Overview", href: "/agent", icon: Home }],
+    },
+    {
+      title: "Customer products",
+      items: [
+        { label: "Services hub", href: "/agent/services", icon: LayoutGrid },
+        { label: "Bills & Top-ups", href: "/agent/bills", icon: Receipt },
+        { label: "Open Accounts", href: "/agent/accounts", icon: Wallet },
+        { label: "ATM & Cards", href: "/agent/cards", icon: CreditCard },
+        { label: "FX / BDC Desk", href: "/agent/fx", icon: Landmark },
+      ],
     },
     {
       title: "Operations",
