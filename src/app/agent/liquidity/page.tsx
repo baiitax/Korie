@@ -32,6 +32,11 @@ export default function AgentLiquidityPage() {
 
   const { float, till } = summary;
   const hide = isBalanceHidden;
+  const settlementAccount = summary.agent.settlementAccountNumber || "";
+  const settlementBank = summary.agent.settlementBankName || "Providus Bank";
+  const displayAccount = settlementAccount
+    ? `${settlementAccount.slice(0, 4)} ${settlementAccount.slice(4, 7)} ${settlementAccount.slice(7)}`
+    : "—";
 
   const handleSweep = async () => {
     setSweeping(true);
@@ -40,14 +45,14 @@ export default function AgentLiquidityPage() {
     setSweeping(false);
     setNotice(
       res.success
-        ? { ok: true, message: `Float of ${formatMoney(float.availableFloat, "NGN")} swept to Providus Bank — journal recorded.` }
+        ? { ok: true, message: `Float of ${formatMoney(float.availableFloat, "NGN")} swept to ${settlementBank} — journal recorded.` }
         : { ok: false, message: res.message || "Sweep failed." },
     );
   };
 
   const copyNuban = async () => {
     try {
-      await navigator.clipboard.writeText("0123984123");
+      await navigator.clipboard.writeText(settlementAccount);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -113,7 +118,7 @@ export default function AgentLiquidityPage() {
             </h2>
           </div>
           <p className="mt-2 text-xs leading-relaxed text-stone-500">
-            Moves the full digital float to your Providus settlement account as a real double-entry journal
+            Moves the full digital float to your ${settlementBank} settlement account as a real double-entry journal
             (float liability debit → clearing pool credit). Nothing here is simulated.
           </p>
           <div className="mt-4 flex items-center gap-3">
@@ -147,8 +152,8 @@ export default function AgentLiquidityPage() {
           </p>
           <div className="mt-4 flex items-center justify-between rounded-xl bg-stone-50 p-4 ring-1 ring-stone-100">
             <div>
-              <p className="text-[11px] text-stone-400">Providus Bank (Agent Float)</p>
-              <p className="font-mono text-lg font-bold text-stone-900">0123984123</p>
+              <p className="text-[11px] text-stone-400">{settlementBank} (Agent Float)</p>
+              <p className="font-mono text-lg font-bold text-stone-900">{displayAccount}</p>
               <p className="text-[11px] text-stone-500">KoriePay / {summary.agent.tradingName}</p>
             </div>
             <div className="flex flex-col items-end gap-2">

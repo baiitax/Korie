@@ -14,11 +14,21 @@ import {
   AgentChip,
   statusTone,
   AgentFreshnessBar,
+  operationVisual,
 } from "@/components/agent/ui/AgentUi";
-import { Search, Download, ArrowDownLeft, ArrowUpRight, ArrowRightLeft, Activity } from "lucide-react";
+import { Search, Download, Activity } from "lucide-react";
 import { formatMoney } from "@/lib/money";
 
-const TYPE_OPTIONS = ["ALL", "CASH_IN", "CASH_OUT", "TRANSFER_NIP"];
+const TYPE_OPTIONS = [
+  "ALL",
+  "CASH_IN",
+  "CASH_OUT",
+  "TRANSFER_NIP",
+  "BILL_PAYMENT",
+  "FX_CONVERSION",
+  "CARD_APPLICATION",
+  "ACCOUNT_OPENING",
+];
 
 export default function AgentTransactionsPage() {
   const { phase, errorMessage, summary, refresh, refreshedAt, openReceipt, isBalanceHidden } = useAgentPortal();
@@ -145,7 +155,7 @@ export default function AgentTransactionsPage() {
           </p>
           <p className="mt-1 text-xs text-stone-500">
             {ops.length === 0
-              ? "Run a cash-in, cash-out or transfer — engine-recorded operations will appear here with real journal references."
+              ? "Run any engine-backed service — deposits, withdrawals, transfers, bills, FX, cards or account openings — and the operation will appear here with its real journal reference."
               : "Try clearing the search or switching the type filter."}
           </p>
         </div>
@@ -158,23 +168,15 @@ export default function AgentTransactionsPage() {
                 onClick={() => openReceipt(op)}
                 className="flex w-full items-center gap-3 rounded-2xl border border-stone-200 bg-white p-3.5 text-left shadow-sm transition hover:border-stone-300 hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
               >
-                <span
-                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 ${
-                    op.type === "CASH_IN"
-                      ? "bg-emerald-50 text-emerald-600 ring-emerald-200"
-                      : op.type === "CASH_OUT"
-                        ? "bg-amber-50 text-amber-600 ring-amber-200"
-                        : "bg-sky-50 text-sky-600 ring-sky-200"
-                  }`}
-                >
-                  {op.type === "CASH_IN" ? (
-                    <ArrowDownLeft className="h-5 w-5" aria-hidden="true" />
-                  ) : op.type === "CASH_OUT" ? (
-                    <ArrowUpRight className="h-5 w-5" aria-hidden="true" />
-                  ) : (
-                    <ArrowRightLeft className="h-5 w-5" aria-hidden="true" />
-                  )}
-                </span>
+                {(() => {
+                  const vis = operationVisual(op.type, op.service);
+                  const Glyph = vis.icon;
+                  return (
+                    <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 ${vis.tileCls}`}>
+                      <Glyph className="h-5 w-5" aria-hidden="true" />
+                    </span>
+                  );
+                })()}
                 <span className="min-w-0 flex-1">
                   <span className="flex flex-wrap items-center gap-2">
                     <span className="text-sm font-bold text-stone-900">{op.title}</span>

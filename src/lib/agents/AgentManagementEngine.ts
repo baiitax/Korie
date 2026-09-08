@@ -35,6 +35,8 @@ export class AgentManagementEngine {
         region: 'North Central',
         stateOrProvince: 'FCT Abuja',
         lgaOrDistrict: 'Abuja Municipal (AMAC)',
+        settlementAccountNumber: '0123984123',
+        settlementBankName: 'Providus Bank',
         status: 'ACTIVE',
         tier: 'TIER_2',
         qualityScore: 98.4,

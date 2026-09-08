@@ -14,6 +14,7 @@ import {
   AgentStatCard,
   AgentChip,
   statusTone,
+  operationVisual,
 } from "@/components/agent/ui/AgentUi";
 import {
   ArrowDownLeft,
@@ -22,6 +23,8 @@ import {
   Users,
   Wallet,
   Banknote,
+  CreditCard,
+  Receipt,
   Copy,
   Check,
   ChevronRight,
@@ -52,13 +55,16 @@ export default function AgentDashboardPage() {
     window.setTimeout(() => setNotice(null), 6000);
   };
 
+  const settlementAccount = summary.agent.settlementAccountNumber || "";
+  const settlementBank = summary.agent.settlementBankName || "Providus Bank";
+
   const copyNuban = async () => {
     try {
-      await navigator.clipboard.writeText("0123984123");
+      await navigator.clipboard.writeText(settlementAccount);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
-      showNotice("Could not copy automatically — NUBAN: 0123984123", "err");
+      showNotice(`Could not copy automatically — NUBAN: ${settlementAccount}`, "err");
     }
   };
 
@@ -72,7 +78,15 @@ export default function AgentDashboardPage() {
 
   const hide = isBalanceHidden;
 
-  const quickActions = [
+  // Service pillars = engine-backed product pages; ops tile row keeps the
+  // four operational shortcuts an agent taps repeatedly through the day.
+  const serviceActions = [
+    { label: "Open Accounts", href: "/agent/accounts", icon: Wallet, tone: "text-teal-600 bg-teal-50 ring-teal-200" },
+    { label: "ATM & Cards", href: "/agent/cards", icon: CreditCard, tone: "text-violet-600 bg-violet-50 ring-violet-200" },
+    { label: "FX / BDC Desk", href: "/agent/fx", icon: Landmark, tone: "text-indigo-600 bg-indigo-50 ring-indigo-200" },
+    { label: "Bills & Top-ups", href: "/agent/bills", icon: Receipt, tone: "text-sky-600 bg-sky-50 ring-sky-200" },
+  ];
+  const opActions = [
     { label: "Cash In", href: "/agent/cash-in", icon: ArrowDownLeft, tone: "text-emerald-600 bg-emerald-50 ring-emerald-200" },
     { label: "Cash Out", href: "/agent/cash-out", icon: ArrowUpRight, tone: "text-amber-600 bg-amber-50 ring-amber-200" },
     { label: "Send Transfer", href: "/agent/transfer", icon: ArrowRightLeft, tone: "text-sky-600 bg-sky-50 ring-sky-200" },
@@ -148,8 +162,10 @@ export default function AgentDashboardPage() {
             </div>
             <div className="col-span-2 sm:col-span-1">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-stone-400">E-float account</p>
-              <p className="mt-0.5 font-mono text-xl font-bold text-stone-900">0123 984 123</p>
-              <p className="text-[11px] text-stone-400">Providus Bank · top up instantly</p>
+              <p className="mt-0.5 font-mono text-xl font-bold text-stone-900">
+                {settlementAccount ? `${settlementAccount.slice(0, 4)} ${settlementAccount.slice(4, 7)} ${settlementAccount.slice(7)}` : "—"}
+              </p>
+              <p className="text-[11px] text-stone-400">{settlementBank} · top up instantly</p>
               <button
                 type="button"
                 onClick={() => void copyNuban()}
@@ -199,7 +215,7 @@ export default function AgentDashboardPage() {
         <AgentStatCard
           label="Today's volume"
           value={hide ? "••••••" : formatMoney(kpis.todayVolume, "NGN")}
-          sub="Cash in + out + transfers"
+          sub="All service rails (cash, transfers, accounts, bills, FX)"
           accent="neutral"
         />
         <AgentStatCard
@@ -217,9 +233,37 @@ export default function AgentDashboardPage() {
         />
       </section>
 
-      {/* 4. Quick actions */}
+      {/* 4a. Product pillars */}
+      <section aria-label="Product services" className="space-y-2">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-bold text-stone-900">Serve every product from here</h2>
+          <Link href="/agent/services" className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800">
+            Products & services hub <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {serviceActions.map((a) => (
+            <Link
+              key={a.href}
+              href={a.href}
+              className="group flex items-center gap-3 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm transition hover:border-stone-300 hover:shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+            >
+              <span className={`flex h-10 w-10 items-center justify-center rounded-xl ring-1 ${a.tone}`}>
+                <a.icon className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-stone-800 group-hover:text-emerald-800">{a.label}</span>
+                <span className="block truncate text-[10px] text-stone-400">Engine-backed service</span>
+              </span>
+              <ChevronRight className="ml-auto h-4 w-4 text-stone-300" aria-hidden="true" />
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* 4b. Quick operations */}
       <section aria-label="Quick operations" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {quickActions.map((a) => (
+        {opActions.map((a) => (
           <Link
             key={a.href}
             href={a.href}
@@ -249,7 +293,7 @@ export default function AgentDashboardPage() {
           <div className="mt-3 space-y-2">
             {recentOperations.length === 0 ? (
               <p className="rounded-xl border border-dashed border-stone-300 bg-white p-6 text-center text-xs text-stone-500">
-                No operations yet today. Run your first cash-in, cash-out or transfer to see live ledger-backed records here.
+                No operations yet today. Run any service — cash-in/out, transfer, bill, FX, card or account opening — to see live ledger-backed records here.
               </p>
             ) : (
               recentOperations.slice(0, 6).map((op) => (
@@ -259,26 +303,19 @@ export default function AgentDashboardPage() {
                   onClick={() => openReceipt(op)}
                   className="flex w-full items-center gap-3 rounded-xl border border-stone-200 bg-white p-3 text-left shadow-sm transition hover:border-stone-300 hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
                 >
-                  <span
-                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ring-1 ${
-                      op.type === "CASH_IN"
-                        ? "bg-emerald-50 text-emerald-600 ring-emerald-200"
-                        : op.type === "CASH_OUT"
-                          ? "bg-amber-50 text-amber-600 ring-amber-200"
-                          : "bg-sky-50 text-sky-600 ring-sky-200"
-                    }`}
-                  >
-                    {op.type === "CASH_IN" ? (
-                      <ArrowDownLeft className="h-4 w-4" aria-hidden="true" />
-                    ) : op.type === "CASH_OUT" ? (
-                      <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
-                    ) : (
-                      <ArrowRightLeft className="h-4 w-4" aria-hidden="true" />
-                    )}
-                  </span>
+                  {(() => {
+                    const vis = operationVisual(op.type, op.service);
+                    const Glyph = vis.icon;
+                    return (
+                      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ring-1 ${vis.tileCls}`}>
+                        <Glyph className="h-4 w-4" aria-hidden="true" />
+                      </span>
+                    );
+                  })()}
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold text-stone-800">
                       {op.customerName || "Walk-in customer"}
+                      <span className="ml-1.5 font-normal text-stone-400">· {operationVisual(op.type, op.service).label}</span>
                     </span>
                     <span className="block truncate font-mono text-[10px] text-stone-400">{op.reference}</span>
                   </span>
@@ -286,9 +323,13 @@ export default function AgentDashboardPage() {
                     <span className="block text-sm font-bold text-stone-900">
                       {isBalanceHidden ? "••••" : formatMoney(op.amount, op.currency)}
                     </span>
-                    <span className="block text-[10px] font-semibold text-emerald-600">
-                      +{formatMoney(op.agentCommission || 0, op.currency)}
-                    </span>
+                    {(op.agentCommission || 0) > 0 ? (
+                      <span className="block text-[10px] font-semibold text-emerald-600">
+                        +{formatMoney(op.agentCommission || 0, op.currency)}
+                      </span>
+                    ) : (
+                      <span className="block text-[10px] text-stone-400">{op.status === "SUCCESSFUL" ? "completed" : op.status}</span>
+                    )}
                   </span>
                 </button>
               ))

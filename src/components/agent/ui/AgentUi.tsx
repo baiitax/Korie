@@ -7,7 +7,20 @@
 
 import React from "react";
 import Link from "next/link";
-import { ArrowLeft, RefreshCw, AlertTriangle, XCircle } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowDownLeft,
+  ArrowUpRight,
+  ArrowRightLeft,
+  Receipt,
+  Landmark,
+  CreditCard,
+  Wallet,
+  Activity,
+  RefreshCw,
+  AlertTriangle,
+  XCircle,
+} from "lucide-react";
 
 /* ------------------------------------------------------------- status chips */
 
@@ -227,4 +240,34 @@ export function AgentModal({
       </div>
     </div>
   );
+}
+
+/* --------------------------------------------------- operation glyphs (shared) */
+
+export interface OperationVisual {
+  /** Semantic icon for an engine operation row (receipt lists, dashboards). */
+  icon: React.ComponentType<{ className?: string; "aria-hidden"?: boolean | "true" | "false" }>;
+  /** Tailwind classes for the glyph tile (bg/text/ring). */
+  tileCls: string;
+  /** Short human label for the operation kind. */
+  label: string;
+}
+
+export function operationVisual(type: string, service?: string): OperationVisual {
+  const svc = service || "";
+  if (type === "CASH_IN" || svc === "ACCOUNT_DEPOSIT")
+    return { icon: ArrowDownLeft, tileCls: "bg-emerald-50 text-emerald-600 ring-emerald-200", label: "Deposit" };
+  if (type === "CASH_OUT" || svc === "ACCOUNT_WITHDRAWAL")
+    return { icon: ArrowUpRight, tileCls: "bg-amber-50 text-amber-600 ring-amber-200", label: "Withdrawal" };
+  if (type === "TRANSFER_NIP")
+    return { icon: ArrowRightLeft, tileCls: "bg-sky-50 text-sky-600 ring-sky-200", label: "Transfer (NIP)" };
+  if (type === "BILL_PAYMENT")
+    return { icon: Receipt, tileCls: "bg-sky-50 text-sky-600 ring-sky-200", label: "Bill payment" };
+  if (type === "FX_CONVERSION")
+    return { icon: Landmark, tileCls: "bg-indigo-50 text-indigo-600 ring-indigo-200", label: "FX conversion" };
+  if (type === "CARD_APPLICATION" || type === "CARD_APPLICATION_FEE")
+    return { icon: CreditCard, tileCls: "bg-violet-50 text-violet-600 ring-violet-200", label: "Card application" };
+  if (type === "ACCOUNT_OPENING")
+    return { icon: Wallet, tileCls: "bg-teal-50 text-teal-600 ring-teal-200", label: "Account opening" };
+  return { icon: Activity, tileCls: "bg-stone-100 text-stone-500 ring-stone-200", label: "Operation" };
 }

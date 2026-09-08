@@ -21,6 +21,9 @@ export interface AgentPortalProfile {
   country: "NG" | "NE";
   stateOrProvince: string;
   lgaOrDistrict: string;
+  /** Agent registry float/settlement NUBAN (Providus) — display truth for copy actions. */
+  settlementAccountNumber: string;
+  settlementBankName: string;
   tier: string;
   status: string;
   kycStatus: string;

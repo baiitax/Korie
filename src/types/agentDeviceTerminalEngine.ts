@@ -33,6 +33,9 @@ export interface AgentRecord {
   region: string;
   stateOrProvince: string;
   lgaOrDistrict: string;
+  /** Float/settlement NUBAN the agency credits top-ups into (engine truth for copy actions). */
+  settlementAccountNumber?: string;
+  settlementBankName?: string;
   branchId?: string;
   aggregatorId?: string;
   status: AgentStatus;

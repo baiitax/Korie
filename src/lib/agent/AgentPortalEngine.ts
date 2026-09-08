@@ -202,6 +202,8 @@ export class AgentPortalEngine {
         country: registryAgent?.country || "NG",
         stateOrProvince: registryAgent?.stateOrProvince || "FCT Abuja",
         lgaOrDistrict: registryAgent?.lgaOrDistrict || "Abuja Municipal (AMAC)",
+        settlementAccountNumber: registryAgent?.settlementAccountNumber || AGENT_PORTAL_SETTLEMENT_ACCOUNT,
+        settlementBankName: registryAgent?.settlementBankName || "Providus Bank",
         tier: registryAgent?.tier || "TIER_2",
         status: registryAgent?.status || "ACTIVE",
         kycStatus: "VERIFIED",
