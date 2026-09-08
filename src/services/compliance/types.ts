@@ -1,14 +1,12 @@
 /**
  * Compliance portal view models.
  *
- * Records are mapped from real engine contracts (`AmlAlertRecord`,
- * `AmlCaseRecord`, `PersonMasterRecord`, `OrganizationMasterRecord`,
- * `DeepHealthReport`, …) into the narrow shape a screen renders. Fields that no
- * backend supplies are `undefined` and the UI prints "Not reported" — the portal
- * never fills a gap with a plausible-looking number.
+ * Records are mapped from real, database-backed API payloads (identity_persons
+ * rows, aml_alerts rows, the /api/compliance/health probe, …) into the narrow
+ * shape a screen renders. Fields that no backend supplies are `undefined` and
+ * the UI prints "Not reported" — the portal never fills a gap with a
+ * plausible-looking number.
  */
-
-import type { DeepHealthReport } from '@/types/resilienceEngine';
 
 export type ComplianceSource = 'live' | 'demo';
 
@@ -517,13 +515,38 @@ export interface ProviderRow {
 
 export interface HealthRow {
   id: string;
-  platformStatus: DeepHealthReport['platformStatus'];
+  platformStatus: 'OPERATIONAL' | 'DEGRADED' | 'SAFE_MODE' | 'CRITICAL';
   safeMode: boolean;
   timestamp: string;
-  database: DeepHealthReport['database'];
-  ledger: DeepHealthReport['ledger'];
-  identityEngine: DeepHealthReport['identityEngine'];
-  treasury: DeepHealthReport['treasury'];
+  database: {
+    status: 'CONNECTED' | 'DISCONNECTED';
+    readLatencyMs: number;
+    writeLatencyMs: number;
+    poolActive: number;
+    poolMax: number;
+    error?: string;
+    probedTable?: string;
+    probedRowCount?: number;
+  };
+  ledger: {
+    status: 'BALANCED' | 'IMBALANCE_DETECTED';
+    invariantPassed: boolean;
+    totalJournalsCount: number;
+    debitCreditDeltaMinor: number;
+    note?: string;
+  };
+  identityEngine: {
+    status: 'OPERATIONAL' | 'DEGRADED';
+    totalPersonsCount: number;
+    totalOrgsCount: number;
+    pendingKycCount: number;
+  };
+  treasury: {
+    status: string;
+    availableLiquidityNgnMinor: number;
+    availableLiquidityXofMinor: number;
+    note?: string;
+  };
   providers: ProviderRow[];
 }
 
@@ -572,7 +595,7 @@ export interface DashboardSummary {
   highRiskBusinesses: number;
   overdueObligations: number;
   highRiskEntities: number;
-  platformStatus?: DeepHealthReport['platformStatus'];
+  platformStatus?: HealthRow['platformStatus'];
   providersOffline: number;
   queueOldestHours?: number;
   alertMix: { label: string; value: number }[];

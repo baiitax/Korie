@@ -1524,7 +1524,18 @@ export const fr = {
         personal: "Informations personnelles",
         dob: "Date de naissance",
         document: "Pièce d'identité",
+        nationalIdentifier: "Identifiant national",
         review: "Vérification finale",
+    },
+    identifier: {
+        sectionTitle: "Identifiant national",
+        introEither: "Ajoutez votre BVN ou votre NIN pour débloquer des plafonds de transaction plus élevés. Cette exigence provient de la Banque Centrale du Nigéria (CBN).",
+        introBoth: "Ajoutez à la fois votre BVN et votre NIN pour débloquer des plafonds de transaction plus élevés. La Banque Centrale du Nigéria exige les deux pour ce niveau de compte.",
+        placeholder: "Saisissez votre {{type}} à 11 chiffres",
+        hint: "Votre {{type}} est chiffré avant d'être stocké. Seule une version masquée est jamais affichée, et elle n'est jamais partagée en dehors de votre compte KoriePay.",
+        submit: "Envoyer",
+        pending: "En attente de vérification",
+        verified: "Vérifié",
     },
     stepStatus: {
         complete: "Complet",

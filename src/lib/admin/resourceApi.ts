@@ -238,6 +238,7 @@ export const COMPLIANCE_READABLE_RESOURCES = new Set([
   "customer-accounts",
   "customer-transactions",
   "customer-kyc-documents",
+  "customer-identifiers",
   "customer-disputes",
   "customer-restrictions",
   "aml-customer-profiles",

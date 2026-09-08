@@ -1509,7 +1509,18 @@ export const ha = {
         personal: "Bayanan mutum",
         dob: "Ranar haihuwa",
         document: "Takardun shaida",
+        nationalIdentifier: "Lambar shaidar ƙasa",
         review: "Dubawa ta ƙarshe",
+    },
+    identifier: {
+        sectionTitle: "Lambar shaidar ƙasa",
+        introEither: "Ƙara BVN ko NIN ɗinka don buɗe iyakokin ma'amala mafi girma. Ana buƙatar wannan bisa ƙa'idar Babban Bankin Najeriya (CBN).",
+        introBoth: "Ƙara BVN da NIN ɗinka don buɗe iyakokin ma'amala mafi girma. Babban Bankin Najeriya yana buƙatar duka biyu don wannan matakin asusun.",
+        placeholder: "Shigar da {{type}} mai lamba 11",
+        hint: "Ana ɓoye {{type}} ɗinka kafin a adana shi. Ana nuna sigar da aka rufe kawai, kuma ba a taɓa raba shi a wajen asusunka na KoriePay ba.",
+        submit: "Aika",
+        pending: "Ana jiran dubawa",
+        verified: "An tabbatar",
     },
     stepStatus: {
         complete: "Cikakke",

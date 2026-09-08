@@ -4,8 +4,9 @@
  * Replaces the in-memory CustomerLifecycleEngine / MasterIdentityEngine /
  * DocumentVaultEngine chain with the genuine sources of truth:
  *
- *   public.customers               → kyc_tier, date_of_birth, residential_address, status
- *   public.customer_kyc_documents  → documents actually uploaded for this customer
+ *   public.customers                     → kyc_tier, date_of_birth, residential_address, status
+ *   public.customer_kyc_documents        → documents actually uploaded for this customer
+ *   public.customer_verification_status  → BVN/NIN/NIF/NNI identifiers submitted for this customer
  *
  * Nothing here invents a percentage or a status the backend cannot support.
  * The customer master still has no phone_verified_at / email_verified_at
@@ -15,6 +16,11 @@
 
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { CustomerRow } from "@/lib/customer/customerData";
+import {
+  IdentifierRecord,
+  identifierRequirementForTier,
+  identifierRequirementSatisfied,
+} from "@/lib/customer/identifierVerification";
 
 export type VerificationState =
   | "NOT_STARTED"
@@ -35,7 +41,7 @@ export type VerificationStepStatus =
   | "UNAVAILABLE";
 
 export interface VerificationStep {
-  id: "phone" | "email" | "personal_information" | "date_of_birth" | "address" | "identity_document" | "final_review";
+  id: "phone" | "email" | "personal_information" | "date_of_birth" | "address" | "national_identifier" | "identity_document" | "final_review";
   status: VerificationStepStatus;
   reasonKey: string;
   required: boolean;
@@ -70,6 +76,15 @@ export interface VerificationSummary {
     expiresAt?: string;
     rejectionReason?: string;
   }[];
+  identifiers: {
+    id: string;
+    idType: IdentifierRecord["id_type"];
+    idNumberMasked: string;
+    status: IdentifierRecord["verification_status"];
+    rejectionReason?: string;
+    createdAt: string;
+  }[];
+  identifierRequirement: { required: IdentifierRecord["id_type"][]; requireAll: boolean };
   canSubmitDocument: boolean;
   generatedAt: string;
 }
@@ -122,6 +137,7 @@ function isLive(doc: KycDocumentRow, now: number): boolean {
 export function deriveVerificationSummary(
   customer: CustomerRow,
   documents: KycDocumentRow[],
+  identifiers: IdentifierRecord[] = [],
   now: Date = new Date(),
 ): VerificationSummary {
   const needs = TIER_REQUIREMENTS[customer.kyc_tier] ?? TIER_REQUIREMENTS.TIER_2;
@@ -130,13 +146,31 @@ export function deriveVerificationSummary(
   const hasSubmittedDoc = liveDocs.some((d) => d.status === "PENDING");
   const rejectedDoc = documents.some((d) => d.status === "REJECTED");
 
+  const identifierRequirement = identifierRequirementForTier(customer.country, customer.kyc_tier);
+  const identifierRequired = identifierRequirement.required.length > 0;
+  const identifierSubmitted = identifierRequirementSatisfied(identifierRequirement, identifiers);
+  const identifierVerified = identifierRequirementSatisfied(identifierRequirement, identifiers, ["VERIFIED"]);
+  const identifierRejectedOnly = identifierRequired && !identifierSubmitted && identifiers.some((r) => r.verification_status === "FAILED");
+
+  // A tier is fully verified only when every required signal — document AND
+  // national identifier, whichever apply at this tier — has actually cleared
+  // review, never merely been submitted.
+  const documentGateCleared = !needs.identityDocument || hasApprovedDoc;
+  const identifierGateCleared = !identifierRequired || identifierVerified;
+  const anythingOutstanding =
+    (needs.identityDocument && !hasApprovedDoc) || (identifierRequired && !identifierVerified);
+  const anythingSubmittedNotYetDecided =
+    (needs.identityDocument && !hasApprovedDoc && hasSubmittedDoc) ||
+    (identifierRequired && !identifierVerified && identifierSubmitted);
+
   let state: VerificationState;
   if (customer.status !== "ACTIVE") {
     state = "ACTION_REQUIRED";
-  } else if (needs.identityDocument) {
-    if (hasApprovedDoc) state = "VERIFIED";
-    else if (hasSubmittedDoc) state = "SUBMITTED";
-    else if (rejectedDoc) state = "RETRY_REQUIRED";
+  } else if (needs.identityDocument || identifierRequired) {
+    if (documentGateCleared && identifierGateCleared) state = "VERIFIED";
+    else if (anythingSubmittedNotYetDecided && !rejectedDoc && !identifierRejectedOnly) state = "SUBMITTED";
+    else if (rejectedDoc || identifierRejectedOnly) state = "RETRY_REQUIRED";
+    else if (anythingOutstanding) state = "NOT_STARTED";
     else state = "NOT_STARTED";
   } else {
     state = customer.date_of_birth ? "VERIFIED" : "IN_PROGRESS";
@@ -164,6 +198,20 @@ export function deriveVerificationSummary(
       required: needs.address,
     },
     {
+      id: "national_identifier",
+      status: !identifierRequired
+        ? "COMPLETED"
+        : identifierVerified
+          ? "COMPLETED"
+          : identifierSubmitted
+            ? "SUBMITTED"
+            : identifierRejectedOnly
+              ? "ACTION_REQUIRED"
+              : "NOT_STARTED",
+      reasonKey: "verification.reason.nationalIdentifier",
+      required: identifierRequired,
+    },
+    {
       id: "identity_document",
       status: !needs.identityDocument
         ? "COMPLETED"
@@ -188,9 +236,10 @@ export function deriveVerificationSummary(
   const required = steps.filter((s) => s.required && s.status !== "UNAVAILABLE");
   const completed = required.filter((s) => s.status === "COMPLETED");
   const missing = required.filter((s) => s.status !== "COMPLETED");
-  const ACTION_VERB: Partial<Record<VerificationStep["id"], "upload" | "continue">> = {
+  const ACTION_VERB: Partial<Record<VerificationStep["id"], "upload" | "continue" | "submit">> = {
     identity_document: "upload",
     address: "upload",
+    national_identifier: "submit",
   };
 
   return {
@@ -209,6 +258,15 @@ export function deriveVerificationSummary(
       expiresAt: d.expires_at || undefined,
       rejectionReason: d.status === "REJECTED" ? d.rejection_reason || undefined : undefined,
     })),
+    identifiers: identifiers.map((r) => ({
+      id: r.id,
+      idType: r.id_type,
+      idNumberMasked: r.id_number_masked,
+      status: r.verification_status,
+      rejectionReason: r.verification_status === "FAILED" ? r.rejection_reason || undefined : undefined,
+      createdAt: r.created_at,
+    })),
+    identifierRequirement,
     canSubmitDocument: state !== "SUBMITTED",
     generatedAt: now.toISOString(),
   };

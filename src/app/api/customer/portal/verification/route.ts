@@ -5,6 +5,7 @@ import { authenticateCustomerRequest } from "@/lib/security/customerAuth";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getCustomerById } from "@/lib/customer/customerData";
 import { deriveVerificationSummary, getKycDocumentsForCustomer } from "@/lib/customer/customerVerificationLive";
+import { getIdentifiersForCustomer } from "@/lib/customer/identifierVerification";
 
 /**
  * /api/customer/portal/verification
@@ -51,8 +52,11 @@ export async function GET(req: NextRequest) {
   const customer = await getCustomerById(auth.customer.customerId);
   if (!customer) return fail("CUSTOMER_NOT_FOUND", "We could not load your customer profile. Contact support.", 404);
 
-  const documents = await getKycDocumentsForCustomer(customer.id);
-  const summary = deriveVerificationSummary(customer, documents);
+  const [documents, identifiers] = await Promise.all([
+    getKycDocumentsForCustomer(customer.id),
+    getIdentifiersForCustomer(customer.id),
+  ]);
+  const summary = deriveVerificationSummary(customer, documents, identifiers);
 
   return createSuccessResponse({ verification: summary }, { requestId: auth.customer.requestId, environment: "PRODUCTION" });
 }
@@ -66,8 +70,11 @@ export async function POST(req: NextRequest) {
   const customer = await getCustomerById(auth.customer.customerId);
   if (!customer) return fail("CUSTOMER_NOT_FOUND", "We could not load your customer profile.", 404);
 
-  const documents = await getKycDocumentsForCustomer(customer.id);
-  const summary = deriveVerificationSummary(customer, documents);
+  const [documents, identifiers] = await Promise.all([
+    getKycDocumentsForCustomer(customer.id),
+    getIdentifiersForCustomer(customer.id),
+  ]);
+  const summary = deriveVerificationSummary(customer, documents, identifiers);
   if (!summary.canSubmitDocument) {
     return fail("REVIEW_IN_PROGRESS", "Your documents are already with our review team. You'll be notified when the review is complete.", 409);
   }
@@ -126,7 +133,7 @@ export async function POST(req: NextRequest) {
     }
 
     const refreshedDocs = await getKycDocumentsForCustomer(customer.id);
-    const refreshedSummary = deriveVerificationSummary(customer, refreshedDocs);
+    const refreshedSummary = deriveVerificationSummary(customer, refreshedDocs, identifiers);
 
     return createSuccessResponse(
       {

@@ -7,6 +7,7 @@ import { safeFetch, NormalizedCustomerError } from "@/lib/customer/customerApiEr
 import CustomerProfileGate from "@/components/customer/ui/CustomerProfileGate";
 import DocumentUploader from "@/components/customer/ui/DocumentUploader";
 import ProfileDetailsForm from "@/components/customer/ui/ProfileDetailsForm";
+import NationalIdentifierForm, { IdentifierRow } from "@/components/customer/ui/NationalIdentifierForm";
 import { DataErrorState } from "@/components/customer/ui/CustomerStateViews";
 import { KpaySectionLoader } from "@/components/loading";
 import {
@@ -62,6 +63,8 @@ interface VerificationSummary {
   remainingCount: number;
   actionKey: string | null;
   documents: { documentType: string; status: string; uploadedAt: string; expiresAt?: string; numberMasked?: string }[];
+  identifiers: IdentifierRow[];
+  identifierRequirement: { required: IdentifierRow["idType"][]; requireAll: boolean };
   canSubmitDocument: boolean;
   generatedAt: string;
 }
@@ -72,6 +75,7 @@ const STEP_META: Record<string, { labelKey: string; icon: React.ComponentType<{ 
   personal_information: { labelKey: "verification.step.personal", icon: User },
   date_of_birth: { labelKey: "verification.step.dob", icon: CalendarDays },
   address: { labelKey: "verification.step.address", icon: MapPin },
+  national_identifier: { labelKey: "verification.step.nationalIdentifier", icon: ShieldCheck },
   identity_document: { labelKey: "verification.step.document", icon: FileCheck2 },
   final_review: { labelKey: "verification.step.review", icon: ShieldCheck },
 };
@@ -206,6 +210,35 @@ export default function CustomerVerificationPage() {
             t={t}
             onSaved={() => void load()}
           />
+
+          {/* BVN/NIN (Nigeria) or NIF/NNI (Niger) — required per CBN's
+              tiered-KYC framework / BCEAO Art. 27. Submitted values are never
+              auto-verified: they go PENDING to a human reviewer, matching the
+              honest-pending-provider pattern used for transfers. */}
+          {summary.identifierRequirement.required.length > 0 && (
+            <section className="rounded-3xl bg-[var(--surface)] border border-[var(--border)] p-5 space-y-4 shadow-[var(--shadow-card)]">
+              <div className="flex items-center gap-2 text-[var(--foreground)] font-bold text-xs">
+                <ShieldCheck className="w-4 h-4 text-[var(--brand-primary)]" aria-hidden="true" />
+                <span>{t("verification.identifier.sectionTitle")}</span>
+              </div>
+              <p className="text-[11px] text-[var(--foreground-muted)] leading-relaxed -mt-2">
+                {summary.identifierRequirement.requireAll
+                  ? t("verification.identifier.introBoth")
+                  : t("verification.identifier.introEither")}
+              </p>
+              <div className="space-y-3">
+                {summary.identifierRequirement.required.map((idType) => (
+                  <NationalIdentifierForm
+                    key={idType}
+                    idType={idType}
+                    existing={summary.identifiers.find((r) => r.idType === idType)}
+                    t={t}
+                    onSubmitted={() => void load()}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
 
           {/* Checklist from backend requirements only */}
           <section className="space-y-2.5">

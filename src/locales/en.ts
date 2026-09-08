@@ -1511,7 +1511,18 @@ export const en = {
         personal: "Personal information",
         dob: "Date of birth",
         document: "Identity document",
+        nationalIdentifier: "National identifier",
         review: "Final review",
+    },
+    identifier: {
+        sectionTitle: "National identifier",
+        introEither: "Add your BVN or NIN to unlock higher transaction limits. This is required by the Central Bank of Nigeria.",
+        introBoth: "Add both your BVN and NIN to unlock higher transaction limits. The Central Bank of Nigeria requires both for this account tier.",
+        placeholder: "Enter your 11-digit {{type}}",
+        hint: "Your {{type}} is encrypted before it is stored. Only a masked version is ever shown, and it is never shared outside your KoriePay account.",
+        submit: "Submit",
+        pending: "Pending review",
+        verified: "Verified",
     },
     stepStatus: {
         complete: "Complete",

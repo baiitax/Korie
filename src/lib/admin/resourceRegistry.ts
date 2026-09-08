@@ -95,6 +95,27 @@ export const RESOURCES: Record<string, ResourceDef> = {
       columns: ["status", "reviewed_by", "rejection_reason"],
     },
   },
+  /*
+   * National identifiers (BVN/NIN/NIF/NNI) captured for CBN/BCEAO KYC.
+   * id_number_encrypted is deliberately excluded from `select` — no admin
+   * screen, drawer, or export ever sees the ciphertext or the plaintext,
+   * only the masked preview the customer already saw when they submitted it.
+   */
+  "customer-identifiers": {
+    table: "customer_verification_status",
+    orderBy: "created_at",
+    select:
+      "id,customer_id,id_type,id_number_masked,verification_source,verification_status,verification_reference,rejection_reason,reviewed_by,verified_at,created_at,updated_at",
+    search: ["id_number_masked", "verification_reference"],
+    filters: {
+      customer_id: { column: "customer_id", op: "eq" },
+      id_type: { column: "id_type", op: "eq" },
+      verification_status: { column: "verification_status", op: "eq" },
+    },
+    mutations: {
+      columns: ["verification_status", "verification_reference", "rejection_reason", "reviewed_by", "verified_at"],
+    },
+  },
 
   /* ── Agency network ──────────────────────────────────────────────── */
   "agents": {

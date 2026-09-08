@@ -318,7 +318,7 @@ export default function ComplianceDashboardPage() {
                     <Chip tone={report.ledger.status === 'BALANCED' ? 'clear' : 'critical'}>
                       {report.ledger.status === 'BALANCED' ? t('compliance.dashboard.ledgerBalanced') : t('compliance.dashboard.ledgerImbalance')}
                     </Chip>
-                    <Chip tone={report.database.status === 'HEALTHY' ? 'clear' : 'high'}>
+                    <Chip tone={report.database.status === 'CONNECTED' ? 'clear' : 'high'}>
                       {t('compliance.dashboard.dbLatency', {
                         read: report.database.readLatencyMs,
                         write: report.database.writeLatencyMs,

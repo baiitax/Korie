@@ -1,4 +1,4 @@
-import type { VerificationState, VerificationStepStatus } from "@/lib/customer/CustomerVerification";
+import type { VerificationState, VerificationStepStatus } from "@/lib/customer/customerVerificationLive";
 
 /**
  * src/lib/customer/verificationLabels.ts
@@ -34,7 +34,6 @@ const STATE_KEY: Record<VerificationState, string> = {
   UNDER_REVIEW: "verification.state.review",
   VERIFIED: "verification.state.verified",
   REJECTED: "verification.state.rejected",
-  EXPIRED: "verification.state.expired",
   RETRY_REQUIRED: "verification.state.retryRequired",
 };
 

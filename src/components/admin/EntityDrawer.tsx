@@ -43,12 +43,15 @@ function StatusAction({
   currentStatus,
   allowed,
   onDone,
+  field = "status",
 }: {
   resource: string;
   recordId: string;
   currentStatus: unknown;
   allowed: string[];
   onDone: () => void;
+  /** Column the registry's mutation actually accepts — most resources use "status", a few use a domain-specific name. */
+  field?: string;
 }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
@@ -57,7 +60,7 @@ function StatusAction({
   const run = async (next: string) => {
     if (!confirm(`Set ${resource} ${recordId.slice(0, 8)}… status to ${next}? This action is audited.`)) return;
     setBusy(next);
-    const res = await mutateAdminRecord(resource, recordId, { status: next });
+    const res = await mutateAdminRecord(resource, recordId, { [field]: next });
     setBusy(null);
     setResult(res.ok ? { ok: true, message: `Status set to ${next} (audited).` } : { ok: false, message: res.message });
     if (res.ok) onDone();
@@ -89,6 +92,7 @@ function StatusAction({
 const MUTABLE_DRAWER_RESOURCES: Record<string, string> = {
   KYC_DOCUMENT: "kyc-documents",
   AGENT_KYC_DOCUMENT: "agent-kyc-documents",
+  CUSTOMER_IDENTIFIER: "customer-identifiers",
   AGENT_APPLICATION: "agent-applications",
   DISPUTE: "customer-disputes",
   DISPUTE_CASE: "dispute-cases",
@@ -122,6 +126,7 @@ const MUTABLE_DRAWER_RESOURCES: Record<string, string> = {
 const STATUS_CHOICES: Record<string, string[]> = {
   "kyc-documents": ["UNDER_REVIEW", "APPROVED", "REJECTED"],
   "agent-kyc-documents": ["UNDER_REVIEW", "APPROVED", "REJECTED"],
+  "customer-identifiers": ["MANUAL_REVIEW", "VERIFIED", "FAILED"],
   "agent-applications": ["UNDER_REVIEW", "APPROVED", "REJECTED"],
   "customer-disputes": ["OPEN", "INVESTIGATING", "RESOLVED", "ESCALATED", "CLOSED"],
   "dispute-cases": ["OPEN", "UNDER_REVIEW", "WAITING_BANK", "RESOLVED", "CLOSED"],
@@ -151,9 +156,15 @@ const STATUS_CHOICES: Record<string, string[]> = {
   "decision-recommendations": ["PENDING", "APPROVED", "REJECTED", "EXECUTED"],
 };
 
+/** Resources whose status column isn't literally named "status". */
+const STATUS_FIELD: Record<string, string> = {
+  "customer-identifiers": "verification_status",
+};
+
 const WHITELIST_HINT: Record<string, string> = {
   "kyc-documents": "status, reviewed_by, rejection_reason",
   "agent-kyc-documents": "status, reviewed_by, rejection_reason",
+  "customer-identifiers": "verification_status, verification_reference, rejection_reason, reviewed_by",
   "agent-applications": "status, reviewed_by, rejection_reason",
   "customer-disputes": "status, assigned_to, resolution_notes",
   "risk-cases": "status, assigned_officer, resolution_notes",
@@ -194,10 +205,10 @@ export const EntityDrawer: React.FC = () => {
               <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-[var(--brand-soft)] text-[var(--brand-primary)] border border-[var(--brand-primary)]/20">
                 {activeDrawer.type}
               </span>
-              {row.status && <StatusChip value={row.status} />}
+              {(row.status || row.verification_status) && <StatusChip value={row.status ?? row.verification_status} />}
             </div>
             <h3 className="mt-1.5 text-sm font-extrabold text-[var(--foreground)] truncate">
-              {row.reference ?? row.ticket_number ?? row.agent_code ?? row.full_name ?? `${row.first_name ?? ""} ${row.last_name ?? ""}`.trim() ?? "Record"}
+              {row.reference ?? row.ticket_number ?? row.agent_code ?? row.id_number_masked ?? row.full_name ?? `${row.first_name ?? ""} ${row.last_name ?? ""}`.trim() ?? "Record"}
             </h3>
             <button onClick={copyId} className="mt-1 flex items-center gap-1.5 text-[10px] font-mono text-[var(--foreground-muted)] hover:text-[var(--foreground)]">
               {id ? `${id.slice(0, 18)}…` : "no id"}
@@ -320,7 +331,8 @@ export const EntityDrawer: React.FC = () => {
                   <StatusAction
                     resource={MUTABLE_DRAWER_RESOURCES[activeDrawer.type]}
                     recordId={id}
-                    currentStatus={row.status}
+                    field={STATUS_FIELD[MUTABLE_DRAWER_RESOURCES[activeDrawer.type]] ?? "status"}
+                    currentStatus={row[STATUS_FIELD[MUTABLE_DRAWER_RESOURCES[activeDrawer.type]] ?? "status"]}
                     allowed={STATUS_CHOICES[MUTABLE_DRAWER_RESOURCES[activeDrawer.type]] ?? []}
                     onDone={() => {}}
                   />
