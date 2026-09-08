@@ -103,6 +103,163 @@ const loginAttempts = new Map<string, AttemptTracker>();
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 
+// ---------------------------------------------------------------------------
+// Sandbox demo credential registry (simulated RBAC).
+//
+// The sandbox verifies passwords for real against DEMO_PASSWORD — any other
+// value is rejected and counts toward the per-identifier lockout. The login
+// page advertises the row for the active role. NEVER ship a production
+// credential in this registry.
+// ---------------------------------------------------------------------------
+
+export const DEMO_PASSWORD = 'KoriePay@2026!';
+
+export interface DemoCredentialRow {
+  role: UserRole;
+  roleLabel: string;
+  badge: string;
+  /** Identifier that deterministically resolves to this role in the sandbox. */
+  identifier: string;
+  /** Persona the identifier signs in as (engine-aligned where one exists). */
+  fullName: string;
+  note: string;
+}
+
+export const DEMO_CREDENTIALS: DemoCredentialRow[] = [
+  {
+    role: 'CUSTOMER',
+    roleLabel: 'Retail / SME Customer',
+    badge: 'KoriePay Wallet',
+    identifier: '+234 803 456 7890',
+    fullName: 'Ibrahim Bello',
+    note: 'Personal digital wallet · Providus NG',
+  },
+  {
+    role: 'AGENT',
+    roleLabel: 'Field Banking Agent',
+    badge: 'Cash In/Out · Bills · Cards · FX',
+    identifier: 'agent.garba@koriepay.ng',
+    fullName: 'Garba Musa',
+    note: 'Garba Express Services & POS · AGT-NG-0092 · TID-NG-009182 (Abuja)',
+  },
+  {
+    role: 'AGGREGATOR',
+    roleLabel: 'Super Aggregator',
+    badge: 'Agent Network',
+    identifier: 'aggregator.wuse@koriepay.ng',
+    fullName: 'Ibrahim Bello',
+    note: 'Wuse network desk · NG',
+  },
+  {
+    role: 'MERCHANT',
+    roleLabel: 'Enterprise Merchant',
+    badge: 'Payment Gateway',
+    identifier: 'merchant.ikoyi@koriepay.ng',
+    fullName: 'Ibrahim Bello',
+    note: 'Gateway account · NG',
+  },
+  {
+    role: 'ADMIN',
+    roleLabel: 'System Administrator',
+    badge: 'Command Center',
+    identifier: 'admin@koriepay.ng',
+    fullName: 'Ibrahim Bello',
+    note: 'MFA step-up enabled',
+  },
+  {
+    role: 'COMPLIANCE',
+    roleLabel: 'AML / Compliance Desk',
+    badge: 'Risk Oversight',
+    identifier: 'compliance@koriepay.ng',
+    fullName: 'Ibrahim Bello',
+    note: 'AML oversight desk',
+  },
+  {
+    role: 'SUPPORT',
+    roleLabel: 'Customer Care Lead',
+    badge: 'Support Helpdesk',
+    identifier: 'support@koriepay.ng',
+    fullName: 'Ibrahim Bello',
+    note: 'Helpdesk queue owner',
+  },
+  {
+    role: 'DEVELOPER',
+    roleLabel: 'API Developer',
+    badge: 'Sandbox Portal',
+    identifier: 'dev.sandbox@koriepay.ng',
+    fullName: 'Ibrahim Bello',
+    note: 'kp_test_ sandbox keys',
+  },
+];
+
+/**
+ * Builds the persona profile a sandbox sign-in resolves to.
+ * AGENT is engine-aligned with the agent registry persona (agt-ng-001 —
+ * Garba Express Services & POS, Abuja): the agent portal operates as that
+ * registered agency, so the session must not impersonate a customer.
+ * All other roles keep the deterministic NG/NE persona profile.
+ */
+export function buildDemoUser(
+  role: UserRole,
+  country: JurisdictionCode = 'NG',
+  identifier = '',
+): AuthUser {
+  if (role === 'AGENT') {
+    // Mirror of AgentManagementEngine.getAgent('agt-ng-001') / agent registry
+    // seed (legal: Musa Garba Enterprise, trading: Garba Express Services &
+    // POS) + agentPortalConstants email/phone. Kept in sync with those seeds.
+    return {
+      id: 'agt-ng-001',
+      email: 'garba.express@koriepay.ng',
+      phone: '+2348031122334',
+      firstName: 'Garba',
+      lastName: 'Musa',
+      fullName: 'Garba Musa',
+      country: 'NG',
+      role: 'AGENT',
+      kycTier: 'TIER_2',
+      kycStatus: 'VERIFIED',
+      status: 'ACTIVE',
+      mfaEnabled: false,
+      preferredLanguage: 'en',
+      createdAt: new Date().toISOString(),
+      lastLoginAt: new Date().toISOString(),
+    };
+  }
+
+  const cleanId = identifier.trim().toLowerCase();
+  const isNiger = cleanId.startsWith('+227') || cleanId.endsWith('.ne') || cleanId.includes('niamey');
+  const targetCountry: JurisdictionCode = isNiger ? 'NE' : country;
+  const canonicalEmail =
+    targetCountry === 'NG' ? 'ibrahim.bello@koriepay.ng' : 'amara.diallo@koriepay.ne';
+  const email = cleanId.includes('@')
+    ? cleanId
+    : identifier.trim()
+      ? `user_${cleanId.replace(/[^0-9]/g, '')}@koriepay.${targetCountry.toLowerCase()}`
+      : canonicalEmail;
+  const canonicalPhone = targetCountry === 'NG' ? '+2348099887766' : '+22790223344';
+  const firstName = targetCountry === 'NG' ? 'Ibrahim' : 'Amara';
+  const lastName = targetCountry === 'NG' ? 'Bello' : 'Diallo';
+
+  return {
+    id: `usr_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`,
+    email,
+    phone: identifier.trim() ? AuthService.getInstance().normalizePhone(identifier, targetCountry) : canonicalPhone,
+    firstName,
+    lastName,
+    fullName: `${firstName} ${lastName}`,
+    country: targetCountry,
+    role,
+    kycTier: 'TIER_2',
+    kycStatus: 'VERIFIED',
+    status: 'ACTIVE',
+    mfaEnabled: role === 'ADMIN' || role === 'COMPLIANCE' || role === 'SUPER_ADMIN',
+    preferredLanguage: targetCountry === 'NE' ? 'fr' : 'en',
+    createdAt: new Date().toISOString(),
+    lastLoginAt: new Date().toISOString(),
+  };
+}
+
 export class AuthService {
   private static instance: AuthService;
 
@@ -320,7 +477,28 @@ export class AuthService {
       };
     }
 
-    // 3. Resolve role and synthetic verified profile for seamless interaction
+    // 3. Real credential check (sandbox demo registry): the demo password is
+    // verified for every identifier — wrong passwords are rejected and count
+    // toward the per-identifier lockout instead of silently passing.
+    if (password !== DEMO_PASSWORD) {
+      const attempt = this.recordFailedAttempt(cleanId);
+      if (attempt.isNowLocked) {
+        return {
+          success: false,
+          errorCode: 'ACCOUNT_LOCKED',
+          errorMessage: 'Too many unsuccessful sign-in attempts. For your security, access is temporarily locked for 15 minutes.',
+        };
+      }
+      return {
+        success: false,
+        errorCode: 'INVALID_CREDENTIALS',
+        errorMessage: `The password is incorrect for this identifier — ${attempt.remainingAttempts} ${
+          attempt.remainingAttempts === 1 ? 'attempt' : 'attempts'
+        } left before a 15-minute lock.`,
+      };
+    }
+
+    // 4. Resolve role and persona profile
     // Deterministic role mapping based on email or test accounts
     let assignedRole: UserRole = selectedRoleOverride || 'CUSTOMER';
     const lowerId = cleanId.toLowerCase();
@@ -341,26 +519,10 @@ export class AuthService {
       assignedRole = 'DEVELOPER';
     }
 
-    const isNiger = cleanId.startsWith('+227') || lowerId.endsWith('.ne') || lowerId.includes('niamey');
+    const isNiger = lowerId.startsWith('+227') || lowerId.endsWith('.ne') || lowerId.includes('niamey');
     const country: JurisdictionCode = isNiger ? 'NE' : 'NG';
 
-    const user: AuthUser = {
-      id: `usr_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`,
-      email: lowerId.includes('@') ? cleanId : `user_${cleanId.replace(/[^\d]/g, '')}@koriepay.${country.toLowerCase()}`,
-      phone: lowerId.includes('@') ? (country === 'NG' ? '+2348099887766' : '+22790223344') : this.normalizePhone(cleanId, country),
-      firstName: country === 'NG' ? 'Ibrahim' : 'Amara',
-      lastName: country === 'NG' ? 'Bello' : 'Diallo',
-      fullName: country === 'NG' ? 'Ibrahim Bello' : 'Amara Diallo',
-      country,
-      role: assignedRole,
-      kycTier: 'TIER_2',
-      kycStatus: 'VERIFIED',
-      status: 'ACTIVE',
-      mfaEnabled: assignedRole === 'ADMIN' || assignedRole === 'COMPLIANCE' || assignedRole === 'SUPER_ADMIN',
-      preferredLanguage: country === 'NE' ? 'fr' : 'en',
-      createdAt: new Date().toISOString(),
-      lastLoginAt: new Date().toISOString(),
-    };
+    const user: AuthUser = buildDemoUser(assignedRole, country, cleanId);
 
     // If role is high-privilege Admin/Compliance, require MFA step-up
     if (user.mfaEnabled && assignedRole === 'ADMIN') {

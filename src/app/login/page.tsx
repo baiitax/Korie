@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import AuthShell from "@/components/auth/AuthShell";
@@ -13,7 +13,19 @@ import AuthErrorAlert from "@/components/auth/AuthErrorAlert";
 import RoleSwitcherDevBar from "@/components/auth/RoleSwitcherDevBar";
 import { useAuth } from "@/components/auth/AuthContext";
 import { KpayInlineLoader } from "@/components/loading";
-import { ArrowRight, Fingerprint, Shield, Sparkles } from "lucide-react";
+import {
+  ArrowRight,
+  Fingerprint,
+  KeyRound,
+  Copy,
+  Check,
+  Store,
+} from "lucide-react";
+import {
+  DEMO_CREDENTIALS,
+  DEMO_PASSWORD,
+  DemoCredentialRow,
+} from "@/lib/auth/authService";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -22,10 +34,34 @@ export default function LoginPage() {
   const [identifier, setIdentifier] = useState(
     jurisdiction === "NG" ? "+234 803 456 7890" : "+227 90 12 34 56"
   );
-  const [password, setPassword] = useState("KoriePay@2026!");
+  const [password, setPassword] = useState(DEMO_PASSWORD);
   const [rememberDevice, setRememberDevice] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copiedCred, setCopiedCred] = useState(false);
+
+  // Persona-aware identifier: switching the role chip prepares the matching
+  // demo identifier so the form path uses the role's own credentials.
+  useEffect(() => {
+    if (activeRole === "CUSTOMER") return; // keep the jurisdiction default
+    const row = DEMO_CREDENTIALS.find((r) => r.role === activeRole);
+    if (row) setIdentifier(row.identifier);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeRole]);
+
+  const activeRow: DemoCredentialRow | undefined = DEMO_CREDENTIALS.find(
+    (r) => r.role === activeRole
+  );
+
+  const copyCredentials = async () => {
+    try {
+      await navigator.clipboard.writeText(`${activeRow?.identifier ?? ""}  ${DEMO_PASSWORD}`);
+      setCopiedCred(true);
+      window.setTimeout(() => setCopiedCred(false), 1800);
+    } catch {
+      setCopiedCred(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,18 +112,46 @@ export default function LoginPage() {
       ? "Se Connecter"
       : "Sign In";
 
+  const isAgent = activeRole === "AGENT";
+
   return (
     <AuthShell>
       <div className="w-full max-w-md space-y-6">
         <AuthHeader
-          titleEn="Welcome back"
-          titleHa="Barka da dawowa"
-          titleFr="Bienvenue de retour"
-          subtitleEn="Sign in securely to your KoriePay digital banking and settlement account."
-          subtitleHa="Shigar da bayanan asusunka na KoriePay don ci gaba da sarrafa kudade."
-          subtitleFr="Connectez-vous à votre compte bancaire et passerelle de règlement KoriePay."
-          badge="Institutional Gateway"
+          titleEn={isAgent ? "Agent terminal sign-in" : "Welcome back"}
+          titleHa={isAgent ? "Shigar da tashar wakili" : "Barka da dawowa"}
+          titleFr={isAgent ? "Connexion au terminal agent" : "Bienvenue de retour"}
+          subtitleEn={
+            isAgent
+              ? "Sign in to operate your registered agency banking terminal — cash services, accounts, bills, cards and FX."
+              : "Sign in securely to your KoriePay digital banking and settlement account."
+          }
+          subtitleHa={
+            isAgent
+              ? "Shiga don sarrafa tashar bankin wakili — ayyukan tsabar kudi, asusu, da sauransu."
+              : "Shigar da bayanan asusunka na KoriePay don ci gaba da sarrafa kudade."
+          }
+          subtitleFr={
+            isAgent
+              ? "Connectez-vous pour opérer votre terminal d'agence bancaire."
+              : "Connectez-vous à votre compte bancaire et passerelle de règlement KoriePay."
+          }
+          badge={isAgent ? "Agency Banking Terminal" : "Institutional Gateway"}
         />
+
+        {isAgent ? (
+          <div className="w-full rounded-2xl border border-teal-400/20 bg-teal-500/[0.06] p-3.5">
+            <div className="flex items-start gap-2.5">
+              <Store className="mt-0.5 h-4 w-4 shrink-0 text-teal-300" aria-hidden="true" />
+              <p className="text-[11px] leading-relaxed text-slate-300">
+                <span className="font-bold text-teal-200">Garba Express Services &amp; POS</span>
+                {" · "}AGT-NG-0092 · TID-NG-009182 (Abuja). This persona maps to the registered
+                agency profile <span className="font-mono text-teal-300">agt-ng-001</span> that
+                every agent operation executes under — the portal never operates as a customer.
+              </p>
+            </div>
+          </div>
+        ) : null}
 
         <AuthCard>
           <AuthErrorAlert error={error} onDismiss={() => setError(null)} />
@@ -160,6 +224,45 @@ export default function LoginPage() {
               </button>
             </div>
           </form>
+
+          {/* Demo credentials for the active role — password is verified for real */}
+          {activeRow ? (
+            <div className="rounded-2xl border border-amber-400/15 bg-amber-500/[0.04] p-3.5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="flex items-center gap-1.5 text-[11px] font-bold text-amber-200">
+                  <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
+                  Demo credentials · {activeRow.role}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void copyCredentials()}
+                  className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] font-semibold text-slate-300 hover:bg-white/[0.08] transition-colors"
+                >
+                  {copiedCred ? (
+                    <Check className="h-3 w-3 text-emerald-400" />
+                  ) : (
+                    <Copy className="h-3 w-3" />
+                  )}
+                  {copiedCred ? "Copied" : "Copy"}
+                </button>
+              </div>
+              <div className="mt-2 space-y-1.5 font-mono text-[11px]">
+                <p className="flex items-center justify-between gap-2">
+                  <span className="text-slate-500">Identifier</span>
+                  <span className="truncate font-semibold text-slate-200">{activeRow.identifier}</span>
+                </p>
+                <p className="flex items-center justify-between gap-2">
+                  <span className="text-slate-500">Password</span>
+                  <span className="font-semibold text-slate-200">{DEMO_PASSWORD}</span>
+                </p>
+              </div>
+              <p className="mt-2 text-[10px] leading-relaxed text-slate-500">
+                Signs in as <span className="font-semibold text-slate-300">{activeRow.fullName}</span> —{" "}
+                {activeRow.note}. Passwords are verified; 5 wrong attempts lock the identifier for 15
+                minutes. Sandbox credential — never a production secret.
+              </p>
+            </div>
+          ) : null}
 
           {/* Security Notice Pill */}
           <SecurityNotice />

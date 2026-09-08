@@ -10,7 +10,7 @@ export const RoleSwitcherDevBar: React.FC = () => {
 
   const roles: { role: UserRole; label: string; badge: string; color: string }[] = [
     { role: "CUSTOMER", label: "Retail / SME Customer", badge: "KoriePay Wallet", color: "text-emerald-400" },
-    { role: "AGENT", label: "Field Banking Agent", badge: "Cash In/Out", color: "text-teal-400" },
+    { role: "AGENT", label: "Field Banking Agent", badge: "Cash · Bills · Cards · FX", color: "text-teal-400" },
     { role: "AGGREGATOR", label: "Super Aggregator", badge: "Agent Network", color: "text-cyan-400" },
     { role: "MERCHANT", label: "Enterprise Merchant", badge: "Payment Gateway", color: "text-indigo-400" },
     { role: "ADMIN", label: "System Administrator", badge: "Command Center", color: "text-amber-400" },

@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { AuthService, AuthUser, UserRole, JurisdictionCode, AuthResult, LoginParams, RegisterParams } from "@/lib/auth/authService";
+import { AuthService, AuthUser, UserRole, JurisdictionCode, AuthResult, LoginParams, RegisterParams, buildDemoUser } from "@/lib/auth/authService";
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -179,22 +179,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const targetRole = selectedRole || activeRole;
       const targetCountry = jurisdiction;
 
-      const bioUser: AuthUser = {
-        id: `usr_bio_${Date.now().toString(36)}`,
-        email: targetCountry === 'NG' ? 'ibrahim.bello@koriepay.ng' : 'amara.diallo@koriepay.ne',
-        phone: targetCountry === 'NG' ? '+2348099887766' : '+22790223344',
-        firstName: targetCountry === 'NG' ? 'Ibrahim' : 'Amara',
-        lastName: targetCountry === 'NG' ? 'Bello' : 'Diallo',
-        fullName: targetCountry === 'NG' ? 'Ibrahim Bello' : 'Amara Diallo',
-        country: targetCountry,
-        role: targetRole,
-        kycTier: 'TIER_2',
-        kycStatus: 'VERIFIED',
-        status: 'ACTIVE',
-        mfaEnabled: targetRole === 'ADMIN',
-        preferredLanguage: targetCountry === 'NE' ? 'fr' : 'en',
-        createdAt: new Date().toISOString(),
-      };
+      // Persona is built by the shared auth service — the AGENT role resolves
+      // to the registered agency operator (agt-ng-001), not a customer.
+      const bioUser = buildDemoUser(targetRole, targetCountry);
 
       setUser(bioUser);
       setIsAuthenticated(true);
