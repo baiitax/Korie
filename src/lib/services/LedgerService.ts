@@ -255,6 +255,39 @@ function buildDefaultChartAccounts(): LedgerAccount[] {
       createdAt: '2026-01-01T00:00:00Z',
       updatedAt: '2026-09-03T12:00:00Z',
     },
+    // 9. Bank Core (settlement nostros) — money the platform holds at partner
+    // banks (Providus NG / Coris NE); the Bank Core API moves these as the
+    // liquidity rail behind wallet float and outbound clearing.
+    {
+      id: 'acc_asset_bank_settlement_ngn',
+      orgId: 'org_kor_99182',
+      accountNumber: '1010-BANK-SETTLE-NGN',
+      name: 'Bank Settlement Nostro (NGN) — partner bank settlement account',
+      type: 'ASSET',
+      currency: 'NGN',
+      country: 'NG',
+      balance: 0,
+      lockedBalance: 0,
+      availableBalance: 0,
+      status: 'ACTIVE',
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-09-03T12:00:00Z',
+    },
+    {
+      id: 'acc_asset_bank_settlement_xof',
+      orgId: 'org_kor_99182',
+      accountNumber: '1020-BANK-SETTLE-XOF',
+      name: 'Bank Settlement Nostro (XOF) — partner bank settlement account (BCEAO zone)',
+      type: 'ASSET',
+      currency: 'XOF',
+      country: 'NE',
+      balance: 0,
+      lockedBalance: 0,
+      availableBalance: 0,
+      status: 'ACTIVE',
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-09-03T12:00:00Z',
+    },
   ];
 
   return defaultAccounts;
