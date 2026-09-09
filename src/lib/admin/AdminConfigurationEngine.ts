@@ -47,13 +47,19 @@ export class AdminConfigurationEngineError extends Error {
 
 const CATEGORY_FIELDS: Record<string, { key: string; label: string; kind: 'text' | 'number' | 'select'; options?: string[]; placeholder?: string }[]> = {
   PAYMENT_GATEWAY: [
-    { key: 'chargeEndpoint', label: 'Charge endpoint path', kind: 'text', placeholder: '/v1/charges' },
-    { key: 'payoutEndpoint', label: 'Payout endpoint path', kind: 'text', placeholder: '/v1/payouts' },
+    { key: 'merchantId', label: 'Merchant / account id', kind: 'text', placeholder: 'FLW merchant id' },
+    { key: 'publicKey', label: 'Public key (not secret)', kind: 'text', placeholder: 'FLWPUBK-…' },
+    { key: 'chargeEndpoint', label: 'Charge endpoint path', kind: 'text', placeholder: '/v3/charges' },
+    { key: 'payoutEndpoint', label: 'Payout endpoint path', kind: 'text', placeholder: '/v3/transfers' },
+    { key: 'webhookUrl', label: 'Webhook URL (receives events)', kind: 'text', placeholder: 'https://api.koriepay.ng/webhooks/flutterwave' },
     { key: 'webhookEvent', label: 'Webhook event prefix', kind: 'text', placeholder: 'charge.success' },
   ],
   SETTLEMENT_RAIL: [
     { key: 'clearingCode', label: 'Clearing code', kind: 'text', placeholder: 'NIP / BCEAO-SIT' },
+    { key: 'subscriberCode', label: 'Subscriber / client code', kind: 'text', placeholder: 'NIBSS subscriber id' },
     { key: 'settlementCycle', label: 'Settlement cycle', kind: 'select', options: ['T+0', 'T+1', 'T+2', 'T+7'] },
+    { key: 'nameEnquiryEndpoint', label: 'Name enquiry endpoint path', kind: 'text', placeholder: '/v1/name-enquiry' },
+    { key: 'bvnVerificationEndpoint', label: 'BVN verification endpoint path', kind: 'text', placeholder: '/v1/bvn-verification' },
     { key: 'statementEndpoint', label: 'Statement endpoint path', kind: 'text', placeholder: '/v1/statements' },
   ],
   BANK_NODE: [
@@ -66,6 +72,19 @@ const CATEGORY_FIELDS: Record<string, { key: string; label: string; kind: 'text'
     { key: 'poolCap', label: 'Pool cap', kind: 'number', placeholder: '500000000' },
     { key: 'targetBalance', label: 'Target balance', kind: 'number', placeholder: '250000000' },
     { key: 'topUpTriggerPct', label: 'Top-up trigger (%)', kind: 'number', placeholder: '30' },
+  ],
+  DATABASE: [
+    { key: 'engine', label: 'Database engine', kind: 'select', options: ['SUPABASE_POSTGRES', 'POSTGRES', 'MYSQL', 'OTHER'] },
+    { key: 'projectUrl', label: 'Project URL', kind: 'text', placeholder: 'https://<project-ref>.supabase.co' },
+    { key: 'projectRef', label: 'Project reference (subdomain)', kind: 'text', placeholder: 'abcdefghijklmno' },
+    { key: 'dbHost', label: 'DB host (direct / pooler)', kind: 'text', placeholder: 'db.<project-ref>.supabase.co' },
+    { key: 'dbPort', label: 'DB port', kind: 'number', placeholder: '5432 (pooler 6543)' },
+    { key: 'dbName', label: 'DB name', kind: 'text', placeholder: 'postgres' },
+    { key: 'dbUser', label: 'DB user', kind: 'text', placeholder: 'postgres' },
+    { key: 'poolMode', label: 'Endpoint mode', kind: 'select', options: ['DIRECT', 'TRANSACTION_POOLER', 'SESSION_POOLER'] },
+    { key: 'sslMode', label: 'SSL mode', kind: 'select', options: ['REQUIRE', 'VERIFY_FULL', 'DISABLE'] },
+    { key: 'anonKey', label: 'Anon key (public, not secret)', kind: 'text', placeholder: 'eyJhbGciOiJIUzI1NiIs…' },
+    { key: 'schema', label: 'Schema', kind: 'text', placeholder: 'public' },
   ],
   WHATSAPP_AGENT: [
     { key: 'phoneNumberId', label: 'WhatsApp phone number id', kind: 'text' },
@@ -86,8 +105,12 @@ const CATEGORY_FIELDS: Record<string, { key: string; label: string; kind: 'text'
     { key: 'vehicleMapping', label: 'Vehicle id mapping', kind: 'text' },
   ],
   NOTIFICATION_PROVIDER: [
-    { key: 'senderId', label: 'Sender id', kind: 'text' },
-    { key: 'channel', label: 'Channel', kind: 'select', options: ['SMS', 'EMAIL', 'PUSH', 'ALL'] },
+    { key: 'channel', label: 'Channel', kind: 'select', options: ['SMS', 'EMAIL', 'WHATSAPP', 'PUSH', 'ALL'] },
+    { key: 'senderId', label: 'Sender id / from (e.g. no-reply@koriepay.ng)', kind: 'text' },
+    { key: 'accountSid', label: 'Twilio Account SID / SMTP username', kind: 'text' },
+    { key: 'smtpHost', label: 'SMTP host', kind: 'text', placeholder: 'smtp.resend.com / smtp.gmail.com' },
+    { key: 'smtpPort', label: 'SMTP port', kind: 'number', placeholder: '587' },
+    { key: 'whatsappSender', label: 'WhatsApp sender (if channel)', kind: 'text', placeholder: 'whatsapp:+14155238886' },
   ],
   AI_DECISION_SERVICE: [
     { key: 'modelId', label: 'Model identifier', kind: 'text' },
@@ -97,15 +120,21 @@ const CATEGORY_FIELDS: Record<string, { key: string; label: string; kind: 'text'
 };
 
 export const CONNECTOR_CATEGORY_SPECS: ConnectorCategorySpec[] = [
-  { key: 'PAYMENT_GATEWAY', label: 'Payment gateway', description: 'Charging / disbursing fintech APIs used for live payment routing.', healthPathDefault: '/health', fields: CATEGORY_FIELDS.PAYMENT_GATEWAY },
-  { key: 'SETTLEMENT_RAIL', label: 'Settlement rail', description: 'Clearing & settlement APIs (NIP, BCEAO-SIT, partner banks).', healthPathDefault: '/health', fields: CATEGORY_FIELDS.SETTLEMENT_RAIL },
-  { key: 'BANK_NODE', label: 'Bank node connection', description: 'Commercial-bank core API connection (Providus, Coris, other banks).', healthPathDefault: '/health', fields: CATEGORY_FIELDS.BANK_NODE },
+  { key: 'PAYMENT_GATEWAY', label: 'Payment gateway', description: 'Charging / disbursing fintech APIs used for live payment routing.', healthPathDefault: '/health', fields: CATEGORY_FIELDS.PAYMENT_GATEWAY,
+    secretHint: 'Flutterwave: Secret = FLWSECK secret key (or env KORIE_CONNECTOR_<CODE>_SECRET). Webhook signature hash: env KORIE_CONNECTOR_<CODE>_SECRET_2 only (never stored).' },
+  { key: 'SETTLEMENT_RAIL', label: 'Settlement rail', description: 'Clearing & settlement APIs (NIP, BCEAO-SIT, partner banks).', healthPathDefault: '/health', fields: CATEGORY_FIELDS.SETTLEMENT_RAIL,
+    secretHint: 'NIBSS: Secret = client/subscriber secret (or env KORIE_CONNECTOR_<CODE>_SECRET); client id goes in metadata.subscriberCode. Secondary credential: env KORIE_CONNECTOR_<CODE>_SECRET_2.' },
+  { key: 'BANK_NODE', label: 'Bank node connection', description: 'Commercial-bank core API connection (Providus, Coris, other banks).', healthPathDefault: '/health', fields: CATEGORY_FIELDS.BANK_NODE,
+    secretHint: 'Providus/Coris: Secret = API client secret (or env KORIE_CONNECTOR_<CODE>_SECRET). Client id → metadata.clientId. When CONNECTED + PRODUCTION, the Bank Core liquidity rail goes LIVE.' },
   { key: 'BANK_LIQUIDITY_POOL', label: 'Bank liquidity pool', description: 'Funding / nostro pool configuration with caps and top-up triggers.', fields: CATEGORY_FIELDS.BANK_LIQUIDITY_POOL },
+  { key: 'DATABASE', label: 'Database (Supabase / Postgres)', description: 'Core database connection (Supabase project, connection pooling, SSL) powering platform data.', fields: CATEGORY_FIELDS.DATABASE,
+    secretHint: 'Supabase: database password → Secret field or env KORIE_CONNECTOR_<CODE>_SECRET. Service-role key: env KORIE_CONNECTOR_<CODE>_SECRET_2 only — never stored. Anon key is public → metadata.anonKey.' },
   { key: 'WHATSAPP_AGENT', label: 'WhatsApp support agent', description: 'WhatsApp Business API desks for support automation.', healthPathDefault: '/health', fields: CATEGORY_FIELDS.WHATSAPP_AGENT },
   { key: 'KYC_SOURCE', label: 'KYC / verification source', description: 'Identity sources (NIMC, NIBSS BVN, bank KYC) feeding KYC review.', healthPathDefault: '/health', fields: CATEGORY_FIELDS.KYC_SOURCE },
   { key: 'FX_SOURCE', label: 'FX rate source', description: 'Rate feed APIs powering the FX rates engine.', healthPathDefault: '/health', fields: CATEGORY_FIELDS.FX_SOURCE },
   { key: 'CIT_COURIER', label: 'CIT / cash courier', description: 'Cash-in-transit telemetry and vault APIs.', healthPathDefault: '/health', fields: CATEGORY_FIELDS.CIT_COURIER },
-  { key: 'NOTIFICATION_PROVIDER', label: 'Notification provider', description: 'Email / SMS / push delivery APIs.', healthPathDefault: '/health', fields: CATEGORY_FIELDS.NOTIFICATION_PROVIDER },
+  { key: 'NOTIFICATION_PROVIDER', label: 'Notification provider', description: 'Email / SMS / push delivery APIs (Twilio, SMTP relay).', healthPathDefault: '/health', fields: CATEGORY_FIELDS.NOTIFICATION_PROVIDER,
+    secretHint: 'Twilio: Secret = Auth Token (env KORIE_CONNECTOR_<CODE>_SECRET); Account SID → metadata.accountSid. SMTP: Secret = password; host/port/user → metadata.' },
   { key: 'AI_DECISION_SERVICE', label: 'AI decision service', description: 'Model endpoints consumed by AI & decision intelligence.', healthPathDefault: '/health', fields: CATEGORY_FIELDS.AI_DECISION_SERVICE },
   { key: 'CUSTOM_REST', label: 'Custom REST API', description: 'Any future category — declare an endpoint catalogue manually.', healthPathDefault: '/health', fields: CATEGORY_FIELDS.CUSTOM_REST },
 ];
@@ -130,6 +159,68 @@ export const AUTOMATION_ACTION_SPECS = [
 export const DEMO_PROVIDERS = [
   { code: 'PROV-NG-01', name: 'Providus Bank Nigeria Plc (built-in demo node)', country: 'NG' },
   { code: 'KORIS-NE-01', name: 'Coris Bank Niger SA (built-in demo node)', country: 'NE' },
+];
+
+// ---------------------------------------------------------------------------
+// First-run connector templates ("adapt to the future"): on a brand-new store
+// the hub is pre-seeded with every external provider the platform consumes —
+// Supabase (database), Providus & Coris (bank nodes), NIBSS (settlement rail),
+// Flutterwave (payment gateway), Twilio & SMTP (notification providers).
+// Raw secrets are NEVER persisted: paste a live secret into the connector or
+// set KORIE_CONNECTOR_<CODE>_SECRET in the environment; only a masked preview
+// is stored. Templates keep status CONFIGURED until probed with credentials.
+// ---------------------------------------------------------------------------
+
+export const CONNECTOR_TEMPLATES: Omit<ConnectorRecord, 'id' | 'createdAt' | 'updatedAt' | 'createdByName' | 'secretMasked' | 'hasSecretConfigured'>[] = [
+  {
+    code: 'SUPABASE_CORE', name: 'Supabase — primary database', vendor: 'Supabase Inc.',
+    category: 'DATABASE', country: 'GLOBAL', currency: 'NGN', environment: 'SANDBOX',
+    baseUrl: '', healthPath: '/auth/v1/health', authType: 'API_KEY',
+    capabilities: [], role: 'PRIMARY', status: 'CONFIGURED',
+    metadata: { engine: 'SUPABASE_POSTGRES', projectUrl: '', projectRef: '', dbHost: '', dbPort: '5432', dbName: 'postgres', dbUser: 'postgres', poolMode: 'TRANSACTION_POOLER', sslMode: 'REQUIRE', anonKey: '', schema: 'public' },
+  },
+  {
+    code: 'PROV-NG-01', name: 'Providus Bank Nigeria Plc (core API)', vendor: 'Providus Bank',
+    category: 'BANK_NODE', country: 'NG', currency: 'NGN', environment: 'SANDBOX',
+    baseUrl: 'https://api.providusbank.com', healthPath: '/v2/health', authType: 'BEARER',
+    capabilities: [], role: 'PRIMARY', status: 'CONFIGURED',
+    metadata: { institutionCode: '058', accountPrefix: '90', transferSupport: 'NIP' },
+  },
+  {
+    code: 'KORIS-NE-01', name: 'Coris Bank Sahel (core API)', vendor: 'Coris Bank SA',
+    category: 'BANK_NODE', country: 'NE', currency: 'XOF', environment: 'SANDBOX',
+    baseUrl: '', healthPath: '/core/v1/health', authType: 'BEARER',
+    capabilities: [], role: 'FAILOVER', status: 'CONFIGURED',
+    metadata: { institutionCode: '01200', accountPrefix: 'NE54', transferSupport: 'CFA-SIT' },
+  },
+  {
+    code: 'NIBSS-NIP-01', name: 'NIBSS Instant Payment (NIP) rail', vendor: 'NIBSS Plc',
+    category: 'SETTLEMENT_RAIL', country: 'NG', currency: 'NGN', environment: 'SANDBOX',
+    baseUrl: '', healthPath: '/health', authType: 'API_KEY',
+    capabilities: [], role: 'PRIMARY', status: 'CONFIGURED',
+    metadata: { clearingCode: 'NIP', subscriberCode: '', settlementCycle: 'T+0', nameEnquiryEndpoint: '/v1/name-enquiry', bvnVerificationEndpoint: '/v1/bvn-verification', statementEndpoint: '/v1/statements' },
+  },
+  {
+    code: 'FLW-NG-01', name: 'Flutterwave — payments gateway', vendor: 'Flutterwave',
+    category: 'PAYMENT_GATEWAY', country: 'NG', currency: 'NGN', environment: 'SANDBOX',
+    baseUrl: 'https://api.flutterwave.com/v3', healthPath: '/health', authType: 'BEARER',
+    capabilities: [], role: 'PRIMARY', status: 'CONFIGURED',
+    metadata: { merchantId: '', publicKey: '', chargeEndpoint: '/v3/charges', payoutEndpoint: '/v3/transfers', webhookUrl: 'https://api.koriepay.ng/webhooks/flutterwave', webhookEvent: 'charge.success' },
+  },
+  {
+    code: 'TWILIO-NOTIFY-01', name: 'Twilio — SMS / WhatsApp notify', vendor: 'Twilio Inc.',
+    category: 'NOTIFICATION_PROVIDER', country: 'GLOBAL', currency: 'NGN', environment: 'SANDBOX',
+    baseUrl: 'https://api.twilio.com', healthPath: '/2010-04-01/Accounts.json', authType: 'BASIC',
+    capabilities: [], role: 'PRIMARY', status: 'CONFIGURED',
+    metadata: { senderId: '', channel: 'SMS', accountSid: '', whatsappSender: '' },
+  },
+  {
+    code: 'SMTP-KORIEPAY', name: 'KoriePay transactional email (SMTP)', vendor: 'SMTP relay',
+    category: 'NOTIFICATION_PROVIDER', country: 'GLOBAL', currency: 'NGN', environment: 'SANDBOX',
+    baseUrl: '', healthPath: '', authType: 'BASIC',
+    capabilities: [], role: 'FAILOVER', status: 'CONFIGURED',
+    metadata: { senderId: 'no-reply@koriepay.ng', channel: 'EMAIL', accountSid: '', smtpHost: '', smtpPort: '587' },
+  },
 ];
 
 export const DEFAULT_PARAMETERS: SystemParameter[] = [
@@ -180,7 +271,30 @@ export class AdminConfigurationEngine {
   public static getInstance(): AdminConfigurationEngine {
     if (!AdminConfigurationEngine.instance) AdminConfigurationEngine.instance = new AdminConfigurationEngine();
     AdminConfigurationEngine.instance.hydrate();
+    AdminConfigurationEngine.instance.seedTemplatesIfFirstRun();
     return AdminConfigurationEngine.instance;
+  }
+
+  /**
+   * First-run only: pre-seed the canonical external-provider templates so the
+   * hub opens ready for configuration (Supabase, Providus, Coris, NIBSS,
+   * Flutterwave, Twilio, SMTP). Never re-seeds once a store exists — an
+   * operator-cleared list stays cleared.
+   */
+  private seedTemplatesIfFirstRun(): void {
+    if (this.connectors.length > 0) return;
+    if (fs.existsSync(STORE_PATH)) return;
+    const now = this.now();
+    this.connectors = CONNECTOR_TEMPLATES.map((t) => ({
+      ...t,
+      id: `conn_${t.code.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`,
+      secretMasked: '',
+      hasSecretConfigured: false,
+      createdAt: now,
+      updatedAt: now,
+      createdByName: 'SYSTEM_TEMPLATE',
+    }));
+    this.persist();
   }
 
   private hydrate() {

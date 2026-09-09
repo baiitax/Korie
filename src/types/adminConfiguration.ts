@@ -5,6 +5,7 @@ export type ConnectorCategory =
   | "SETTLEMENT_RAIL"
   | "BANK_NODE"
   | "BANK_LIQUIDITY_POOL"
+  | "DATABASE"
   | "WHATSAPP_AGENT"
   | "KYC_SOURCE"
   | "FX_SOURCE"
@@ -78,6 +79,9 @@ export interface ConnectorCategorySpec {
   label: string;
   description: string;
   healthPathDefault?: string;
+  /** Short guidance shown in the connector form: which secret goes where and
+   *  the env-var conventions (KORIE_CONNECTOR_<CODE>_SECRET / _SECRET_2). */
+  secretHint?: string;
   fields: CategoryFieldSpec[];
 }
 

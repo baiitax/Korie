@@ -9,6 +9,7 @@ import {
   Layers,
   Play,
   Pause,
+  Pencil,
   Trash2,
   ChevronDown,
   ChevronRight,
@@ -30,7 +31,7 @@ import {
 } from "./bits";
 import type { ConnectorCategorySpec, ConnectorRecord } from "@/types/adminConfiguration";
 
-const CATEGORY_TABS = ["ALL", "PAYMENT_GATEWAY", "SETTLEMENT_RAIL", "BANK_NODE", "BANK_LIQUIDITY_POOL", "WHATSAPP_AGENT", "KYC_SOURCE", "FX_SOURCE", "CIT_COURIER", "NOTIFICATION_PROVIDER", "AI_DECISION_SERVICE", "CUSTOM_REST"];
+const CATEGORY_TABS = ["ALL", "PAYMENT_GATEWAY", "SETTLEMENT_RAIL", "BANK_NODE", "BANK_LIQUIDITY_POOL", "DATABASE", "WHATSAPP_AGENT", "KYC_SOURCE", "FX_SOURCE", "CIT_COURIER", "NOTIFICATION_PROVIDER", "AI_DECISION_SERVICE", "CUSTOM_REST"];
 
 export function ConnectionsPanel({ refreshKey, onMutated }: { refreshKey: number; onMutated: () => void }) {
   const [connectors, setConnectors] = useState<ConnectorRecord[] | null>(null);
@@ -38,6 +39,7 @@ export function ConnectionsPanel({ refreshKey, onMutated }: { refreshKey: number
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState("ALL");
   const [addOpen, setAddOpen] = useState(false);
+  const [editing, setEditing] = useState<ConnectorRecord | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -175,6 +177,7 @@ export function ConnectionsPanel({ refreshKey, onMutated }: { refreshKey: number
               onToggleExpand={() => setExpanded(expanded === c.id ? null : c.id)}
               onProbe={() => runProbe(c.id)}
               onDiscover={() => runDiscover(c.id)}
+              onEdit={() => setEditing(c)}
               onSetRole={(role: string) => void setRole(c.id, role)}
               onTogglePause={() => void togglePause(c)}
               onRemove={() => remove(c)}
@@ -184,6 +187,18 @@ export function ConnectionsPanel({ refreshKey, onMutated }: { refreshKey: number
       )}
 
       {addOpen && <ConnectorModal onClose={() => setAddOpen(false)} onCreated={() => { setAddOpen(false); flash("Connector registered"); onMutated(); }} />}
+      {editing && (
+        <ConnectorModal
+          key={editing.id}
+          initial={editing}
+          onClose={() => setEditing(null)}
+          onCreated={() => {
+            setEditing(null);
+            flash("Connector updated");
+            onMutated();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -197,6 +212,7 @@ function ConnectorCard({
   onToggleExpand,
   onProbe,
   onDiscover,
+  onEdit,
   onSetRole,
   onTogglePause,
   onRemove,
@@ -207,6 +223,7 @@ function ConnectorCard({
   onToggleExpand: () => void;
   onProbe: () => void;
   onDiscover: () => void;
+  onEdit: () => void;
   onSetRole: (role: string) => void;
   onTogglePause: () => void;
   onRemove: () => void;
@@ -263,6 +280,9 @@ function ConnectorCard({
         </ActionButton>
         <ActionButton variant="success" onClick={onDiscover} disabled={busyId === `disc-${c.id}` || !c.baseUrl} title={c.baseUrl ? "Fetch OpenAPI/Swagger doc to map capabilities" : "Add a base URL first"}>
           <Radar className={`w-3.5 h-3.5 ${busyId === `disc-${c.id}` ? "animate-pulse" : ""}`} /> {busyId === `disc-${c.id}` ? "Discovering…" : "Discover"}
+        </ActionButton>
+        <ActionButton variant="ghost" onClick={onEdit} title="Edit configuration & credentials">
+          <Pencil className="w-3.5 h-3.5" />
         </ActionButton>
         <div className="flex-1" />
         <select
@@ -357,22 +377,77 @@ function CapabilitiesStrip({ connector: c, onChanged }: { connector: ConnectorRe
   );
 }
 
-/* -------------------------------------------------- add modal */
+/* -------------------------------------------------- add / edit modal */
 
-function ConnectorModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+const inputCls =
+  "mt-1 w-full rounded-xl bg-slate-950 border border-white/10 px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30 placeholder:text-slate-600";
+
+function MetaField({
+  field,
+  value,
+  onChange,
+}: {
+  field: { key: string; label: string; kind: "text" | "number" | "select"; options?: string[]; placeholder?: string };
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  if (field.kind === "select" && field.options?.length) {
+    return (
+      <label className="block">
+        <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">{field.label}</span>
+        <select value={value} onChange={e => onChange(e.target.value)} className={`${inputCls} appearance-none`}>
+          {field.options.map(o => (
+            <option key={o} value={o}>{o}</option>
+          ))}
+        </select>
+      </label>
+    );
+  }
+  if (field.kind === "number") {
+    return (
+      <label className="block">
+        <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">{field.label}</span>
+        <input
+          inputMode="numeric"
+          value={value}
+          onChange={e => onChange(e.target.value.replace(/[^0-9]/g, ""))}
+          placeholder={field.placeholder}
+          className={inputCls}
+        />
+      </label>
+    );
+  }
+  return (
+    <label className="block">
+      <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">{field.label}</span>
+      <input value={value} onChange={e => onChange(e.target.value)} placeholder={field.placeholder} className={`${inputCls} font-mono`} />
+    </label>
+  );
+}
+
+function ConnectorModal({
+  onClose,
+  onCreated,
+  initial,
+}: {
+  onClose: () => void;
+  onCreated: () => void;
+  initial?: ConnectorRecord;
+}) {
+  const editing = Boolean(initial);
   const [specs, setSpecs] = useState<ConnectorCategorySpec[] | null>(null);
-  const [category, setCategory] = useState("PAYMENT_GATEWAY");
-  const [name, setName] = useState("");
-  const [code, setCode] = useState("");
-  const [vendor, setVendor] = useState("");
-  const [country, setCountry] = useState("NG");
-  const [currency, setCurrency] = useState("NGN");
-  const [environment, setEnvironment] = useState("SANDBOX");
-  const [baseUrl, setBaseUrl] = useState("");
-  const [healthPath, setHealthPath] = useState("");
-  const [authType, setAuthType] = useState("BEARER");
+  const [category, setCategory] = useState(initial?.category || "PAYMENT_GATEWAY");
+  const [name, setName] = useState(initial?.name || "");
+  const [code, setCode] = useState(initial?.code || "");
+  const [vendor, setVendor] = useState(initial?.vendor || "");
+  const [country, setCountry] = useState(initial?.country || "NG");
+  const [currency, setCurrency] = useState(initial?.currency || "NGN");
+  const [environment, setEnvironment] = useState(initial?.environment || "SANDBOX");
+  const [baseUrl, setBaseUrl] = useState(initial?.baseUrl || "");
+  const [healthPath, setHealthPath] = useState(initial?.healthPath || "");
+  const [authType, setAuthType] = useState(initial?.authType || "BEARER");
   const [secret, setSecret] = useState("");
-  const [meta, setMeta] = useState<Record<string, string>>({});
+  const [meta, setMeta] = useState<Record<string, string>>({ ...(initial?.metadata || {}) });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSecret, setShowSecret] = useState(false);
@@ -387,12 +462,12 @@ function ConnectorModal({ onClose, onCreated }: { onClose: () => void; onCreated
   const defaultHealth = spec?.healthPathDefault ?? "/health";
 
   useEffect(() => {
+    if (editing) return;
     setHealthPath(hp => (hp === "/health" ? defaultHealth : hp === "" ? defaultHealth : hp));
-    setMeta({});
     if (category === "BANK_LIQUIDITY_POOL" || category === "SETTLEMENT_RAIL") setCurrency(c => (c === "NGN" ? "XOF" : c));
     if (category === "PAYMENT_GATEWAY" || category === "BANK_NODE" || category === "KYC_SOURCE") setCurrency(c => (c === "XOF" ? "NGN" : c));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [category]);
+  }, [category, editing]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -401,28 +476,39 @@ function ConnectorModal({ onClose, onCreated }: { onClose: () => void; onCreated
     try {
       const cleaned: Record<string, string> = {};
       for (const [k, v] of Object.entries(meta)) if (String(v).trim()) cleaned[k] = String(v).trim();
-      await apiSend("/api/admin/config/connectors", "POST", {
-        category, name, code: code || undefined, vendor, country, currency, environment,
-        baseUrl: baseUrl || undefined, healthPath: healthPath || undefined, authType: secret ? authType : "NONE",
-        secret: secret || undefined, metadata: cleaned, actor: "System Administrator",
-      });
+      const payload: Record<string, unknown> = {
+        category, name, vendor, country, currency, environment,
+        baseUrl: baseUrl || undefined, healthPath: healthPath || undefined,
+        authType: secret ? authType : "NONE",
+        metadata: cleaned, actor: "System Administrator",
+      };
+      if (editing && initial) {
+        payload.code = code;
+        if (secret) payload.secret = secret; // blank = keep existing masked secret
+        await apiSend(`/api/admin/config/connectors/${initial.id}`, "PATCH", payload);
+      } else {
+        payload.code = code || undefined;
+        payload.secret = secret || undefined;
+        await apiSend("/api/admin/config/connectors", "POST", payload);
+      }
       onCreated();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to register connector");
+      setError(err instanceof Error ? err.message : "Failed to save connector");
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <ModalShell onClose={onClose} label="Register a fintech API / connector" wide>
+    <ModalShell onClose={onClose} label={editing ? "Edit provider / connector" : "Register a fintech API / connector"} wide>
       <form onSubmit={submit} className="p-5 space-y-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h3 className="text-base font-bold text-white">Register a provider / fintech API</h3>
+            <h3 className="text-base font-bold text-white">{editing ? `Edit — ${initial?.name}` : "Register a provider / fintech API"}</h3>
             <p className="text-[11px] text-slate-400">
-              The system will probe the endpoint, discover its capabilities (OpenAPI/Swagger when reachable) and
-              offer it as a routing provider. Raw secrets are never stored.
+              {editing
+                ? "Update endpoint, credentials or metadata. Raw secrets are never stored — only a masked preview."
+                : "The system will probe the endpoint, discover its capabilities (OpenAPI/Swagger when reachable) and offer it as a routing provider. Raw secrets are never stored."}
             </p>
           </div>
           <ActionButton variant="ghost" onClick={onClose}>Close</ActionButton>
@@ -434,8 +520,9 @@ function ConnectorModal({ onClose, onCreated }: { onClose: () => void; onCreated
               <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">Category *</span>
               <select
                 value={category}
-                onChange={e => setCategory(e.target.value)}
-                className="mt-1 w-full rounded-xl bg-slate-950 border border-white/10 px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                onChange={e => setCategory(e.target.value as ConnectorRecord["category"])}
+                disabled={editing}
+                className={`${inputCls} disabled:opacity-50`}
               >
                 {specs?.map(s => (
                   <option key={s.key} value={s.key}>{s.label} — {s.key.replace(/_/g, " ")}</option>
@@ -453,20 +540,20 @@ function ConnectorModal({ onClose, onCreated }: { onClose: () => void; onCreated
             <div className="grid grid-cols-2 gap-2">
               <label className="block">
                 <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">Country</span>
-                <select value={country} onChange={e => setCountry(e.target.value)} className="mt-1 w-full rounded-xl bg-slate-950 border border-white/10 px-3 py-2 text-xs text-white">
+                <select value={country} onChange={e => setCountry(e.target.value)} className={inputCls}>
                   {["NG", "NE", "GLOBAL"].map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </label>
               <label className="block">
                 <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">Currency</span>
-                <select value={currency} onChange={e => setCurrency(e.target.value)} className="mt-1 w-full rounded-xl bg-slate-950 border border-white/10 px-3 py-2 text-xs text-white">
+                <select value={currency} onChange={e => setCurrency(e.target.value)} className={inputCls}>
                   {["NGN", "XOF", "USD", "EUR"].map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </label>
             </div>
             <label className="block">
               <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">Environment</span>
-              <select value={environment} onChange={e => setEnvironment(e.target.value)} className="mt-1 w-full rounded-xl bg-slate-950 border border-white/10 px-3 py-2 text-xs text-white">
+              <select value={environment} onChange={e => setEnvironment(e.target.value as ConnectorRecord["environment"])} className={inputCls}>
                 <option value="SANDBOX">SANDBOX</option>
                 <option value="PRODUCTION">PRODUCTION</option>
               </select>
@@ -476,19 +563,21 @@ function ConnectorModal({ onClose, onCreated }: { onClose: () => void; onCreated
               <TextField label="Health path" value={healthPath} onChange={setHealthPath} placeholder="/health" mono />
               <label className="block">
                 <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">Auth type</span>
-                <select value={authType} onChange={e => setAuthType(e.target.value)} disabled={!secret} className="mt-1 w-full rounded-xl bg-slate-950 border border-white/10 px-3 py-2 text-xs text-white disabled:opacity-50">
+                <select value={authType} onChange={e => setAuthType(e.target.value as ConnectorRecord["authType"])} disabled={!secret && !editing} className={`${inputCls} disabled:opacity-50`}>
                   {["BEARER", "API_KEY", "BASIC", "OAUTH2", "NONE"].map(a => <option key={a} value={a}>{a}</option>)}
                 </select>
               </label>
             </div>
             <label className="block">
-              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">Secret (optional — masked after save, never stored raw)</span>
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">
+                Secret {editing && (initial?.hasSecretConfigured || initial?.secretMasked) ? "(leave empty to keep current)" : "(optional — masked after save, never stored raw)"}
+              </span>
               <div className="relative mt-1">
                 <input
                   type={showSecret ? "text" : "password"}
                   value={secret}
                   onChange={e => setSecret(e.target.value)}
-                  placeholder="sk_live_… or KORIE_CONNECTOR_<CODE>_SECRET env"
+                  placeholder={editing ? (initial?.secretMasked || "set KORIE_CONNECTOR_<CODE>_SECRET env") : "sk_live_… or KORIE_CONNECTOR_<CODE>_SECRET env"}
                   className="w-full rounded-xl bg-slate-950 border border-white/10 px-3 py-2 pr-16 font-mono text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
                 />
                 <button type="button" onClick={() => setShowSecret(v => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-bold uppercase text-slate-500 hover:text-slate-300">
@@ -501,19 +590,23 @@ function ConnectorModal({ onClose, onCreated }: { onClose: () => void; onCreated
 
         {/* Category-specific fields */}
         {spec && spec.fields.length > 0 && (
-          <div className="rounded-2xl bg-slate-950/50 border border-white/5 p-3">
-            <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-2">{spec.label} settings</p>
+          <div className="rounded-2xl bg-slate-950/50 border border-white/5 p-3 space-y-3">
+            <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">{spec.label} settings</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {spec.fields.map(f => (
-                <TextField
+                <MetaField
                   key={f.key}
-                  label={f.label}
+                  field={f}
                   value={meta[f.key] ?? ""}
                   onChange={v => setMeta(m => ({ ...m, [f.key]: v }))}
-                  placeholder={f.placeholder}
                 />
               ))}
             </div>
+            {spec.secretHint && (
+              <p className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-[10px] leading-relaxed text-amber-200/80">
+                <span className="font-bold text-amber-300">Credentials policy · </span>{spec.secretHint}
+              </p>
+            )}
           </div>
         )}
 
@@ -522,7 +615,7 @@ function ConnectorModal({ onClose, onCreated }: { onClose: () => void; onCreated
         <div className="flex items-center justify-end gap-2 border-t border-white/10 pt-3">
           <ActionButton variant="ghost" onClick={onClose}>Cancel</ActionButton>
           <button type="submit" disabled={busy || !name.trim()} className="rounded-xl bg-emerald-500 px-5 py-2.5 text-xs font-bold text-slate-950 hover:bg-emerald-400 disabled:opacity-40 inline-flex items-center gap-1.5">
-            {busy ? "Registering…" : "Register & probe"}
+            {busy ? "Saving…" : editing ? "Save changes" : "Register & probe"}
           </button>
         </div>
       </form>
