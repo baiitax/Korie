@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useAdmin } from "./AdminContext";
+import ExperienceHealthPulse from "./ExperienceHealthPulse";
 import {
   getExecutiveFinancialMetrics,
   BANKING_NODES,
@@ -78,6 +79,9 @@ export const CommandCenterOverview: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* 01b: LIVE engine pulse — service & customer health (engine-truth rail) */}
+      <ExperienceHealthPulse />
 
       {/* 02: Core Banking Infrastructure Nodes Telemetry */}
       <div className="space-y-3">
