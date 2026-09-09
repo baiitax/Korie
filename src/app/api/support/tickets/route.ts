@@ -6,6 +6,7 @@ import { createSuccessResponse } from "@/lib/security/apiResponse";
 import { TicketStatus, TicketPriority, TicketCategory } from "@/types/support";
 import { listTicketRows, ticketRowToTicket } from "@/lib/support/supportDb";
 import { searchCustomersAndAgents } from "@/lib/support/SupportContexts";
+import { resyncFailedCustomerDisputes } from "@/lib/support/customerDisputeBridge";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +37,12 @@ export async function GET(req: NextRequest) {
 
   const engine = getSupportOpsEngine();
   await engine.sweepAutoClose();
+  // Self-healing retry, same pattern as sweepAutoClose above: any
+  // customer-filed dispute the sync-bridge failed to mirror into this
+  // queue on first attempt gets another chance every time the queue is
+  // read, so a transient failure never permanently strands a customer's
+  // case unseen.
+  await resyncFailedCustomerDisputes().catch(() => undefined);
   const now = Date.now();
 
   const { rows, total } = await listTicketRows({

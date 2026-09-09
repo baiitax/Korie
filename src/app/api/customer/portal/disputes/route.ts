@@ -3,6 +3,7 @@ import { authenticateCustomerRequest } from "@/lib/security/customerAuth";
 import { createSuccessResponse, createErrorResponse } from "@/lib/security/apiResponse";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getTransactionByReferenceForCustomer } from "@/lib/customer/customerData";
+import { syncCustomerDisputeToSupport } from "@/lib/support/customerDisputeBridge";
 
 /**
  * /api/customer/portal/disputes
@@ -129,6 +130,34 @@ export async function POST(req: NextRequest) {
 
   if (error) {
     return createErrorResponse({ code: "DISPUTE_SAVE_FAILED", message: "We couldn't log your case. Please try again.", httpStatus: 500, requestId: `KP-REQ-${Date.now()}` });
+  }
+
+  // Mirror this complaint into the real support back office (support_tickets,
+  // and — when it references a specific transaction with a claimed amount —
+  // support_disputes) so a support officer actually sees and works it.
+  // Best-effort: customer_disputes is already saved and remains the
+  // customer-facing source of truth even if this sync fails; a background
+  // sweep (resyncFailedCustomerDisputes) retries anything left FAILED/PENDING.
+  try {
+    await syncCustomerDisputeToSupport({
+      id: data.id,
+      customerId: auth.customer.customerId,
+      customerName: `${auth.customer.firstName} ${auth.customer.lastName}`.trim(),
+      customerEmail: auth.customer.email,
+      customerPhone: auth.customer.phone,
+      category: data.category,
+      priority: data.priority,
+      description: data.description,
+      disputedAmount: data.disputed_amount != null ? Number(data.disputed_amount) : null,
+      currency: data.currency,
+      transactionReference: data.transaction_reference,
+      jurisdiction: auth.customer.country === "NE" ? "NE" : "NG",
+      language: auth.customer.preferredLanguage,
+      requestId: auth.customer.requestId,
+    });
+  } catch {
+    // Sync failures must never surface to the customer as a dispute-creation
+    // failure — the customer_disputes row already exists.
   }
 
   return createSuccessResponse(
