@@ -6,11 +6,21 @@
 // the account number and auto-provisions the customer wallet subledger. Product
 // eligibility (ACTIVE, jurisdiction NG, currency NGN, minKycTier) is read from
 // BankingProductFactory — never hard-coded on a page.
+//
+// Stage-5 additions:
+//  - portalAccounts rows carry each account's live wallet available balance
+//    (wallet subledger = display truth; ledger holds the double-entry journal).
+//  - openAccount accepts optional fullName/email: when the phone is not yet
+//    onboarded at this terminal, the customer is onboarded first (customer
+//    master + kiosk registry — same sequence the Customers page onboarding
+//    performs) so "onboard + open" is a single engine intent.
 // =============================================================================
 
 import { AgentKioskStore } from "./AgentKioskStore";
 import { AccountLifecycleEngine } from "../customer/AccountLifecycleEngine";
+import { CustomerLifecycleEngine } from "../customer/CustomerLifecycleEngine";
 import { BankingProductFactory } from "../products/BankingProductFactory";
+import { SubledgerEngine } from "../financial/SubledgerEngine";
 import { AgentPortalOperationType } from "@/types/agentPortal";
 import { AGENT_PORTAL_CURRENCY, AGENT_PORTAL_ENGINE_AGENT_ID, AGENT_PORTAL_TERMINAL_ID } from "./agentPortalConstants";
 
@@ -82,11 +92,93 @@ export class AccountServiceEngine {
     }));
   }
 
+  /**
+   * Live NGN wallet available balance for a customer (whole ₦, wallet
+   * subledger display truth). Zero when no active NGN wallet subledger exists.
+   */
+  public walletBalanceFor(customerId: string): number {
+    const wallet = SubledgerEngine.getInstance().getSubledger("CUSTOMER_WALLET", customerId, "NGN");
+    return wallet && wallet.isActive ? wallet.availableBalance : 0;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Onboarding (mirror of the Customers-page sequence — CustomerLifecycleEngine
+  // master + kiosk registry record). Shared so the one-tap flow below does not
+  // diverge from manual onboarding. Mirrors AgentPortalEngine.onboardCustomer
+  // (name/phone validation, canonical phone, TIER_1 walk-in, email fallback).
+  // ---------------------------------------------------------------------------
+
+  private findMasterByPhone(phone: string) {
+    const norm = (p: string) => p.replace(/\s/g, "");
+    return CustomerLifecycleEngine.getInstance()
+      .getCustomers()
+      .find((c) => norm(c.phone) === norm(phone));
+  }
+
+  /** Onboards a brand-new walk-in (master + kiosk registry). No-ops when already present. */
+  private onboardNewCustomer(params: { fullName: string; phone: string; email?: string }): {
+    ok: boolean;
+    customer?: OnboardedCustomerRow;
+    code?: string;
+    message?: string;
+  } {
+    const fullName = (params.fullName || "").trim();
+    const phone = (params.phone || "").replace(/\s/g, "");
+    if (fullName.length < 3) {
+      return { ok: false, code: "NAME_REQUIRED", message: "Enter the customer's full name." };
+    }
+    if (!/^\+?\d{10,15}$/.test(phone)) {
+      return { ok: false, code: "PHONE_REQUIRED", message: "Enter a valid phone number." };
+    }
+
+    let master = this.findMasterByPhone(phone);
+    if (!master) {
+      master = CustomerLifecycleEngine.getInstance().registerCustomer({
+        tenantId: "tenant-korie-core",
+        fullName,
+        email: (params.email || "").trim() || `${phone.replace(/\D/g, "")}@walkin.koriepay.ng`,
+        phone,
+        country: "NG",
+        customerType: "PERSONAL",
+        kycTier: "TIER_1",
+        riskStatus: "LOW",
+      });
+    }
+
+    const alreadyOnboarded = this.listOnboarded().some(
+      (c) => c.phone.replace(/\s/g, "") === phone,
+    );
+    if (!alreadyOnboarded) {
+      AgentKioskStore.addOnboardedCustomer({
+        customerId: master.id,
+        customerCode: master.customerCode,
+        fullName: master.fullName,
+        phone: master.phone,
+        kycTier: master.kycTier,
+        registeredAt: new Date().toISOString(),
+      });
+    }
+
+    const row = this.listOnboarded().find((c) => c.phone.replace(/\s/g, "") === phone);
+    return row ? { ok: true, customer: row } : { ok: false, code: "ONBOARD_FAILED", message: "The customer could not be onboarded." };
+  }
+
   public async openAccount(params: {
     customerPhone: string;
     productCode: string;
     idempotencyKey: string;
-  }): Promise<{ success: boolean; account?: any; operation?: AgentPortalOperationType; code?: string; message?: string }> {
+    /** Present = one-tap flow: onboard the walk-in first when the phone is unknown. */
+    fullName?: string;
+    email?: string;
+  }): Promise<{
+    success: boolean;
+    account?: any;
+    operation?: AgentPortalOperationType;
+    customer?: OnboardedCustomerRow;
+    onboarded?: boolean;
+    code?: string;
+    message?: string;
+  }> {
     const { customerPhone, productCode, idempotencyKey } = params;
     if (!idempotencyKey || idempotencyKey.length < 8) {
       return { success: false, code: "IDEMPOTENCY_REQUIRED", message: "An idempotency key is required." };
@@ -98,13 +190,31 @@ export class AccountServiceEngine {
     }
 
     const phone = customerPhone.replace(/\s/g, "");
-    const customer = this.listOnboarded().find((c) => c.phone.replace(/\s/g, "") === phone);
+    let customer = this.listOnboarded().find((c) => c.phone.replace(/\s/g, "") === phone);
+    let onboarded = false;
     if (!customer) {
-      return {
-        success: false,
-        code: "CUSTOMER_NOT_ONBOARDED",
-        message: "Onboard this customer first from the Customers page, then open the account.",
-      };
+      // One-tap intent: customer is a walk-in who isn't at this terminal yet.
+      if (!params.fullName) {
+        return {
+          success: false,
+          code: "CUSTOMER_NOT_ONBOARDED",
+          message: "Onboard this customer first (or use the one-tap Onboard & open flow) before opening the account.",
+        };
+      }
+      const onboardedNow = this.onboardNewCustomer({
+        fullName: params.fullName,
+        phone,
+        email: params.email,
+      });
+      if (!onboardedNow.ok || !onboardedNow.customer) {
+        return {
+          success: false,
+          code: onboardedNow.code || "ONBOARD_FAILED",
+          message: onboardedNow.message || "The customer could not be onboarded.",
+        };
+      }
+      customer = onboardedNow.customer;
+      onboarded = true;
     }
     const product = BankingProductFactory.getInstance().getProduct(productCode);
     if (!product || product.status !== "ACTIVE" || product.jurisdiction !== "NG" || product.currency !== "NGN") {
@@ -160,6 +270,13 @@ export class AccountServiceEngine {
     };
     AgentKioskStore.addOperation(agentId(), operation);
     AgentKioskStore.recordIdempotencyKey(idempotencyKey, operation.id);
-    return { success: true, account: opened.account, operation };
+    return {
+      success: true,
+      account: opened.account,
+      operation,
+      customer,
+      onboarded,
+      code: onboarded ? "ONBOARDED_AND_OPENED" : "ACCOUNT_OPENED",
+    };
   }
 }

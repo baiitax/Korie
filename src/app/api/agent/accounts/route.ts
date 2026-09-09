@@ -26,6 +26,9 @@ export async function GET(req: NextRequest) {
               currency: a.currency,
               assignedBankName: a.assignedBankName,
               openedAt: a.openedAt,
+              // Live wallet available balance (whole ₦) — wallet subledger truth,
+              // only meaningful for NGN accounts served at this till.
+              availableBalance: a.currency === "NGN" ? engine.walletBalanceFor(row.customer.customerId) : undefined,
             })),
         })),
       },
@@ -48,9 +51,21 @@ export async function POST(req: NextRequest) {
       customerPhone: String(body.customerPhone || ""),
       productCode: String(body.productCode || ""),
       idempotencyKey,
+      // One-tap "onboard & open": present when the customer is a new walk-in.
+      fullName: body.fullName ? String(body.fullName) : undefined,
+      email: body.email ? String(body.email) : undefined,
     });
     if (result.success) {
-      return agentOk({ account: result.account, code: result.code }, requestId, environment);
+      return agentOk(
+        {
+          account: result.account,
+          customer: result.customer,
+          onboarded: result.onboarded === true,
+          code: result.code,
+        },
+        requestId,
+        environment,
+      );
     }
     return agentErr(result.code || "ACCOUNT_OPEN_FAILED", result.message || "The account could not be opened.", requestId, 400);
   });
