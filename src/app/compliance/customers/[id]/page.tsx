@@ -14,14 +14,16 @@
  */
 
 import Link from 'next/link';
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Archive, ExternalLink, FileWarning, FolderSearch, ShieldOff, UserRound } from 'lucide-react';
-import { useComplianceResource } from '@/services/compliance/hooks';
+import { useComplianceResource, useComplianceAction } from '@/services/compliance/hooks';
+import { runKycTierReview } from '@/services/compliance/mutations';
 import { formatDate, formatMoney, humanizeEnum, maskIdentifier } from '@/services/compliance/format';
 import type { AlertRow, ApprovalRow, CustomerRow, DocumentRow, EscalationRow, KybRow, MonitoringRow, ObligationRow } from '@/services/compliance/types';
 import { useCompliancePortal } from '@/components/compliance/CompliancePortal';
 import {
+  Button,
   Chip,
   DetailTabs,
   KeyList,
@@ -34,6 +36,87 @@ import {
 } from '@/components/compliance/ui';
 import { EmptyState, InlineNotice, LoadingBlock, StateCard } from '@/components/compliance/ui';
 import { ComplianceTable, makeTableLabels } from '@/components/compliance/ui';
+
+const TIER_OPTIONS = ['TIER_0', 'TIER_1', 'TIER_2', 'TIER_3'] as const;
+
+/**
+ * Promote/demote a customer's kyc_tier. The server (see
+ * /api/compliance/actions/kyc-tier-review) is the sole authority on whether
+ * an upgrade is actually earned — it re-derives the target tier's
+ * requirements from the same documents/identifiers the customer sees, and
+ * rejects the call if evidence is missing. This panel only offers the form
+ * and renders whatever the server decided; it never predicts the outcome.
+ */
+function TierReviewPanel({
+  t,
+  customerId,
+  currentTier,
+  onChanged,
+}: {
+  t: (key: string, params?: Record<string, string | number>) => string;
+  customerId: string;
+  currentTier: string;
+  onChanged: () => void;
+}) {
+  const action = useComplianceAction();
+  const [targetTier, setTargetTier] = useState<(typeof TIER_OPTIONS)[number]>(
+    (TIER_OPTIONS as readonly string[]).includes(currentTier) ? (currentTier as (typeof TIER_OPTIONS)[number]) : 'TIER_1',
+  );
+  const [rationale, setRationale] = useState('');
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (targetTier === currentTier || !rationale.trim()) return;
+    const out = await action.run(() =>
+      runKycTierReview({ customerId, targetTier, rationale: rationale.trim() }),
+    );
+    if (out.ok) {
+      setRationale('');
+      onChanged();
+    }
+  };
+
+  return (
+    <Panel title={t('compliance.customer.tierReview.title')} subtitle={t('compliance.customer.tierReview.subtitle')}>
+      <form onSubmit={submit} className="space-y-2.5">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-[160px_minmax(0,1fr)]">
+          <select
+            value={targetTier}
+            onChange={(e) => setTargetTier(e.target.value as (typeof TIER_OPTIONS)[number])}
+            aria-label={t('compliance.customer.tierReview.targetTier')}
+            className="cmp-input"
+          >
+            {TIER_OPTIONS.map((tier) => (
+              <option key={tier} value={tier}>
+                {humanizeEnum(tier)}
+                {tier === currentTier ? ` (${t('compliance.customer.tierReview.current')})` : ''}
+              </option>
+            ))}
+          </select>
+          <input
+            type="text"
+            value={rationale}
+            onChange={(e) => setRationale(e.target.value)}
+            placeholder={t('compliance.customer.tierReview.rationalePlaceholder')}
+            aria-label={t('compliance.customer.tierReview.rationalePlaceholder')}
+            className="cmp-input w-full"
+            required
+          />
+        </div>
+        <Button
+          type="submit"
+          variant="primary"
+          pending={action.showPending}
+          disabled={targetTier === currentTier || !rationale.trim()}
+        >
+          {action.showPending ? t('compliance.actions.saving') : t('compliance.customer.tierReview.submit')}
+        </Button>
+      </form>
+      {action.result?.error ? <InlineNotice tone="danger">{action.result.error.message}</InlineNotice> : null}
+      {action.result?.ok ? <InlineNotice tone="info">{t('compliance.customer.tierReview.success')}</InlineNotice> : null}
+    </Panel>
+  );
+}
 
 const TABS = [
   'overview',
@@ -215,6 +298,9 @@ export default function CustomerFilePage() {
                     </Link>
                   </div>
                 </Panel>
+                <div className="lg:col-span-3">
+                  <TierReviewPanel t={t} customerId={person.id} currentTier={person.kycTier} onChanged={customers.reload} />
+                </div>
               </div>
             ) : null}
 

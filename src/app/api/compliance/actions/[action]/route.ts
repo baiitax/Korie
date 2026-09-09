@@ -4,6 +4,9 @@ import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { RiskDecisionEngine } from "@/lib/risk/RiskDecisionEngine";
 import { AmlScreeningProvider } from "@/lib/aml/AmlScreeningProvider";
 import type { RiskEvaluationRequest } from "@/types/riskEngine";
+import { getCustomerById, CustomerRow } from "@/lib/customer/customerData";
+import { getKycDocumentsForCustomer, deriveVerificationSummary } from "@/lib/customer/customerVerificationLive";
+import { getIdentifiersForCustomer } from "@/lib/customer/identifierVerification";
 
 export const dynamic = "force-dynamic";
 
@@ -13,9 +16,11 @@ export const dynamic = "force-dynamic";
  *
  *   alert-convert   → open an AML case from an alert (links case_id)
  *   case-note       → append an investigation note to a case
+ *   kyc-tier-review → promote/demote a customer's kyc_tier (see below)
  *
- * Both are audited in audit_events with the acting officer's identity.
+ * All are audited in audit_events with the acting officer's identity.
  */
+
 
 /**
  * audit_events carries NOT NULL ip/request/correlation columns; every action
@@ -283,6 +288,98 @@ export async function POST(
       return NextResponse.json({ status: "error", error: { code: "PERSIST_FAILED", message: `The engine decided but the decision could not be stored: ${storeErr.message}` } }, { status: 500 });
     }
     return NextResponse.json({ status: "ok", decision: stored ?? decision });
+  }
+
+  if (params.action === "kyc-tier-review") {
+    const { customerId, targetTier, rationale } = body as {
+      customerId?: string;
+      targetTier?: CustomerRow["kyc_tier"];
+      rationale?: string;
+    };
+    const TIER_ORDER: CustomerRow["kyc_tier"][] = ["TIER_0", "TIER_1", "TIER_2", "TIER_3"];
+    if (!customerId || !targetTier || !TIER_ORDER.includes(targetTier)) {
+      return NextResponse.json(
+        { status: "error", error: { code: "MISSING_FIELDS", message: "customerId and a valid targetTier are required." } },
+        { status: 400 },
+      );
+    }
+    if (!rationale || !rationale.trim()) {
+      return NextResponse.json(
+        { status: "error", error: { code: "RATIONALE_REQUIRED", message: "A tier decision must record why — enter a rationale." } },
+        { status: 400 },
+      );
+    }
+
+    const customer = await getCustomerById(customerId);
+    if (!customer) {
+      return NextResponse.json(
+        { status: "error", error: { code: "CUSTOMER_NOT_FOUND", message: "That customer no longer exists." } },
+        { status: 404 },
+      );
+    }
+    if (customer.kyc_tier === targetTier) {
+      return NextResponse.json(
+        { status: "error", error: { code: "NO_CHANGE", message: `Customer is already ${targetTier}.` } },
+        { status: 409 },
+      );
+    }
+
+    const isUpgrade = TIER_ORDER.indexOf(targetTier) > TIER_ORDER.indexOf(customer.kyc_tier);
+    if (isUpgrade) {
+      // Never take an officer's word for it: re-derive against the same real
+      // documents/identifiers the customer-facing verification summary uses,
+      // for the customer's CURRENT tier's evidence, then check the TARGET
+      // tier's requirement is met by that same evidence. No live NIBSS/NIMC
+      // gateway exists, so "met" means "submitted and not rejected" for
+      // identifiers — a human reviewer, not an automated feed, is the
+      // authority here, matching this codebase's honest-pending-provider
+      // stance everywhere else.
+      const [documents, identifiers] = await Promise.all([
+        getKycDocumentsForCustomer(customer.id),
+        getIdentifiersForCustomer(customer.id),
+      ]);
+      const projectedCustomer = { ...customer, kyc_tier: targetTier };
+      const summary = deriveVerificationSummary(projectedCustomer, documents, identifiers);
+      const blockingSteps = summary.steps.filter((s) => s.required && s.status !== "COMPLETED");
+      if (blockingSteps.length > 0) {
+        return NextResponse.json(
+          {
+            status: "error",
+            error: {
+              code: "TIER_REQUIREMENTS_NOT_MET",
+              message: `Cannot move to ${targetTier}: ${blockingSteps.map((s) => s.id).join(", ")} still required and not complete.`,
+              details: blockingSteps,
+            },
+          },
+          { status: 422 },
+        );
+      }
+    }
+
+    const admin = getSupabaseAdminClient();
+    const { data: updated, error: updateErr } = await admin
+      .from("customers")
+      .update({ kyc_tier: targetTier })
+      .eq("id", customerId)
+      .select("id, kyc_tier")
+      .single();
+    if (updateErr || !updated) {
+      return NextResponse.json(
+        { status: "error", error: { code: "UPDATE_FAILED", message: updateErr?.message ?? "Could not update the customer's tier." } },
+        { status: 500 },
+      );
+    }
+
+    await audit(admin, auth, request, {
+      action: isUpgrade ? "KYC_TIER_UPGRADED" : "KYC_TIER_DOWNGRADED",
+      resource_type: "compliance:customers",
+      resource_id: customerId,
+      details: { rationale },
+      before_state: { kyc_tier: customer.kyc_tier },
+      after_state: { kyc_tier: updated.kyc_tier },
+    });
+
+    return NextResponse.json({ status: "ok", customer: updated });
   }
 
   if (params.action === "screening") {

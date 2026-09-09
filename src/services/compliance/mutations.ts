@@ -281,6 +281,44 @@ export async function runScreening(input: {
 }
 
 /**
+ * Promote or demote a customer's kyc_tier.
+ *
+ * `POST /api/compliance/actions/kyc-tier-review` re-derives the target
+ * tier's requirements (documents + BVN/NIN/NIF/NNI identifiers) from the
+ * same real rows the customer-facing verification summary reads — an
+ * officer cannot upgrade a customer whose evidence does not actually
+ * satisfy the target tier, no matter what they type here. A rationale is
+ * mandatory: the server rejects the call without one, and it's the only
+ * free-text this action accepts. Every call — success or rejection — is
+ * recorded in audit_events by the server, not by this client function.
+ */
+export async function runKycTierReview(input: {
+  customerId: string;
+  targetTier: 'TIER_0' | 'TIER_1' | 'TIER_2' | 'TIER_3';
+  rationale: string;
+}): Promise<ComplianceMutationResult<{ id: string; kyc_tier: string }>> {
+  const res = await post('/api/compliance/actions/kyc-tier-review', input);
+  clearComplianceCacheAfterWrite();
+  if (!res.ok) {
+    const errObj = res.payload?.error;
+    return {
+      ok: false,
+      recorded: false,
+      source: 'live',
+      error: {
+        code: typeof errObj?.code === 'string' ? errObj.code : `HTTP_${res.status || 'NETWORK'}`,
+        message: typeof errObj?.message === 'string' ? errObj.message : 'The compliance service refused the tier change.',
+        hint:
+          errObj?.code === 'TIER_REQUIREMENTS_NOT_MET'
+            ? 'The customer still needs to complete the listed verification steps before this tier can be granted.'
+            : undefined,
+      },
+    };
+  }
+  return { ok: true, recorded: true, source: 'live', value: res.payload?.customer ?? res.payload?.data };
+}
+
+/**
  * Move a customer escalation to its next regulatory status.
  *
  * This is the complaints engine's own transition

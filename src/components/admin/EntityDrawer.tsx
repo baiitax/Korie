@@ -122,35 +122,47 @@ const MUTABLE_DRAWER_RESOURCES: Record<string, string> = {
   DECISION: "decision-recommendations",
 };
 
-/** Status choices offered per resource (subset flips admins actually use). */
+/**
+ * Status choices offered per resource (subset flips admins actually use).
+ *
+ * Every value here was cross-checked against the real Postgres CHECK
+ * constraint on that resource's `status` (or resource-specific) column in
+ * supabase/migrations/*.sql — see the KYC review notes. A prior version of
+ * this map had several resources (dispute-cases, chargebacks, aml-alerts,
+ * aml-cases, support-tickets, security-incidents, payment-refunds,
+ * treasury-deals, products, decision-recommendations, kyc-documents,
+ * agent-kyc-documents, cit-shipments, cash-variances, early-warnings)
+ * offering values the database would reject outright, meaning the button
+ * looked clickable but the PATCH would 500. All fixed here.
+ */
 const STATUS_CHOICES: Record<string, string[]> = {
-  "kyc-documents": ["UNDER_REVIEW", "APPROVED", "REJECTED"],
-  "agent-kyc-documents": ["UNDER_REVIEW", "APPROVED", "REJECTED"],
+  "kyc-documents": ["PENDING", "APPROVED", "REJECTED"],
+  "agent-kyc-documents": ["PENDING", "APPROVED", "REJECTED"],
   "customer-identifiers": ["MANUAL_REVIEW", "VERIFIED", "FAILED"],
   "agent-applications": ["UNDER_REVIEW", "APPROVED", "REJECTED"],
-  "customer-disputes": ["OPEN", "INVESTIGATING", "RESOLVED", "ESCALATED", "CLOSED"],
-  "dispute-cases": ["OPEN", "UNDER_REVIEW", "WAITING_BANK", "RESOLVED", "CLOSED"],
-  "chargebacks": ["OPEN", "REPRESENTMENT_FILED", "WON", "LOST", "CLOSED"],
-  "risk-cases": ["OPEN", "INVESTIGATING", "ESCALATED", "RESOLVED", "FALSE_POSITIVE", "CLOSED"],
-  "aml-alerts": ["OPEN", "INVESTIGATING", "ESCALATED", "CLOSED", "FALSE_POSITIVE"],
-  "aml-cases": ["OPEN", "INVESTIGATING", "PENDING_DECISION", "CLOSED"],
-  "reconciliation-exceptions": ["OPEN", "INVESTIGATING", "RESOLVED", "WRITTEN_OFF"],
-  "suspense-items": ["OPEN", "INVESTIGATING", "RESOLVED", "WRITTEN_OFF"],
-  "support-tickets": ["OPEN", "IN_PROGRESS", "ESCALATED", "RESOLVED", "CLOSED"],
-  "support-escalations": ["OPEN", "ACKNOWLEDGED", "RESOLVED", "CANCELLED"],
-  "security-incidents": ["OPEN", "CONTAINED", "RESOLVED", "CLOSED"],
-  "security-alerts": ["OPEN", "ACKNOWLEDGED", "RESOLVED"],
+  "customer-disputes": ["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"],
+  "dispute-cases": ["UNDER_REVIEW", "INFORMATION_REQUESTED", "INVESTIGATION", "DECISION_PENDING", "RESOLVED"],
+  "chargebacks": ["CHARGEBACK_REVIEW", "CHARGEBACK_ACCEPTED", "CHARGEBACK_CONTESTED", "FINAL_WIN", "FINAL_LOSS"],
+  "risk-cases": ["INVESTIGATING", "ESCALATED", "RESOLVED", "CONFIRMED_FRAUD", "FALSE_POSITIVE", "CLOSED"],
+  "aml-alerts": ["IN_REVIEW", "ESCALATED", "FALSE_POSITIVE", "DISMISSED", "CONVERTED_TO_CASE", "CLOSED"],
+  "aml-cases": ["TRIAGE", "INVESTIGATION", "ESCALATED", "DECISION_PENDING", "ACTION_PENDING", "CLOSED"],
+  "reconciliation-exceptions": ["RESOLVED", "WRITTEN_OFF"],
+  "suspense-items": ["INVESTIGATING", "RESOLVED", "WRITTEN_OFF"],
+  "support-tickets": ["ASSIGNED", "IN_PROGRESS", "WAITING_FOR_CUSTOMER", "ESCALATED", "RESOLVED", "CLOSED"],
+  "support-escalations": ["IN_REVIEW", "ACTIONED", "RESOLVED"],
+  "security-incidents": ["TRIAGED", "INVESTIGATING", "CONTAINMENT", "RECOVERY", "CLOSED"],
+  "security-alerts": ["TRIAGED", "INVESTIGATING", "CONTAINED", "RESOLVED", "FALSE_POSITIVE"],
   "pam-requests": ["APPROVED", "REJECTED", "REVOKED"],
-  "regulatory-reports": ["DRAFT", "READY_FOR_REVIEW", "UNDER_REVIEW", "APPROVED", "SUBMITTED"],
-  incidents: ["OPEN", "CONTAINED", "MITIGATED", "RESOLVED", "CLOSED"],
-  "early-warnings": ["OPEN", "ACKNOWLEDGED", "RESOLVED"],
-  "payment-refunds": ["PENDING", "APPROVED", "PROCESSED", "REJECTED"],
-  "cash-variances": ["OPEN", "INVESTIGATING", "RESOLVED", "WRITTEN_OFF"],
-  "cit-shipments": ["SCHEDULED", "IN_TRANSIT", "DELIVERED", "RECONCILED", "DISPUTED"],
-  "treasury-deals": ["DRAFT", "PENDING_APPROVAL", "APPROVED", "EXECUTED", "SETTLED", "REJECTED"],
-  "adashi-exceptions": ["OPEN", "ACKNOWLEDGED", "RESOLVED"],
-  "adashi-disputes": ["OPEN", "UNDER_REVIEW", "RESOLVED", "ESCALATED"],
-  products: ["DRAFT", "PENDING_APPROVAL", "ACTIVE", "SUSPENDED", "RETIRED"],
+  "regulatory-reports": ["DRAFT", "UNDER_REVIEW", "APPROVED", "SUBMITTED", "ARCHIVED"],
+  incidents: ["CONTAINED", "MITIGATED", "RESOLVED", "CLOSED"],
+  "early-warnings": ["ACKNOWLEDGED", "RESOLVED"],
+  "payment-refunds": ["VALIDATING", "APPROVAL_PENDING", "APPROVED", "PROCESSING", "SUCCESS", "FAILED"],
+  "cash-variances": ["REVIEW", "APPROVED_ADJUSTMENT", "RESOLVED"],
+  "cit-shipments": ["APPROVED", "IN_TRANSIT", "RECEIVED", "RECONCILED", "DELAYED", "INCIDENT"],
+  "treasury-deals": ["TREASURY_REVIEW", "APPROVED", "EXECUTED", "SETTLED", "RECONCILED", "CANCELLED"],
+  "adashi-exceptions": ["INVESTIGATING", "RESOLVED", "CLOSED"],
+  "adashi-disputes": ["UNDER_INVESTIGATION", "RESOLVED", "REJECTED"],
+  products: ["UNDER_REVIEW", "APPROVED", "ACTIVE", "SUSPENDED", "RETIRED"],
   "api-clients": ["ACTIVE", "SUSPENDED", "REVOKED"],
   "api-credentials": ["ACTIVE", "ROTATION_REQUIRED", "REVOKED"],
   "decision-recommendations": ["PENDING", "APPROVED", "REJECTED", "EXECUTED"],
