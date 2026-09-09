@@ -40,6 +40,7 @@ import {
 import KorieLogo from '@/components/brand/KorieLogo';
 import PortalFooter from '@/components/ui/PortalFooter';
 import ShellAccount from '@/components/ui/ShellAccount';
+import { PortalBootReveal } from '@/components/loading';
 
 export const DeveloperShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
@@ -137,6 +138,7 @@ export const DeveloperShell: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   return (
+    <PortalBootReveal context="developer">
     <div className="min-h-screen bg-[var(--surface)] text-slate-100 flex flex-col font-sans">
       {/* Top Banner Alert if Incident Active */}
       {activeIncident && (
@@ -528,6 +530,7 @@ export const DeveloperShell: React.FC<{ children: React.ReactNode }> = ({ childr
         </div>
       )}
     </div>
+    </PortalBootReveal>
   );
 };
 

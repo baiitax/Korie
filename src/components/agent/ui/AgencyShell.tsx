@@ -9,6 +9,7 @@ import ShellAccount from "@/components/ui/ShellAccount";
 import PortalFooter from "@/components/ui/PortalFooter";
 import AgentReceiptModal from "./AgentReceiptModal";
 import DailyReconciliationModal from "./DailyReconciliationModal";
+import { PortalPreloader } from "@/components/loading";
 import {
   Home,
   ArrowDownLeft,
@@ -46,7 +47,12 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
     isOffline,
     t,
     notificationsCount,
+    isBootstrapping,
   } = useAgent();
+
+  if (isBootstrapping) {
+    return <PortalPreloader context="agency" />;
+  }
 
   const renderShellAmount = (formatted: string) =>
     isLiquidityLoading ? (

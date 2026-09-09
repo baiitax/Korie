@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { loadComplianceSession, type ComplianceSessionView } from "@/services/compliance/session";
 import { signOutCompliance } from "@/lib/compliancePortalClient";
-import { KorieLogo } from "@/components/brand/KorieLogo";
+import { PortalPreloader } from "@/components/loading";
 import { LockKeyhole, ShieldAlert, LogOut } from "lucide-react";
 
 /**
@@ -76,16 +76,7 @@ export function ComplianceSessionGate({ children }: { children: React.ReactNode 
   if (isLoginRoute) return <>{children}</>;
 
   if (phase === "checking") {
-    return (
-      <div className="grid min-h-screen place-items-center bg-[var(--background)] p-6 font-sans">
-        <div className="flex flex-col items-center gap-3" role="status" aria-live="polite">
-          <span className="grid h-12 w-12 animate-pulse place-items-center rounded-2xl bg-[var(--brand-soft)]">
-            <KorieLogo className="h-7 w-7" />
-          </span>
-          <p className="text-xs font-semibold text-[var(--foreground-muted)]">Verifying officer session…</p>
-        </div>
-      </div>
-    );
+    return <PortalPreloader context="compliance" />;
   }
 
   if (phase === "unauthenticated") {

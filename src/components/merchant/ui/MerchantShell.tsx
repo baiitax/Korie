@@ -10,6 +10,7 @@ import PortalFooter from "@/components/ui/PortalFooter";
 import ReceivePaymentModal from "./ReceivePaymentModal";
 import CreatePaymentLinkModal from "./CreatePaymentLinkModal";
 import CreateInvoiceModal from "./CreateInvoiceModal";
+import { PortalPreloader } from "@/components/loading";
 import {
   LayoutDashboard,
   CreditCard,
@@ -50,7 +51,12 @@ export const MerchantShell: React.FC<{ children: React.ReactNode }> = ({ childre
     isOffline,
     t,
     notificationsCount,
+    isLoadingProfile,
   } = useMerchant();
+
+  if (isLoadingProfile) {
+    return <PortalPreloader context="merchant" />;
+  }
 
   const desktopNavGroups = [
     {

@@ -9,6 +9,7 @@ import ShellAccount from "@/components/ui/ShellAccount";
 import PortalFooter from "@/components/ui/PortalFooter";
 import LiquidityDistributionModal from "./LiquidityDistributionModal";
 import TransactionInvestigationDrawer from "./TransactionInvestigationDrawer";
+import { PortalBootReveal } from "@/components/loading";
 import {
   LayoutDashboard,
   Activity,
@@ -138,6 +139,7 @@ export const AggregatorShell: React.FC<{ children: React.ReactNode }> = ({ child
   ];
 
   return (
+    <PortalBootReveal context="aggregator">
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] flex flex-col antialiased selection:bg-teal-500 selection:text-slate-950">
       {isOffline && (
         <div className="bg-rose-600 text-white text-xs font-semibold px-4 py-2 flex items-center justify-center gap-2 sticky top-0 z-50">
@@ -360,6 +362,7 @@ export const AggregatorShell: React.FC<{ children: React.ReactNode }> = ({ child
       <LiquidityDistributionModal />
       <TransactionInvestigationDrawer />
     </div>
+    </PortalBootReveal>
   );
 };
 

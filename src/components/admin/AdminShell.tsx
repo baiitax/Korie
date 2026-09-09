@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LockKeyhole, ShieldAlert, ServerCog } from "lucide-react";
 import { useAdminData } from "./AdminDataGateway";
-import { KorieLogo } from "@/components/brand/KorieLogo";
+import { PortalPreloader } from "@/components/loading";
 import AdminRail from "./AdminRail";
 import AdminCommandBar from "./AdminCommandBar";
 import AdminMobileNav from "./AdminMobileNav";
@@ -34,16 +34,7 @@ export const AdminShell: React.FC<{ children: React.ReactNode }> = ({ children }
   if (pathname.startsWith("/admin/login")) return <>{children}</>;
 
   if (phase === "checking") {
-    return (
-      <div className="grid min-h-screen place-items-center bg-[var(--background)] p-6 font-sans">
-        <div className="flex flex-col items-center gap-3" role="status" aria-live="polite">
-          <span className="grid h-12 w-12 animate-pulse place-items-center rounded-2xl bg-[var(--brand-soft)]">
-            <KorieLogo className="h-7 w-7" />
-          </span>
-          <p className="text-xs font-semibold text-[var(--foreground-muted)]">Verifying admin session…</p>
-        </div>
-      </div>
-    );
+    return <PortalPreloader context="admin" />;
   }
 
   if (phase === "unauthenticated") {

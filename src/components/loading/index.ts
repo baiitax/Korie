@@ -10,6 +10,9 @@ export { default as KpayBrandMark } from "./KpayBrandMark";
 export type { KpayMarkSize } from "./KpayBrandMark";
 
 export { default as KpayFullScreenLoader } from "./KpayFullScreenLoader";
+export { default as PortalPreloader } from "./PortalPreloader";
+export type { PortalLoadingContext } from "./PortalPreloader";
+export { default as PortalBootReveal } from "./PortalBootReveal";
 export { default as KpayTransactionLoader } from "./KpayTransactionLoader";
 export type { TransactionStatus } from "./KpayTransactionLoader";
 

@@ -102,6 +102,10 @@ interface AgentContextType {
   refreshLiquidity: () => Promise<void>;
   refreshTransactions: () => Promise<void>;
   refreshNotifications: () => Promise<void>;
+  /** True until the session check has resolved and the first round of
+   *  portal fetches has been kicked off (or the user was redirected to
+   *  /login). Drives the shell's full-screen preloader. */
+  isBootstrapping: boolean;
 
   // Modals & Sheets
   isReceiptModalOpen: boolean;
@@ -202,6 +206,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   const [subAgents, setSubAgents] = useState<SubAgent[]>([]);
   const [floatAllocations, setFloatAllocations] = useState<FloatAllocationRecord[]>([]);
   const [isSubAgentsLoading, setIsSubAgentsLoading] = useState<boolean>(true);
+  const [isBootstrapping, setIsBootstrapping] = useState<boolean>(true);
 
   // Modals
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
@@ -512,6 +517,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       refreshReconciliations();
       refreshFloatTopUpRequests();
       refreshSubAgents();
+      setIsBootstrapping(false);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -935,6 +941,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         isOffline,
         isLiquidityLoading,
         isTransactionsLoading,
+        isBootstrapping,
         refreshLiquidity,
         refreshTransactions,
         refreshNotifications,

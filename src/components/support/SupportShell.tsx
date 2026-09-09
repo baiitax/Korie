@@ -45,6 +45,7 @@ import { useSupportOps } from "./SupportOpsProvider";
 import { Modal, Spinner, initials, relTime } from "./SupportUI";
 import { supportOps, isSupportApiError } from "@/services/supportOpsClient";
 import { NewTicketModal } from "./NewTicketModal";
+import { PortalPreloader } from "@/components/loading";
 
 interface NavItem {
   href: string;
@@ -125,7 +126,7 @@ function isActive(pathname: string, item: NavItem): boolean {
 }
 
 export function SupportShell({ children }: { children: React.ReactNode }) {
-  const { t, lang, setLang, theme, setTheme, activeOfficer, signOut, isOnline, toasts, dismissToast, toast } = useSupportOps();
+  const { t, lang, setLang, theme, setTheme, activeOfficer, sessionState, signOut, isOnline, toasts, dismissToast, toast } = useSupportOps();
   const pathname = usePathname();
   const router = useRouter();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -162,6 +163,10 @@ export function SupportShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   const navGroups = useMemo(() => NAV, []);
+
+  if (sessionState === "loading") {
+    return <PortalPreloader context="support" />;
+  }
 
   const SidebarLink = ({ item }: { item: NavItem }) => {
     const active = isActive(pathname, item);
