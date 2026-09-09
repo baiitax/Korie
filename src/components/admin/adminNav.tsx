@@ -3,6 +3,7 @@
 import type React from "react";
 import {
   LayoutDashboard,
+  Landmark,
   Building2,
   Users,
   Repeat2,
@@ -87,6 +88,7 @@ export const adminNavGroups: AdminNavGroup[] = [
   {
     title: "FINANCIAL & TREASURY",
     items: [
+      { label: "Bank Core & Liquidity", href: "/admin/bank", icon: Landmark, badge: "New" },
       { label: "Wallets Control", href: "/admin/wallets", icon: Wallet },
       { label: "Immutable Ledger", href: "/admin/ledger", icon: Layers },
       { label: "Settlements", href: "/admin/settlements", icon: FileSpreadsheet },
