@@ -11,13 +11,15 @@ import { useAgentPortal } from "../AgentContext";
 import { AgentPageHeader, AgentChip, statusTone } from "./AgentUi";
 import { formatMoney } from "@/lib/money";
 import { getPortalBearer } from "@/lib/customerPortalClient";
-import { ArrowLeft, CheckCircle2, AlertTriangle, Loader2, Landmark } from "lucide-react";
+import { ArrowLeft, CheckCircle2, AlertTriangle, Loader2, Landmark, RefreshCw } from "lucide-react";
 
 interface KorrieAccountOption {
   accountNumber: string;
   accountName: string;
   holderName: string;
   holderPhone: string;
+  /** Live wallet available balance (whole ₦) projected by /api/agent/accounts. */
+  availableBalance: number;
 }
 
 async function fetchKorrieAccounts(): Promise<KorrieAccountOption[]> {
@@ -35,6 +37,7 @@ async function fetchKorrieAccounts(): Promise<KorrieAccountOption[]> {
           accountName: a.accountName,
           holderName: row.customer?.fullName || a.accountName,
           holderPhone: row.customer?.phone || "",
+          availableBalance: Number(a.availableBalance ?? 0),
         });
       }
     }
@@ -145,13 +148,19 @@ export function AgentOperationForm({
     amountNum > 0 &&
     (!accountMode ? kind === "CASH_IN" || kind === "TRANSFER_NIP" ? customerAccount.trim().length >= 10 : true : Boolean(customerAccount));
 
+  const loadAccounts = async () => {
+    setKorrieAccounts(await fetchKorrieAccounts());
+  };
+
   const toggleAccountMode = async () => {
     const next = !accountMode;
     setAccountMode(next);
-    if (next && korrieAccounts === null) {
-      setKorrieAccounts(await fetchKorrieAccounts());
-    }
+    if (next) await loadAccounts(); // always fresh — balances move with every op
   };
+
+  const selectedKorrieAccount = accountMode
+    ? (korrieAccounts || []).find((a) => a.accountNumber === customerAccount) || null
+    : null;
 
   const pickAccount = (accountNumber: string) => {
     const found = (korrieAccounts || []).find((a) => a.accountNumber === accountNumber);
@@ -161,6 +170,56 @@ export function AgentOperationForm({
       setCustomerName(found.holderName);
       setCustomerPhone(found.holderPhone);
     }
+  };
+
+  /** Live wallet balance note (serve-screen lookup) — engine snapshot at last refresh. */
+  const balanceNote = () => {
+    const acct = selectedKorrieAccount;
+    if (!acct) return null;
+    const bal = acct.availableBalance || 0;
+    const isWithdraw = kind === "CASH_OUT";
+    const covered = !isWithdraw || amountNum <= bal;
+    const shortfall = Math.max(0, amountNum - bal);
+    return (
+      <div className="mt-2 space-y-1 rounded-xl bg-stone-50 px-3 py-2 text-[11px] ring-1 ring-stone-100">
+        <p className="flex flex-wrap items-center justify-between gap-2 font-semibold text-stone-700">
+          <span>{isWithdraw ? "Available to debit" : "Current balance"}</span>
+          <span className="font-mono text-sm font-bold text-stone-900">
+            {isBalanceHidden ? "••••••" : formatMoney(bal, "NGN")}
+          </span>
+        </p>
+        {amountNum > 0 ? (
+          isWithdraw ? (
+            covered ? (
+              <p className="font-semibold text-emerald-700">
+                Wallet covers {formatMoney(amountNum, "NGN")} — payout can proceed.
+              </p>
+            ) : (
+              <p className="font-semibold text-rose-700">
+                Wallet short by {formatMoney(shortfall, "NGN")} — the engine will decline this payout.
+              </p>
+            )
+          ) : (
+            <p className="text-stone-500">
+              After deposit:{" "}
+              <span className="font-bold text-emerald-700">
+                {isBalanceHidden ? "••••••" : formatMoney(bal + amountNum, "NGN")}
+              </span>
+            </p>
+          )
+        ) : null}
+        <p className="flex items-center justify-between gap-2 text-[10px] text-stone-400">
+          <span>Wallet subledger · snapshot at last refresh</span>
+          <button
+            type="button"
+            onClick={() => void loadAccounts()}
+            className="inline-flex items-center gap-1 font-semibold text-emerald-700 hover:text-emerald-800"
+          >
+            <RefreshCw className="h-3 w-3" aria-hidden="true" /> Refresh
+          </button>
+        </p>
+      </div>
+    );
   };
 
   return (
@@ -249,6 +308,7 @@ export function AgentOperationForm({
                       </option>
                     ))}
                   </select>
+                  {selectedKorrieAccount ? balanceNote() : null}
                   {korrieAccounts !== null && korrieAccounts.length === 0 ? (
                     <p className="mt-1 text-[11px] text-stone-500">
                       No opened accounts yet — onboard the customer and open the account from the Products &gt; Open Accounts page first.
@@ -322,6 +382,7 @@ export function AgentOperationForm({
                   </option>
                 ))}
               </select>
+              {selectedKorrieAccount ? balanceNote() : null}
             </label>
           ) : null}
 

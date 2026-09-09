@@ -18,7 +18,8 @@ import {
   AgentFreshnessBar,
   AgentModal,
 } from "@/components/agent/ui/AgentUi";
-import { Wallet, Loader2, ShieldCheck, CheckCircle2, AlertTriangle, Landmark } from "lucide-react";
+import { useAgentPortal } from "@/components/agent/AgentContext";
+import { Wallet, UserPlus, Loader2, ShieldCheck, CheckCircle2, AlertTriangle, Landmark } from "lucide-react";
 
 function naira(n: number): string {
   return `₦${n.toLocaleString("en-NG")}`;
@@ -60,6 +61,8 @@ interface OpenedAccount {
   currency: string;
   assignedBankName: string;
   openedAt: string;
+  /** Live wallet available balance (whole ₦) — projected by the BFF. */
+  availableBalance?: number;
 }
 
 interface CustomerRow {
@@ -80,6 +83,7 @@ interface AccountsState {
 }
 
 export default function AgentAccountsPage() {
+  const { isBalanceHidden } = useAgentPortal();
   const [phase, setPhase] = useState<"loading" | "ready" | "error">("loading");
   const [state, setState] = useState<AccountsState | null>(null);
   const [error, setError] = useState("");
@@ -88,8 +92,23 @@ export default function AgentAccountsPage() {
   const [refreshedAt, setRefreshedAt] = useState<string | null>(null);
 
   const [openModal, setOpenModal] = useState(false);
+  const [modalMode, setModalMode] = useState<"existing" | "new">("existing");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [newName, setNewName] = useState("");
+  const [newPhone, setNewPhone] = useState("");
+  const [newEmail, setNewEmail] = useState("");
   const [productCode, setProductCode] = useState("");
+
+  const openModalAs = (mode: "existing" | "new") => {
+    setModalMode(mode);
+    setCustomerPhone("");
+    setNewName("");
+    setNewPhone("");
+    setNewEmail("");
+    setProductCode("");
+    setNotice(null);
+    setOpenModal(true);
+  };
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setPhase("loading");
@@ -123,11 +142,22 @@ export default function AgentAccountsPage() {
 
   const openAccount = async () => {
     setNotice(null);
-    if (!chosenCustomer || !product) {
-      setNotice({ ok: false, message: "Choose the onboarded customer and the account product." });
+    const isNew = modalMode === "new";
+    if (!product) {
+      setNotice({ ok: false, message: "Choose the account product." });
       return;
     }
-    if (chosenHoldsProduct) {
+    if (isNew) {
+      const name = newName.trim();
+      const phone = newPhone.replace(/\s/g, "");
+      if (name.length < 3 || !/^\+?\d{10,15}$/.test(phone)) {
+        setNotice({ ok: false, message: "Enter the walk-in customer's full name and a valid phone number." });
+        return;
+      }
+    } else if (!chosenCustomer) {
+      setNotice({ ok: false, message: "Choose the onboarded customer and the account product." });
+      return;
+    } else if (chosenHoldsProduct) {
       setNotice({ ok: false, message: `${chosenCustomer.fullName} already holds ${product.name} — one account per customer per product.` });
       return;
     }
@@ -135,23 +165,39 @@ export default function AgentAccountsPage() {
     const idempotencyKey = `agent-open-${Date.now()}`;
     const res = await api("/api/agent/accounts", {
       method: "POST",
-      body: JSON.stringify({
-        customerPhone: chosenCustomer.phone,
-        productCode: product.productCode,
-        idempotencyKey,
-      }),
+      body: JSON.stringify(
+        isNew
+          ? {
+              customerPhone: newPhone.replace(/\s/g, ""),
+              productCode: product.productCode,
+              idempotencyKey,
+              fullName: newName.trim(),
+              email: newEmail.trim() || undefined,
+            }
+          : {
+              customerPhone: chosenCustomer!.phone,
+              productCode: product.productCode,
+              idempotencyKey,
+            },
+      ),
     });
     setBusy(false);
     if (res.ok) {
-      const acct = (res.data as { account?: OpenedAccount })?.account;
+      const data = res.data as { account?: OpenedAccount; onboarded?: boolean; customer?: { fullName?: string } };
+      const acct = data.account;
       setNotice({
         ok: true,
         message: acct
-          ? `${acct.accountName} opened — ${acct.accountNumber} (${acct.assignedBankName}). Account rail is live on the ledger.`
+          ? data.onboarded
+            ? `${(data.customer?.fullName || "New customer")} onboarded & account opened — ${acct.accountNumber} (${acct.assignedBankName}). One tap, one journal.`
+            : `${acct.accountName} opened — ${acct.accountNumber} (${acct.assignedBankName}). Account rail is live on the ledger.`
           : "Account opened.",
       });
       setOpenModal(false);
       setCustomerPhone("");
+      setNewName("");
+      setNewPhone("");
+      setNewEmail("");
       setProductCode("");
       await load(true);
     } else {
@@ -165,11 +211,11 @@ export default function AgentAccountsPage() {
     <div className="space-y-5 p-4 sm:p-6 lg:p-8">
       <AgentPageHeader
         title="Open Accounts (KoriePay)"
-        subtitle="Open real KoriePay NGN accounts for customers onboarded at this terminal. These accounts are the account rail — deposits, withdrawals, card rails and fees settle on them."
+        subtitle="Open real KoriePay NGN accounts — for customers already at this terminal or a walk-in in one tap (onboard + open). These accounts are the account rail: deposits, withdrawals, card rails and fees settle on them."
         actions={
           <button
             type="button"
-            onClick={() => setOpenModal(true)}
+            onClick={() => openModalAs(state.rows.length === 0 ? "new" : "existing")}
             className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-700"
           >
             <Wallet className="h-4 w-4" aria-hidden="true" /> Open account
@@ -224,8 +270,17 @@ export default function AgentAccountsPage() {
             <Wallet className="mx-auto h-8 w-8 text-stone-300" aria-hidden="true" />
             <p className="mt-2 text-xs font-semibold text-stone-500">No accounts opened yet</p>
             <p className="text-[11px] text-stone-400">
-              Onboard the customer (Customer Onboarding), then come back here to open their KoriePay account.
+              {state.rows.length === 0
+                ? "This terminal has no onboarded customers yet — use the one-tap flow to onboard a walk-in and open their account in a single step."
+                : "Onboard the customer (Customers) or use the one-tap flow for a new walk-in, then open their KoriePay account."}
             </p>
+            <button
+              type="button"
+              onClick={() => openModalAs(state.rows.length === 0 ? "new" : "existing")}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-700"
+            >
+              <UserPlus className="h-3.5 w-3.5" aria-hidden="true" /> Onboard &amp; open — one tap
+            </button>
           </div>
         ) : (
           <ul className="mt-3 space-y-2">
@@ -248,7 +303,15 @@ export default function AgentAccountsPage() {
                       {customer.fullName} · {customer.kycTier.replace("_", " ")} · opened {fmtDate(a.openedAt)}
                     </p>
                   </div>
-                  <AgentChip label="ACTIVE · live rail" tone="green" />
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">Available</p>
+                      <p className="font-mono text-sm font-bold text-stone-900">
+                        {isBalanceHidden ? "••••••" : naira(a.availableBalance ?? 0)}
+                      </p>
+                    </div>
+                    <AgentChip label="ACTIVE · live rail" tone="green" />
+                  </div>
                 </li>
               ))}
           </ul>
@@ -262,25 +325,91 @@ export default function AgentAccountsPage() {
             Open a KoriePay account
           </h3>
           <p className="mt-1 text-xs text-stone-500">
-            Only customers onboarded at this terminal can be served. One account per customer per product (account policy).
+            Serve a customer already onboarded at this terminal, or onboard a new walk-in and open their
+            account in one step. One account per customer per product (account policy).
           </p>
           <div className="mt-4 space-y-3">
-            <label className="block">
-              <span className="text-[11px] font-bold uppercase tracking-wide text-stone-500">Onboarded customer</span>
-              <select
-                value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 text-xs outline-none focus:border-emerald-400"
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Customer type">
+              <button
+                type="button"
+                onClick={() => setModalMode("existing")}
+                aria-pressed={modalMode === "existing"}
+                className={`rounded-lg px-3 py-1.5 text-[11px] font-bold transition ${
+                  modalMode === "existing" ? "bg-emerald-600 text-white" : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+                }`}
               >
-                <option value="">Choose a customer…</option>
-                {state.rows.map((r) => (
-                  <option key={r.customer.customerId} value={r.customer.phone}>
-                    {r.customer.fullName} · {r.customer.phone} · {r.customer.kycTier.replace("_", " ")}
-                    {r.accounts.length > 0 ? " · has account" : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
+                Already onboarded
+              </button>
+              <button
+                type="button"
+                onClick={() => setModalMode("new")}
+                aria-pressed={modalMode === "new"}
+                className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-[11px] font-bold transition ${
+                  modalMode === "new" ? "bg-emerald-600 text-white" : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+                }`}
+              >
+                <UserPlus className="h-3 w-3" aria-hidden="true" />
+                New walk-in (onboard &amp; open)
+              </button>
+            </div>
+
+            {modalMode === "existing" ? (
+              <label className="block">
+                <span className="text-[11px] font-bold uppercase tracking-wide text-stone-500">Onboarded customer</span>
+                <select
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 text-xs outline-none focus:border-emerald-400"
+                >
+                  <option value="">Choose a customer…</option>
+                  {state.rows.map((r) => (
+                    <option key={r.customer.customerId} value={r.customer.phone}>
+                      {r.customer.fullName} · {r.customer.phone} · {r.customer.kycTier.replace("_", " ")}
+                      {r.accounts.length > 0 ? " · has account" : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <div className="space-y-3">
+                <label className="block">
+                  <span className="text-[11px] font-bold uppercase tracking-wide text-stone-500">Full name</span>
+                  <input
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    placeholder="e.g. Ngozi Eze"
+                    className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 text-xs outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                  />
+                </label>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="text-[11px] font-bold uppercase tracking-wide text-stone-500">Phone</span>
+                    <input
+                      value={newPhone}
+                      onChange={(e) => setNewPhone(e.target.value)}
+                      placeholder="+234 801 234 5678"
+                      inputMode="tel"
+                      className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 text-xs outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-[11px] font-bold uppercase tracking-wide text-stone-500">Email (optional)</span>
+                    <input
+                      value={newEmail}
+                      onChange={(e) => setNewEmail(e.target.value)}
+                      placeholder="name@example.com"
+                      inputMode="email"
+                      className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 text-xs outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                    />
+                  </label>
+                </div>
+                <p className="rounded-lg bg-teal-50 px-3 py-2 text-[10px] leading-relaxed text-teal-800 ring-1 ring-teal-100">
+                  One engine intent: customer master + terminal registry + wallet account with number and subledger.
+                  A single idempotency key covers the whole flow — no duplicate onboarding or double journals.
+                </p>
+              </div>
+            )}
+
             <label className="block">
               <span className="text-[11px] font-bold uppercase tracking-wide text-stone-500">Account product</span>
               <select
@@ -296,15 +425,21 @@ export default function AgentAccountsPage() {
                 ))}
               </select>
             </label>
-            {chosenHoldsProduct ? (
+            {modalMode === "existing" && chosenHoldsProduct ? (
               <p className="rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200">
                 This customer already holds {product?.name} — the engine will reject a duplicate.
               </p>
             ) : null}
-            {chosenCustomer && product && !chosenHoldsProduct ? (
+            {modalMode === "existing" && chosenCustomer && product && !chosenHoldsProduct ? (
               <p className="rounded-lg bg-stone-50 px-3 py-2 text-[11px] text-stone-600 ring-1 ring-stone-100">
                 Eligibility: customer is {chosenCustomer.kycTier.replace("_", " ")} · product floor {product.minKycTier.replace("_", " ")} —
                 the engine checks this again before opening.
+              </p>
+            ) : null}
+            {modalMode === "new" && product ? (
+              <p className="rounded-lg bg-stone-50 px-3 py-2 text-[11px] text-stone-600 ring-1 ring-stone-100">
+                Walk-ins onboard at {product.minKycTier.replace("_", " ")} — the floor for {product.name}. After opening, fund the
+                account with a deposit on the account rail (cash-in with this number).
               </p>
             ) : null}
             <div className="flex items-start gap-2 rounded-lg bg-stone-50 px-3 py-2 text-[10px] text-stone-500 ring-1 ring-stone-100">
@@ -322,11 +457,15 @@ export default function AgentAccountsPage() {
               <button
                 type="button"
                 onClick={() => void openAccount()}
-                disabled={busy || !chosenCustomer || !product || chosenHoldsProduct}
+                disabled={
+                  busy ||
+                  !product ||
+                  (modalMode === "existing" ? !chosenCustomer || chosenHoldsProduct : newName.trim().length < 3 || !/^\+?\d{10,15}$/.test(newPhone.replace(/\s/g, "")))
+                }
                 className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
               >
-                {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wallet className="h-3.5 w-3.5" />}
-                {busy ? "Opening…" : "Open account"}
+                {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : modalMode === "new" ? <UserPlus className="h-3.5 w-3.5" /> : <Wallet className="h-3.5 w-3.5" />}
+                {busy ? "Opening…" : modalMode === "new" ? "Onboard & open account" : "Open account"}
               </button>
             </div>
           </div>
