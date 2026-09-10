@@ -85,7 +85,7 @@ export async function runLiveAction<K extends LiveActionKey>(
   key: K,
   id: string,
   body: Record<string, unknown>,
-): Promise<ComplianceMutationResult<AlertRow | CaseRow>> {
+): Promise<ComplianceMutationResult<AlertRow | CaseRow | Record<string, unknown>>> {
   const spec = LIVE_ACTIONS[key];
   let res: { ok: boolean; status: number; payload: any; requestId?: string };
   try {
@@ -101,7 +101,9 @@ export async function runLiveAction<K extends LiveActionKey>(
             body: JSON.stringify(
               key === 'alerts.convert'
                 ? { alertId: id, rationale: body.rationale ?? body.investigatorEmail, priority: body.priority }
-                : { caseId: id, content: body.content ?? body.note, noteType: body.noteType ?? (body.isConfidential ? 'CONFIDENTIAL' : 'INVESTIGATION') },
+                : key === 'aml.sweep'
+                  ? { ...body }
+                  : { caseId: id, content: body.content ?? body.note, noteType: body.noteType ?? (body.isConfidential ? 'CONFIDENTIAL' : 'INVESTIGATION') },
             ),
             headers: { 'Idempotency-Key': newIdempotencyKey('cmp') },
           });
@@ -145,7 +147,7 @@ export async function runLiveAction<K extends LiveActionKey>(
   }
 
   const record = res.payload?.record ?? res.payload?.case ?? res.payload?.note ?? res.payload?.alert ?? res.payload?.data ?? res.payload;
-  const value = key.startsWith('alerts') ? mapAlert(camelRow(record ?? {})) : mapCase(camelRow(record ?? {}));
+  const value = key === 'aml.sweep' ? camelRow(res.payload?.sweep ?? {}) : key.startsWith('alerts') ? mapAlert(camelRow(record ?? {})) : mapCase(camelRow(record ?? {}));
   return { ok: true, recorded: true, source: 'live', value, error: undefined };
 }
 

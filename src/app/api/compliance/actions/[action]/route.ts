@@ -3,6 +3,7 @@ import { authorizeComplianceRequest, COMPLIANCE_WRITE_ROLES } from "@/lib/securi
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { RiskDecisionEngine } from "@/lib/risk/RiskDecisionEngine";
 import { AmlScreeningProvider } from "@/lib/aml/AmlScreeningProvider";
+import { runAmlMonitoringSweep } from "@/lib/aml/monitoringSweep";
 import type { RiskEvaluationRequest } from "@/types/riskEngine";
 import { getCustomerById, CustomerRow } from "@/lib/customer/customerData";
 import { getKycDocumentsForCustomer, deriveVerificationSummary } from "@/lib/customer/customerVerificationLive";
@@ -17,6 +18,7 @@ export const dynamic = "force-dynamic";
  *   alert-convert   → open an AML case from an alert (links case_id)
  *   case-note       → append an investigation note to a case
  *   kyc-tier-review → promote/demote a customer's kyc_tier (see below)
+ *   aml-sweep       → run the DB-backed transaction monitoring sweep
  *
  * All are audited in audit_events with the acting officer's identity.
  */
@@ -118,7 +120,7 @@ export async function POST(
 
     const { data: alert, error: alertErr } = await admin
       .from("aml_alerts")
-      .select("id, alert_reference, customer_id, jurisdiction, severity, status, currency, why_suspicious, case_id")
+      .select("id, alert_reference, customer_id, severity, status, currency, why_suspicious, case_id")
       .eq("id", alertId)
       .maybeSingle();
     if (alertErr || !alert) {
@@ -140,7 +142,7 @@ export async function POST(
       .insert({
         case_reference: caseReference,
         primary_customer_id: alert.customer_id,
-        jurisdiction: alert.jurisdiction ?? "NG",
+        jurisdiction: "NG",
         priority: priority ?? alert.severity ?? "MEDIUM",
         status: "OPEN",
         currency: alert.currency ?? "NGN",
@@ -409,6 +411,35 @@ export async function POST(
       after_state: result,
     });
     return NextResponse.json({ status: "ok", screening: result });
+  }
+
+  if (params.action === "aml-sweep") {
+    // Run the transaction monitoring sweep: evaluates real `transactions`
+    // rows against the seeded aml_scenarios and persists aml_alerts.
+    // Nothing is fabricated — an alert can only exist because a user
+    // actually moved money.
+    let result;
+    try {
+      result = await runAmlMonitoringSweep(admin);
+    } catch (err) {
+      return NextResponse.json(
+        { status: "error", error: { code: "SWEEP_FAILED", message: err instanceof Error ? err.message : "The monitoring sweep did not complete." } },
+        { status: 500 },
+      );
+    }
+    await audit(admin, auth, request, {
+      action: "AML_MONITORING_SWEEP_RUN",
+      resource_type: "compliance:aml-alerts",
+      resource_id: "sweep",
+      details: {
+        scenariosRun: result.scenariosRun,
+        transactionsEvaluated: result.transactionsEvaluated,
+        alertsCreated: result.alertsCreated,
+        notes: result.notes,
+      },
+      after_state: result,
+    });
+    return NextResponse.json({ status: "ok", sweep: result });
   }
 
   return NextResponse.json(

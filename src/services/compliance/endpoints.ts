@@ -141,6 +141,7 @@ export const LIVE_ACTIONS = {
   'alerts.convert': { kind: 'post', path: '/api/compliance/actions/alert-convert' },
   'cases.note': { kind: 'post', path: '/api/compliance/actions/case-note' },
   'cases.decision': { kind: 'patch', path: `${DATA}/aml-cases` },
+  'aml.sweep': { kind: 'post', path: '/api/compliance/actions/aml-sweep' },
 } as const;
 
 export type LiveActionKey = keyof typeof LIVE_ACTIONS;

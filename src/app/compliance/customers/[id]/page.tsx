@@ -542,9 +542,9 @@ export default function CustomerFilePage() {
         rows={[
           { section: t('compliance.customer.tab.identity'), source: 'GET /api/core/v1/identity/persons → MasterIdentityEngine', note: t('compliance.customer.sourceNoteIdentity'), mode: 'live' },
           { section: t('compliance.customer.tab.documents'), source: 'GET /api/compliance/data/identity-documents?identity_id=…', note: t('compliance.customer.sourceNoteDocuments'), mode: documents.resource.source === 'demo' ? 'demo' : 'live' },
-          { section: t('compliance.customer.tab.alerts'), source: 'GET /api/aml/alerts, joined on subject id', note: t('compliance.customer.sourceNoteQueues'), mode: 'live' },
+          { section: t('compliance.customer.tab.alerts'), source: 'Compliance service → aml_alerts, joined on subject id', note: t('compliance.customer.sourceNoteQueues'), mode: 'live' },
           { section: t('compliance.customer.tab.activity'), source: 'GET /api/core/v1/risk/decisions, joined on subject id', note: t('compliance.customer.sourceNoteActivity'), mode: 'live' },
-          { section: t('compliance.customer.tab.screening'), source: 'POST /api/aml/screening (an action, not a stored list)', note: t('compliance.customer.sourceNoteScreening'), mode: 'live' },
+          { section: t('compliance.customer.tab.screening'), source: 'POST /api/compliance/actions/screening (an action, not a stored list)', note: t('compliance.customer.sourceNoteScreening'), mode: 'live' },
           { section: t('compliance.customer.tab.restrictions'), source: 'GET /api/security/pam/requests', note: t('compliance.customer.sourceNoteRestrictions'), mode: 'live' },
         ]}
       />

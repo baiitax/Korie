@@ -571,7 +571,7 @@ export default function ComplianceDashboardPage() {
         rows={[
           {
             section: t('compliance.dashboard.col.alert'),
-            source: 'GET /api/aml/alerts → AmlAlertEngine',
+            source: 'Compliance service → aml_alerts (DB)',
             note: t('compliance.dashboard.sourcesAlerts'),
             mode: alerts.resource.source === 'demo' ? 'demo' : 'live',
           },

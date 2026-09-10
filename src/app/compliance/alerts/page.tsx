@@ -3,12 +3,13 @@
 /**
  * AML alert queue.
  *
- * The queue is read from `AmlAlertEngine` through `/api/aml/alerts`, and the two
- * actions here (`UPDATE_STATUS`, `CONVERT_TO_CASE`) are the engine's own — they
- * mutate the store the case engine and the customer 360 read, so a disposition
- * made here changes what the next screen shows. Anything the engine cannot do
- * (attach a free-text note to an alert, for instance) is not offered: notes
- * belong to the case, which is where the engine keeps them.
+ * The queue is read live from the database through the compliance service
+ * (`/api/compliance/data/aml-alerts`); alerts exist only because the
+ * monitoring sweep found real transactions breaching a scenario. The two
+ * actions here — disposition and alert→case conversion — are audited server
+ * side and write straight to `aml_alerts` / `aml_cases`. Anything the service
+ * cannot do (attach a free-text note to an alert, for instance) is not
+ * offered: notes belong to the case, which is where investigations keep them.
  */
 
 import Link from 'next/link';
@@ -261,19 +262,19 @@ export default function AlertsQueuePage() {
         rows={[
           {
             section: t('compliance.alerts.title'),
-            source: 'GET /api/aml/alerts?severity&status → AmlAlertEngine.getAlerts()',
+            source: 'Compliance service → GET /api/compliance/data/aml-alerts (DB: aml_alerts)',
             note: t('compliance.alerts.sourceNote'),
             mode: resource.source === 'demo' ? 'demo' : 'live',
           },
           {
             section: t('compliance.alerts.dispose'),
-            source: 'POST /api/aml/alerts/:id { action: UPDATE_STATUS }',
+            source: 'PATCH /api/compliance/data/aml-alerts/:id (audited)',
             note: t('compliance.alerts.sourceNoteStatus'),
             mode: 'live',
           },
           {
             section: t('compliance.alerts.convert'),
-            source: 'POST /api/aml/alerts/:id { action: CONVERT_TO_CASE }',
+            source: 'POST /api/compliance/actions/alert-convert (audited, opens aml_cases)',
             note: t('compliance.alerts.sourceNoteConvert'),
             mode: 'live',
           },
@@ -300,7 +301,12 @@ const DisposeModal: React.FC<{
 
   const submit = async () => {
     if (convert) {
-      const out = await action.runLive('alerts.convert', row.id, { investigatorEmail: email || 'lead.investigator@koriepay.ng' });
+      // The acting officer's session identity is the rationale of record —
+      // the case lead is stamped server-side from the authenticated session,
+      // never hardcoded here.
+      const out = await action.runLive('alerts.convert', row.id, {
+        rationale: `Converted from ${row.reference} by ${email || 'the acting officer'}`,
+      });
       if (out.ok) onDone();
       return;
     }

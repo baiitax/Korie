@@ -7,7 +7,7 @@
  *
  * The narrative fields come from the alert record itself (the engine stores the
  * explanation the detection produced); they are not written by this screen.
- * Disposition goes back through `POST /api/aml/alerts/:id`, so the next reader
+ * Disposition goes back through the audited compliance service, so the next reader
  * sees the change here, in the queue, on the customer file and in the case
  * engine at the same time.
  */
@@ -226,7 +226,7 @@ export default function AlertDetailPage() {
         rows={[
           {
             section: t('compliance.alertDetail.title', { reference: alert?.reference ?? '' }),
-            source: 'GET /api/aml/alerts/:id → AmlAlertEngine.getAlert()',
+            source: 'Compliance service → GET /api/compliance/data/aml-alerts (DB: aml_alerts)',
             note: t('compliance.alertDetail.sourceNote'),
             mode: resource.source === 'demo' ? 'demo' : 'live',
           },
@@ -260,7 +260,11 @@ const DisposeModal: React.FC<{
 
   const submit = async () => {
     const out = convert
-      ? await action.runLive('alerts.convert', alert.id, { investigatorEmail: sessionEmail || 'lead.investigator@koriepay.ng' })
+      ? // The acting officer's session identity is the rationale of record —
+        // the case lead is stamped server-side from the authenticated session.
+        await action.runLive('alerts.convert', alert.id, {
+          rationale: `Converted from ${alert.reference} by ${sessionEmail || 'the acting officer'}`,
+        })
       : await action.runLive('alerts.status', alert.id, {
           status,
           assignedTo: status === 'ASSIGNED' ? assignee.trim() || sessionEmail || undefined : undefined,
