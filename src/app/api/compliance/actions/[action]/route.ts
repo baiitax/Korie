@@ -137,16 +137,20 @@ export async function POST(
     }
 
     const caseReference = `AML-CASE-${new Date().getFullYear()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+    const slaHours =
+      alert.severity === "P0_CRITICAL" ? 4 : alert.severity === "P1_HIGH" ? 24 : alert.severity === "P2_MEDIUM" ? 48 : 72;
     const { data: newCase, error: caseErr } = await admin
       .from("aml_cases")
       .insert({
         case_reference: caseReference,
+        title: `Investigation of alert ${alert.alert_reference}`,
         primary_customer_id: alert.customer_id,
         jurisdiction: "NG",
         priority: priority ?? alert.severity ?? "MEDIUM",
         status: "OPEN",
         currency: alert.currency ?? "NGN",
         lead_investigator: auth.email ?? undefined,
+        sla_due_at: new Date(Date.now() + slaHours * 3600_000).toISOString(),
       })
       .select()
       .single();
