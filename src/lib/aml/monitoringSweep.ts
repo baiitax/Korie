@@ -9,7 +9,10 @@
  * Determinism & idempotency:
  *  - Only transactions with aml_evaluated_at IS NULL are considered
  *    triggers; every processed row is marked, so re-running the sweep
- *    never duplicates work.
+ *    never duplicates work. Transactions are screened at initiation
+ *    (any status except FAILED/REVERSED/CANCELLED/DISPUTED): the wallet
+ *    debit is a real double-entry posting even while bank confirmation
+ *    is pending, which is exactly when real-time surveillance runs.
  *  - Scenario windows aggregate over ALL successful transactions in the
  *    window (evaluated or not) so patterns that span sweeps are caught.
  *  - Dedup guard: a customer never receives a second alert for the same
@@ -160,7 +163,7 @@ export async function runAmlMonitoringSweep(
     .from("transactions")
     .select("id, reference, wallet_id, type, status, amount, currency, source_currency, destination_currency, created_at, metadata")
     .is("aml_evaluated_at", null)
-    .eq("status", "SUCCESSFUL")
+    .in("status", ["SUCCESSFUL", "PENDING", "PROCESSING", "INITIATED"])
     .gte("created_at", since)
     .order("created_at", { ascending: true })
     .limit(5000);
@@ -215,7 +218,7 @@ export async function runAmlMonitoringSweep(
   const { data: activity } = await admin
     .from("transactions")
     .select("id, reference, wallet_id, type, status, amount, currency, source_currency, destination_currency, created_at, metadata")
-    .eq("status", "SUCCESSFUL")
+    .in("status", ["SUCCESSFUL", "PENDING", "PROCESSING", "INITIATED"])
     .gte("created_at", activitySince)
     .order("created_at", { ascending: true })
     .limit(20000);
