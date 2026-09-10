@@ -366,6 +366,32 @@ export class LedgerService {
   }
 
   /**
+   * Read-only projections of the posted ledger (truth surface for executive
+   * reporting). These re-hydrate from the store file first so they reflect
+   * every journal this deployment has committed. No mutation, no estimates:
+   * what is returned is exactly what was posted.
+   */
+  static listTransactions(limit?: number): LedgerTransaction[] {
+    hydrateLedgerStore();
+    initializeDefaultChartOfAccounts();
+    const all = Array.from(ledgerTransactionsStore.values()).sort(
+      (a, b) => new Date(b.postedAt || b.createdAt).getTime() - new Date(a.postedAt || a.createdAt).getTime(),
+    );
+    return typeof limit === 'number' ? all.slice(0, limit) : all;
+  }
+
+  static listAccounts(): LedgerAccount[] {
+    hydrateLedgerStore();
+    initializeDefaultChartOfAccounts();
+    return Array.from(ledgerAccountsStore.values());
+  }
+
+  static listHolds(): WalletHold[] {
+    hydrateLedgerStore();
+    return Array.from(walletHoldsStore.values());
+  }
+
+  /**
    * Posts an atomic double-entry ledger transaction.
    * STRICT RULE: SUM(DEBIT) MUST EQUAL SUM(CREDIT)
    */
