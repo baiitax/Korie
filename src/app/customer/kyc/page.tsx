@@ -25,9 +25,11 @@ import {
   CalendarDays,
   RefreshCw,
   Lock,
+  TrendingUp,
 } from "lucide-react";
 import { documentStatusKeyFor, documentTypeKeyFor, verificationStateKeyFor,
   verificationStepStatusKeyFor } from "@/lib/customer/verificationLabels";
+import { NGN_TIER_LIMITS, XOF_TIER_LIMITS, type KycTier } from "@/lib/compliance/tierLimits";
 
 /**
  * Verification Center — §18–§28.
@@ -85,6 +87,9 @@ export default function CustomerVerificationPage() {
   const [summary, setSummary] = useState<VerificationSummary | null>(null);
   const [phase, setPhase] = useState<"idle" | "loading" | "ready" | "error">("loading");
   const [error, setError] = useState<NormalizedCustomerError | null>(null);
+  const [tierRequest, setTierRequest] = useState<"idle" | "sending" | "sent">("idle");
+  const [tierTicket, setTierTicket] = useState<string | null>(null);
+  const [tierError, setTierError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setPhase((p) => (p === "ready" ? "ready" : "loading"));
@@ -103,6 +108,38 @@ export default function CustomerVerificationPage() {
     if (customer) void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customer?.id]);
+
+  /**
+   * Request a review for the next tier. This files a REAL ticket in the
+   * support back office (category OTHER, mirrored into support_tickets);
+   * a compliance officer then runs the tier decision with the
+   * evidence-gated kyc-tier-review action. Nothing here upgrades anything
+   * by itself — the customer asks, an officer decides.
+   */
+  const requestTierReview = async (target: KycTier) => {
+    if (!summary || !customer) return;
+    setTierRequest("sending");
+    setTierError(null);
+    const res = await safeFetch<any>(
+      "/api/customer/portal/disputes",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category: "OTHER",
+          description: `KYC tier upgrade review request: ${summary.tier} -> ${target}. All ${target} requirements show complete on the Verification page; requesting officer review.`,
+        }),
+      },
+      { timeoutMs: 20000 },
+    );
+    if (!res.ok) {
+      setTierRequest("idle");
+      setTierError(res.error?.message ?? null);
+      return;
+    }
+    setTierTicket(res.data?.dispute?.ticketNumber ?? res.data?.ticketNumber ?? null);
+    setTierRequest("sent");
+  };
 
   if (!customer) return <CustomerProfileGate labelKey="kyc.title"><span /></CustomerProfileGate>;
 
@@ -359,6 +396,18 @@ export default function CustomerVerificationPage() {
             )}
           </section>
 
+          {/* Tier ladder — real regulatory limits, real requirement progress,
+              and a real request path. Dashboard review: KYC upgrades of
+              different tiers must be available from the Verification page. */}
+          <TierLadder
+            summary={summary}
+            t={t}
+            requestState={tierRequest}
+            ticketNumber={tierTicket}
+            requestError={tierError}
+            onRequest={(target) => void requestTierReview(target)}
+          />
+
           <p className="text-[10px] text-[var(--foreground-muted)] text-center leading-relaxed pb-2">
             {t("verification.securityNote")}
           </p>
@@ -379,3 +428,142 @@ const DataEmptyVerification: React.FC<{ onRetry: () => void; t: (k: string) => s
     </button>
   </div>
 );
+
+
+/**
+ * TierLadder — the KYC upgrade path.
+ *
+ * Limits are the real, cited ceilings the server enforces
+ * (src/lib/compliance/tierLimits.ts — CBN daily tiers for NGN, BCEAO
+ * monthly tiers for XOF). Requirements mirror the server's
+ * TIER_REQUIREMENTS / identifier rules: Tier 1 needs a verified date of
+ * birth; Tiers 2–3 additionally require an identity document, address and
+ * the national identifiers for the customer's country. Tier 3 carries the
+ * same evidence as Tier 2 — what rises is the ceiling, after officer review.
+ *
+ * The ladder never upgrades anything itself. When the next tier's
+ * requirements are complete it offers "Request upgrade review", which files
+ * a real support ticket; an officer then runs the evidence-gated
+ * kyc-tier-review decision. When requirements are missing it says which.
+ */
+const TIER_REQUIREMENT_STEPS: Record<Exclude<KycTier, "TIER_0">, string[]> = {
+  TIER_1: ["date_of_birth"],
+  TIER_2: ["date_of_birth", "address", "identity_document", "national_identifier"],
+  TIER_3: ["date_of_birth", "address", "identity_document", "national_identifier"],
+};
+
+const LADDER: Exclude<KycTier, "TIER_0">[] = ["TIER_1", "TIER_2", "TIER_3"];
+
+const TierLadder: React.FC<{
+  summary: VerificationSummary;
+  t: (k: string, p?: Record<string, string | number>) => string;
+  requestState: "idle" | "sending" | "sent";
+  ticketNumber: string | null;
+  requestError: string | null;
+  onRequest: (target: KycTier) => void;
+}> = ({ summary, t, requestState, ticketNumber, requestError, onRequest }) => {
+  const currentTier = (summary.tier as KycTier) ?? "TIER_0";
+  const currentIdx = currentTier === "TIER_0" ? -1 : LADDER.indexOf(currentTier as Exclude<KycTier, "TIER_0">);
+  const nextTier: KycTier | null = currentIdx < LADDER.length - 1 ? LADDER[currentIdx + 1] : null;
+
+  const stepStatus = new Map(summary.steps.map((st) => [st.id, st.status] as const));
+
+  const missingFor = (tier: Exclude<KycTier, "TIER_0">) =>
+    TIER_REQUIREMENT_STEPS[tier].filter((id) => stepStatus.get(id) !== "COMPLETED");
+
+  return (
+    <section aria-label={t("verification.tier.title")} className="rounded-3xl bg-[var(--surface)] border border-[var(--border)] p-5 space-y-4 shadow-[var(--shadow-card)]">
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 rounded-xl bg-[var(--brand-soft)] text-[var(--brand-primary)] flex items-center justify-center shrink-0">
+          <TrendingUp className="w-4.5 h-4.5" aria-hidden="true" />
+        </div>
+        <div className="min-w-0">
+          <h2 className="text-xs font-mono uppercase font-bold tracking-wider text-[var(--foreground-muted)]">
+            {t("verification.tier.title")}
+          </h2>
+          <p className="text-[11px] text-[var(--foreground-muted)] mt-0.5">{t("verification.tier.subtitle")}</p>
+        </div>
+      </div>
+
+      <ul className="space-y-2.5">
+        {LADDER.map((tier) => {
+          const isCurrent = tier === currentTier;
+          const isNext = tier === nextTier;
+          const ngn = NGN_TIER_LIMITS[tier];
+          const xof = XOF_TIER_LIMITS[tier];
+          const missing = missingFor(tier);
+          const eligible = isNext && missing.length === 0;
+          return (
+            <li
+              key={tier}
+              className={`rounded-2xl border p-3.5 space-y-2 ${
+                isCurrent
+                  ? "border-[var(--brand-border)] bg-[var(--brand-soft)]/50"
+                  : isNext
+                    ? "border-[var(--border-strong)] bg-[var(--surface)]"
+                    : "border-[var(--border)] bg-[var(--surface)] opacity-80"
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="font-mono text-[11px] font-extrabold text-[var(--foreground)]">{tier}</span>
+                  {isCurrent ? (
+                    <span className="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide bg-[var(--brand-primary)] text-[var(--brand-on-primary)]">
+                      {t("verification.tier.current")}
+                    </span>
+                  ) : isNext ? (
+                    <span className="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide bg-[var(--surface-elevated)] text-[var(--brand-primary)] border border-[var(--brand-border)]">
+                      {t("verification.tier.next")}
+                    </span>
+                  ) : null}
+                </div>
+                {isCurrent ? <CheckCircle2 className="h-4 w-4 text-[var(--success)] shrink-0" aria-hidden="true" /> : null}
+              </div>
+
+              {/* Real, enforced ceilings — both corridors, cited in tierLimits.ts */}
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-[var(--foreground-muted)]">
+                <span className="font-mono">
+                  ₦{ngn.volumeLimitMajor!.toLocaleString("en-NG")}/{ngn.window === "DAY" ? t("verification.tier.perDay") : t("verification.tier.perMonth")}
+                </span>
+                <span className="font-mono">
+                  {xof.volumeLimitMajor!.toLocaleString("fr-FR")} CFA/{xof.window === "DAY" ? t("verification.tier.perDay") : t("verification.tier.perMonth")}
+                </span>
+              </div>
+
+              {isNext && !isCurrent ? (
+                missing.length > 0 ? (
+                  <p className="text-[11px] leading-relaxed text-[var(--foreground-muted)]">
+                    {t("verification.tier.missingIntro")}{" "}
+                    {missing.map((id) => t(`verification.step.${id === "identity_document" ? "document" : id === "national_identifier" ? "nationalIdentifier" : id === "date_of_birth" ? "dob" : id}`)).join(", ")}
+                  </p>
+                ) : requestState === "sent" ? (
+                  <div className="rounded-xl bg-[var(--success-soft)] border border-[var(--success)]/30 p-3 text-[11px] leading-relaxed text-[var(--foreground)]">
+                    {t("verification.tier.requestSent", { ticket: ticketNumber ?? "—" })}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <button
+                      type="button"
+                      onClick={() => onRequest(tier)}
+                      disabled={requestState === "sending"}
+                      className="w-full min-h-[42px] rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] disabled:opacity-60 text-[var(--brand-on-primary)] font-bold text-xs transition-colors"
+                    >
+                      {requestState === "sending" ? t("verification.tier.requesting") : t("verification.tier.request")}
+                    </button>
+                    {requestError ? (
+                      <p className="text-[11px] text-[var(--danger)]">{requestError}</p>
+                    ) : null}
+                  </div>
+                )
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+
+      <p className="text-[10px] leading-relaxed text-[var(--foreground-muted)]">
+        {t("verification.tier.footnote")}
+      </p>
+    </section>
+  );
+};

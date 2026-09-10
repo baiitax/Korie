@@ -54,6 +54,28 @@ export default function CustomerSecurityPage() {
           </div>
         </div>
 
+        {/* Credentials — real destinations, no alert() */}
+        <div className="rounded-3xl bg-[var(--surface)] border border-[var(--border)] p-5 space-y-4 shadow-[var(--shadow-card)]">
+          <h2 className="text-[10px] font-mono uppercase font-bold text-[var(--foreground-muted)] tracking-wider">{t("customer.securityPage.credentialsTitle")}</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <CredentialRow
+              href="/customer/support"
+              icon={<KeyRound className="w-5 h-5" />}
+              title={t("security.changePin")}
+              desc={t("customer.securityPage.changePinDesc")}
+            />
+            <CredentialRow
+              href="/customer/support"
+              icon={<Lock className="w-5 h-5" />}
+              title={t("security.changePassword")}
+              desc={t("customer.securityPage.changePasswordDesc")}
+            />
+          </div>
+          <p className="text-[11px] leading-relaxed text-[var(--foreground-muted)]">
+            {t("customer.securityPage.credentialsNote")}
+          </p>
+        </div>
+
         {/* Factors, read from the session — reported, not switched */}
         <div className="rounded-3xl bg-[var(--surface)] border border-[var(--border)] divide-y divide-[var(--border)] overflow-hidden shadow-[var(--shadow-card)]">
           <div className="p-5 space-y-3">
@@ -87,28 +109,6 @@ export default function CustomerSecurityPage() {
             </div>
             <ArrowLeft className="w-4 h-4 rotate-180 text-[var(--foreground-muted)] shrink-0" />
           </Link>
-        </div>
-
-        {/* Credentials — real destinations, no alert() */}
-        <div className="rounded-3xl bg-[var(--surface)] border border-[var(--border)] p-5 space-y-4 shadow-[var(--shadow-card)]">
-          <h2 className="text-[10px] font-mono uppercase font-bold text-[var(--foreground-muted)] tracking-wider">{t("customer.securityPage.credentialsTitle")}</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <CredentialRow
-              href="/customer/support"
-              icon={<KeyRound className="w-5 h-5" />}
-              title={t("security.changePin")}
-              desc={t("customer.securityPage.changePinDesc")}
-            />
-            <CredentialRow
-              href="/customer/support"
-              icon={<Lock className="w-5 h-5" />}
-              title={t("security.changePassword")}
-              desc={t("customer.securityPage.changePasswordDesc")}
-            />
-          </div>
-          <p className="text-[11px] leading-relaxed text-[var(--foreground-muted)]">
-            {t("customer.securityPage.credentialsNote")}
-          </p>
         </div>
 
         {/* Sessions: no store exists, so say so instead of listing fixtures */}

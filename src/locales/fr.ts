@@ -981,6 +981,13 @@ export const fr = {
   copyReference: "Copier la référence",
   },
   support: {
+    headOffice: {
+      title: "Siège social",
+      subtitle: "Service client — lignes directes",
+      phone: "Ligne d'assistance",
+      email: "E-mail d'assistance",
+      pending: "Nos lignes d'assistance du siège sont en cours de publication et apparaîtront ici. D'ici là, ouvrez un dossier ci-dessous — chaque ticket atteint le bureau de résolution et reçoit une réponse dans le portail.",
+    },
     title: "Centre de Support & Résolution",
     subtitle:
       "Support dédié 24h/24 et 7j/7 pour les opérations bancaires au Nigeria et au Niger.",
@@ -1484,6 +1491,19 @@ export const fr = {
     toAccount: "Compte destinataire",
   },
   verification: {
+    tier: {
+      title: "Paliers de compte & surclassements",
+      subtitle: "Limites réglementaires réelles — paliers quotidiens CBN pour le NGN, paliers mensuels BCEAO pour le XOF.",
+      current: "Palier actuel",
+      next: "Palier suivant",
+      perDay: "jour",
+      perMonth: "mois",
+      missingIntro: "Encore requis pour ce palier :",
+      request: "Demander une revue de surclassement",
+      requesting: "Envoi de votre demande…",
+      requestSent: "Demande reçue. Votre référence est {{ticket}} — un agent de conformité examinera votre palier et la décision apparaîtra sur votre compte.",
+      footnote: "Compléter les exigences ne change pas le palier automatiquement : un agent examine les preuves et décide. Les limites affichées sont les plafonds appliqués sur les deux corridors.",
+    },
         title: "Vérifiez votre identité",
         subtitle: "Terminez les vérifications ci-dessous pour augmenter vos limites.",
         identityVerification: "Vérification d'identité",

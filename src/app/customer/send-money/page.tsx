@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import Link from "next/link";
+import AmountInput from "@/components/customer/ui/AmountInput";
 import { useCustomer } from "@/components/customer/CustomerContext";
 import PinModal from "@/components/customer/ui/PinModal";
 import { DataEmptyState, DataErrorState } from "@/components/customer/ui/CustomerStateViews";
@@ -339,16 +340,12 @@ export default function SendMoneyPage() {
                 {t("common.available")}: {isBalanceHidden ? `${sourceWallet.symbol} ••••••` : formatMoney(sourceWallet.availableBalance, sourceWallet.currency)}
               </span>
             </div>
-            <div className="relative">
-              <span className="absolute left-4 top-3.5 text-lg font-bold text-[var(--foreground-muted)] font-mono">
-                {sourceCurrency === "XOF" ? "CFA " : "₦"}
-              </span>
-              <input
-                type="number" min="100" required placeholder="0.00"
-                value={amountStr} onChange={(e) => setAmountStr(e.target.value)}
-                className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-[var(--surface)] border border-[var(--border)] text-xl font-bold font-mono text-[var(--foreground)]"
-              />
-            </div>
+            <AmountInput
+              value={amountStr}
+              onChange={setAmountStr}
+              symbol={sourceCurrency === "XOF" ? "CFA " : "₦"}
+              required
+            />
 
             {/* Fee + recipient receives — authoritative engine values */}
             {parsesAmount > 0 && (
@@ -472,3 +469,4 @@ function Row({ label, value, mono, accent }: { label: string; value?: string; mo
     </div>
   );
 }
+

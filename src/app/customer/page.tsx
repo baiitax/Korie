@@ -163,7 +163,7 @@ export default function CustomerDashboardPage() {
                         )}
                       </span>
                       <span className="mt-0.5 block truncate font-mono text-[10px] text-[var(--foreground-muted)]">
-                        {maskAccountNumber(w.accountNumber)}
+                        <span className="font-sans font-semibold">{w.accountName}</span> · {maskAccountNumber(w.accountNumber)}
                       </span>
                     </span>
                     <span className="shrink-0 text-right">

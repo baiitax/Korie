@@ -9,6 +9,7 @@ import { DataEmptyState, DataErrorState, DataFreshnessBar } from "@/components/c
 import { KpaySectionLoader } from "@/components/loading";
 import {
   ArrowLeft,
+  Building2,
   MessageSquare,
   PhoneCall,
   Mail,
@@ -40,6 +41,11 @@ import {
  * configured, it is not shown — a placeholder phone number on a banking portal
  * is worse than an empty slot.
  */
+
+/* Head-office contact details come from deployment config, never hardcode. */
+const SUPPORT_PHONE = process.env.NEXT_PUBLIC_SUPPORT_PHONE?.trim() || null;
+const SUPPORT_EMAIL = process.env.NEXT_PUBLIC_SUPPORT_EMAIL?.trim() || null;
+const SUPPORT_WHATSAPP = process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP?.trim() || null;
 
 /** Customer-facing label → the real `ComplaintCategory` the engine accepts. */
 const TICKET_CATEGORIES = [
@@ -109,26 +115,6 @@ function SupportInner() {
     void loadCases();
   }, [loadCases]);
 
-  const channels = [
-    {
-      icon: <MessageSquare className="w-4 h-4" />,
-      href: process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP,
-      labelKey: "support.whatsappSupport",
-      tone: "brand" as const,
-    },
-    {
-      icon: <PhoneCall className="w-4 h-4" />,
-      href: process.env.NEXT_PUBLIC_SUPPORT_PHONE ? `tel:${process.env.NEXT_PUBLIC_SUPPORT_PHONE}` : undefined,
-      labelKey: "support.callCenter",
-      tone: "info" as const,
-    },
-    {
-      icon: <Mail className="w-4 h-4" />,
-      href: process.env.NEXT_PUBLIC_SUPPORT_EMAIL ? `mailto:${process.env.NEXT_PUBLIC_SUPPORT_EMAIL}` : undefined,
-      labelKey: "support.emailSupport",
-      tone: "warning" as const,
-    },
-  ].filter((c) => !!c.href);
 
   const handleCreateTicket = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -188,19 +174,76 @@ function SupportInner() {
         </button>
       </div>
 
-      {/* Direct contact channels — only those the deployment actually configures */}
-      {channels.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {channels.map((c) => (
-            <ContactChannel key={c.labelKey} icon={c.icon} title={t(c.labelKey)} sub={c.href!} href={c.href!} tone={c.tone} />
-          ))}
+      {/* Head Office — the deployment-configured contact block.
+          Phone/email come from NEXT_PUBLIC_SUPPORT_PHONE / _EMAIL; a channel
+          that is not configured is not rendered. A placeholder number on a
+          banking portal is worse than an honest empty slot, so until the
+          head-office lines are published the card says exactly that and
+          points at the complaint form, which does reach the team. */}
+      <section
+        aria-label={t("support.headOffice.title")}
+        className="rounded-3xl bg-[var(--surface)] border border-[var(--border)] p-5 space-y-4 shadow-[var(--shadow-card)]"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-[var(--brand-soft)] text-[var(--brand-primary)] flex items-center justify-center shrink-0">
+            <Building2 className="w-5 h-5" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-sm font-extrabold text-[var(--foreground)]">{t("support.headOffice.title")}</h2>
+            <p className="text-[11px] text-[var(--foreground-muted)]">{t("support.headOffice.subtitle")}</p>
+          </div>
         </div>
-      ) : (
-        <div className="flex items-start gap-2 rounded-2xl bg-[var(--surface)] border border-[var(--border)] p-4 text-[11px] text-[var(--foreground-muted)]">
-          <ShieldAlert className="w-4 h-4 mt-0.5 shrink-0" />
-          <span>{t("support.noChannelsConfigured")}</span>
-        </div>
-      )}
+
+        {SUPPORT_PHONE || SUPPORT_EMAIL ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {SUPPORT_PHONE && (
+              <a
+                href={`tel:${SUPPORT_PHONE.replace(/[^+\d]/g, "")}`}
+                className="p-4 rounded-2xl bg-[var(--surface-elevated)] border border-[var(--border)] hover:border-[var(--brand-border)] transition-colors group"
+              >
+                <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-[var(--foreground-muted)]">
+                  <PhoneCall className="w-3.5 h-3.5 text-[var(--info)]" aria-hidden="true" />
+                  {t("support.headOffice.phone")}
+                </div>
+                <div className="mt-1.5 font-mono text-base font-extrabold text-[var(--foreground)] group-hover:text-[var(--brand-primary)] transition-colors">
+                  {SUPPORT_PHONE}
+                </div>
+              </a>
+            )}
+            {SUPPORT_EMAIL && (
+              <a
+                href={`mailto:${SUPPORT_EMAIL}`}
+                className="p-4 rounded-2xl bg-[var(--surface-elevated)] border border-[var(--border)] hover:border-[var(--brand-border)] transition-colors group"
+              >
+                <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-[var(--foreground-muted)]">
+                  <Mail className="w-3.5 h-3.5 text-[var(--warning)]" aria-hidden="true" />
+                  {t("support.headOffice.email")}
+                </div>
+                <div className="mt-1.5 font-mono text-sm font-extrabold text-[var(--foreground)] break-all group-hover:text-[var(--brand-primary)] transition-colors">
+                  {SUPPORT_EMAIL}
+                </div>
+              </a>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-start gap-2 rounded-2xl bg-[var(--surface-elevated)] border border-[var(--border)] p-4 text-[11px] leading-relaxed text-[var(--foreground-muted)]">
+            <ShieldAlert className="w-4 h-4 mt-0.5 shrink-0" aria-hidden="true" />
+            <span>{t("support.headOffice.pending")}</span>
+          </div>
+        )}
+
+        {SUPPORT_WHATSAPP && (
+          <a
+            href={SUPPORT_WHATSAPP}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 text-xs font-bold text-[var(--brand-primary)] hover:underline"
+          >
+            <MessageSquare className="w-3.5 h-3.5" aria-hidden="true" />
+            {t("support.whatsappSupport")}
+          </a>
+        )}
+      </section>
 
       {/* Real cases, scoped to this session */}
       <div className="rounded-3xl bg-[var(--surface)] border border-[var(--border)] p-5 space-y-4 shadow-[var(--shadow-card)]">

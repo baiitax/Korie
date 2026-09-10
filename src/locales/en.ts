@@ -970,6 +970,13 @@ export const en = {
   copyReference: "Copy reference",
   },
   support: {
+    headOffice: {
+      title: "Head Office",
+      subtitle: "Customer support — direct lines",
+      phone: "Support line",
+      email: "Support email",
+      pending: "Our head-office support lines are being published and will appear here. Until then, open a case below — every ticket reaches the resolution desk and is answered in the portal.",
+    },
     title: "Customer Support & Resolution Desk",
     subtitle:
       "24/7 dedicated support for Nigerian and Nigerien digital banking operations.",
@@ -1471,6 +1478,19 @@ export const en = {
     toAccount: "Destination account",
   },
   verification: {
+    tier: {
+      title: "Account tiers & upgrades",
+      subtitle: "Real limits enforced by regulation — CBN daily tiers for NGN, BCEAO monthly tiers for XOF.",
+      current: "Current tier",
+      next: "Next tier",
+      perDay: "day",
+      perMonth: "month",
+      missingIntro: "Still required for this tier:",
+      request: "Request upgrade review",
+      requesting: "Sending your request…",
+      requestSent: "Request received. Your reference is {{ticket}} — a compliance officer will review your tier and the decision will appear on your account.",
+      footnote: "Completing the requirements does not change your tier by itself: an officer reviews the evidence and decides. Limits shown are the enforced ceilings for both corridors.",
+    },
         title: "Verify your identity",
         subtitle: "Complete the checks below to unlock higher limits.",
         identityVerification: "Identity verification",

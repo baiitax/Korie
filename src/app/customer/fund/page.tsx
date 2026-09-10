@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useCustomer } from "@/components/customer/CustomerContext";
+import AmountInput from "@/components/customer/ui/AmountInput";
 import { formatMoney, maskAccountNumber } from "@/lib/money";
 import { CustomerCurrency } from "@/types/customer";
 import {
@@ -124,7 +125,9 @@ export default function CustomerFundPage() {
                       </div>
                       <div>
                         <div className="text-sm font-bold text-[var(--foreground)]">{w.currency}</div>
-                        <div className="text-[10px] font-mono text-[var(--foreground-muted)]">{maskAccountNumber(w.accountNumber)}</div>
+                        <div className="text-[10px] font-mono text-[var(--foreground-muted)]">
+                          <span className="font-sans font-semibold">{w.accountName} · </span>{maskAccountNumber(w.accountNumber)}
+                        </div>
                       </div>
                     </div>
                     <span className="font-mono text-sm font-extrabold text-[var(--foreground)]">
@@ -139,11 +142,12 @@ export default function CustomerFundPage() {
           {/* Amount */}
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-[var(--foreground)]">{t("common.amount")} ({destWallet?.currency || "XOF"})</label>
-            <div className="relative">
-              <span className="absolute left-4 top-3.5 text-lg font-bold text-[var(--foreground-muted)] font-mono">{destCurrency === "XOF" ? "CFA " : "₦"}</span>
-              <input type="number" min="100" required placeholder="0.00" value={amountStr} onChange={(e) => setAmountStr(e.target.value)}
-                className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-[var(--surface)] border border-[var(--border)] text-xl font-bold font-mono text-[var(--foreground)]" />
-            </div>
+            <AmountInput
+              value={amountStr}
+              onChange={setAmountStr}
+              symbol={destCurrency === "XOF" ? "CFA " : "₦"}
+              required
+            />
           </div>
 
           {/* Agent identifier (only if Agent funding) */}

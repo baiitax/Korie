@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useCustomer } from "@/components/customer/CustomerContext";
+import AmountInput from "@/components/customer/ui/AmountInput";
 import { FX_RATES } from "@/services/customerDataService";
 import { formatMoney } from "@/lib/money";
 import { CustomerCurrency } from "@/types/customer";
@@ -148,10 +149,10 @@ export default function CustomerFxPage() {
               <span>{t("fx.convertFrom")}</span>
             </div>
             <div className="flex items-center justify-between gap-3">
-              <input
-                type="number" min="1" required value={fromAmount} onChange={(e) => setFromAmount(e.target.value)}
-                className="w-full bg-transparent text-2xl sm:text-3xl font-mono font-extrabold text-[var(--foreground)] focus:outline-none placeholder:text-[var(--text-disabled)]"
-                placeholder="0.00"
+              <AmountInput
+                value={fromAmount}
+                onChange={setFromAmount}
+                inputClassName="!py-0 bg-transparent !text-2xl sm:!text-3xl !font-extrabold border-none focus:ring-0 placeholder:text-[var(--text-disabled)]"
               />
               <select value={fromCurrency} onChange={(e) => setFromCurrency(e.target.value as CustomerCurrency)}
                 className="px-3 py-2 rounded-xl bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground)] font-mono font-bold text-xs focus:outline-none">

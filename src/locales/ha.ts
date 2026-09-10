@@ -967,6 +967,13 @@ export const ha = {
   copyReference: "Kwafi lamba",
   },
   support: {
+    headOffice: {
+      title: "Babban Ofishin",
+      subtitle: "Taimakon abokan ciniki — layin kai tsaye",
+      phone: "Layin taimako",
+      email: "Imel na taimako",
+      pending: "Layukan taimakon babban ofishinmu suna zuwa bugawa kuma za su bayyana nan. Har sai nan, buɗe ƙasa a ƙasa — kowane tikiti yana isa teburin warware matsala kuma ana amsa shi a cikin portal.",
+    },
     title: "Taimako & Magance Matsaloli",
     subtitle:
       "Taimakon awanni 24/7 ga abokan cinikin Najeriya da Jamhuriyar Nijar.",
@@ -1469,6 +1476,19 @@ export const ha = {
     toAccount: "Asusun da ake aika",
   },
   verification: {
+    tier: {
+      title: "Matakan asusu da ɗaga girma",
+      subtitle: "Gaskiyar iyakokin doka — matakan yau da kullum na CBN don NGN, matakan wata-wata na BCEAO don XOF.",
+      current: "Matsi na yanzu",
+      next: "Matsi na gaba",
+      perDay: "rana",
+      perMonth: "wata",
+      missingIntro: "Har yanzu ana buƙata don wannan matsi:",
+      request: "Nemi duba ɗaga girma",
+      requesting: "Ana aikar da buɗatarsa…",
+      requestSent: "An karɓi buɗatar. Lambar magana da kai ita ce {{ticket}} — jami'in sauron doka zai duba matsinka kuma shawara za ta bayyana a asusunka.",
+      footnote: "Cika buɗatu ba ya canza matsinka kaɗa-kaɗa: jami'i yana duba shaidar kuma yana yanke shawara. Iyakokin da ake gani su ne ainihin rufewar a kan hanyoyi biyu.",
+    },
         title: "Tabbatar da shakhsiyarka",
         subtitle: "Cika gwaje-gwajen da ke ƙasa don samun ƙarin iyaka.",
         identityVerification: "Tabbatar da shakhsiyar",

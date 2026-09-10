@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useCustomer } from "@/components/customer/CustomerContext";
+import AmountInput from "@/components/customer/ui/AmountInput";
 import PinModal from "@/components/customer/ui/PinModal";
 import ComingSoonServiceCard from "@/components/customer/ui/ComingSoonCard";
 import { formatMoney } from "@/lib/money";
@@ -112,8 +113,12 @@ export default function CustomerPaymentsPage() {
               <label className="text-xs font-semibold text-[var(--foreground)]">
                 {t("customer.payments.amount")} ({activeWallet?.currency ?? ""})
               </label>
-              <input type="number" min="100" required value={amount} onChange={(e) => setAmount(e.target.value)}
-                className="w-full p-3.5 rounded-2xl bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground)] font-mono text-lg font-bold focus:outline-none" />
+              <AmountInput
+                value={amount}
+                onChange={setAmount}
+                required
+                inputClassName="bg-[var(--surface-elevated)] !text-lg"
+              />
             </div>
             <button
               type="submit"

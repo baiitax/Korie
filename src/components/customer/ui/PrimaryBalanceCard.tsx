@@ -112,7 +112,9 @@ export const PrimaryBalanceCard: React.FC<Props> = ({ wallet, loading = false, c
           <p className="text-[10px] font-medium uppercase tracking-wider kp-on-vault-soft">
             {t("customer.vault.accountNumber")}
           </p>
-          <p data-account-number className="mt-1 font-mono text-[15px] font-semibold tracking-[0.08em] kp-on-vault">
+          <p data-account-number className="mt-1 truncate font-mono text-[15px] font-semibold tracking-[0.08em] kp-on-vault">
+            <span className="font-sans font-bold tracking-normal">{wallet.accountName}</span>
+            <span className="mx-1 opacity-60" aria-hidden="true">·</span>
             {maskAccountNumber(wallet.accountNumber)}
           </p>
         </div>
