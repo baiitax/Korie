@@ -41,7 +41,7 @@ export const AgentLiquidityCard: React.FC = () => {
     );
 
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-5 sm:p-7 shadow-[var(--shadow-card)]">
+    <div className="relative overflow-hidden rounded-3xl border border-amber-500/25 bg-[var(--surface)] p-5 sm:p-7 shadow-[var(--shadow-card)] ring-1 ring-amber-500/10">
       {/* Faint brand ambient lighting — subtle in both Day and Night since it
           rides on the theme's own brand-soft tokens rather than a fixed
           dark-navy gradient that never adapted between themes. */}
@@ -66,12 +66,12 @@ export const AgentLiquidityCard: React.FC = () => {
         </div>
       </div>
 
-      {/* Total Available Liquidity Hero */}
+      {/* Total Working Capital Hero */}
       <div className="mt-5 space-y-1 relative z-10">
-        <div className="text-xs font-mono uppercase tracking-wider text-[var(--foreground-muted)]">
+        <div className="text-xs font-mono font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
           {t("common.availableLiquidity")}
         </div>
-        <div className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[var(--foreground)] font-mono tracking-tight">
+        <div className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[var(--foreground)] font-mono tracking-tight drop-shadow-sm">
           {renderAmount(`₦${liquidity.totalLiquidity.toLocaleString()}`)}
         </div>
       </div>

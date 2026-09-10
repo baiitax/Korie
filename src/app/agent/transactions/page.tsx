@@ -97,7 +97,7 @@ export default function AgentTransactionsPage() {
             { id: "ALL", label: "All Operations" },
             { id: "CASH_IN", label: "Cash In (Deposits)" },
             { id: "CASH_OUT", label: "Cash Out (Withdrawals)" },
-            { id: "TRANSFER_NIP", label: "Interbank Transfers" },
+            { id: "TRANSFER_NIP", label: "Bank Transfers" },
             { id: "BILL_ELECTRICITY", label: "Electricity Bills" },
             { id: "BILL_AIRTIME", label: "Airtime Vending" },
           ].map((type) => (

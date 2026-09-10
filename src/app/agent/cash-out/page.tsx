@@ -5,23 +5,29 @@ import Link from "next/link";
 import { useAgent } from "@/components/agent/AgentContext";
 import { LiquidityAmount } from "@/components/agent/ui/LiquidityAmount";
 import { useTransactionQuote } from "@/lib/agency/useTransactionQuote";
-import { BANK_DIRECTORY } from "@/services/customerDataService";
 import {
   ArrowLeft,
   ArrowUpRight,
   AlertTriangle,
   CheckCircle2,
   AlertCircle,
-  Building2,
+  Info,
   Fingerprint,
   CreditCard,
   Lock,
 } from "lucide-react";
 
+// Cash-out can only ever be funded from the customer's own KoriePay wallet —
+// there is no rail here that debits an arbitrary third-party bank account.
+// A customer banking elsewhere isn't left without an option: they simply
+// transfer into the agent's own KoriePay/bank account first (see the
+// Bank Transfer flow), which credits the agent's wallet float, and the
+// agent then completes this Cash-Out against that KoriePay balance.
+const CASH_OUT_SOURCE = "KoriePay Wallet";
+
 export default function AgentCashOutPage() {
   const { liquidity, isLiquidityLoading, executeCashOut, openReceipt, t } = useAgent();
 
-  const [bankCode, setBankCode] = useState("058");
   const [accountNumber, setAccountNumber] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
@@ -31,7 +37,6 @@ export default function AgentCashOutPage() {
   const [isExecuting, setIsExecuting] = useState(false);
   const [executionError, setExecutionError] = useState<string | null>(null);
 
-  const selectedBank = BANK_DIRECTORY.find((b) => b.code === bankCode) || BANK_DIRECTORY[0];
   const parsedAmount = parseFloat(amount) || 0;
   const { quote, isLoading: isQuoteLoading } = useTransactionQuote("CASH_OUT", "NGN", parsedAmount);
   const customerFee = quote?.customerFee ?? 0;
@@ -69,7 +74,7 @@ export default function AgentCashOutPage() {
     const result = await executeCashOut({
       customerName,
       customerAccount: accountNumber,
-      customerBank: selectedBank.name,
+      customerBank: CASH_OUT_SOURCE,
       amount: parsedAmount,
     });
 
@@ -109,7 +114,7 @@ export default function AgentCashOutPage() {
       <div className="p-4 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-xs text-amber-300 flex items-start gap-3">
         <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
         <div>
-          <div className="font-bold">CRITICAL CASH RELEASE PROTOCOL</div>
+          <div className="font-bold">Disclaimer</div>
           <p className="mt-0.5 text-amber-200/90 leading-relaxed">
             {t("cashOut.releaseCashWarning")}
           </p>
@@ -134,20 +139,16 @@ export default function AgentCashOutPage() {
 
       {/* Cash-Out Form */}
       <form onSubmit={handleSubmit} className="rounded-3xl bg-[#090f1e] border border-white/10 p-5 sm:p-6 space-y-5 shadow-xl text-xs">
-        {/* Destination Bank */}
-        <div className="space-y-1.5">
-          <label className="font-semibold text-slate-300">Customer Source Bank</label>
-          <select
-            value={bankCode}
-            onChange={(e) => setBankCode(e.target.value)}
-            className="w-full p-3.5 rounded-2xl bg-slate-900 border border-white/10 text-white font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none"
-          >
-            {BANK_DIRECTORY.map((bank) => (
-              <option key={bank.code} value={bank.code}>
-                {bank.name} ({bank.currency})
-              </option>
-            ))}
-          </select>
+        {/* Koriepay-only cash-out source notice */}
+        <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 flex items-start gap-2.5">
+          <Info className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+          <div>
+            <div className="font-bold">Cash-Out funds from KoriePay wallet only</div>
+            <p className="mt-0.5 text-emerald-200/80 leading-relaxed">
+              Customers banking elsewhere can still cash out here: have them transfer the amount to your
+              agent account first (Bank Transfer), then process this Cash-Out against your KoriePay wallet.
+            </p>
+          </div>
         </div>
 
         {/* Customer Account Number */}
@@ -158,7 +159,7 @@ export default function AgentCashOutPage() {
               type="text"
               required
               maxLength={10}
-              placeholder="10-digit NUBAN / IBAN"
+              placeholder="10-digit KoriePay account / phone number"
               value={accountNumber}
               onChange={(e) => handleAccountChange(e.target.value)}
               className="w-full p-3.5 rounded-2xl bg-slate-900 border border-white/10 text-white font-mono text-sm placeholder:text-slate-600 focus:ring-2 focus:ring-amber-500 focus:outline-none"
@@ -177,7 +178,7 @@ export default function AgentCashOutPage() {
                 <span>{customerName}</span>
               </div>
               <span className="text-[10px] font-mono text-emerald-400 uppercase">
-                {selectedBank.name}
+                {CASH_OUT_SOURCE}
               </span>
             </div>
           )}

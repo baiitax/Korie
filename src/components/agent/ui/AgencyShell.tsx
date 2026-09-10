@@ -129,7 +129,7 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
     },
     {
       key: "operations",
-      title: "Operations",
+      title: "Koriepay Cash In & Cashout",
       items: [
         { label: t("common.cashIn"), href: "/agent/cash-in", icon: ArrowDownLeft },
         { label: t("common.cashOut"), href: "/agent/cash-out", icon: ArrowUpRight },
@@ -210,6 +210,22 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
               expanded ? "w-[264px]" : "w-20"
             }`}
           >
+            {/* Collapse/Expand Toggle — top-left corner, above the brand & nav */}
+            <div className={`flex items-center border-b border-[var(--border)] px-2.5 py-2 ${expanded ? "" : "justify-center"}`}>
+              <button
+                type="button"
+                onClick={() => setExpanded((v) => !v)}
+                aria-pressed={expanded}
+                aria-label={expanded ? "Collapse navigation" : "Expand navigation"}
+                className={`flex min-h-[36px] items-center gap-2 rounded-xl text-[var(--foreground-muted)] transition-colors hover:bg-[var(--surface-elevated)] hover:text-[var(--foreground)] ${
+                  expanded ? "w-full px-3" : "h-10 w-10 justify-center"
+                }`}
+              >
+                {expanded ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
+                {expanded && <span className="text-[12px] font-semibold">Collapse</span>}
+              </button>
+            </div>
+
             {/* Brand */}
             <div className={`flex items-center gap-2.5 border-b border-[var(--border)] px-3 py-4 ${expanded ? "" : "justify-center"}`}>
               <Link href="/agent" aria-label="KoriePay Agency home" className="flex items-center gap-2.5 min-w-0">
@@ -315,19 +331,11 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
                     {terminal ? terminal.model.slice(-2) : "--"}
                   </span>
                 </div>
-              ) : null}
-              <button
-                type="button"
-                onClick={() => setExpanded((v) => !v)}
-                aria-pressed={expanded}
-                aria-label={expanded ? "Collapse navigation" : "Expand navigation"}
-                className={`flex min-h-[36px] items-center gap-2 rounded-xl text-[var(--foreground-muted)] transition-colors hover:bg-[var(--surface-elevated)] hover:text-[var(--foreground)] ${
-                  expanded ? "w-full px-3 mt-2" : "h-10 w-10 justify-center"
-                }`}
-              >
-                {expanded ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
-                {expanded && <span className="text-[12px] font-semibold">Collapse</span>}
-              </button>
+              ) : (
+                <div className="h-11 w-11 rounded-2xl bg-[var(--surface-2)] border border-[var(--border)] flex items-center justify-center text-[10px] font-mono font-bold text-[var(--foreground-muted)]">
+                  {terminal ? terminal.model.slice(-2) : "--"}
+                </div>
+              )}
             </div>
           </aside>
         </div>

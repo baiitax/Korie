@@ -221,7 +221,7 @@ export default function AgentTransferPage() {
           disabled={isExecuting || !recipientName || parsedAmount <= 0}
           className="w-full py-4 rounded-2xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-extrabold text-sm transition-all shadow-xl shadow-amber-500/20"
         >
-          {isExecuting ? "Routing Transfer..." : "Execute Interbank Transfer"}
+          {isExecuting ? "Routing Transfer..." : "Send"}
         </button>
       </form>
     </div>

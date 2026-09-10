@@ -356,29 +356,32 @@ export interface BankDirectoryEntry {
   currency: CustomerCurrency;
 }
 
+// Listed alphabetically by bank name within each country group, so agents
+// scanning a long dropdown during a live customer transaction can find the
+// right bank quickly instead of hunting through an arbitrary order.
 export const BANK_DIRECTORY: BankDirectoryEntry[] = [
   // Nigeria (NIP Nodes)
-  { code: "101", name: "Providus Bank Nigeria", country: "NG", currency: "NGN" },
-  { code: "058", name: "Guaranty Trust Bank (GTBank)", country: "NG", currency: "NGN" },
-  { code: "057", name: "Zenith Bank", country: "NG", currency: "NGN" },
   { code: "044", name: "Access Bank", country: "NG", currency: "NGN" },
+  { code: "214", name: "First City Monument Bank (FCMB)", country: "NG", currency: "NGN" },
   { code: "011", name: "First Bank of Nigeria", country: "NG", currency: "NGN" },
+  { code: "070", name: "Fidelity Bank", country: "NG", currency: "NGN" },
+  { code: "058", name: "Guaranty Trust Bank (GTBank)", country: "NG", currency: "NGN" },
+  { code: "082", name: "Keystone Bank", country: "NG", currency: "NGN" },
+  { code: "101", name: "Providus Bank Nigeria", country: "NG", currency: "NGN" },
+  { code: "232", name: "Sterling Bank", country: "NG", currency: "NGN" },
   { code: "033", name: "United Bank for Africa (UBA)", country: "NG", currency: "NGN" },
   { code: "035", name: "Wema Bank (ALAT)", country: "NG", currency: "NGN" },
-  { code: "214", name: "First City Monument Bank (FCMB)", country: "NG", currency: "NGN" },
-  { code: "070", name: "Fidelity Bank", country: "NG", currency: "NGN" },
-  { code: "082", name: "Keystone Bank", country: "NG", currency: "NGN" },
-  { code: "232", name: "Sterling Bank", country: "NG", currency: "NGN" },
+  { code: "057", name: "Zenith Bank", country: "NG", currency: "NGN" },
 
   // Niger Republic (WAEMU / UEMOA Nodes)
-  { code: "NE020", name: "Coris Bank Niger Republic", country: "NE", currency: "XOF" },
   { code: "NE014", name: "Banque Agricole du Niger (BAGRI)", country: "NE", currency: "XOF" },
-  { code: "NE008", name: "Banque Sahelo-Saharienne (BSIC Niger)", country: "NE", currency: "XOF" },
-  { code: "NE003", name: "SONIBANK (Societe Nigerienne de Banque)", country: "NE", currency: "XOF" },
   { code: "NE012", name: "Banque Atlantique Niger (BAPN)", country: "NE", currency: "XOF" },
-  { code: "NE018", name: "Bank of Africa Niger (BOA)", country: "NE", currency: "XOF" },
+  { code: "NE008", name: "Banque Sahelo-Saharienne (BSIC Niger)", country: "NE", currency: "XOF" },
   { code: "NE005", name: "BIA Niger (Banque Internationale pour l'Afrique)", country: "NE", currency: "XOF" },
+  { code: "NE018", name: "Bank of Africa Niger (BOA)", country: "NE", currency: "XOF" },
+  { code: "NE020", name: "Coris Bank Niger Republic", country: "NE", currency: "XOF" },
   { code: "NE001", name: "Ecobank Niger", country: "NE", currency: "XOF" },
+  { code: "NE003", name: "SONIBANK (Societe Nigerienne de Banque)", country: "NE", currency: "XOF" },
 ];
 
 // ==========================================
