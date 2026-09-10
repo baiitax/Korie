@@ -65,6 +65,11 @@ function toCustomerView(c: ComplaintRecord) {
     createdAt: c.createdAt,
     resolvedAt: c.resolvedAt,
     transactionReference: c.transactionReference,
+    // Experience measurement: the customer's own rating of their own case, and
+    // whether the portal should still offer the rating control.
+    csatScore: c.csatScore,
+    csatCapturedAt: c.csatCapturedAt,
+    canRate: (c.status === 'RESOLVED' || c.status === 'CLOSED') && c.csatScore === undefined,
     // Deliberately NOT returned: internal queue assignment (assignedTo/Email),
     // SLA timers and breach flags, resolution notes, GL journal id, and any
     // regulator-facing commentary — none of it is customer data.

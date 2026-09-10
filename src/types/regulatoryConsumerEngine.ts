@@ -25,6 +25,14 @@ export type ComplaintStatus =
   | 'RESOLVED'
   | 'CLOSED';
 
+export type ComplaintStatusEvent = {
+  status: ComplaintStatus;
+  at: string;
+  /** Operator note supplied with the transition — previously accepted and discarded. */
+  notes?: string;
+  by?: string;
+};
+
 export interface ComplaintRecord {
   id: string;
   complaintReference: string;
@@ -53,6 +61,18 @@ export interface ComplaintRecord {
   createdAt: string;
   resolvedAt?: string;
   closedAt?: string;
+  /** True only for records injected by the engine's demo seed — never a real submission. */
+  isSeed?: boolean;
+  /**
+   * Customer-experience measurement. Captured from the customer AFTER the case
+   * reaches a terminal state; never inferred, never defaulted.
+   */
+  csatScore?: 1 | 2 | 3 | 4 | 5;
+  csatComment?: string;
+  csatChannel?: 'PORTAL' | 'USSD' | 'CALL_CENTRE';
+  csatCapturedAt?: string;
+  /** Every status transition this case has actually made, oldest first. */
+  statusHistory?: ComplaintStatusEvent[];
 }
 
 export interface SystemicIncidentRecord {
@@ -75,6 +95,8 @@ export interface SystemicIncidentRecord {
   mitigatedAt?: string;
   resolvedAt?: string;
   createdAt: string;
+  /** True only for records injected by the engine's demo seed. */
+  isSeed?: boolean;
 }
 
 export type ObligationStatus =

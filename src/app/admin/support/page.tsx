@@ -78,7 +78,7 @@ function maskPhone(phone?: string): string {
 }
 
 function slaState(c: ComplaintRecord): { label: string; tone: "green" | "amber" | "rose" } {
-  if (c.isSlaBreached) return { label: "SLA breached", tone: "rose" };
+  if (c.isSlaBreached) return { label: "SLA breached", tone: "rose" }; // stored flag, recomputed by the CX read path
   const due = new Date(c.slaDueAt).getTime();
   const left = due - Date.now();
   if (left <= 0) return { label: "SLA breached", tone: "rose" };
@@ -165,7 +165,10 @@ export default function SupportAdminPage() {
     () => complaints.filter((c) => c.status !== "RESOLVED" && c.status !== "CLOSED"),
     [complaints],
   );
-  const breached = openSet.filter((c) => c.isSlaBreached);
+  // Breach is derived from the case's own deadline, not from a stored flag:
+  // `isSlaBreached` had no writer after intake, so a case that ran past its
+  // clock still reported false and this counter read 0 forever.
+  const breached = openSet.filter((c) => new Date(c.slaDueAt).getTime() < Date.now());
 
   const visible = complaints.filter((c) => {
     const matchesCountry = countryFilter === "GLOBAL" || c.country === countryFilter;
@@ -319,7 +322,9 @@ export default function SupportAdminPage() {
                 <Timer className="w-3.5 h-3.5 text-amber-400" /> SLA breached
               </p>
               <p className="text-2xl font-bold font-mono text-amber-300">{breached.length}</p>
-              <p className="text-[10px] text-slate-500">of {openSet.length} open · priority 24–72h clocks</p>
+              <p className="text-[10px] text-slate-500">
+                of {openSet.length} open · engine clocks P0 24h · P1 48h · P2 72h · P3 120h (computed from each case&apos;s slaDueAt)
+              </p>
             </div>
             <div className="p-4 rounded-2xl bg-[#0b1324] border border-white/10 space-y-1">
               <p className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-slate-400">

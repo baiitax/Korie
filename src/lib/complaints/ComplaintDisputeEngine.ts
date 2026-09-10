@@ -5,6 +5,7 @@ import {
   ComplaintStatus,
   ComplaintPriority,
   ComplaintCategory,
+  ComplaintStatusEvent,
 } from '@/types/regulatoryConsumerEngine';
 import { GeneralLedgerEngine } from '../financial/GeneralLedgerEngine';
 import { SubledgerEngine } from '../financial/SubledgerEngine';
@@ -47,6 +48,8 @@ export class ComplaintDisputeEngine {
         slaDueAt: new Date(Date.now() + 18 * 3600 * 1000).toISOString(), // 18h remaining
         isSlaBreached: false,
         createdAt: '2026-09-02T10:00:00Z',
+        isSeed: true,
+        statusHistory: [{ status: 'OPENED', at: '2026-09-02T10:00:00Z' }, { status: 'INVESTIGATING', at: '2026-09-02T12:30:00Z', by: 'support.lead@koriepay.ng' }],
       },
       {
         id: 'cmp-02',
@@ -66,6 +69,8 @@ export class ComplaintDisputeEngine {
         slaDueAt: new Date(Date.now() + 42 * 3600 * 1000).toISOString(),
         isSlaBreached: false,
         createdAt: '2026-09-03T08:30:00Z',
+        isSeed: true,
+        statusHistory: [{ status: 'OPENED', at: '2026-09-03T08:30:00Z' }],
       },
     ];
 
@@ -114,15 +119,30 @@ export class ComplaintDisputeEngine {
     const slaHours = priority === 'P0' ? 24 : priority === 'P1' ? 48 : priority === 'P2' ? 72 : 120;
     const slaDueAt = new Date(Date.now() + slaHours * 3600 * 1000).toISOString();
 
+    // Fields are copied explicitly. Spreading the caller's object let a client
+    // inject derived/measurement state (status, slaDueAt, isSeed, csatScore) and
+    // fabricate the very numbers the CX dashboards report.
     const complaint: ComplaintRecord = {
-      ...data,
       id,
       complaintReference,
+      customerId: data.customerId,
+      customerName: data.customerName,
+      customerPhone: data.customerPhone,
+      country: data.country,
+      category: data.category,
       priority,
       status: 'OPENED',
+      transactionReference: data.transactionReference,
+      paymentId: data.paymentId,
+      agentId: data.agentId,
+      terminalId: data.terminalId,
+      disputedAmount: data.disputedAmount,
+      currency: data.currency,
+      description: data.description,
       slaDueAt,
       isSlaBreached: false,
       createdAt: new Date().toISOString(),
+      statusHistory: [{ status: 'OPENED', at: new Date().toISOString() }],
     };
 
     this.complaints.set(id, complaint);
@@ -135,13 +155,113 @@ export class ComplaintDisputeEngine {
       return { success: false, error: 'COMPLAINT_NOT_FOUND' };
     }
 
+    const at = new Date().toISOString();
     complaint.status = status;
     if (assignedToEmail) complaint.assignedToEmail = assignedToEmail;
-    if (status === 'RESOLVED') complaint.resolvedAt = new Date().toISOString();
-    if (status === 'CLOSED') complaint.closedAt = new Date().toISOString();
+    if (status === 'RESOLVED') complaint.resolvedAt = at;
+    if (status === 'CLOSED') complaint.closedAt = at;
+
+    // The caller's note used to be accepted and thrown away; it is now part of
+    // the case history, which is what cycle-time and audit reporting read.
+    const event: ComplaintStatusEvent = {
+      status,
+      at,
+      notes: notes || undefined,
+      by: assignedToEmail || complaint.assignedToEmail,
+    };
+    complaint.statusHistory = [...(complaint.statusHistory || []), event];
+
+    // SLA state is derived, so recompute it on every mutation rather than
+    // trusting a flag that nothing updates.
+    complaint.isSlaBreached = ComplaintDisputeEngine.computeBreach(complaint);
 
     this.complaints.set(complaintId, complaint);
     return { success: true, complaint };
+  }
+
+  /**
+   * SLA policy as the engine actually implements it when a case is created.
+   * These are the clocks a case is judged against — P0 24h, P1 48h, P2 72h,
+   * P3 120h. Reported verbatim so consoles cannot paraphrase them.
+   */
+  public static readonly SLA_HOURS: Record<ComplaintPriority, number> = {
+    P0: 24,
+    P1: 48,
+    P2: 72,
+    P3: 120,
+  };
+
+  /**
+   * Was the SLA met? For a live case that means "now vs due"; for a closed case
+   * it means "the moment it was resolved vs due" — judging a closed case
+   * against today's clock would manufacture breaches that never happened.
+   */
+  public static computeBreach(complaint: ComplaintRecord, nowMs: number = Date.now()): boolean {
+    const due = new Date(complaint.slaDueAt).getTime();
+    if (!Number.isFinite(due)) return false;
+    if (complaint.status === 'RESOLVED' || complaint.status === 'CLOSED') {
+      const stopped = new Date(complaint.closedAt || complaint.resolvedAt || complaint.slaDueAt).getTime();
+      return Number.isFinite(stopped) ? stopped > due : false;
+    }
+    return nowMs > due;
+  }
+
+  /**
+   * Recompute the stored `isSlaBreached` flag from the clock. The field is part
+   * of the record, but no code path ever wrote to it after creation, so a case
+   * that ran past its deadline still reported `false`. Returns how many records
+   * disagreed with their clock before this call.
+   */
+  public refreshSlaClocks(nowMs: number = Date.now()): { corrected: number; checked: number } {
+    let corrected = 0;
+    this.complaints.forEach((c) => {
+      const computed = ComplaintDisputeEngine.computeBreach(c, nowMs);
+      if (c.isSlaBreached !== computed) corrected += 1;
+      c.isSlaBreached = computed;
+      this.complaints.set(c.id, c);
+    });
+    return { corrected, checked: this.complaints.size };
+  }
+
+  /**
+   * Customer-experience measurement — the missing half of the complaint loop.
+   *
+   * A score is only ever a real customer's rating of a case that actually
+   * reached a terminal state. There is no default, no backfill from an
+   * operator, and no re-rating: a second submission is refused rather than
+   * overwriting the customer's first answer.
+   */
+  public captureCsat(params: {
+    complaintId: string;
+    score: number;
+    comment?: string;
+    channel?: 'PORTAL' | 'USSD' | 'CALL_CENTRE';
+  }): { ok: boolean; complaint?: ComplaintRecord; error?: string } {
+    const complaint = this.complaints.get(params.complaintId);
+    if (!complaint) return { ok: false, error: 'COMPLAINT_NOT_FOUND' };
+
+    if (complaint.status !== 'RESOLVED' && complaint.status !== 'CLOSED') {
+      return { ok: false, error: 'CSAT_ONLY_AFTER_RESOLUTION' };
+    }
+    if (complaint.csatScore !== undefined) {
+      return { ok: false, error: 'ALREADY_RATED' };
+    }
+    const score = Number(params.score);
+    if (!Number.isInteger(score) || score < 1 || score > 5) {
+      return { ok: false, error: 'INVALID_SCORE' };
+    }
+
+    complaint.csatScore = score as 1 | 2 | 3 | 4 | 5;
+    complaint.csatComment = params.comment ? params.comment.slice(0, 500) : undefined;
+    complaint.csatChannel = params.channel || 'PORTAL';
+    complaint.csatCapturedAt = new Date().toISOString();
+    this.complaints.set(complaint.id, complaint);
+    return { ok: true, complaint };
+  }
+
+  /** Ratings captured so far — the only source CSAT figures may be derived from. */
+  public getCsatResponses(): ComplaintRecord[] {
+    return Array.from(this.complaints.values()).filter((c) => c.csatScore !== undefined);
   }
 
   public executeFinancialCompensation(params: {
@@ -214,8 +334,19 @@ export class ComplaintDisputeEngine {
     complaint.glJournalId = journalResult.journal.id;
     complaint.resolutionType = 'FINANCIAL_REDRESS_POSTED';
     complaint.resolutionNotes = `Compensated ${complaint.currency} ${params.compensationAmount} via GL Journal ${journalResult.journal.journalNumber}`;
+    const resolvedAt = new Date().toISOString();
     complaint.status = 'RESOLVED';
-    complaint.resolvedAt = new Date().toISOString();
+    complaint.resolvedAt = resolvedAt;
+    complaint.statusHistory = [
+      ...(complaint.statusHistory || []),
+      {
+        status: 'RESOLVED',
+        at: resolvedAt,
+        notes: complaint.resolutionNotes,
+        by: params.authorizedByEmail,
+      },
+    ];
+    complaint.isSlaBreached = ComplaintDisputeEngine.computeBreach(complaint);
 
     this.complaints.set(complaint.id, complaint);
     return { success: true, complaint, journalNumber: journalResult.journal.journalNumber };

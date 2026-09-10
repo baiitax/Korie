@@ -40,6 +40,7 @@ export class DisputeChargebackEngine {
       slaDueAt: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
       isSlaBreached: false,
       createdAt: new Date(Date.now() - 12 * 3600 * 1000).toISOString(),
+      isSeed: true,
     };
 
     this.disputes.set(defaultDisputeId, defaultDispute);
@@ -67,6 +68,7 @@ export class DisputeChargebackEngine {
       status: 'CHARGEBACK_REVIEW',
       responseDeadline: new Date(Date.now() + 5 * 24 * 3600 * 1000).toISOString(),
       createdAt: new Date(Date.now() - 6 * 3600 * 1000).toISOString(),
+      isSeed: true,
     };
 
     this.chargebacks.set(defaultChargeback.id, defaultChargeback);

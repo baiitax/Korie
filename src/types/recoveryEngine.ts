@@ -74,6 +74,8 @@ export interface PaymentRefundRecord {
   glJournalId?: string;
   createdAt: string;
   completedAt?: string;
+  /** True only for records injected by the engine's demo seed — never a real case. */
+  isSeed?: boolean;
 }
 
 export interface PaymentReversalRecord {
@@ -88,6 +90,8 @@ export interface PaymentReversalRecord {
   authorizedBy: string;
   glJournalId?: string;
   createdAt: string;
+  /** True only for records injected by the engine's demo seed — never a real case. */
+  isSeed?: boolean;
 }
 
 export interface DisputeCaseRecord {
@@ -132,6 +136,8 @@ export interface DisputeCaseRecord {
   resolvedAt?: string;
   createdAt: string;
   evidence?: DisputeEvidenceRecord[];
+  /** True only for records injected by the engine's demo seed — never a real case. */
+  isSeed?: boolean;
 }
 
 export interface DisputeEvidenceRecord {
@@ -166,4 +172,6 @@ export interface ChargebackCaseRecord {
   responseDeadline: string;
   representmentEvidenceRef?: string;
   createdAt: string;
+  /** True only for records injected by the engine's demo seed — never a real case. */
+  isSeed?: boolean;
 }

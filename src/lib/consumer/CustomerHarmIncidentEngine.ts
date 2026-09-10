@@ -40,6 +40,7 @@ export class CustomerHarmIncidentEngine {
         mitigatedAt: '2026-09-02T09:30:00Z',
         resolvedAt: '2026-09-02T11:00:00Z',
         createdAt: '2026-09-02T08:20:00Z',
+        isSeed: true,
       },
     ];
 

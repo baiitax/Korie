@@ -18,6 +18,7 @@ import {
   X,
   RefreshCw,
   ShieldAlert,
+  Star,
 } from "lucide-react";
 
 /**
@@ -59,6 +60,10 @@ type CaseView = {
   createdAt: string;
   resolvedAt?: string | null;
   transactionReference?: string;
+  /** Experience measurement — the customer's own rating of their own case. */
+  csatScore?: number;
+  csatCapturedAt?: string | null;
+  canRate?: boolean;
 };
 
 export default function CustomerSupportPage() {
@@ -83,6 +88,14 @@ function SupportInner() {
   const [formError, setFormError] = useState<string | null>(null);
   const [createdTicketId, setCreatedTicketId] = useState<string | null>(null);
   const [openFaqIdx, setOpenFaqIdx] = useState<number | null>(0);
+
+  // Experience measurement (CSAT). A rating is the customer's own answer about a
+  // case that has actually been resolved; it is posted to the same record the
+  // admin console measures, and it can be given once.
+  const [ratingFor, setRatingFor] = useState<string | null>(null);
+  const [ratingScore, setRatingScore] = useState<number>(0);
+  const [ratingNote, setRatingNote] = useState<{ ok: boolean; text: string } | null>(null);
+  const [ratingBusy, setRatingBusy] = useState(false);
 
   const loadCases = useCallback(async () => {
     setRefreshing(true);
@@ -162,6 +175,30 @@ function SupportInner() {
     await Promise.all([loadCases(), refreshNotifications?.()]);
   };
 
+  const submitRating = async (ticket: CaseView) => {
+    if (!ticket?.id || ratingScore < 1 || ratingScore > 5) return;
+    setRatingBusy(true);
+    setRatingNote(null);
+    const result = await safeFetch<any>(
+      "/api/customer/portal/csat",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ complaintId: ticket.id, score: ratingScore }),
+      },
+      { timeoutMs: 15000, isOffline: typeof navigator !== "undefined" && !navigator.onLine },
+    );
+    setRatingBusy(false);
+    if (!result.ok) {
+      setRatingNote({ ok: false, text: result.error?.message || t("support.rateFailed") });
+      return;
+    }
+    setRatingNote({ ok: true, text: t("support.rateThanks") });
+    setRatingFor(null);
+    setRatingScore(0);
+    await loadCases();
+  };
+
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setCreatedTicketId(null);
@@ -216,6 +253,19 @@ function SupportInner() {
           </button>
         </div>
 
+        {ratingNote ? (
+          <p
+            role="status"
+            className={`flex items-start gap-1.5 rounded-2xl px-3 py-2 text-[11px] font-semibold border ${
+              ratingNote.ok
+                ? "bg-[var(--surface-elevated)] text-[var(--brand-primary)] border-[var(--border)]"
+                : "bg-[var(--surface-elevated)] text-[var(--foreground-muted)] border-[var(--border)]"
+            }`}
+          >
+            {ratingNote.text}
+          </p>
+        ) : null}
+
         {casesPhase === "loading" ? (
           <KpaySectionLoader message={t("support.casesLoading")} />
         ) : casesPhase === "error" && casesError ? (
@@ -238,6 +288,83 @@ function SupportInner() {
                     <span>{ticket.category}</span>
                     <span>{new Date(ticket.createdAt).toLocaleString()}</span>
                   </div>
+
+                  {/* Experience measurement: rate a resolved case, once */}
+                  {ticket.csatScore ? (
+                    <div className="flex items-center gap-2 pt-1.5 border-t border-[var(--border)]">
+                      <span className="flex items-center gap-0.5">
+                        {[1, 2, 3, 4, 5].map((n) => (
+                          <Star
+                            key={n}
+                            className={`w-3.5 h-3.5 ${n <= (ticket.csatScore || 0) ? "text-[var(--brand-primary)]" : "text-[var(--border)]"}`}
+                            fill={n <= (ticket.csatScore || 0) ? "currentColor" : "none"}
+                          />
+                        ))}
+                      </span>
+                      <span className="text-[10px] text-[var(--foreground-muted)]">
+                        {t("support.ratedLabel")}
+                        {ticket.csatCapturedAt ? ` \u00b7 ${new Date(ticket.csatCapturedAt).toLocaleDateString()}` : ""}
+                      </span>
+                    </div>
+                  ) : ticket.canRate ? (
+                    ratingFor === ticket.id ? (
+                      <div className="pt-2 border-t border-[var(--border)] space-y-2">
+                        <p className="text-[11px] font-bold text-[var(--foreground)]">{t("support.rateTitle")}</p>
+                        <div className="flex items-center gap-1.5">
+                          {[1, 2, 3, 4, 5].map((n) => (
+                            <button
+                              key={n}
+                              type="button"
+                              aria-label={`${n} / 5`}
+                              onClick={() => setRatingScore(n)}
+                              className="p-0.5"
+                            >
+                              <Star
+                                className={`w-5 h-5 transition-colors ${
+                                  n <= ratingScore ? "text-[var(--brand-primary)]" : "text-[var(--border)]"
+                                }`}
+                                fill={n <= ratingScore ? "currentColor" : "none"}
+                              />
+                            </button>
+                          ))}
+                          <span className="ml-1 text-[10px] text-[var(--foreground-muted)]">{t("support.rateScaleHint")}</span>
+                        </div>
+                        <p className="text-[10px] text-[var(--foreground-muted)]">{t("support.rateHint")}</p>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={ratingBusy || ratingScore < 1}
+                            onClick={() => void submitRating(ticket)}
+                            className="px-3 py-1.5 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-on-primary)] font-bold text-[11px] disabled:opacity-50"
+                          >
+                            {ratingBusy ? t("support.rateSubmitting") : t("support.rateSubmit")}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setRatingFor(null);
+                              setRatingScore(0);
+                            }}
+                            className="px-2.5 py-1.5 rounded-xl border border-[var(--border)] text-[var(--foreground-muted)] text-[11px] font-bold"
+                          >
+                            {t("common.cancel")}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRatingFor(ticket.id);
+                          setRatingScore(0);
+                          setRatingNote(null);
+                        }}
+                        className="mt-1 flex items-center gap-1.5 text-[11px] font-bold text-[var(--brand-primary)] hover:underline"
+                      >
+                        <Star className="w-3.5 h-3.5" /> {t("support.rateTitle")}
+                      </button>
+                    )
+                  ) : null}
                 </div>
               ))}
             </div>

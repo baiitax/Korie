@@ -89,10 +89,26 @@ export const ExperienceHealthPulse: React.FC = () => {
   const openComplaints = (data.complaints?.complaints || []).filter(
     (c) => c.status !== "RESOLVED" && c.status !== "CLOSED",
   );
-  const slaBreached = openComplaints.filter((c) => c.isSlaBreached);
-  const exposureOpen = openComplaints.reduce((s, c) => s + (c.disputedAmount || 0), 0);
+  // Breach state is computed from each case's own deadline. The stored
+  // `isSlaBreached` field had no writer after intake, so trusting it kept this
+  // counter at zero while cases ran past their clocks.
+  const isPastDeadline = (c: ComplaintLite) => new Date(c.slaDueAt).getTime() < Date.now();
+  const slaBreached = openComplaints.filter(isPastDeadline);
+  // Exposure is per currency — NGN and XOF are not summed into one number.
+  const exposureByCurrency = Array.from(
+    openComplaints
+      .reduce((m, c) => m.set(c.currency, (m.get(c.currency) || 0) + (c.disputedAmount || 0)), new Map<"NGN" | "XOF", number>())
+      .entries(),
+  )
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 2);
   const urgent = [...openComplaints]
-    .sort((a, b) => (b.isSlaBreached ? 1 : 0) - (a.isSlaBreached ? 1 : 0) || a.priority.localeCompare(b.priority))
+    .sort(
+      (a, b) =>
+        Number(isPastDeadline(b)) - Number(isPastDeadline(a)) ||
+        new Date(a.slaDueAt).getTime() - new Date(b.slaDueAt).getTime() ||
+        a.priority.localeCompare(b.priority),
+    )
     .slice(0, 3);
 
   return (
@@ -154,10 +170,10 @@ export const ExperienceHealthPulse: React.FC = () => {
           </div>
           <div className="p-3 rounded-2xl bg-slate-950/60 border border-white/5">
             <p className="text-[10px] font-mono uppercase text-slate-500 flex items-center gap-1">
-              <Timer className="w-3 h-3 text-amber-400" /> SLA breached
+              <Timer className="w-3 h-3 text-amber-400" /> Past SLA
             </p>
             <p className="mt-1 text-2xl font-bold font-mono text-amber-300">{slaBreached.length}</p>
-            <p className="text-[10px] text-slate-500">of {openComplaints.length} open</p>
+            <p className="text-[10px] text-slate-500">of {openComplaints.length} open · clock-derived</p>
           </div>
           <div className="p-3 rounded-2xl bg-slate-950/60 border border-white/5">
             <p className="text-[10px] font-mono uppercase text-slate-500 flex items-center gap-1">
@@ -172,8 +188,12 @@ export const ExperienceHealthPulse: React.FC = () => {
             <p className="text-[10px] font-mono uppercase text-slate-500 flex items-center gap-1">
               <Landmark className="w-3 h-3 text-amber-400" /> Open complaint exposure
             </p>
-            <p className="mt-1 text-xl font-bold font-mono text-white">{currencySymbol(data.complaints?.complaints?.[0]?.currency || "NGN")}{(exposureOpen || 0).toLocaleString()}</p>
-            <p className="text-[10px] text-slate-500">disputed amounts, unresolved</p>
+            <p className="mt-1 text-lg font-bold font-mono text-white">
+              {exposureByCurrency.length === 0
+                ? "—"
+                : exposureByCurrency.map(([ccy, amount]) => `${currencySymbol(ccy)}${amount.toLocaleString()}`).join(" · ")}
+            </p>
+            <p className="text-[10px] text-slate-500">disputed amounts by currency, unresolved</p>
           </div>
         </div>
       )}
@@ -188,7 +208,7 @@ export const ExperienceHealthPulse: React.FC = () => {
               <span className="text-xs font-bold text-white font-mono">{c.complaintReference}</span>
               <span className="text-xs text-slate-300">{c.customerName}</span>
               <span className="text-[10px] text-slate-500">{c.category.replace(/_/g, " ").toLowerCase()}</span>
-              {c.isSlaBreached ? (
+              {isPastDeadline(c) ? (
                 <span className="text-[10px] font-bold text-rose-400 uppercase">SLA breached</span>
               ) : (
                 <span className="text-[10px] text-slate-500">

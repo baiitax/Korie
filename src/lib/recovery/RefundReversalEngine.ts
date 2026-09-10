@@ -40,6 +40,7 @@ export class RefundReversalEngine {
       glJournalId: 'jrn-2026-0901',
       createdAt: new Date(Date.now() - 24 * 3600 * 1000).toISOString(),
       completedAt: new Date(Date.now() - 23 * 3600 * 1000).toISOString(),
+      isSeed: true,
     };
 
     this.refunds.set(defaultRefund.id, defaultRefund);

@@ -25,6 +25,7 @@ import {
   BarChart3,
   FileText,
   LifeBuoy,
+  HeartHandshake,
   Lock,
   History,
   Settings,
@@ -119,6 +120,7 @@ export const adminNavGroups: AdminNavGroup[] = [
     items: [
       { label: "AI & Decision Intel", href: "/admin/intelligence", icon: BrainCircuit, badge: "AI" },
       { label: "Reports Builder", href: "/admin/reports", icon: FileText },
+      { label: "Customer Experience", href: "/admin/cx", icon: HeartHandshake },
       { label: "Support Tickets", href: "/admin/support", icon: LifeBuoy },
       { label: "Security & Sessions", href: "/admin/security", icon: Lock },
       { label: "Immutable Audit Log", href: "/admin/audit", icon: History },
