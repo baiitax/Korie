@@ -1,24 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
-import { useAdmin } from "@/components/admin/AdminContext";
-import { MERCHANTS } from "@/services/adminDataService";
-import { CreditCard, Search, QrCode, Smartphone, Download, ArrowRight } from "lucide-react";
+import React from "react";
+import { Store, AlertTriangle, ArrowRight } from "lucide-react";
+import Link from "next/link";
 
 export default function MerchantsAdminPage() {
-  const { countryFilter } = useAdmin();
-  const [search, setSearch] = useState("");
-
-  const filtered = MERCHANTS.filter((m) => {
-    const matchesCountry = countryFilter === "GLOBAL" || m.countryCode === countryFilter;
-    const matchesSearch =
-      !search.trim() ||
-      m.businessName.toLowerCase().includes(search.toLowerCase()) ||
-      m.ownerName.toLowerCase().includes(search.toLowerCase()) ||
-      m.city.toLowerCase().includes(search.toLowerCase());
-    return matchesCountry && matchesSearch;
-  });
-
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
@@ -28,53 +14,54 @@ export default function MerchantsAdminPage() {
           </span>
           <h1 className="text-xl sm:text-2xl font-extrabold text-white mt-1">Merchant Directory & Settlements</h1>
           <p className="text-xs text-slate-400 mt-0.5">
-            Monitor registered retail merchants, dynamic counter QR standees, card terminals, and gross checkout volumes.
+            This console previously listed merchants from a hand-written array. That list is removed; what follows is the honest state.
           </p>
         </div>
       </div>
 
-      <div className="rounded-3xl bg-[#0b1324] border border-white/10 shadow-2xl overflow-hidden">
-        <table className="w-full text-left text-xs">
-          <thead>
-            <tr className="text-[10px] font-mono uppercase text-slate-400 bg-slate-950/60 border-b border-white/10">
-              <th className="p-4 font-semibold">Business Name</th>
-              <th className="p-4 font-semibold">City / Market</th>
-              <th className="p-4 font-semibold">Settlement Bank</th>
-              <th className="p-4 font-semibold">QR Codes</th>
-              <th className="p-4 font-semibold">30D Gross Sales</th>
-              <th className="p-4 font-semibold">Pending Settlement</th>
-              <th className="p-4 font-semibold">Success SLA</th>
-              <th className="p-4 font-semibold">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/5">
-            {filtered.map((m) => (
-              <tr key={m.id} className="hover:bg-white/5 transition-colors">
-                <td className="p-4">
-                  <div className="font-bold text-white">{m.businessName}</div>
-                  <div className="text-[10px] text-slate-400 font-mono">{m.ownerName} • {m.businessType}</div>
-                </td>
-                <td className="p-4 font-mono">{m.countryCode === "NG" ? "🇳🇬 " : "🇳🇪 "}{m.city}</td>
-                <td className="p-4 font-mono text-slate-300">{m.settlementBank}</td>
-                <td className="p-4 font-mono text-amber-400 font-bold">{m.activeQRCodes} Standees</td>
-                <td className="p-4 font-mono font-bold text-white">
-                  {m.currency === "NGN" ? "₦" : "CFA "}
-                  {m.grossSales30d.toLocaleString()}
-                </td>
-                <td className="p-4 font-mono text-emerald-400 font-semibold">
-                  {m.currency === "NGN" ? "₦" : "CFA "}
-                  {m.netSettlementPending.toLocaleString()}
-                </td>
-                <td className="p-4 font-mono text-white font-bold">{m.successRate}%</td>
-                <td className="p-4">
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-emerald-500/10 text-emerald-400">
-                    ● {m.status}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="rounded-3xl bg-[#0b1324] border border-amber-500/25 shadow-2xl overflow-hidden p-6 sm:p-8 space-y-5">
+        <div className="flex items-start gap-4">
+          <div className="p-3 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 shrink-0">
+            <Store className="w-6 h-6" />
+          </div>
+          <div>
+            <h2 className="text-base font-bold text-white">Directory withheld — no merchant registry engine exists</h2>
+            <p className="text-xs text-slate-400 mt-1 leading-relaxed max-w-3xl">
+              No engine in this deployment records merchants (no business registry, no settlement accounts, no QR/terminal
+              inventory, no checkout volumes). A directory built without one would be invented businesses with invented
+              settlement balances — so the console shows this instead of a table.
+            </p>
+          </div>
+        </div>
+
+        <div className="rounded-2xl bg-slate-950/70 border border-white/5 p-4 space-y-2 text-xs">
+          <p className="text-slate-300 font-semibold flex items-center gap-2">
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-400" /> What was checked before withholding
+          </p>
+          <ul className="text-slate-400 space-y-1.5 leading-relaxed list-none">
+            <li>· <span className="font-mono text-slate-300">AgentMerchantIntelligenceEngine</span> holds two merchant profiles with GMV and margin figures — but they are constructor seeds with no provenance and no recomputation path, so they are deliberately not surfaced as telemetry.</li>
+            <li>· The subledger carries a <span className="font-mono text-slate-300">MERCHANT_PAYABLE</span> position, but a payable line without a merchant record identifies no business and settles to no account.</li>
+            <li>· Merchant checkout and settlement flows exist in the merchant portal as operator journeys; they do not write to a registry this console can read.</li>
+          </ul>
+        </div>
+
+        <div className="rounded-2xl bg-slate-950/70 border border-white/5 p-4 text-xs">
+          <p className="text-slate-300 font-semibold">What would wire this console</p>
+          <p className="text-slate-400 mt-1 leading-relaxed">
+            A merchant registry engine (business identity, settlement account mapping, QR/terminal inventory) with checkout
+            and settlement events journaled through the ledger. Until then, gross sales, pending settlements and success
+            SLAs per merchant are unmeasurable and stay off this screen.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <Link href="/admin/wallets" className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 border border-white/10 hover:border-white/20 text-slate-200 text-xs font-semibold transition-colors">
+            Wallet positions <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+          <Link href="/admin/transactions" className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 border border-white/10 hover:border-white/20 text-slate-200 text-xs font-semibold transition-colors">
+            Posted ledger activity <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
       </div>
     </div>
   );

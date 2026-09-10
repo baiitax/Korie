@@ -4,22 +4,80 @@ import React, { useEffect, useState } from "react";
 import { useAdmin } from "./AdminContext";
 import {
   ShieldAlert,
-  CheckCircle2,
-  XCircle,
   X,
-  AlertTriangle,
-  Lock,
   ArrowRight,
   Check,
   Zap,
   Loader2,
 } from "lucide-react";
 
+interface ExecutionOutcome {
+  attempted: boolean;
+  executed: boolean;
+  code?: string;
+  message?: string;
+  status?: string;
+  restrictions?: string[];
+}
+
+/**
+ * Dual-control decision modal. Manual decisions are persisted to the audit trail
+ * (POST /api/admin/maker-checker/decisions) and, where an execution engine is
+ * wired, actually executed. Actions with no executor are recorded as
+ * recorded-only and the result screen says nothing was changed.
+ */
+async function executeWiredAction(
+  actionType: string,
+  resourceId: string,
+  reason: string,
+  checkerEmail: string,
+): Promise<ExecutionOutcome> {
+  if (actionType === "WALLET_FREEZE") {
+    try {
+      const r = await fetch(`/api/admin/wallets/${encodeURIComponent(resourceId)}/restrict`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ restriction: "FULL_FREEZE", reason, actor: checkerEmail }),
+      });
+      const json = await r.json().catch(() => null);
+      if (r.ok && json?.success) {
+        return { attempted: true, executed: true, status: json.data.status, restrictions: json.data.restrictions };
+      }
+      const code = json?.error?.code || `HTTP_${r.status}`;
+      return { attempted: true, executed: false, code, message: json?.error?.message || "The freeze was refused." };
+    } catch (e) {
+      return { attempted: true, executed: false, code: "NETWORK_ERROR", message: e instanceof Error ? e.message : "Network error" };
+    }
+  }
+  if (actionType === "WALLET_UNFREEZE") {
+    try {
+      const r = await fetch(`/api/admin/wallets/${encodeURIComponent(resourceId)}/lift`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ restriction: "FULL_FREEZE", actor: checkerEmail }),
+      });
+      const json = await r.json().catch(() => null);
+      if (r.ok && json?.success) {
+        return { attempted: true, executed: true, status: json.data.status, restrictions: json.data.restrictions };
+      }
+      const code = json?.error?.code || `HTTP_${r.status}`;
+      return { attempted: true, executed: false, code, message: json?.error?.message || "The lift was refused." };
+    } catch (e) {
+      return { attempted: true, executed: false, code: "NETWORK_ERROR", message: e instanceof Error ? e.message : "Network error" };
+    }
+  }
+  return { attempted: false, executed: false, code: "NO_EXECUTOR_WIRED" };
+}
+
 export const MakerCheckerModal: React.FC = () => {
   const { makerCheckerModal, closeMakerChecker } = useAdmin();
   const [reviewNotes, setReviewNotes] = useState("");
+  const [checkerEmail, setCheckerEmail] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [actionDone, setActionDone] = useState<"APPROVED" | "REJECTED" | null>(null);
+  const [outcome, setOutcome] = useState<ExecutionOutcome | null>(null);
+  const [recordError, setRecordError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [autoDecision, setAutoDecision] = useState<{ decision: string; ruleName?: string; ruleId?: string; decisionId?: string } | null>(null);
   const [consulting, setConsulting] = useState(false);
 
@@ -32,6 +90,10 @@ export const MakerCheckerModal: React.FC = () => {
     let cancelled = false;
     setConsulting(true);
     setAutoDecision(null);
+    setOutcome(null);
+    setRecordError(null);
+    setFormError(null);
+    setActionDone(null);
     const amount = Number((req.payload as Record<string, unknown> | undefined)?.amount);
     fetch("/api/admin/config/automation/decide", {
       method: "POST",
@@ -48,31 +110,31 @@ export const MakerCheckerModal: React.FC = () => {
       }),
     })
       .then(r => r.json())
-      .then(json => {
+      .then(async json => {
         if (cancelled || !json?.success) return;
         const data = json.data;
         setAutoDecision(data);
         if (data.decision === "AUTO_EXECUTE" && data.decisionId) {
-          // Finalize the audit trail for the auto-execution.
+          // A matching rule means the action runs now — execute the wired engine
+          // call (if any) and finalize the audit trail with the true outcome.
+          const exec = await executeWiredAction(req.actionType, req.resourceId, req.reason, "automation@koriepay.com");
+          if (cancelled) return;
+          setOutcome(exec);
           void fetch("/api/admin/config/automation/complete", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ decisionId: data.decisionId, outcome: "SUCCESS", actor: "System Administrator" }),
+            body: JSON.stringify({
+              decisionId: data.decisionId,
+              outcome: !exec.attempted || exec.executed ? "SUCCESS" : "FAILED",
+              actor: "System Administrator",
+            }),
           });
-          // Auto-approve through the same UI path, flagged as automated.
+          setIsProcessing(true);
           window.setTimeout(() => {
             if (cancelled) return;
-            setIsProcessing(true);
-            window.setTimeout(() => {
-              if (cancelled) return;
-              setIsProcessing(false);
-              setActionDone("APPROVED");
-              window.setTimeout(() => {
-                setActionDone(null);
-                closeMakerChecker();
-              }, 2000);
-            }, 500);
-          }, 450);
+            setIsProcessing(false);
+            setActionDone("APPROVED");
+          }, 500);
         }
       })
       .finally(() => {
@@ -86,18 +148,66 @@ export const MakerCheckerModal: React.FC = () => {
 
   if (!req) return null;
 
-  const handleDecision = async (decision: "APPROVED" | "REJECTED") => {
-    setIsProcessing(true);
-    // Simulate instantaneous auditable maker-checker resolution
-    setTimeout(() => {
-      setIsProcessing(false);
-      setActionDone(decision);
-      setTimeout(() => {
-        setActionDone(null);
-        closeMakerChecker();
-      }, 1500);
-    }, 600);
+  const finish = () => {
+    window.setTimeout(() => {
+      setActionDone(null);
+      setOutcome(null);
+      setRecordError(null);
+      closeMakerChecker();
+    }, 2600);
   };
+
+  const handleDecision = async (decision: "APPROVED" | "REJECTED") => {
+    setFormError(null);
+    setRecordError(null);
+    if (!checkerEmail.includes("@")) {
+      setFormError("Checker email is required — a dual-control decision must name its checker.");
+      return;
+    }
+    setIsProcessing(true);
+    try {
+      // 1. Execute first (if wired), so the audit records the true outcome.
+      const exec = decision === "APPROVED"
+        ? await executeWiredAction(req.actionType, req.resourceId, req.reason, checkerEmail.trim())
+        : { attempted: false, executed: false, code: "REJECTED_NO_EXECUTION" } as ExecutionOutcome;
+      setOutcome(exec);
+      // 2. Persist the decision. If this fails the screen says so loudly —
+      // an unrecorded approval is never presented as complete.
+      const r = await fetch("/api/admin/maker-checker/decisions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requestId: req.id,
+          decision,
+          actionType: req.actionType,
+          resourceType: req.resourceType,
+          resourceId: req.resourceId,
+          resourceName: req.resourceName,
+          requestedBy: req.requestedBy,
+          reviewer: checkerEmail.trim(),
+          reviewNotes: reviewNotes.trim() || undefined,
+          executed: exec.executed,
+          executionCode: exec.code,
+        }),
+      });
+      const json = await r.json().catch(() => null);
+      if (!r.ok || !json?.success) {
+        setRecordError(
+          `The decision was NOT recorded (${json?.error?.code || `HTTP_${r.status}`}). ` +
+          (exec.executed
+            ? "The engine call succeeded, so the action executed WITHOUT an audit entry — re-open this request and re-decide so the trail is complete."
+            : "Nothing was approved and nothing executed — try again."),
+        );
+        return;
+      }
+      setActionDone(decision);
+      finish();
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const isAuto = autoDecision?.decision === "AUTO_EXECUTE";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
@@ -130,20 +240,37 @@ export const MakerCheckerModal: React.FC = () => {
 
         {actionDone ? (
           <div className="p-6 text-center space-y-3">
-            <div className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 mx-auto flex items-center justify-center">
-              <Check className="w-6 h-6" />
+            <div className={`w-12 h-12 rounded-full mx-auto flex items-center justify-center ${actionDone === "APPROVED" && outcome?.executed ? "bg-emerald-500/20 text-emerald-400" : actionDone === "APPROVED" ? "bg-amber-500/20 text-amber-400" : "bg-red-500/20 text-red-400"}`}>
+              {actionDone === "APPROVED" && outcome?.executed ? <Check className="w-6 h-6" /> : actionDone === "APPROVED" ? <ShieldAlert className="w-6 h-6" /> : <X className="w-6 h-6" />}
             </div>
             <h4 className="text-base font-bold text-white">
               {actionDone === "APPROVED"
-                ? autoDecision?.decision === "AUTO_EXECUTE"
+                ? isAuto
                   ? "Auto-Approved by Automation Rule"
-                  : "Approved & Executed"
+                  : outcome?.executed
+                    ? "Approved & Executed"
+                    : "Approved — Recorded, Not Executed"
                 : "Rejected"}
             </h4>
-            <p className="text-xs text-slate-400 font-mono">
-              {actionDone === "APPROVED" && autoDecision?.decision === "AUTO_EXECUTE"
-                ? `Automation rule "${autoDecision.ruleName}" matched the policy — dual-control bypassed under approved limits. Audit entry recorded.`
-                : "Cryptographic audit log entry recorded."}
+            <p className="text-xs text-slate-400 font-mono leading-relaxed">
+              {actionDone === "APPROVED" && isAuto && (
+                <>Automation rule &ldquo;{autoDecision?.ruleName}&rdquo; matched — dual-control bypassed under approved limits. Audit entry recorded. </>
+              )}
+              {actionDone === "APPROVED" && !isAuto && outcome?.executed && (
+                <>Engine result: status {outcome.status}{outcome.restrictions?.length ? ` · restrictions ${outcome.restrictions.join(", ")}` : " · no restrictions"}. Decision recorded in the audit trail (hub → Audit). </>
+              )}
+              {actionDone === "APPROVED" && !isAuto && !outcome?.executed && outcome?.attempted && (
+                <>The engine refused the execution ({outcome.code}: {outcome.message}). The approval is recorded; nothing changed. </>
+              )}
+              {actionDone === "APPROVED" && !isAuto && !outcome?.attempted && (
+                <>No execution engine is wired to {req.actionType} — nothing was changed. The approval is recorded in the audit trail. </>
+              )}
+              {isAuto && outcome && !outcome.executed && outcome.attempted && (
+                <>Engine execution failed ({outcome.code}). </>
+              )}
+              {actionDone === "REJECTED" && (
+                <>Decision recorded in the audit trail (hub → Audit). No execution attempted.</>
+              )}
             </p>
           </div>
         ) : (
@@ -153,7 +280,7 @@ export const MakerCheckerModal: React.FC = () => {
               <div className="flex items-center gap-2 rounded-2xl border border-sky-500/25 bg-sky-500/5 px-4 py-3 text-xs text-sky-300">
                 <Loader2 className="w-4 h-4 animate-spin" /> Consulting automation rules for this action…
               </div>
-            ) : autoDecision?.decision === "AUTO_EXECUTE" ? (
+            ) : isAuto ? (
               <div className="flex items-start gap-2.5 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
                 <Zap className="w-4 h-4 text-emerald-400 mt-0.5" />
                 <div>
@@ -161,7 +288,7 @@ export const MakerCheckerModal: React.FC = () => {
                     Automation rule matched — this request will be auto-approved.
                   </p>
                   <p className="text-[10px] text-emerald-200/70 mt-0.5">
-                    Rule: “{autoDecision.ruleName}” · decision {autoDecision.decisionId} · audit entry written · no dual-control needed
+                    Rule: “{autoDecision?.ruleName}” · decision {autoDecision?.decisionId} · audit entry written · no dual-control needed
                   </p>
                 </div>
               </div>
@@ -198,10 +325,24 @@ export const MakerCheckerModal: React.FC = () => {
               </div>
             </div>
 
+            {/* Checker identity (required for the audit trail) */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">
+                Checker Email (Required — names the approver in the audit trail)
+              </label>
+              <input
+                type="email"
+                value={checkerEmail}
+                onChange={(e) => setCheckerEmail(e.target.value)}
+                placeholder="checker.name@koriepay.com"
+                className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-white/10 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
+              />
+            </div>
+
             {/* Reviewer Note Input */}
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Checker Approval / Rejection Notes (Required for Audit Trail)
+                Checker Approval / Rejection Notes (Stored with the audit entry)
               </label>
               <textarea
                 rows={2}
@@ -211,6 +352,12 @@ export const MakerCheckerModal: React.FC = () => {
                 className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-white/10 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
               />
             </div>
+
+            {(formError || recordError) && (
+              <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-300 leading-relaxed">
+                {recordError || formError}
+              </div>
+            )}
 
             {/* Action Buttons */}
             <div className="flex items-center gap-3 pt-2">

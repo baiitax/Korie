@@ -144,7 +144,8 @@ export type AutomationAuditKind =
   | "CONNECTOR_REMOVED"
   | "CONNECTOR_PROBED"
   | "CONNECTOR_CAPABILITIES"
-  | "PARAMETERS_UPDATED";
+  | "PARAMETERS_UPDATED"
+  | "MAKER_CHECKER_DECISION";
 
 export interface AutomationAuditEntry {
   id: string;
@@ -159,6 +160,14 @@ export interface AutomationAuditEntry {
   detail: string;
   decisionId?: string;
   outcome?: "SUCCESS" | "FAILED";
+  /** Maker-checker manual decisions (kind MAKER_CHECKER_DECISION). */
+  checkerDecision?: "APPROVED" | "REJECTED";
+  actionType?: string;
+  resourceType?: string;
+  resourceId?: string;
+  reviewNotes?: string;
+  executed?: boolean;
+  executionCode?: string;
 }
 
 /* ------------------------------------------------ system parameters */

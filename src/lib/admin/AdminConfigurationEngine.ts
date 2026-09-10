@@ -692,6 +692,50 @@ export class AdminConfigurationEngine {
     return list.slice(0, limit);
   }
 
+  /**
+   * Records a manual maker-checker decision in the persisted audit trail. The dual-control
+   * modal used to resolve approvals in component state only ("audit log entry recorded"
+   * was printed without writing anything); every manual decision now lands here, viewable
+   * in the hub's Audit tab under kind MAKER_CHECKER_DECISION.
+   */
+  public recordMakerCheckerDecision(input: {
+    requestId: string;
+    decision: 'APPROVED' | 'REJECTED';
+    actionType: string;
+    resourceType: string;
+    resourceId: string;
+    resourceName: string;
+    requestedBy: string;
+    reviewer: string;
+    reviewNotes?: string;
+    executed: boolean;
+    executionCode?: string;
+  }): AutomationAuditEntry {
+    this.hydrate();
+    const verb = input.decision === 'APPROVED' ? 'approved' : 'rejected';
+    const exec = input.executed
+      ? 'executed against the engine'
+      : input.decision === 'APPROVED'
+        ? 'recorded only — no execution engine is wired to this action, nothing was changed'
+        : 'no execution attempted';
+    this.logAudit(
+      input.reviewer,
+      'MAKER_CHECKER_DECISION',
+      `${input.reviewer} ${verb} ${input.actionType} on ${input.resourceType} ${input.resourceName} (maker ${input.requestedBy}; request ${input.requestId}) — ${exec}.`,
+      {
+        checkerDecision: input.decision,
+        actionType: input.actionType,
+        resourceType: input.resourceType,
+        resourceId: input.resourceId,
+        reviewNotes: input.reviewNotes || undefined,
+        executed: input.executed,
+        executionCode: input.executionCode,
+        outcome: input.executed || input.decision === 'REJECTED' ? 'SUCCESS' : 'FAILED',
+      },
+    );
+    return this.audit[0];
+  }
+
   public getGateway() {
     return ApiGatewayEngine.getInstance();
   }

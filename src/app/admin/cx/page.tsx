@@ -917,6 +917,96 @@ export default function CustomerExperiencePage() {
             </div>
           </div>
 
+          {/* Feedback culture — GAP-6: what drives the book, who returns, which agents attract complaints */}
+          <div className="space-y-3">
+            <p className="text-[10px] font-mono uppercase text-slate-500">
+              Feedback culture · {snapshot.drivers.note}
+            </p>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="rounded-3xl bg-[#0b1324] border border-white/10 p-4 space-y-3">
+                <p className="text-xs font-bold text-amber-300">Complaint drivers (Pareto)</p>
+                <p className="text-[10px] text-slate-500 leading-snug">{snapshot.drivers.paretoNote}</p>
+                {snapshot.drivers.categoryPareto.length === 0 ? (
+                  <p className="text-[11px] text-slate-400">No cases — nothing to rank.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {snapshot.drivers.categoryPareto.map((row) => (
+                      <li key={row.category} className="space-y-1">
+                        <div className="flex items-center justify-between gap-2 text-[11px]">
+                          <span className="font-mono text-slate-200">{row.category.replace(/_/g, " ")}</span>
+                          <span className="font-mono text-slate-400">
+                            {row.cases} case(s) · {row.sharePct}%
+                          </span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                          <div className="h-full rounded-full bg-amber-400/80" style={{ width: `${Math.min(100, row.sharePct)}%` }} />
+                        </div>
+                        <p className="text-[10px] font-mono text-slate-500">
+                          {row.openCases} open · exposure {totals(row.exposure)}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div className="rounded-3xl bg-[#0b1324] border border-white/10 p-4 space-y-3">
+                <p className="text-xs font-bold text-sky-300">Repeat complainants</p>
+                <p className="text-[10px] text-slate-500 leading-snug">
+                  Customers with 2+ cases in this book — phones masked, references linked to the queue below.
+                </p>
+                {snapshot.drivers.repeatComplainants.length === 0 ? (
+                  <p className="text-[11px] text-slate-400">No customer has filed twice in this book.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {snapshot.drivers.repeatComplainants.map((r) => (
+                      <li key={r.customerId} className="rounded-2xl bg-slate-950/50 border border-white/5 p-3 space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-mono text-slate-200">{r.phoneMasked}</span>
+                          <span className="text-[10px] font-mono text-sky-300 font-bold">
+                            {r.cases} case(s) · {r.openCases} open
+                          </span>
+                        </div>
+                        <p className="text-[10px] font-mono text-slate-400">{r.references.join(" · ")}</p>
+                        <p className="text-[10px] text-slate-500">{r.categories.join(", ").replace(/_/g, " ")}</p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div className="rounded-3xl bg-[#0b1324] border border-white/10 p-4 space-y-3">
+                <p className="text-xs font-bold text-violet-300">Complaints per agent → quality</p>
+                <p className="text-[10px] text-slate-500 leading-snug">
+                  Cases naming an agent, resolved against the agent registry. Unresolved ids are shown raw, never guessed.
+                </p>
+                {snapshot.drivers.agentQuality.length === 0 ? (
+                  <p className="text-[11px] text-slate-400">No case in this book names an agent.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {snapshot.drivers.agentQuality.map((a) => (
+                      <li key={a.agentId} className="rounded-2xl bg-slate-950/50 border border-white/5 p-3 space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-bold text-slate-200">
+                            {a.agentName || <span className="font-mono text-amber-300">{a.agentId} (unregistered)</span>}
+                          </span>
+                          <span className="text-[10px] font-mono text-violet-300 font-bold">
+                            {a.cases} case(s) · {a.openCases} open
+                          </span>
+                        </div>
+                        {a.agentName && <p className="text-[10px] font-mono text-slate-500">{a.agentId}</p>}
+                        <p className="text-[10px] text-slate-500">
+                          {a.categories.join(", ").replace(/_/g, " ")} · exposure {totals(a.exposure)}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <a href="/admin/agents" className="inline-block text-[11px] font-mono text-violet-300 hover:text-violet-200 hover:underline">
+                  Open agents console →
+                </a>
+              </div>
+            </div>
+          </div>
+
           {/* Provenance */}
           <div className="rounded-3xl bg-[#0b1324] border border-white/10 p-4 space-y-3">
             <p className="flex items-center gap-1.5 text-xs font-bold text-slate-200">

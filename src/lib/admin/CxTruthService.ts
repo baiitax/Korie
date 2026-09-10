@@ -26,6 +26,7 @@ import { DisputeChargebackEngine } from '@/lib/recovery/DisputeChargebackEngine'
 import { RefundReversalEngine } from '@/lib/recovery/RefundReversalEngine';
 import { CustomerHarmIncidentEngine } from '@/lib/consumer/CustomerHarmIncidentEngine';
 import { GeneralLedgerEngine } from '@/lib/financial/GeneralLedgerEngine';
+import { AgentManagementEngine } from '@/lib/agents/AgentManagementEngine';
 import type {
   ComplaintRecord,
   ComplaintPriority,
@@ -253,6 +254,36 @@ export interface CxSnapshot {
     affectedCustomersMitigated: number;
     exposure: CurrencyTotal[];
     regulatoryNotified: number;
+    note: string;
+  };
+  /** GAP-6 feedback culture: what drives the book, who keeps coming back, which agents attract complaints. */
+  drivers: {
+    categoryPareto: {
+      category: string;
+      cases: number;
+      openCases: number;
+      sharePct: number;
+      cumulativePct: number;
+      exposure: CurrencyTotal[];
+    }[];
+    paretoNote: string;
+    repeatComplainants: {
+      customerId: string;
+      phoneMasked: string;
+      cases: number;
+      openCases: number;
+      categories: string[];
+      references: string[];
+      latestAt: string;
+    }[];
+    agentQuality: {
+      agentId: string;
+      agentName: string | null;
+      cases: number;
+      openCases: number;
+      categories: string[];
+      exposure: CurrencyTotal[];
+    }[];
     note: string;
   };
   sources: CxSource[];
@@ -617,6 +648,85 @@ export class CxTruthService {
       agentLoad.set(c.agentId, entry);
     });
 
+    // ------------------------------------------------- drivers (GAP-6: feedback culture)
+    const categoryGroups = new Map<string, typeof scoped>();
+    scoped.forEach((c) => {
+      const list = categoryGroups.get(c.category) || [];
+      list.push(c);
+      categoryGroups.set(c.category, list);
+    });
+    const categoryPareto = Array.from(categoryGroups.entries())
+      .map(([category, list]) => ({
+        category,
+        cases: list.length,
+        openCases: list.filter((c) => OPEN_STATUSES.includes(c.status)).length,
+        sharePct: scoped.length > 0 ? Number(((list.length / scoped.length) * 100).toFixed(1)) : 0,
+        cumulativePct: 0,
+        exposure: sumByCurrency(list, (c) => c.currency, (c) => c.disputedAmount || 0),
+      }))
+      .sort((a, b) => b.cases - a.cases);
+    let paretoRunning = 0;
+    categoryPareto.forEach((row) => {
+      paretoRunning = Number((paretoRunning + row.sharePct).toFixed(1));
+      row.cumulativePct = paretoRunning;
+    });
+    const paretoCoverIdx = categoryPareto.findIndex((row) => row.cumulativePct >= 80);
+
+    const complainantGroups = new Map<string, typeof scoped>();
+    scoped.forEach((c) => {
+      const list = complainantGroups.get(c.customerId) || [];
+      list.push(c);
+      complainantGroups.set(c.customerId, list);
+    });
+    const repeatComplainants = Array.from(complainantGroups.entries())
+      .filter(([, list]) => list.length >= 2)
+      .map(([customerId, list]) => ({
+        customerId,
+        phoneMasked: maskPhone(list[0].customerPhone),
+        cases: list.length,
+        openCases: list.filter((c) => OPEN_STATUSES.includes(c.status)).length,
+        categories: Array.from(new Set(list.map((c) => c.category))).sort(),
+        references: list.map((c) => c.complaintReference),
+        latestAt: list.map((c) => c.createdAt).sort().reverse()[0],
+      }))
+      .sort((a, b) => b.cases - a.cases || Date.parse(b.latestAt) - Date.parse(a.latestAt));
+
+    const agentCaseGroups = new Map<string, typeof scoped>();
+    scoped.forEach((c) => {
+      if (!c.agentId) return;
+      const list = agentCaseGroups.get(c.agentId) || [];
+      list.push(c);
+      agentCaseGroups.set(c.agentId, list);
+    });
+    const agentRegistry = (() => {
+      try {
+        return AgentManagementEngine.getInstance();
+      } catch {
+        return null;
+      }
+    })();
+    const agentQuality = Array.from(agentCaseGroups.entries())
+      .map(([agentId, list]) => {
+        let agentName: string | null = null;
+        try {
+          const found = agentRegistry?.getAgent(agentId) || agentRegistry?.getAgents().find((a) => a.agentCode === agentId);
+          agentName = found?.tradingName || found?.legalName || null;
+        } catch {
+          agentName = null;
+        }
+        return {
+          agentId,
+          agentName,
+          cases: list.length,
+          openCases: list.filter((c) => OPEN_STATUSES.includes(c.status)).length,
+          categories: Array.from(new Set(list.map((c) => c.category))).sort(),
+          exposure: sumByCurrency(list, (c) => c.currency, (c) => c.disputedAmount || 0),
+        };
+      })
+      .sort((a, b) => b.cases - a.cases)
+      .slice(0, 10);
+    const unattributedCases = scoped.filter((c) => !c.agentId).length;
+
     let incidents: CxIncidentRow[] = [];
     try {
       const harmEngine = CustomerHarmIncidentEngine.getInstance();
@@ -740,6 +850,21 @@ export class CxTruthService {
     }
     if (reopens > 0) {
       warnings.push(`${reopens} case(s) were reopened after reaching a terminal state — resolution quality, not just speed, is what these cases measure.`);
+    }
+    if (repeatComplainants.length > 0) {
+      warnings.push(
+        `${repeatComplainants.length} customer(s) filed 2+ cases (${repeatComplainants.reduce((a, r) => a + r.cases, 0)} cases between them) — repeat contact is the cheapest churn signal in this book.`,
+      );
+    }
+    if (categoryPareto.length > 0 && categoryPareto[0].sharePct >= 50 && scoped.length >= 3) {
+      warnings.push(
+        `One category dominates the book: ${categoryPareto[0].category} is ${categoryPareto[0].sharePct}% of ${scoped.length} cases. Prevention effort belongs there first.`,
+      );
+    }
+    if (agentQuality.length > 0 && unattributedCases > 0) {
+      warnings.push(
+        `${unattributedCases} case(s) name no agent, so the per-agent quality table is a floor, not a census — unattributed cases cannot exonerate or implicate anyone.`,
+      );
     }
     warnings.push(
       'Redress figures are reported per engine and never summed across engines: a complaint compensation, its refund and its dispute can all describe the same customer harm.',
@@ -875,6 +1000,18 @@ export class CxTruthService {
         exposure: sumByCurrency(activeIncidents, (i) => i.currency, (i) => i.exposure),
         regulatoryNotified: incidents.filter((i) => i.regulatoryNotified).length,
         note: 'Prevention works off repeats: a category that keeps hitting the same agent, terminal or market is the unit of systemic harm. Raising an incident from a cluster writes a real CustomerHarmIncidentEngine record.',
+      },
+      drivers: {
+        categoryPareto,
+        paretoNote:
+          categoryPareto.length === 0
+            ? 'The book is empty — there are no drivers to rank.'
+            : paretoCoverIdx >= 0
+              ? `${paretoCoverIdx + 1} of ${categoryPareto.length} ${categoryPareto.length === 1 ? 'category accounts' : 'categories account'} for 80%+ of the book — ranked by case count, exposure shown per currency.`
+              : 'No 80% threshold is reached — the book is spread thin across categories.',
+        repeatComplainants: repeatComplainants.slice(0, 10),
+        agentQuality,
+        note: 'Drivers are counted, not modelled: category share, customers with 2+ cases, and cases per named agent. Agent names resolve against the agent registry where the complaint names a registered agent; unresolved ids are shown raw rather than guessed.',
       },
       sources,
       warnings,

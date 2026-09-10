@@ -296,6 +296,38 @@ export class BankCoreEngine {
   }
 
   /** Inbound credit from the partner bank (e.g. funding webhook) — nostros in, wallet up. */
+  /**
+   * Restriction enforcement — the account lifecycle engine records restrictions
+   * (applyRestriction) and this is where the money paths honour them. A FULL_FREEZE
+   * blocks every direction; directional restrictions block only the named side.
+   * BENEFICIARY_DISABLED / DEVICE_RESTRICTED have no beneficiary/device model in the
+   * bank core, so they are recorded on the account but not enforced here.
+   */
+  private restrictionBlock(
+    account: { status: string; restrictions?: string[] },
+    side: 'DEBIT' | 'CREDIT',
+    rail: 'INBOUND' | 'INTERNAL' | 'NIP',
+  ): { code: string; message: string } | null {
+    const restrictions = account.restrictions || [];
+    const frozen = account.status === 'FROZEN' || restrictions.includes('FULL_FREEZE');
+    if (frozen) {
+      return { code: 'ACCOUNT_FROZEN', message: 'This account is frozen — no credits or debits are permitted until the freeze is lifted.' };
+    }
+    if (side === 'DEBIT' && restrictions.includes('CREDIT_ONLY')) {
+      return { code: 'ACCOUNT_CREDIT_ONLY', message: 'This account accepts credits only — debits are restricted.' };
+    }
+    if (side === 'CREDIT' && restrictions.includes('DEBIT_ONLY')) {
+      return { code: 'ACCOUNT_DEBIT_ONLY', message: 'This account permits debits only — inbound credits are restricted.' };
+    }
+    if (rail !== 'INBOUND' && restrictions.includes('TRANSFER_DISABLED')) {
+      return { code: 'TRANSFERS_DISABLED', message: 'Outbound transfers are disabled on this account.' };
+    }
+    if (rail === 'NIP' && restrictions.includes('WITHDRAWAL_DISABLED')) {
+      return { code: 'WITHDRAWALS_DISABLED', message: 'Withdrawals to other banks are disabled on this account.' };
+    }
+    return null;
+  }
+
   public async creditInbound(params: { accountNumber: string; amount: number; narration?: string }): Promise<{
     success: boolean;
     transaction?: BankTransaction;
@@ -308,6 +340,8 @@ export class BankCoreEngine {
     if (!account || account.currency !== 'NGN') {
       return { success: false, code: 'ACCOUNT_NOT_FOUND', message: 'No NGN account with that number.' };
     }
+    const blocked = this.restrictionBlock(account, 'CREDIT', 'INBOUND');
+    if (blocked) return { success: false, ...blocked };
     if (!Number.isInteger(amount) || amount <= 0) {
       return { success: false, code: 'INVALID_AMOUNT', message: 'Enter a positive whole-₦ amount.' };
     }
@@ -355,6 +389,10 @@ export class BankCoreEngine {
     const to = AccountLifecycleEngine.getInstance().getAccount(params.toAccount);
     if (!from || !to) return { success: false, code: 'ACCOUNT_NOT_FOUND', message: 'One of the accounts was not found.' };
     if (from.accountNumber === to.accountNumber) return { success: false, code: 'SAME_ACCOUNT', message: 'Choose two different accounts.' };
+    const fromBlocked = this.restrictionBlock(from, 'DEBIT', 'INTERNAL');
+    if (fromBlocked) return { success: false, ...fromBlocked };
+    const toBlocked = this.restrictionBlock(to, 'CREDIT', 'INTERNAL');
+    if (toBlocked) return { success: false, ...toBlocked };
     if (!Number.isInteger(amount) || amount <= 0) return { success: false, code: 'INVALID_AMOUNT', message: 'Enter a positive whole-₦ amount.' };
     const available = this.walletOf(from.customerId);
     if (available < amount) {
@@ -405,6 +443,8 @@ export class BankCoreEngine {
     const amount = Math.round(params.amount);
     const from = AccountLifecycleEngine.getInstance().getAccount(params.fromAccount);
     if (!from || from.currency !== 'NGN') return { success: false, code: 'ACCOUNT_NOT_FOUND', message: 'No NGN account with that number.' };
+    const fromBlocked = this.restrictionBlock(from, 'DEBIT', 'NIP');
+    if (fromBlocked) return { success: false, ...fromBlocked };
     if (!Number.isInteger(amount) || amount <= 0) return { success: false, code: 'INVALID_AMOUNT', message: 'Enter a positive whole-₦ amount.' };
     const dest = String(params.destinationAccount || '').replace(/\D/g, '');
     if (dest.length < 10 || !params.destinationBank.trim()) {
