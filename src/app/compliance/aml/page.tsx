@@ -284,17 +284,22 @@ export default function AmlMonitoringDeskPage() {
         ) : (
           <ul className="divide-y divide-[var(--border)]">
             {recentAlerts.map((alert) => (
-              <li key={alert.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5">
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13px] font-medium">{alert.reference}</span>
-                  <span className="cmp-cell-muted block truncate text-[11.5px]">
-                    {alert.scenarioCode ? `${alert.scenarioCode} · ` : ''}
-                    {alert.subjectName} · {alert.transactionReference ?? '—'}
+              <li key={alert.id}>
+                <Link
+                  href={`/compliance/alerts/${alert.id}`}
+                  className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5 transition hover:bg-[var(--surface-hover,transparent)]"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[13px] font-medium">{alert.reference}</span>
+                    <span className="cmp-cell-muted block truncate text-[11.5px]">
+                      {alert.scenarioCode ? `${alert.scenarioCode} · ` : ''}
+                      {alert.subjectName} · {alert.transactionReference ?? '—'}
+                    </span>
                   </span>
-                </span>
-                <StatusChip status={alert.severity} label={humanizeEnum(alert.severity)} severity />
-                <StatusChip status={alert.status} label={humanizeEnum(alert.status)} />
-                <span className="tabular text-[13px]">{formatMoney(alert.amount, alert.currency)}</span>
+                  <StatusChip status={alert.severity} label={humanizeEnum(alert.severity)} severity />
+                  <StatusChip status={alert.status} label={humanizeEnum(alert.status)} />
+                  <span className="tabular text-[13px]">{formatMoney(alert.amount, alert.currency)}</span>
+                </Link>
               </li>
             ))}
           </ul>
