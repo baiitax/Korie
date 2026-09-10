@@ -43,6 +43,7 @@ interface FeedTransaction {
   type: string;
   status: string;
   amount: number;
+  fee: number | null;
   currency: string;
   source_currency: string | null;
   destination_currency: string | null;
@@ -85,11 +86,16 @@ const SLA_HOURS: Record<string, number> = {
 const CATCHUP_DAYS = 7;
 const STRUCTURING_SINGLE_TXN_CAP = 5_000_000; // CBN currency reporting threshold
 
+/**
+ * Total NGN-equivalent debit of a transaction (principal + fee): the money
+ * that actually left the wallet is the honest basis for volume scenarios.
+ */
 function ngnAmount(tx: FeedTransaction, xofToNgn: number | null): number | null {
-  if ((tx.currency || "NGN") === "NGN") return Number(tx.amount);
+  const debit = Number(tx.amount) + Number(tx.fee ?? 0);
+  if ((tx.currency || "NGN") === "NGN") return debit;
   if ((tx.currency || "") === "XOF") {
     if (xofToNgn === null) return null;
-    return Number(tx.amount) * xofToNgn;
+    return debit * xofToNgn;
   }
   return null; // USD or unknown — not silently converted
 }
@@ -161,7 +167,7 @@ export async function runAmlMonitoringSweep(
   const since = new Date(Date.now() - CATCHUP_DAYS * 86400_000).toISOString();
   const { data: pending, error: pendingErr } = await admin
     .from("transactions")
-    .select("id, reference, wallet_id, type, status, amount, currency, source_currency, destination_currency, created_at, metadata")
+    .select("id, reference, wallet_id, type, status, amount, fee, currency, source_currency, destination_currency, created_at, metadata")
     .is("aml_evaluated_at", null)
     .in("status", ["SUCCESSFUL", "PENDING", "PROCESSING", "INITIATED"])
     .gte("created_at", since)
@@ -217,7 +223,7 @@ export async function runAmlMonitoringSweep(
   const activitySince = new Date(Date.now() - (maxWindow + CATCHUP_DAYS * 86400) * 1000).toISOString();
   const { data: activity } = await admin
     .from("transactions")
-    .select("id, reference, wallet_id, type, status, amount, currency, source_currency, destination_currency, created_at, metadata")
+    .select("id, reference, wallet_id, type, status, amount, fee, currency, source_currency, destination_currency, created_at, metadata")
     .in("status", ["SUCCESSFUL", "PENDING", "PROCESSING", "INITIATED"])
     .gte("created_at", activitySince)
     .order("created_at", { ascending: true })
