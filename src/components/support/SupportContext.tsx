@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode } from 'react';
 import {
   SupportOfficer,
   SupportTicket,
@@ -25,9 +25,6 @@ import {
 } from '@/types/support';
 import {
   MOCK_SUPPORT_OFFICERS,
-  MOCK_SUPPORT_TICKETS,
-  MOCK_CUSTOMER_360_MAP,
-  MOCK_TRANSACTION_INVESTIGATION_MAP,
   MOCK_SUPPORT_PLAYBOOKS,
   MOCK_KNOWLEDGE_ARTICLES,
   MOCK_SUPPORT_INCIDENTS,
@@ -40,6 +37,13 @@ import {
   MOCK_SUPPORT_AUDIT_LOGS,
 } from '@/services/supportDataService';
 import { SupportLocale, getSupportTranslation } from '@/locales/support';
+import {
+  MappedTicket,
+  toSupportTickets,
+  TICKET_ACTION_TO_STATUS,
+  TICKET_CATEGORY_TO_COMPLAINT,
+  TICKET_PRIORITY_TO_COMPLAINT,
+} from '@/lib/support/complaintTicketAdapter';
 
 interface SupportContextType {
   locale: SupportLocale;
@@ -51,9 +55,22 @@ interface SupportContextType {
   setCurrentOfficer: (officer: SupportOfficer) => void;
   officers: SupportOfficer[];
 
-  tickets: SupportTicket[];
-  activeTicket: SupportTicket | null;
+  /** The real complaint book, projected into the desk's ticket model. */
+  tickets: MappedTicket[];
+  activeTicket: MappedTicket | null;
   setActiveTicketId: (ticketId: string | null) => void;
+  ticketsPhase: 'loading' | 'ready' | 'error';
+  ticketsError: string | null;
+  ticketsSyncedAt: string | null;
+  refreshTickets: () => Promise<void>;
+  /** Set when an operator action was refused by the engine, with the reason. */
+  ticketActionError: string | null;
+  dismissTicketActionError: () => void;
+  /**
+   * Datasets on this console that are still fixtures. Rendered as an explicit
+   * simulation-layer flag — the ticket book itself is not on this list.
+   */
+  simulationLayer: { key: string; why: string }[];
 
   customer360Map: Record<string, Customer360Context>;
   transactionInvestigationMap: Record<string, TransactionInvestigationContext>;
@@ -68,14 +85,14 @@ interface SupportContextType {
   healthScore: SupportHealthScore;
   auditLogs: SupportAuditEntry[];
 
-  // Actions
-  createTicket: (ticketInput: Partial<SupportTicket>) => string;
-  assignTicket: (ticketId: string, officerId: string) => void;
-  escalateTicket: (ticketId: string, targetRole: SupportRole, rationale: string) => void;
-  sendTicketMessage: (ticketId: string, content: string, isInternalNote: boolean, macroKey?: string) => void;
-  resolveTicket: (ticketId: string, resolutionSummary?: string) => void;
-  closeTicket: (ticketId: string) => void;
-  reopenTicket: (ticketId: string, reason: string) => void;
+  // Actions — every one of these writes to ComplaintDisputeEngine
+  createTicket: (ticketInput: Partial<SupportTicket>) => Promise<string>;
+  assignTicket: (ticketId: string, officerId: string) => Promise<void>;
+  escalateTicket: (ticketId: string, targetRole: SupportRole, rationale: string) => Promise<void>;
+  sendTicketMessage: (ticketId: string, content: string, isInternalNote: boolean, macroKey?: string) => Promise<void>;
+  resolveTicket: (ticketId: string, resolutionSummary?: string) => Promise<void>;
+  closeTicket: (ticketId: string) => Promise<void>;
+  reopenTicket: (ticketId: string, reason: string) => Promise<void>;
   linkTicketToIncident: (ticketId: string, incidentId: string) => void;
   createIncident: (incidentInput: Partial<SupportIncident>) => string;
   resolveIncident: (incidentId: string) => void;
@@ -111,13 +128,21 @@ export const SupportProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [officers] = useState<SupportOfficer[]>(MOCK_SUPPORT_OFFICERS);
   const [currentOfficer, setCurrentOfficer] = useState<SupportOfficer>(MOCK_SUPPORT_OFFICERS[0]);
 
-  const [tickets, setTickets] = useState<SupportTicket[]>(MOCK_SUPPORT_TICKETS);
-  const [activeTicketId, setActiveTicketId] = useState<string | null>(MOCK_SUPPORT_TICKETS[0]?.id || null);
+  // The ticket book is now the engine's complaint book. It starts EMPTY and is
+  // never seeded: an empty book is the honest state of a system that has
+  // received nothing yet, where five fabricated tickets told the opposite story.
+  const [tickets, setTickets] = useState<MappedTicket[]>([]);
+  const [ticketsPhase, setTicketsPhase] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [ticketsError, setTicketsError] = useState<string | null>(null);
+  const [ticketsSyncedAt, setTicketsSyncedAt] = useState<string | null>(null);
+  const [ticketActionError, setTicketActionError] = useState<string | null>(null);
+  const [activeTicketId, setActiveTicketId] = useState<string | null>(null);
 
-  const [customer360Map] = useState<Record<string, Customer360Context>>(MOCK_CUSTOMER_360_MAP);
-  const [transactionInvestigationMap] = useState<Record<string, TransactionInvestigationContext>>(
-    MOCK_TRANSACTION_INVESTIGATION_MAP
-  );
+  // Empty by design. There is no customer-360 or transaction-investigation
+  // engine behind these maps, so the desk shows "not recorded" instead of a
+  // believable profile assembled from nothing.
+  const [customer360Map] = useState<Record<string, Customer360Context>>({});
+  const [transactionInvestigationMap] = useState<Record<string, TransactionInvestigationContext>>({});
   const [playbooks] = useState<SupportPlaybook[]>(MOCK_SUPPORT_PLAYBOOKS);
   const [knowledgeArticles] = useState<KnowledgeArticle[]>(MOCK_KNOWLEDGE_ARTICLES);
   const [incidents, setIncidents] = useState<SupportIncident[]>(MOCK_SUPPORT_INCIDENTS);
@@ -132,6 +157,23 @@ export const SupportProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [auditLogs, setAuditLogs] = useState<SupportAuditEntry[]>(MOCK_SUPPORT_AUDIT_LOGS);
 
   const t = useMemo(() => getSupportTranslation(locale), [locale]);
+
+  /**
+   * Datasets on this console that are still fixtures, with the reason. The
+   * ticket book is NOT on this list — it reads ComplaintDisputeEngine. Keeping
+   * the list here (rather than in each page) means a page cannot quietly render
+   * a fixture without the shell being able to say so.
+   */
+  const simulationLayer = useMemo(
+    () => [
+      { key: 'officers', why: 'No staff/HR engine exists — the roster is a fixture. Assignments write the officer email onto the real case.' },
+      { key: 'incidents', why: 'The desk incident log is a fixture. Systemic harm incidents live in CustomerHarmIncidentEngine (admin → Customer Experience).' },
+      { key: 'automation', why: 'No automation engine exists; rules and execution logs are fixtures.' },
+      { key: 'qa / training / capacity', why: 'No QA, training or workforce engine exists — these are fixtures.' },
+      { key: 'customer 360 / transaction investigation', why: 'No such engine exists. The panels say "not recorded" rather than assembling a profile from nothing.' },
+    ],
+    []
+  );
 
   const activeTicket = useMemo(() => {
     return tickets.find((t) => t.id === activeTicketId) || null;
@@ -154,232 +196,189 @@ export const SupportProvider: React.FC<{ children: ReactNode }> = ({ children })
     setAuditLogs((prev) => [newLog, ...prev]);
   };
 
-  const createTicket = (ticketInput: Partial<SupportTicket>): string => {
-    const newId = `TCK-${new Date().getFullYear()}-${String(tickets.length + 10491).padStart(5, '0')}`;
-    const newTicketNumber = `KP-SUP-${String(tickets.length + 10491).padStart(5, '0')}`;
+  // ----- engine-backed ticket book -------------------------------------------
+  // Every action below calls ComplaintDisputeEngine through the admin API. The
+  // console keeps no shadow state: if the engine refuses, the refusal is shown
+  // and the local view reports what the engine actually holds.
 
-    const newTicket: SupportTicket = {
-      id: newId,
-      ticketNumber: newTicketNumber,
-      subject: ticketInput.subject || 'Customer Support Inbound Ticket',
-      description: ticketInput.description || '',
-      category: ticketInput.category || 'PENDING_TRANSACTION',
-      priority: ticketInput.priority || 'NORMAL',
-      status: 'NEW',
-      customerType: ticketInput.customerType || 'CUSTOMER',
-      customerId: ticketInput.customerId || 'CUST-NG-88912',
-      customerName: ticketInput.customerName || 'Inbound User',
-      customerEmail: ticketInput.customerEmail,
-      customerPhone: ticketInput.customerPhone,
-      jurisdiction: ticketInput.jurisdiction || currentOfficer.jurisdiction,
-      channel: ticketInput.channel || 'IN_APP',
-      language: ticketInput.language || 'en',
-      assignedOfficerId: ticketInput.assignedOfficerId,
-      assignedOfficerName: ticketInput.assignedOfficerName,
-      tierAssigned: ticketInput.tierAssigned || 'TIER_1_JUNIOR',
-      relatedTransactionId: ticketInput.relatedTransactionId,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      firstResponseDueAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
-      resolutionDueAt: new Date(Date.now() + 4 * 3600 * 1000).toISOString(),
-      slaStatus: 'HEALTHY',
-      tags: ticketInput.tags || ['Inbound'],
-      sentiment: ticketInput.sentiment || 'NEUTRAL',
-      messages: ticketInput.description
-        ? [
-            {
-              id: `MSG-${Date.now()}`,
-              ticketId: newId,
-              senderType: 'CUSTOMER',
-              senderId: ticketInput.customerId || 'CUST-00',
-              senderName: ticketInput.customerName || 'Customer',
-              content: ticketInput.description,
-              isInternalNote: false,
-              timestamp: new Date().toISOString(),
-            },
-          ]
-        : [],
-    };
-
-    setTickets((prev) => [newTicket, ...prev]);
-    setActiveTicketId(newId);
-    logAudit('TICKET_CREATED', 'SUPPORT_TICKET', newId, `Ticket created: ${newTicket.subject}`);
-    return newId;
+  const engineTicket = async (
+    ticketId: string,
+    payload: Record<string, unknown>,
+    action: string
+  ): Promise<boolean> => {
+    setTicketActionError(null);
+    try {
+      const res = await fetch(`/api/complaints/${ticketId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...payload, actor: currentOfficer.email }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || json?.success === false) {
+        setTicketActionError(`${action} refused: ${json?.error || `HTTP ${res.status}`}`);
+        return false;
+      }
+      logAudit(action.toUpperCase().replace(/\s+/g, '_'), 'COMPLAINT', ticketId, `${action} → ${json?.complaint?.status || 'ok'}`);
+      await refreshTickets();
+      return true;
+    } catch (err: any) {
+      setTicketActionError(`${action} failed: ${err?.message || 'request error'}`);
+      return false;
+    }
   };
 
-  const assignTicket = (ticketId: string, officerId: string) => {
+  const refreshTickets = useCallback(async () => {
+    try {
+      const qs =
+        selectedJurisdiction === 'NG' || selectedJurisdiction === 'NE'
+          ? `?country=${selectedJurisdiction}`
+          : '';
+      const res = await fetch(`/api/complaints${qs}`, { cache: 'no-store' });
+      const json = await res.json();
+      if (!res.ok || json?.success === false) {
+        throw new Error(json?.error || `HTTP ${res.status}`);
+      }
+      const complaints = json?.data?.complaints || [];
+      setTickets(toSupportTickets(complaints));
+      setTicketsError(null);
+      setTicketsPhase('ready');
+      setTicketsSyncedAt(new Date().toISOString());
+    } catch (err: any) {
+      setTicketsError(err?.message || 'The complaint engine could not be reached');
+      setTicketsPhase('error');
+    }
+  }, [selectedJurisdiction]);
+
+  useEffect(() => {
+    void refreshTickets();
+    const poll = setInterval(() => void refreshTickets(), 30000);
+    return () => clearInterval(poll);
+  }, [refreshTickets]);
+
+  /**
+   * Intake. The reference the operator sees is the engine\'s own
+   * `complaintReference`; if the engine refuses the case there is no ticket and
+   * the operator is told why. Nothing is minted in the browser.
+   */
+  const createTicket = async (ticketInput: Partial<SupportTicket>): Promise<string> => {
+    setTicketActionError(null);
+    const country = ticketInput.jurisdiction === 'NE' ? 'NE' : 'NG';
+    const category =
+      TICKET_CATEGORY_TO_COMPLAINT[String(ticketInput.category || '')] || 'FAILED_TRANSFER';
+    const priority = TICKET_PRIORITY_TO_COMPLAINT[ticketInput.priority || 'NORMAL'] || 'P2';
+    const description = [ticketInput.subject, ticketInput.description]
+      .filter(Boolean)
+      .join(' — ')
+      .trim();
+
+    try {
+      const res = await fetch('/api/complaints', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerId: ticketInput.customerId,
+          customerName: ticketInput.customerName,
+          customerPhone: ticketInput.customerPhone,
+          country,
+          category,
+          priority,
+          currency: country === 'NE' ? 'XOF' : 'NGN',
+          disputedAmount: Number((ticketInput as Record<string, unknown>).disputedAmount ?? 0) || 0,
+          description,
+          transactionReference: ticketInput.relatedTransactionId,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || json?.success === false) {
+        setTicketActionError(`Case not opened: ${json?.error || `HTTP ${res.status}`}`);
+        return '';
+      }
+      const reference = json?.complaint?.complaintReference || '';
+      logAudit('TICKET_CREATED', 'COMPLAINT', json?.complaint?.id || '', `Case opened: ${reference}`);
+      await refreshTickets();
+      setActiveTicketId(json?.complaint?.id || null);
+      return reference;
+    } catch (err: any) {
+      setTicketActionError(`Case not opened: ${err?.message || 'request error'}`);
+      return '';
+    }
+  };
+
+  const assignTicket = async (ticketId: string, officerId: string) => {
     const targetOfficer = officers.find((o) => o.id === officerId) || currentOfficer;
-    setTickets((prev) =>
-      prev.map((t) => {
-        if (t.id === ticketId) {
-          logAudit('TICKET_ASSIGNED', 'SUPPORT_TICKET', ticketId, `Assigned to ${targetOfficer.fullName} (${targetOfficer.role})`);
-          return {
-            ...t,
-            assignedOfficerId: targetOfficer.id,
-            assignedOfficerName: targetOfficer.fullName,
-            status: t.status === 'NEW' ? 'ASSIGNED' : t.status,
-            updatedAt: new Date().toISOString(),
-          };
-        }
-        return t;
-      })
+    await engineTicket(
+      ticketId,
+      { assignedToEmail: targetOfficer.email, status: 'ASSIGNED' },
+      `Assigned to ${targetOfficer.fullName}`
     );
   };
 
-  const escalateTicket = (ticketId: string, targetRole: SupportRole, rationale: string) => {
-    setTickets((prev) =>
-      prev.map((t) => {
-        if (t.id === ticketId) {
-          const newInternalNote = {
-            id: `MSG-ESC-${Date.now()}`,
-            ticketId,
-            senderType: 'AGENT' as const,
-            senderId: currentOfficer.id,
-            senderName: currentOfficer.fullName,
-            content: `[ESCALATION TO ${targetRole}]: ${rationale}`,
-            isInternalNote: true,
-            timestamp: new Date().toISOString(),
-          };
-
-          logAudit('TICKET_ESCALATED', 'SUPPORT_TICKET', ticketId, `Escalated to ${targetRole}. Reason: ${rationale}`);
-          return {
-            ...t,
-            status: 'ESCALATED',
-            tierAssigned: targetRole.includes('TIER_3') ? 'TIER_3_SPECIALIST' : 'TIER_2_SENIOR',
-            messages: [...t.messages, newInternalNote],
-            updatedAt: new Date().toISOString(),
-          };
-        }
-        return t;
-      })
+  /**
+   * Escalation keeps the rationale the operator typed: the engine stores it in
+   * the case history, where the admin and CX consoles read it back.
+   */
+  const escalateTicket = async (ticketId: string, targetRole: SupportRole, rationale: string) => {
+    await engineTicket(
+      ticketId,
+      {
+        status: 'PENDING_PROVIDER',
+        notes: `[ESCALATED TO ${targetRole}] ${rationale}`,
+        assignedToEmail: currentOfficer.email,
+      },
+      `Escalated to ${targetRole}`
     );
   };
 
-  const sendTicketMessage = (
+  const sendTicketMessage = async (
     ticketId: string,
     content: string,
-    isInternalNote: boolean,
-    macroKey?: string
+    isInternalNote: boolean
   ) => {
+    setTicketActionError(null);
     if (!content.trim()) return;
+    try {
+      const res = await fetch(`/api/complaints/${ticketId}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body: content, by: currentOfficer.email, internal: isInternalNote }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || json?.success === false) {
+        setTicketActionError(`Note not saved: ${json?.error || `HTTP ${res.status}`}`);
+        return;
+      }
+      logAudit(isInternalNote ? 'INTERNAL_NOTE_ADDED' : 'TICKET_REPLY_SENT', 'COMPLAINT', ticketId, 'Note recorded on the case');
+      await refreshTickets();
+    } catch (err: any) {
+      setTicketActionError(`Note not saved: ${err?.message || 'request error'}`);
+    }
+  };
 
-    setTickets((prev) =>
-      prev.map((t) => {
-        if (t.id === ticketId) {
-          const newMsg = {
-            id: `MSG-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-            ticketId,
-            senderType: 'AGENT' as const,
-            senderId: currentOfficer.id,
-            senderName: currentOfficer.fullName,
-            content,
-            isInternalNote,
-            macroUsed: macroKey,
-            timestamp: new Date().toISOString(),
-          };
-
-          const firstRespondedAt = t.firstRespondedAt || (!isInternalNote ? new Date().toISOString() : undefined);
-          const newStatus = isInternalNote
-            ? t.status
-            : t.status === 'NEW' || t.status === 'ASSIGNED'
-            ? 'IN_PROGRESS'
-            : t.status;
-
-          logAudit(
-            isInternalNote ? 'INTERNAL_NOTE_ADDED' : 'TICKET_REPLY_SENT',
-            'SUPPORT_TICKET',
-            ticketId,
-            isInternalNote ? `Note: ${content.slice(0, 60)}...` : `Reply dispatched. Macro: ${macroKey || 'N/A'}`
-          );
-
-          return {
-            ...t,
-            status: newStatus,
-            firstRespondedAt,
-            messages: [...t.messages, newMsg],
-            updatedAt: new Date().toISOString(),
-          };
-        }
-        return t;
-      })
+  const resolveTicket = async (ticketId: string, resolutionSummary?: string) => {
+    await engineTicket(
+      ticketId,
+      {
+        status: 'RESOLVED',
+        notes: resolutionSummary || 'Resolved from the support desk',
+        assignedToEmail: currentOfficer.email,
+      },
+      'Resolved'
     );
   };
 
-  const resolveTicket = (ticketId: string, resolutionSummary?: string) => {
-    setTickets((prev) =>
-      prev.map((t) => {
-        if (t.id === ticketId) {
-          const resolutionMsg = resolutionSummary
-            ? {
-                id: `MSG-RES-${Date.now()}`,
-                ticketId,
-                senderType: 'AGENT' as const,
-                senderId: currentOfficer.id,
-                senderName: currentOfficer.fullName,
-                content: `[CASE RESOLVED]: ${resolutionSummary}`,
-                isInternalNote: true,
-                timestamp: new Date().toISOString(),
-              }
-            : null;
-
-          logAudit('TICKET_RESOLVED', 'SUPPORT_TICKET', ticketId, `Case marked resolved. Summary: ${resolutionSummary || 'Completed'}`);
-          return {
-            ...t,
-            status: 'RESOLVED',
-            resolvedAt: new Date().toISOString(),
-            messages: resolutionMsg ? [...t.messages, resolutionMsg] : t.messages,
-            updatedAt: new Date().toISOString(),
-          };
-        }
-        return t;
-      })
+  const closeTicket = async (ticketId: string) => {
+    await engineTicket(
+      ticketId,
+      { status: 'CLOSED', notes: 'Closed after resolution', assignedToEmail: currentOfficer.email },
+      'Closed'
     );
   };
 
-  const closeTicket = (ticketId: string) => {
-    setTickets((prev) =>
-      prev.map((t) => {
-        if (t.id === ticketId) {
-          logAudit('TICKET_CLOSED', 'SUPPORT_TICKET', ticketId, 'Ticket closed');
-          return {
-            ...t,
-            status: 'CLOSED',
-            closedAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          };
-        }
-        return t;
-      })
-    );
-  };
-
-  const reopenTicket = (ticketId: string, reason: string) => {
-    setTickets((prev) =>
-      prev.map((t) => {
-        if (t.id === ticketId) {
-          const reopenMsg = {
-            id: `MSG-ROP-${Date.now()}`,
-            ticketId,
-            senderType: 'CUSTOMER' as const,
-            senderId: t.customerId,
-            senderName: t.customerName,
-            content: `[REOPEN REASON]: ${reason}`,
-            isInternalNote: false,
-            timestamp: new Date().toISOString(),
-          };
-
-          logAudit('TICKET_REOPENED', 'SUPPORT_TICKET', ticketId, `Reopened: ${reason}`);
-          return {
-            ...t,
-            status: 'REOPENED',
-            resolvedAt: undefined,
-            closedAt: undefined,
-            messages: [...t.messages, reopenMsg],
-            updatedAt: new Date().toISOString(),
-          };
-        }
-        return t;
-      })
+  const reopenTicket = async (ticketId: string, reason: string) => {
+    await engineTicket(
+      ticketId,
+      { status: 'INVESTIGATING', notes: `[REOPENED] ${reason}`, assignedToEmail: currentOfficer.email },
+      'Reopened'
     );
   };
 
@@ -504,26 +503,26 @@ export const SupportProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   const stats = useMemo(() => {
     const filtered = selectedJurisdiction === 'ALL' ? tickets : tickets.filter((t) => t.jurisdiction === selectedJurisdiction);
+    const isOpen = (t: MappedTicket) => t.status !== 'RESOLVED' && t.status !== 'CLOSED';
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
 
-    const totalOpen = filtered.filter((t) => t.status !== 'RESOLVED' && t.status !== 'CLOSED').length;
-    const unassigned = filtered.filter((t) => !t.assignedOfficerId && t.status !== 'RESOLVED' && t.status !== 'CLOSED').length;
-    const assignedToMe = filtered.filter(
-      (t) => t.assignedOfficerId === currentOfficer.id && t.status !== 'RESOLVED' && t.status !== 'CLOSED'
+    const totalOpen = filtered.filter(isOpen).length;
+    // The engine assigns by email; the roster is a fixture, so "mine" means the
+    // signed-in officer's email on the case.
+    const unassigned = filtered.filter((t) => isOpen(t) && !t.assignedOfficerName).length;
+    const assignedToMe = filtered.filter((t) => isOpen(t) && t.assignedOfficerName === currentOfficer.email).length;
+
+    // SLA state is derived from each case's own deadline by the adapter.
+    const slaAtRisk = filtered.filter((t) => isOpen(t) && t.slaStatus === 'APPROACHING_BREACH').length;
+    const slaBreached = filtered.filter((t) => isOpen(t) && t.slaStatus === 'BREACHED').length;
+
+    const resolvedToday = filtered.filter(
+      (t) =>
+        (t.status === 'RESOLVED' || t.status === 'CLOSED') &&
+        t.resolvedAt !== undefined &&
+        new Date(t.resolvedAt).getTime() >= startOfToday.getTime()
     ).length;
-
-    const slaAtRisk = filtered.filter((t) => {
-      if (t.status === 'RESOLVED' || t.status === 'CLOSED') return false;
-      const res = calculateSlaRemaining(t.resolutionDueAt);
-      return res.isWarning && !res.isBreached;
-    }).length;
-
-    const slaBreached = filtered.filter((t) => {
-      if (t.status === 'RESOLVED' || t.status === 'CLOSED') return false;
-      const res = calculateSlaRemaining(t.resolutionDueAt);
-      return res.isBreached;
-    }).length;
-
-    const resolvedToday = filtered.filter((t) => t.status === 'RESOLVED' || t.status === 'CLOSED').length;
     const activeIncidentsCount = incidents.filter((i) => i.status !== 'RESOLVED').length;
     const automationResolvedCount = automationLogs.filter((l) => l.status === 'SUCCESS').length;
 
@@ -554,6 +553,13 @@ export const SupportProvider: React.FC<{ children: ReactNode }> = ({ children })
         tickets,
         activeTicket,
         setActiveTicketId,
+        ticketsPhase,
+        ticketsError,
+        ticketsSyncedAt,
+        refreshTickets,
+        ticketActionError,
+        dismissTicketActionError: () => setTicketActionError(null),
+        simulationLayer,
         customer360Map,
         transactionInvestigationMap,
         playbooks,

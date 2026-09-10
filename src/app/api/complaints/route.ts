@@ -98,6 +98,7 @@ export async function POST(request: Request) {
       disputedAmount,
       currency,
       description: description.slice(0, 2000),
+      intakeChannel: 'ADMIN',
     });
     return NextResponse.json({ success: true, complaint });
   } catch (error: any) {

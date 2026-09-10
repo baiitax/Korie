@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react';
 import { useSupport } from './SupportContext';
-import { SupportTicket, SupportRole } from '@/types/support';
+import { SupportRole } from '@/types/support';
+import { MappedTicket } from '@/lib/support/complaintTicketAdapter';
 import {
   Send,
   Lock,
@@ -27,7 +28,8 @@ import {
 } from 'lucide-react';
 
 interface WorkspaceProps {
-  ticket: SupportTicket;
+  /** Engine-backed case: the workspace never receives a fabricated ticket. */
+  ticket: MappedTicket;
   onOpenEscalate?: () => void;
 }
 
@@ -113,7 +115,7 @@ export const TicketDetailWorkspace: React.FC<WorkspaceProps> = ({ ticket, onOpen
           </div>
 
           <div className="flex items-center gap-2">
-            {!ticket.assignedOfficerId ? (
+            {!ticket.assignedOfficerName ? (
               <button
                 onClick={() => assignTicket(ticket.id, currentOfficer.id)}
                 className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-lg shadow-md transition whitespace-nowrap"
@@ -160,7 +162,11 @@ export const TicketDetailWorkspace: React.FC<WorkspaceProps> = ({ ticket, onOpen
             </span>
           </div>
           <div className="text-slate-400 text-[11px] font-mono">
-            Sentiment: <strong className="text-slate-200">{ticket.sentiment}</strong> • Channel: {ticket.channel}
+            Sentiment:{" "}
+            <strong className="text-slate-400">
+              {ticket.sentiment || "not recorded by the engine"}
+            </strong>{" "}
+            • Channel: {ticket.channel || ticket.intakeChannelLabel || "not recorded"}
           </div>
         </div>
 

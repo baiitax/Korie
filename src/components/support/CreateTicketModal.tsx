@@ -8,8 +8,9 @@ import {
   CustomerType,
   SupportJurisdiction,
   SupportChannel,
+  SupportTicket,
 } from '@/types/support';
-import { X, Plus, Sparkles, LifeBuoy } from 'lucide-react';
+import { X, Plus, Sparkles, LifeBuoy, AlertTriangle } from 'lucide-react';
 
 interface CreateModalProps {
   isOpen: boolean;
@@ -33,31 +34,48 @@ export const CreateTicketModal: React.FC<CreateModalProps> = ({ isOpen, onClose 
   const [language, setLanguage] = useState<'en' | 'ha' | 'fr'>('en');
   const [assignedOfficerId, setAssignedOfficerId] = useState(currentOfficer.id);
   const [relatedTransactionId, setRelatedTransactionId] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  /**
+   * Intake. The case is opened in ComplaintDisputeEngine — the same book the
+   * customer portal and the admin console read — and the reference shown is the
+   * engine's own. If the engine refuses, no case exists and the operator is
+   * told why instead of being handed a locally-minted number.
+   */
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!subject.trim() || !customerName.trim()) return;
+    if (!subject.trim() || !customerName.trim() || !customerPhone.trim() || !customerId.trim()) return;
+    if (description.trim().length < 10) {
+      setSubmitError('Please describe the issue in at least a few words so the case is investigable.');
+      return;
+    }
 
-    createTicket({
+    setSubmitting(true);
+    setSubmitError(null);
+    const reference = await createTicket({
       subject,
       description,
       category,
       priority,
       customerType,
       customerName,
-      customerId: customerId || `CUST-NG-${Date.now().toString().slice(-5)}`,
-      customerEmail: customerEmail || undefined,
-      customerPhone: customerPhone || undefined,
+      customerId,
+      customerPhone,
       jurisdiction,
       channel,
       language,
-      assignedOfficerId,
-      assignedOfficerName: officers.find((o) => o.id === assignedOfficerId)?.fullName || currentOfficer.fullName,
       relatedTransactionId: relatedTransactionId || undefined,
-    });
+    } as Partial<SupportTicket>);
+    setSubmitting(false);
 
+    if (!reference) {
+      // createTicket surfaces the engine's own refusal reason on the context.
+      setSubmitError('The case was not opened. See the intake error above.');
+      return;
+    }
     onClose();
   };
 
@@ -84,6 +102,13 @@ export const CreateTicketModal: React.FC<CreateModalProps> = ({ isOpen, onClose 
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {submitError ? (
+          <div className="mx-6 mt-4 flex items-start gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[11px] font-semibold text-rose-200">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span>{submitError}</span>
+          </div>
+        ) : null}
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">

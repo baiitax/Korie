@@ -138,6 +138,10 @@ export interface CxSnapshot {
     measured: number;
     eligibleForMeasurement: number;
     preventionIncidents: number;
+    /** Every open case's disputed value, by currency — the book's live exposure. */
+    openExposure: CurrencyTotal[];
+    /** Open cases at the top of the engine's priority ladder. */
+    p0Open: number;
   };
   sla: {
     policy: { priority: ComplaintPriority; slaHours: number }[];
@@ -781,6 +785,8 @@ export class CxTruthService {
         measured: responses.length,
         eligibleForMeasurement: eligible,
         preventionIncidents: incidents.length,
+        openExposure: sumByCurrency(openCases, (c) => c.currency, (c) => c.disputedAmount || 0),
+        p0Open: openCases.filter((c) => c.priority === 'P0').length,
       },
       sla: {
         policy,

@@ -111,6 +111,7 @@ export class ComplaintDisputeEngine {
     disputedAmount: number;
     currency: 'NGN' | 'XOF';
     description: string;
+    intakeChannel?: 'PORTAL' | 'ADMIN' | 'AGENT' | 'CALL_CENTRE';
   }): ComplaintRecord {
     const id = `cmp-${Date.now().toString().slice(-6)}`;
     const complaintReference = `CMP-${new Date().getFullYear()}-${Math.floor(Math.random() * 90000 + 10000)}`;
@@ -143,6 +144,8 @@ export class ComplaintDisputeEngine {
       isSlaBreached: false,
       createdAt: new Date().toISOString(),
       statusHistory: [{ status: 'OPENED', at: new Date().toISOString() }],
+      caseNotes: [],
+      intakeChannel: data.intakeChannel,
     };
 
     this.complaints.set(id, complaint);
@@ -257,6 +260,38 @@ export class ComplaintDisputeEngine {
     complaint.csatCapturedAt = new Date().toISOString();
     this.complaints.set(complaint.id, complaint);
     return { ok: true, complaint };
+  }
+
+  /**
+   * Case notes. The desk's reply/note actions previously wrote into a React
+   * array that vanished on reload; a complaint book that cannot hold a note is
+   * not a complaint book. Notes are append-only and attributable.
+   */
+  public addCaseNote(params: {
+    complaintId: string;
+    body: string;
+    by: string;
+    internal?: boolean;
+  }): { ok: boolean; complaint?: ComplaintRecord; noteId?: string; error?: string } {
+    const complaint = this.complaints.get(params.complaintId);
+    if (!complaint) return { ok: false, error: 'COMPLAINT_NOT_FOUND' };
+    const body = (params.body || '').trim();
+    if (body.length < 2) return { ok: false, error: 'NOTE_BODY_REQUIRED' };
+    if (body.length > 1000) return { ok: false, error: 'NOTE_TOO_LONG' };
+
+    const noteId = `note-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    complaint.caseNotes = [
+      ...(complaint.caseNotes || []),
+      {
+        id: noteId,
+        at: new Date().toISOString(),
+        by: params.by,
+        body,
+        internal: params.internal !== false,
+      },
+    ];
+    this.complaints.set(complaint.id, complaint);
+    return { ok: true, complaint, noteId };
   }
 
   /** Ratings captured so far — the only source CSAT figures may be derived from. */

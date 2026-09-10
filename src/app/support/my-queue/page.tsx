@@ -3,9 +3,10 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useSupport } from '@/components/support/SupportContext';
+import { SupportBookBanner } from '@/components/support/SupportBookNotices';
 import { TicketDetailWorkspace } from '@/components/support/TicketDetailWorkspace';
 import { EscalationModal } from '@/components/support/EscalationModal';
-import { SupportTicket } from '@/types/support';
+import { MappedTicket } from '@/lib/support/complaintTicketAdapter';
 import {
   CheckCircle2,
   Clock,
@@ -26,14 +27,16 @@ export default function MyQueuePage() {
     resolveTicket,
   } = useSupport();
 
-  const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
+  const [selectedTicket, setSelectedTicket] = useState<MappedTicket | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isEscalateModalOpen, setIsEscalateModalOpen] = useState(false);
 
   // Filter only tickets assigned to the currently active officer
   const myTickets = tickets.filter((t) => {
     if (selectedJurisdiction !== 'ALL' && t.jurisdiction !== selectedJurisdiction) return false;
-    if (t.assignedOfficerId !== currentOfficer.id) return false;
+    // The engine assigns by email (the staff roster is a fixture), so "mine" is
+    // the signed-in officer's email on the case.
+    if (t.assignedOfficerName !== currentOfficer.email) return false;
     if (t.status === 'RESOLVED' || t.status === 'CLOSED') return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -119,7 +122,7 @@ export default function MyQueuePage() {
                       </td>
                       <td className="p-3.5">
                         <div className="font-semibold text-slate-200">{t.customerName}</div>
-                        <div className="text-[10px] text-slate-400 font-mono">{t.channel}</div>
+                        <div className="text-[10px] text-slate-400 font-mono">{t.channel || t.intakeChannelLabel || 'channel not recorded'}</div>
                       </td>
                       <td className="p-3.5">
                         <span className="font-mono text-[11px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded">

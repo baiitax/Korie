@@ -2,11 +2,12 @@
 
 import React, { useState } from 'react';
 import { useSupport } from './SupportContext';
-import { SupportRole, SupportTicket } from '@/types/support';
+import { SupportRole } from '@/types/support';
+import { MappedTicket } from '@/lib/support/complaintTicketAdapter';
 import { X, ArrowUpRight, ShieldAlert, AlertTriangle } from 'lucide-react';
 
 interface EscalationModalProps {
-  ticket: SupportTicket | null;
+  ticket: MappedTicket | null;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -16,14 +17,21 @@ export const EscalationModal: React.FC<EscalationModalProps> = ({ ticket, isOpen
 
   const [targetRole, setTargetRole] = useState<SupportRole>('TIER_2_SENIOR');
   const [rationale, setRationale] = useState('');
+  const [busy, setBusy] = useState(false);
 
   if (!isOpen || !ticket) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  /**
+   * Escalation is a real status change on the case (the engine has no
+   * "ESCALATED" state, so it moves to PENDING_PROVIDER) and the rationale is
+   * stored in the case history, where the admin and CX consoles read it back.
+   */
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!rationale.trim()) return;
-
-    escalateTicket(ticket.id, targetRole, rationale);
+    if (!rationale.trim() || busy) return;
+    setBusy(true);
+    await escalateTicket(ticket.id, targetRole, rationale);
+    setBusy(false);
     onClose();
   };
 

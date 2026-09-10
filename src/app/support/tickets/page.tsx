@@ -3,10 +3,12 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useSupport } from '@/components/support/SupportContext';
+import { SupportBookBanner, SupportBookEmpty } from '@/components/support/SupportBookNotices';
 import { CreateTicketModal } from '@/components/support/CreateTicketModal';
 import { TicketDetailWorkspace } from '@/components/support/TicketDetailWorkspace';
 import { EscalationModal } from '@/components/support/EscalationModal';
-import { SupportTicket, TicketStatus, TicketPriority, TicketCategory } from '@/types/support';
+import { TicketStatus, TicketPriority, TicketCategory } from '@/types/support';
+import { MappedTicket } from '@/lib/support/complaintTicketAdapter';
 import {
   ListFilter,
   Search,
@@ -28,7 +30,7 @@ export default function AllTicketsPage() {
     assignTicket,
   } = useSupport();
 
-  const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
+  const [selectedTicket, setSelectedTicket] = useState<MappedTicket | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | TicketStatus>('ALL');
   const [priorityFilter, setPriorityFilter] = useState<'ALL' | TicketPriority>('ALL');
@@ -54,6 +56,8 @@ export default function AllTicketsPage() {
 
   return (
     <div className="space-y-6">
+      <SupportBookBanner />
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -95,12 +99,15 @@ export default function AllTicketsPage() {
             onChange={(e) => setStatusFilter(e.target.value as any)}
             className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-teal-500"
           >
+            {/* Only states the complaint lifecycle can actually reach are offered —
+                the old list included ESCALATED, which no record could ever hold. */}
             <option value="ALL">All Statuses</option>
             <option value="NEW">NEW</option>
             <option value="TRIAGED">TRIAGED</option>
             <option value="ASSIGNED">ASSIGNED</option>
             <option value="IN_PROGRESS">IN PROGRESS</option>
-            <option value="ESCALATED">ESCALATED</option>
+            <option value="WAITING_FOR_CUSTOMER">WAITING FOR CUSTOMER</option>
+            <option value="WAITING_FOR_INTERNAL_TEAM">WAITING FOR PROVIDER</option>
             <option value="RESOLVED">RESOLVED</option>
             <option value="CLOSED">CLOSED</option>
           </select>
@@ -151,6 +158,13 @@ export default function AllTicketsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="p-6">
+                    <SupportBookEmpty filtered={tickets.length > 0} />
+                  </td>
+                </tr>
+              ) : null}
               {filtered.map((t) => {
                 const sla = calculateSlaRemaining(t.resolutionDueAt);
                 return (
@@ -167,7 +181,7 @@ export default function AllTicketsPage() {
                     </td>
                     <td className="p-3.5">
                       <div className="font-semibold text-slate-200">{t.customerName}</div>
-                      <div className="text-[10px] text-slate-400 font-mono">{t.channel}</div>
+                      <div className="text-[10px] text-slate-400 font-mono">{t.channel || t.intakeChannelLabel || 'channel not recorded'}</div>
                     </td>
                     <td className="p-3.5">
                       <span className="font-mono text-[11px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded">

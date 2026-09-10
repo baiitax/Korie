@@ -1,5 +1,8 @@
 // =============================================================================
 // Admin complaint actions — engine-backed triage & financial redress.
+//   GET    /api/complaints/[id]  full case record: history, notes, SLA state,
+//                                the redress journal actually posted, and the
+//                                customer's own satisfaction rating.
 //   PATCH  /api/complaints/[id]  transition status (assign/investigate/resolve/close)
 //   POST   /api/complaints/[id]  { action: "COMPENSATE", amount, reason,
 //                                  authorizedByEmail } → engine compensation
@@ -10,6 +13,7 @@
 
 import { NextResponse } from 'next/server';
 import { ComplaintDisputeEngine } from '@/lib/complaints/ComplaintDisputeEngine';
+import { GeneralLedgerEngine } from '@/lib/financial/GeneralLedgerEngine';
 import { ComplaintStatus } from '@/types/regulatoryConsumerEngine';
 
 const ALLOWED_STATUSES: ComplaintStatus[] = [
@@ -23,6 +27,62 @@ const ALLOWED_STATUSES: ComplaintStatus[] = [
   'RESOLVED',
   'CLOSED',
 ];
+
+export const dynamic = 'force-dynamic';
+
+export async function GET(_request: Request, { params }: { params: { id: string } }) {
+  try {
+    const engine = ComplaintDisputeEngine.getInstance();
+    const complaint = engine.getComplaint(params.id);
+    if (!complaint) {
+      return NextResponse.json({ success: false, error: 'COMPLAINT_NOT_FOUND' }, { status: 404 });
+    }
+
+    // Redress is read from the ledger, not from the case's own summary line.
+    const journal = complaint.glJournalId
+      ? GeneralLedgerEngine.getInstance()
+          .getJournals(200)
+          .find((j) => j.id === complaint.glJournalId) || null
+      : null;
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        complaint,
+        statusHistory: complaint.statusHistory || [],
+        caseNotes: complaint.caseNotes || [],
+        intakeChannel: complaint.intakeChannel ?? null,
+        sla: {
+          dueAt: complaint.slaDueAt,
+          policyHours: ComplaintDisputeEngine.SLA_HOURS[complaint.priority],
+          breachedAtRead: ComplaintDisputeEngine.computeBreach(complaint),
+          storedFlag: complaint.isSlaBreached,
+        },
+        redressJournal: journal
+          ? {
+              journalNumber: journal.journalNumber,
+              currency: journal.currency,
+              amount: journal.lines.filter((l) => l.accountCode === '5010').reduce((a, l) => a + l.amount, 0),
+              narration: journal.narration,
+              postedBy: journal.postedBy,
+              createdAt: journal.createdAt,
+            }
+          : null,
+        satisfaction:
+          complaint.csatScore === undefined
+            ? null
+            : {
+                score: complaint.csatScore,
+                comment: complaint.csatComment ?? null,
+                channel: complaint.csatChannel ?? null,
+                capturedAt: complaint.csatCapturedAt ?? null,
+              },
+      },
+    });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
 
 export async function PATCH(
   request: Request,

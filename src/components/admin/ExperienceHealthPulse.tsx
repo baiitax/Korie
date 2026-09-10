@@ -1,39 +1,23 @@
 "use client";
 
 // =============================================================================
-// ExperienceHealthPulse — LIVE engine pulse for the admin Command Center.
-// Every number is fetched at render/refresh from the engine-backed recovery &
-// consumer-protection APIs (complaints, disputes, chargebacks, refunds) —
-// nothing here is static. Static demo panels elsewhere in the console are the
-// simulation layer; this strip is the real-time service-health rail.
+// ExperienceHealthPulse — the executive home's view of the service book.
+//
+// GAP-4: complaints, disputes, chargebacks and refunds lived in four places and
+// the home screen synthesised none of them — no P0 count, no SLA-breach count,
+// no unresolved-exposure value for the accountable executive. This strip now
+// reads ONE synthesis endpoint (/api/admin/cx/overview) instead of fanning out
+// to four, so the numbers on the home screen are the same numbers the Customer
+// Experience console shows, computed once by CxTruthService.
+//
+// Nothing here is guessed: if the engine has no measurement, the tile says so.
 // =============================================================================
 
 import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useAdmin } from "./AdminContext";
-import { Activity, RefreshCw, ShieldAlert, Timer, Repeat2, RotateCcw, Landmark, ArrowRight } from "lucide-react";
-
-interface ComplaintLite {
-  id: string;
-  complaintReference: string;
-  customerName: string;
-  customerPhone?: string;
-  category: string;
-  priority: string;
-  status: string;
-  disputedAmount: number;
-  currency: "NGN" | "XOF";
-  slaDueAt: string;
-  isSlaBreached: boolean;
-  createdAt: string;
-}
-
-interface PulseData {
-  complaints: { complaints: ComplaintLite[]; total: number; open: number; resolved: number; p0Critical: number } | null;
-  disputes: { total: number; open: number } | null;
-  chargebacks: { total: number } | null;
-  refunds: { total: number } | null;
-}
+import { Activity, RefreshCw, ShieldAlert, Timer, Repeat2, Star, Siren, ArrowRight, Landmark } from "lucide-react";
+import type { CxSnapshot } from "@/lib/admin/CxTruthService";
 
 const PRIORITY_TONE: Record<string, string> = {
   P0: "bg-rose-500/15 text-rose-300 border-rose-500/30",
@@ -43,73 +27,53 @@ const PRIORITY_TONE: Record<string, string> = {
 };
 
 function currencySymbol(ccy: string): string {
-  return ccy === "NGN" ? "₦" : "CFA ";
+  return ccy === "NGN" ? "₦" : ccy === "XOF" ? "CFA " : `${ccy} `;
+}
+
+function money(list: { currency: string; amount: number }[] | undefined): string {
+  if (!list || list.length === 0) return "—";
+  return list.map((t) => `${currencySymbol(t.currency)}${t.amount.toLocaleString()}`).join(" · ");
 }
 
 export const ExperienceHealthPulse: React.FC = () => {
   const { countryFilter } = useAdmin();
-  const [data, setData] = useState<PulseData>({ complaints: null, disputes: null, chargebacks: null, refunds: null });
+  const [snapshot, setSnapshot] = useState<CxSnapshot | null>(null);
   const [phase, setPhase] = useState<"loading" | "ready" | "error">("loading");
   const [refreshing, setRefreshing] = useState(false);
   const [refreshedAt, setRefreshedAt] = useState<string | null>(null);
   const [error, setError] = useState("");
 
-  const load = useCallback(async (silent = false) => {
-    if (!silent) setPhase("loading");
-    setRefreshing(true);
-    try {
-      const country = countryFilter === "GLOBAL" ? "" : `?country=${countryFilter}`;
-      const [complaintsRes, disputesRes, chargebacksRes, refundsRes] = await Promise.all([
-        fetch(`/api/complaints${country}`, { cache: "no-store" }),
-        fetch(`/api/disputes${country}`, { cache: "no-store" }),
-        fetch(`/api/chargebacks${country}`, { cache: "no-store" }),
-        fetch(`/api/refunds${country}`, { cache: "no-store" }),
-      ]);
-      const [complaints, disputes, chargebacks, refunds] = await Promise.all([
-        complaintsRes.json().then((j) => j.data || null),
-        disputesRes.json().then((j) => j.data || null),
-        chargebacksRes.json().then((j) => j.data || null),
-        refundsRes.json().then((j) => j.data || null),
-      ]);
-      setData({ complaints, disputes, chargebacks, refunds });
-      setRefreshedAt(new Date().toISOString());
-      setPhase("ready");
-    } catch (err: any) {
-      setError(err?.message || "Pulse request failed");
-      setPhase("error");
-    } finally {
-      setRefreshing(false);
-    }
-  }, [countryFilter]);
+  const load = useCallback(
+    async (silent = false) => {
+      if (!silent) setPhase("loading");
+      setRefreshing(true);
+      try {
+        const qs = countryFilter === "GLOBAL" ? "" : `?country=${countryFilter}`;
+        const res = await fetch(`/api/admin/cx/overview${qs}`, { cache: "no-store" });
+        const json = await res.json();
+        if (!res.ok || json?.success === false) throw new Error(json?.error?.message || json?.error || `HTTP ${res.status}`);
+        setSnapshot(json.data as CxSnapshot);
+        setRefreshedAt(new Date().toISOString());
+        setPhase("ready");
+        setError("");
+      } catch (err: any) {
+        setError(err?.message || "Pulse request failed");
+        setPhase("error");
+      } finally {
+        setRefreshing(false);
+      }
+    },
+    [countryFilter],
+  );
 
   useEffect(() => {
     void load();
+    const poll = setInterval(() => void load(true), 30_000);
+    return () => clearInterval(poll);
   }, [load]);
 
-  const openComplaints = (data.complaints?.complaints || []).filter(
-    (c) => c.status !== "RESOLVED" && c.status !== "CLOSED",
-  );
-  // Breach state is computed from each case's own deadline. The stored
-  // `isSlaBreached` field had no writer after intake, so trusting it kept this
-  // counter at zero while cases ran past their clocks.
-  const isPastDeadline = (c: ComplaintLite) => new Date(c.slaDueAt).getTime() < Date.now();
-  const slaBreached = openComplaints.filter(isPastDeadline);
-  // Exposure is per currency — NGN and XOF are not summed into one number.
-  const exposureByCurrency = Array.from(
-    openComplaints
-      .reduce((m, c) => m.set(c.currency, (m.get(c.currency) || 0) + (c.disputedAmount || 0)), new Map<"NGN" | "XOF", number>())
-      .entries(),
-  )
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 2);
-  const urgent = [...openComplaints]
-    .sort(
-      (a, b) =>
-        Number(isPastDeadline(b)) - Number(isPastDeadline(a)) ||
-        new Date(a.slaDueAt).getTime() - new Date(b.slaDueAt).getTime() ||
-        a.priority.localeCompare(b.priority),
-    )
-    .slice(0, 3);
+  const urgent = snapshot?.queue.slice(0, 3) ?? [];
+  const csat = snapshot?.csat;
 
   return (
     <section
@@ -123,20 +87,27 @@ export const ExperienceHealthPulse: React.FC = () => {
           </span>
           <div>
             <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-300">
-              Live engine pulse · Service & customer health
+              Live book of work · service &amp; customer health
             </p>
             <p className="text-[10px] text-slate-500">
-              {countryFilter === "GLOBAL" ? "All markets" : countryFilter} · fetched from complaint / dispute / chargeback / refund engines
+              {countryFilter === "GLOBAL" ? "All markets" : countryFilter} · one synthesis of the complaint, dispute, chargeback,
+              refund and redress engines
               {refreshedAt ? ` · ${new Date(refreshedAt).toLocaleTimeString()}` : ""}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <Link
+            href="/admin/cx"
+            className="px-3 py-1.5 rounded-xl bg-violet-500 text-slate-950 text-xs font-bold shadow-md shadow-violet-500/20 hover:bg-violet-400 transition-colors inline-flex items-center gap-1.5"
+          >
+            Customer experience <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+          <Link
             href="/admin/support"
             className="px-3 py-1.5 rounded-xl bg-emerald-500 text-slate-950 text-xs font-bold shadow-md shadow-emerald-500/20 hover:bg-emerald-400 transition-colors inline-flex items-center gap-1.5"
           >
-            Service & recovery desk <ArrowRight className="w-3.5 h-3.5" />
+            Service desk <ArrowRight className="w-3.5 h-3.5" />
           </Link>
           <button
             type="button"
@@ -152,70 +123,115 @@ export const ExperienceHealthPulse: React.FC = () => {
 
       {phase === "error" ? (
         <p className="mt-3 text-xs text-rose-400 font-semibold">
-          Pulse could not reach the engines ({error}) — refresh to retry.
+          The service engines could not be read ({error}) — nothing is shown rather than showing stale figures. Refresh to retry.
         </p>
       ) : (
         <div className="mt-4 grid grid-cols-2 lg:grid-cols-5 gap-3">
           <div className="p-3 rounded-2xl bg-slate-950/60 border border-white/5">
-            <p className="text-[10px] font-mono uppercase text-slate-500">Open complaints</p>
-            <p className="mt-1 text-2xl font-bold font-mono text-white">{data.complaints?.open ?? "—"}</p>
-            <p className="text-[10px] text-slate-500">{data.complaints?.resolved ?? 0} resolved</p>
+            <p className="text-[10px] font-mono uppercase text-slate-500">Open cases</p>
+            <p className="mt-1 text-2xl font-bold font-mono text-white">{snapshot?.loop.open ?? "—"}</p>
+            <p className="text-[10px] text-slate-500">
+              {snapshot ? `${snapshot.loop.captured} in book · ${snapshot.loop.resolved + snapshot.loop.closed} resolved` : "reading…"}
+            </p>
           </div>
+
           <div className="p-3 rounded-2xl bg-slate-950/60 border border-white/5">
             <p className="text-[10px] font-mono uppercase text-slate-500 flex items-center gap-1">
               <ShieldAlert className="w-3 h-3 text-rose-400" /> P0 critical
             </p>
-            <p className="mt-1 text-2xl font-bold font-mono text-rose-300">{data.complaints?.p0Critical ?? "—"}</p>
-            <p className="text-[10px] text-slate-500">within book</p>
+            <p className="mt-1 text-2xl font-bold font-mono text-rose-300">{snapshot?.loop.p0Open ?? "—"}</p>
+            <p className="text-[10px] text-slate-500">open, 24h clock</p>
           </div>
+
           <div className="p-3 rounded-2xl bg-slate-950/60 border border-white/5">
             <p className="text-[10px] font-mono uppercase text-slate-500 flex items-center gap-1">
               <Timer className="w-3 h-3 text-amber-400" /> Past SLA
             </p>
-            <p className="mt-1 text-2xl font-bold font-mono text-amber-300">{slaBreached.length}</p>
-            <p className="text-[10px] text-slate-500">of {openComplaints.length} open · clock-derived</p>
+            <p className="mt-1 text-2xl font-bold font-mono text-amber-300">{snapshot?.sla.breached ?? "—"}</p>
+            <p className="text-[10px] text-slate-500">
+              {snapshot ? `${snapshot.sla.atRisk} closing in · of ${snapshot.loop.open} open` : "clock-derived"}
+            </p>
           </div>
+
           <div className="p-3 rounded-2xl bg-slate-950/60 border border-white/5">
             <p className="text-[10px] font-mono uppercase text-slate-500 flex items-center gap-1">
-              <Repeat2 className="w-3 h-3 text-sky-400" /> Open disputes
+              <Repeat2 className="w-3 h-3 text-sky-400" /> Disputes · chargebacks · refunds
             </p>
-            <p className="mt-1 text-2xl font-bold font-mono text-sky-300">{data.disputes?.open ?? "—"}</p>
-            <p className="text-[10px] text-slate-500">
-              {data.chargebacks ? `${data.chargebacks.total} chargeback${data.chargebacks.total === 1 ? "" : "s"} · ${data.refunds?.total ?? 0} refunds` : ""}
+            <p className="mt-1 text-lg font-bold font-mono text-sky-300">
+              {snapshot
+                ? `${snapshot.redress.disputes?.open ?? 0} · ${snapshot.redress.chargebacks?.total ?? 0} · ${snapshot.redress.refunds?.total ?? 0}`
+                : "—"}
             </p>
+            <p className="text-[10px] text-slate-500">open disputes · chargebacks · refunds</p>
           </div>
+
           <div className="p-3 rounded-2xl bg-slate-950/60 border border-amber-500/20">
             <p className="text-[10px] font-mono uppercase text-slate-500 flex items-center gap-1">
-              <Landmark className="w-3 h-3 text-amber-400" /> Open complaint exposure
+              <Landmark className="w-3 h-3 text-amber-400" /> Unresolved exposure
             </p>
-            <p className="mt-1 text-lg font-bold font-mono text-white">
-              {exposureByCurrency.length === 0
-                ? "—"
-                : exposureByCurrency.map(([ccy, amount]) => `${currencySymbol(ccy)}${amount.toLocaleString()}`).join(" · ")}
-            </p>
-            <p className="text-[10px] text-slate-500">disputed amounts by currency, unresolved</p>
+            <p className="mt-1 text-sm font-bold font-mono text-white">{money(snapshot?.loop.openExposure)}</p>
+            <p className="text-[10px] text-slate-500">disputed value on open cases, by currency</p>
           </div>
         </div>
       )}
 
+      {phase !== "error" && snapshot ? (
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className="flex items-center gap-2 rounded-xl bg-slate-950/60 border border-white/5 px-3 py-2">
+            <Star className="w-3.5 h-3.5 text-violet-300 shrink-0" />
+            <span className="text-[11px] text-slate-300">
+              {csat && csat.status === "MEASURED" ? (
+                <>
+                  CSAT <strong className="text-white">{csat.average}/5</strong> from {csat.responses} customer rating(s) ·{" "}
+                  {csat.coveragePct}% coverage · NPS {csat.nps}
+                </>
+              ) : (
+                <>
+                  CSAT <strong className="text-slate-400">not measurable</strong> — 0 of {csat?.eligibleCases ?? 0} resolved case(s)
+                  rated by a customer
+                </>
+              )}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 rounded-xl bg-slate-950/60 border border-white/5 px-3 py-2">
+            <Siren className="w-3.5 h-3.5 text-rose-300 shrink-0" />
+            <span className="text-[11px] text-slate-300">
+              {snapshot.prevention.clusters.length > 0 ? (
+                <>
+                  {snapshot.prevention.clusters.length} recurring harm pattern(s) · {snapshot.prevention.activeIncidents} active
+                  incident(s) · {snapshot.prevention.affectedCustomers} customer(s)
+                </>
+              ) : (
+                <>No repeating category+agent pattern in the book · {snapshot.prevention.activeIncidents} active incident(s)</>
+              )}
+            </span>
+          </div>
+        </div>
+      ) : null}
+
       {phase !== "error" && urgent.length > 0 ? (
         <ul className="mt-3 space-y-1.5">
           {urgent.map((c) => (
-            <li key={c.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-slate-950/60 border border-white/5 px-3 py-2">
+            <li
+              key={c.id}
+              className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-slate-950/60 border border-white/5 px-3 py-2"
+            >
               <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${PRIORITY_TONE[c.priority] || PRIORITY_TONE.P3}`}>
                 {c.priority}
               </span>
-              <span className="text-xs font-bold text-white font-mono">{c.complaintReference}</span>
-              <span className="text-xs text-slate-300">{c.customerName}</span>
+              <span className="text-xs font-bold text-white font-mono">{c.reference}</span>
+              <span className="text-xs text-slate-300">{c.customer}</span>
               <span className="text-[10px] text-slate-500">{c.category.replace(/_/g, " ").toLowerCase()}</span>
-              {isPastDeadline(c) ? (
-                <span className="text-[10px] font-bold text-rose-400 uppercase">SLA breached</span>
+              {c.slaState === "BREACHED" ? (
+                <span className="text-[10px] font-bold text-rose-400 uppercase">past SLA</span>
+              ) : c.slaState === "AT_RISK" ? (
+                <span className="text-[10px] font-bold text-amber-400 uppercase">closing in</span>
               ) : (
                 <span className="text-[10px] text-slate-500">
                   due {new Date(c.slaDueAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
                 </span>
               )}
-              <Link href="/admin/support" className="ml-auto text-[11px] text-emerald-400 hover:text-emerald-300 font-bold">
+              <Link href="/admin/cx" className="ml-auto text-[11px] text-emerald-400 hover:text-emerald-300 font-bold">
                 Triage →
               </Link>
             </li>
@@ -223,9 +239,9 @@ export const ExperienceHealthPulse: React.FC = () => {
         </ul>
       ) : null}
 
-      {phase === "ready" && openComplaints.length === 0 ? (
+      {phase === "ready" && snapshot && snapshot.loop.open === 0 ? (
         <p className="mt-3 flex items-center gap-2 text-xs text-emerald-400/90 font-semibold">
-          <RotateCcw className="w-3.5 h-3.5" /> No open complaints in the engine book — clean service posture.
+          No open case in the engine book — clean service posture. This strip never shows a sample queue to fill the space.
         </p>
       ) : null}
     </section>

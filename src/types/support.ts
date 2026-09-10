@@ -118,23 +118,28 @@ export interface SupportTicket {
   customerEmail?: string;
   customerPhone?: string;
   jurisdiction: SupportJurisdiction;
-  channel: SupportChannel;
-  language: "en" | "ha" | "fr";
+  /** Not always known: the intake channel is recorded at intake by the engine. */
+  channel?: SupportChannel;
+  /** The complaint engine records no language column — omitted, not defaulted. */
+  language?: "en" | "ha" | "fr";
   assignedOfficerId?: string;
   assignedOfficerName?: string;
-  tierAssigned: SupportTier;
+  /** The complaint engine records an assignee, not a support tier. */
+  tierAssigned?: SupportTier;
   relatedTransactionId?: string;
   incidentId?: string;
   createdAt: string;
   updatedAt: string;
-  firstResponseDueAt: string;
+  /** No first-response clock exists in the complaint engine — omitted, not faked. */
+  firstResponseDueAt?: string;
   resolutionDueAt: string;
   firstRespondedAt?: string;
   resolvedAt?: string;
   closedAt?: string;
   slaStatus: SlaState;
   tags: string[];
-  sentiment: "POSITIVE" | "NEUTRAL" | "FRUSTRATED" | "CRITICAL_ANGRY";
+  /** The engine stores no sentiment signal; omitted rather than guessed. */
+  sentiment?: "POSITIVE" | "NEUTRAL" | "FRUSTRATED" | "CRITICAL_ANGRY";
   satisfactionRating?: number; // 1-5
   satisfactionComment?: string;
   rootCauseCategory?: string;

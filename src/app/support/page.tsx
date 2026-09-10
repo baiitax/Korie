@@ -3,12 +3,13 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useSupport } from '@/components/support/SupportContext';
+import { SupportBookBanner, SupportBookEmpty } from '@/components/support/SupportBookNotices';
 import { SupportCommandHero } from '@/components/support/SupportCommandHero';
 import { TicketDetailWorkspace } from '@/components/support/TicketDetailWorkspace';
 import { CreateTicketModal } from '@/components/support/CreateTicketModal';
 import { IncidentModal } from '@/components/support/IncidentModal';
 import { EscalationModal } from '@/components/support/EscalationModal';
-import { SupportTicket } from '@/types/support';
+import { MappedTicket } from '@/lib/support/complaintTicketAdapter';
 import {
   LifeBuoy,
   Inbox,
@@ -37,7 +38,7 @@ export default function SupportCommandCenterPage() {
     calculateSlaRemaining,
   } = useSupport();
 
-  const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
+  const [selectedTicket, setSelectedTicket] = useState<MappedTicket | null>(null);
   const [isCreateTicketOpen, setIsCreateTicketOpen] = useState(false);
   const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
   const [isEscalateModalOpen, setIsEscalateModalOpen] = useState(false);
@@ -48,6 +49,8 @@ export default function SupportCommandCenterPage() {
 
   return (
     <div className="space-y-6">
+      <SupportBookBanner />
+
       {/* Command Hero */}
       <SupportCommandHero
         onOpenCreateTicket={() => setIsCreateTicketOpen(true)}
@@ -78,6 +81,7 @@ export default function SupportCommandCenterPage() {
             </div>
 
             <div className="space-y-3">
+              {filteredTickets.length === 0 ? <SupportBookEmpty /> : null}
               {filteredTickets.slice(0, 4).map((ticket) => {
                 const sla = calculateSlaRemaining(ticket.resolutionDueAt);
                 return (

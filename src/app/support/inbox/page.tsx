@@ -2,10 +2,12 @@
 
 import React, { useState } from 'react';
 import { useSupport } from '@/components/support/SupportContext';
+import { SupportBookBanner, SupportBookEmpty } from '@/components/support/SupportBookNotices';
 import { TicketDetailWorkspace } from '@/components/support/TicketDetailWorkspace';
 import { EscalationModal } from '@/components/support/EscalationModal';
 import { CreateTicketModal } from '@/components/support/CreateTicketModal';
-import { SupportTicket, TicketCategory, TicketPriority } from '@/types/support';
+import { TicketCategory, TicketPriority } from '@/types/support';
+import { MappedTicket } from '@/lib/support/complaintTicketAdapter';
 import {
   Inbox,
   Search,
@@ -52,6 +54,8 @@ export default function SupportInboxPage() {
 
   return (
     <div className="space-y-6">
+      <SupportBookBanner />
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -97,6 +101,7 @@ export default function SupportInboxPage() {
 
           {/* Ticket List Items */}
           <div className="space-y-2 overflow-y-auto max-h-[650px] pr-1">
+            {filteredTickets.length === 0 ? <SupportBookEmpty filtered={tickets.length > 0} /> : null}
             {filteredTickets.map((t) => {
               const sla = calculateSlaRemaining(t.resolutionDueAt);
               const isSelected = selectedTicket?.id === t.id;

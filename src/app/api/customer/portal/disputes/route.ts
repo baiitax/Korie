@@ -194,6 +194,7 @@ export async function POST(req: NextRequest) {
     disputedAmount,
     currency,
     description,
+    intakeChannel: 'PORTAL',
   });
 
   return createSuccessResponse({ dispute: toCustomerView(complaint) },

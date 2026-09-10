@@ -33,6 +33,16 @@ export type ComplaintStatusEvent = {
   by?: string;
 };
 
+export type ComplaintCaseNote = {
+  id: string;
+  at: string;
+  /** Who wrote it. Internal notes are never shown to the customer. */
+  by?: string;
+  body: string;
+  internal: boolean;
+  channel?: 'PORTAL' | 'ADMIN' | 'AGENT' | 'CALL_CENTRE';
+};
+
 export interface ComplaintRecord {
   id: string;
   complaintReference: string;
@@ -73,6 +83,13 @@ export interface ComplaintRecord {
   csatCapturedAt?: string;
   /** Every status transition this case has actually made, oldest first. */
   statusHistory?: ComplaintStatusEvent[];
+  /** Case notes written by operators. Free text the book did not previously keep. */
+  caseNotes?: ComplaintCaseNote[];
+  /**
+   * Where the case came in from. Recorded at intake by whichever route created
+   * it — the engine has no intake column, and the desk was filtering on one.
+   */
+  intakeChannel?: 'PORTAL' | 'ADMIN' | 'AGENT' | 'CALL_CENTRE';
 }
 
 export interface SystemicIncidentRecord {
