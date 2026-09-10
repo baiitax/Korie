@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAgent } from "../AgentContext";
@@ -15,7 +15,6 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   ArrowRightLeft,
-  Zap,
   Users,
   Activity,
   Coins,
@@ -30,8 +29,66 @@ import {
   EyeOff,
   WifiOff,
   Radio,
-  ChevronRight,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Search,
 } from "lucide-react";
+
+/**
+ * AgencyShell — the Agent (agency banking) portal chrome.
+ *
+ * Mirrors the Admin command center's structural language so every staff/ops
+ * portal in the product family reads as one coherent system:
+ *   - a floating, collapsible desktop rail (icon-only <-> labeled) instead of
+ *     a fixed 264px sidebar with no way to reclaim screen width;
+ *   - a slim top command bar carrying the current page title, a search
+ *     affordance, and grouped identity/status controls instead of a dense
+ *     unlabeled row of icon buttons;
+ *   - fully token-driven surfaces (`var(--surface)`, `var(--border)`, etc.)
+ *     so the portal adapts correctly between Day and Night mode — the old
+ *     shell hardcoded dark navy hexes that stayed dark even in Light mode.
+ *
+ * The agent brand accent (amber, for the agency/POS domain) is preserved,
+ * but only ever layered on top of theme tokens, never used to hardcode a
+ * background that must survive a theme switch.
+ */
+
+interface RailItem {
+  label: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+interface RailSection {
+  key: string;
+  title: string;
+  items: RailItem[];
+}
+
+const TITLES: [prefix: string, title: string][] = [
+  ["/agent/cash-in", "Cash-In"],
+  ["/agent/cash-out", "Cash-Out"],
+  ["/agent/adashi", "Adashi / Ajo (ROSCA)"],
+  ["/agent/transfer", "Send Transfer"],
+  ["/agent/customers", "Customers"],
+  ["/agent/transactions", "Transactions"],
+  ["/agent/team", "Sub-Agent Team"],
+  ["/agent/liquidity", "Liquidity Center"],
+  ["/agent/commissions", "Commissions"],
+  ["/agent/reconciliation", "Reconciliation"],
+  ["/agent/settlement", "Bank Settlements"],
+  ["/agent/terminals", "Terminals"],
+  ["/agent/support", "Support"],
+  ["/agent/settings", "Settings"],
+  ["/agent/kyc", "KYC Verification"],
+  ["/agent/notifications", "Notifications"],
+  ["/agent/profile", "Profile"],
+];
+
+function titleFor(pathname: string): string {
+  if (pathname === "/agent") return "Executive Overview";
+  const hit = TITLES.find(([p]) => pathname === p || pathname.startsWith(`${p}/`));
+  return hit ? hit[1] : "Agency Banking";
+}
 
 export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
@@ -49,6 +106,7 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
     notificationsCount,
     isBootstrapping,
   } = useAgent();
+  const [expanded, setExpanded] = useState(false);
 
   if (isBootstrapping) {
     return <PortalPreloader context="agency" />;
@@ -56,20 +114,22 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const renderShellAmount = (formatted: string) =>
     isLiquidityLoading ? (
-      <span className="inline-block h-[1em] w-16 rounded bg-white/10 animate-pulse align-middle" />
+      <span className="inline-block h-[1em] w-16 rounded bg-[var(--surface-3)] animate-pulse align-middle" />
     ) : isBalanceHidden ? (
       "••••••••"
     ) : (
       formatted
     );
 
-  const desktopNavGroups = [
+  const railSections: RailSection[] = [
     {
-      title: "COMMAND CENTER",
-      items: [{ label: "Executive Overview", href: "/agent", icon: Home }],
+      key: "command",
+      title: "Command Center",
+      items: [{ label: "Overview", href: "/agent", icon: Home }],
     },
     {
-      title: "OPERATIONS",
+      key: "operations",
+      title: "Operations",
       items: [
         { label: t("common.cashIn"), href: "/agent/cash-in", icon: ArrowDownLeft },
         { label: t("common.cashOut"), href: "/agent/cash-out", icon: ArrowUpRight },
@@ -83,7 +143,8 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
       ],
     },
     {
-      title: "FINANCIAL & FLOAT",
+      key: "finance",
+      title: "Financial & Float",
       items: [
         { label: t("common.liquidityCenter"), href: "/agent/liquidity", icon: Coins },
         { label: t("common.commissions"), href: "/agent/commissions", icon: CheckCircle2 },
@@ -92,7 +153,8 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
       ],
     },
     {
-      title: "HARDWARE & SETTINGS",
+      key: "hardware",
+      title: "Hardware & Settings",
       items: [
         { label: t("common.terminals"), href: "/agent/terminals", icon: Smartphone },
         { label: t("common.support"), href: "/agent/support", icon: LifeBuoy },
@@ -109,8 +171,10 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
     { label: "More", href: "/agent/settings", icon: Settings },
   ];
 
+  const isItemActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+
   return (
-    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] flex flex-col antialiased selection:bg-amber-500 selection:text-slate-950">
+    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] antialiased selection:bg-amber-500 selection:text-slate-950">
       {/* Offline Warning Banner */}
       {isOffline && (
         <div className="bg-rose-600 text-white text-xs font-semibold px-4 py-2 flex items-center justify-center gap-2 sticky top-0 z-50">
@@ -137,147 +201,206 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
         </div>
       )}
 
-      <div className="flex flex-1">
-        {/* Desktop Sidebar */}
-        <aside className="hidden lg:flex flex-col justify-between w-64 bg-[var(--surface)]/80 border-r border-[var(--border)] sticky top-0 shadow-[var(--shadow-sm)] h-screen overflow-y-auto z-40 shrink-0">
-          <div>
-            {/* Header Brand */}
-            <div className="p-4 border-b border-white/10 flex items-center justify-between">
-              <Link href="/agent" className="flex items-center gap-2">
-                <KorieLogo variant="compact" theme="dark" height={28} linkHref="" />
+      <div className="flex min-h-screen">
+        {/* Desktop Rail — collapsible, like the Admin command center */}
+        <div className="hidden lg:block p-4">
+          <aside
+            aria-label="Agency primary navigation"
+            className={`sticky top-4 h-[calc(100vh-2rem)] flex flex-col rounded-3xl border border-[var(--border)] bg-[var(--surface)]/80 backdrop-blur-xl shadow-[var(--shadow-card)] z-30 transition-[width] duration-200 ease-out ${
+              expanded ? "w-[264px]" : "w-20"
+            }`}
+          >
+            {/* Brand */}
+            <div className={`flex items-center gap-2.5 border-b border-[var(--border)] px-3 py-4 ${expanded ? "" : "justify-center"}`}>
+              <Link href="/agent" aria-label="KoriePay Agency home" className="flex items-center gap-2.5 min-w-0">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-amber-500/10">
+                  <KorieLogo variant="compact" theme="dark" height={22} linkHref="" />
+                </span>
+                {expanded && (
+                  <span className="flex flex-col leading-tight min-w-0">
+                    <span className="text-[13px] font-extrabold tracking-tight text-[var(--foreground)] truncate">KORIEPAY</span>
+                    <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-amber-500">Agency Ops</span>
+                  </span>
+                )}
               </Link>
-              <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                AGENCY OPS
-              </span>
             </div>
 
-            {/* Quick Liquidity Summary */}
-            <div className="p-3 mx-3 my-3 rounded-2xl bg-[var(--surface-2)] border border-white/5 space-y-1">
-              <div className="text-[10px] font-mono text-slate-400 uppercase">
-                {t("common.availableLiquidity")}
-              </div>
-              <div className="text-base font-extrabold text-white font-mono">
-                {renderShellAmount(`₦${liquidity.totalLiquidity.toLocaleString()}`)}
-              </div>
-              <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono pt-1">
-                <span>Cash: ₦{isLiquidityLoading ? "···" : liquidity.cashInHand.toLocaleString()}</span>
-                <span className="text-emerald-400 font-bold">● {isLiquidityLoading ? "SYNCING" : liquidity.health}</span>
-              </div>
-            </div>
-
-            {/* Desktop Navigation */}
-            <nav className="p-3 space-y-5">
-              {desktopNavGroups.map((group, idx) => (
-                <div key={idx} className="space-y-1">
-                  <div className="px-3 text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 mb-1">
-                    {group.title}
-                  </div>
-                  {group.items.map((item) => {
-                    const isActive = pathname === item.href;
-                    const Icon = item.icon;
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
-                          isActive
-                            ? "bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/20"
-                            : "text-slate-400 hover:text-white hover:bg-white/5"
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <Icon className={`w-4 h-4 ${isActive ? "text-slate-950" : "text-slate-400"}`} />
-                          <span>{item.label}</span>
-                        </div>
-                        {isActive && <ChevronRight className="w-3.5 h-3.5" />}
-                      </Link>
-                    );
-                  })}
+            {/* Quick Liquidity Summary — expanded only */}
+            {expanded && (
+              <div className="mx-3 my-3 rounded-2xl bg-[var(--surface-2)] border border-[var(--border)] p-3 space-y-1">
+                <div className="text-[10px] font-mono uppercase text-[var(--foreground-muted)]">
+                  {t("common.availableLiquidity")}
                 </div>
-              ))}
-            </nav>
-          </div>
-
-          {/* Sidebar Terminal Footer */}
-          <div className="p-3 border-t border-white/10 bg-[var(--surface)]">
-            <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900 border border-white/5 text-xs">
-              <div>
-                <div className="font-bold text-white truncate max-w-[130px]">{agent.agentName}</div>
-                <div className="text-[10px] text-emerald-400 font-mono">{agent.agentCode}</div>
-              </div>
-              <span className="text-[10px] font-mono text-slate-400">{terminal ? terminal.model.slice(-2) : "--"}</span>
-            </div>
-          </div>
-        </aside>
-
-        {/* Center Main Column */}
-        <div className="flex-1 flex flex-col min-w-0 pb-20 lg:pb-8">
-          {/* Top Sticky Header */}
-          <header className="sticky top-0 z-30 glass-nav px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <Link href="/agent" className="lg:hidden flex items-center">
-                <KorieLogo variant="compact" theme="dark" height={26} linkHref="" />
-              </Link>
-              <div className="hidden lg:block">
-                <span className="text-xs text-slate-400">{agent.businessName}</span>
-                <div className="text-sm font-bold text-white flex items-center gap-2">
-                  <span>{agent.agentName}</span>
-                  <span className="px-2 py-0.2 rounded text-[10px] font-mono bg-amber-500/15 text-amber-300 border border-amber-500/20">
-                    {agent.tier}
+                <div className="text-base font-extrabold font-mono text-[var(--foreground)]">
+                  {renderShellAmount(`₦${liquidity.totalLiquidity.toLocaleString()}`)}
+                </div>
+                <div className="flex items-center justify-between text-[10px] font-mono text-[var(--foreground-muted)] pt-1">
+                  <span>Cash: ₦{isLiquidityLoading ? "···" : liquidity.cashInHand.toLocaleString()}</span>
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                    ● {isLiquidityLoading ? "SYNCING" : liquidity.health}
                   </span>
                 </div>
               </div>
+            )}
+
+            {/* Nav */}
+            <nav className="flex-1 overflow-y-auto overflow-x-hidden px-2.5 py-3">
+              <ul className="space-y-1">
+                {railSections.map((section) => (
+                  <li key={section.key} className={expanded ? "mb-4" : "mb-2 flex flex-col items-center"}>
+                    {expanded && (
+                      <div className="px-3 mb-1 text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--foreground-muted)]">
+                        {section.title}
+                      </div>
+                    )}
+                    <ul className={expanded ? "space-y-0.5" : "space-y-1 flex flex-col items-center"}>
+                      {section.items.map((item) => {
+                        const active = isItemActive(item.href);
+                        const Icon = item.icon;
+                        return (
+                          <li key={item.href} className={expanded ? "" : "group/rail relative"}>
+                            <Link
+                              href={item.href}
+                              aria-current={active ? "page" : undefined}
+                              aria-label={expanded ? undefined : item.label}
+                              className={
+                                expanded
+                                  ? `flex min-h-[40px] items-center gap-3 rounded-xl px-3 text-[13px] font-semibold transition-colors ${
+                                      active
+                                        ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                                        : "text-[var(--foreground-muted)] hover:bg-[var(--surface-elevated)] hover:text-[var(--foreground)]"
+                                    }`
+                                  : `relative flex h-11 w-11 items-center justify-center rounded-2xl transition-colors ${
+                                      active
+                                        ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                                        : "text-[var(--foreground-muted)] hover:bg-[var(--surface-elevated)] hover:text-[var(--foreground)]"
+                                    }`
+                              }
+                            >
+                              {!expanded && active && (
+                                <span
+                                  aria-hidden="true"
+                                  className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 -translate-x-2 rounded-full bg-amber-500"
+                                />
+                              )}
+                              <Icon className={expanded ? "h-4 w-4 shrink-0" : "h-[18px] w-[18px]"} />
+                              {expanded && <span className="flex-1 truncate">{item.label}</span>}
+                            </Link>
+                            {!expanded && (
+                              <span
+                                role="tooltip"
+                                className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 -translate-y-1/2 whitespace-nowrap rounded-lg bg-[var(--foreground)] px-2.5 py-1.5 text-[11px] font-semibold text-[var(--background)] opacity-0 shadow-lg transition-opacity duration-150 group-hover/rail:opacity-100"
+                              >
+                                {item.label}
+                              </span>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+
+            {/* Terminal / identity footer */}
+            <div className={`border-t border-[var(--border)] p-2.5 ${expanded ? "" : "flex justify-center"}`}>
+              {expanded ? (
+                <div className="flex items-center justify-between rounded-xl bg-[var(--surface-2)] border border-[var(--border)] px-2.5 py-2 text-xs">
+                  <div className="min-w-0">
+                    <div className="font-bold text-[var(--foreground)] truncate max-w-[130px]">{agent.agentName}</div>
+                    <div className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400">{agent.agentCode}</div>
+                  </div>
+                  <span className="text-[10px] font-mono text-[var(--foreground-muted)]">
+                    {terminal ? terminal.model.slice(-2) : "--"}
+                  </span>
+                </div>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => setExpanded((v) => !v)}
+                aria-pressed={expanded}
+                aria-label={expanded ? "Collapse navigation" : "Expand navigation"}
+                className={`flex min-h-[36px] items-center gap-2 rounded-xl text-[var(--foreground-muted)] transition-colors hover:bg-[var(--surface-elevated)] hover:text-[var(--foreground)] ${
+                  expanded ? "w-full px-3 mt-2" : "h-10 w-10 justify-center"
+                }`}
+              >
+                {expanded ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
+                {expanded && <span className="text-[12px] font-semibold">Collapse</span>}
+              </button>
+            </div>
+          </aside>
+        </div>
+
+        {/* Center Main Column */}
+        <div className="flex-1 flex flex-col min-w-0 pb-24 lg:pb-0">
+          {/* Top Command Bar */}
+          <header className="sticky top-0 z-30 flex min-h-[64px] flex-wrap items-center gap-2 border-b border-[var(--border)] bg-[var(--surface)]/80 backdrop-blur-xl px-3 py-2.5 sm:px-6">
+            <Link href="/agent" className="lg:hidden flex items-center shrink-0">
+              <KorieLogo variant="compact" theme="dark" height={24} linkHref="" />
+            </Link>
+
+            <div className="min-w-0 flex-1">
+              <h1 className="truncate text-[15px] font-extrabold tracking-tight text-[var(--foreground)]">
+                {titleFor(pathname)}
+              </h1>
+              <p className="hidden sm:block truncate text-[11px] text-[var(--foreground-muted)]">
+                {agent.businessName} · {agent.agentName}{" "}
+                <span className="ml-1 rounded px-1.5 py-0.5 text-[9px] font-mono font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                  {agent.tier}
+                </span>
+              </p>
             </div>
 
-            {/* Right Controls */}
-            <div className="flex items-center gap-2 sm:gap-3">
-              {/* POS Status Badge */}
-              <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono font-bold">
-                <Radio className="w-3.5 h-3.5 animate-pulse" />
-                <span>{terminal ? terminal.terminalId : agent.terminalId}</span>
-              </div>
+            {/* POS Status */}
+            <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[11px] font-mono font-bold">
+              <Radio className="w-3.5 h-3.5 animate-pulse" />
+              <span>{terminal ? terminal.terminalId : agent.terminalId}</span>
+            </div>
 
-              {/* Hide Balance Eye */}
+            {/* Customer/transaction quick search */}
+            <Link
+              href="/agent/customers"
+              className="hidden sm:flex min-h-[38px] items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 text-[12px] text-[var(--foreground-muted)] transition-colors hover:border-amber-500/40 hover:text-[var(--foreground)]"
+              aria-label="Search customers"
+            >
+              <Search className="h-3.5 w-3.5 shrink-0" />
+              <span>Find a customer…</span>
+            </Link>
+
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              {/* Hide Balance */}
               <button
                 onClick={toggleHideBalance}
-                className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 transition-colors"
+                className="grid h-9 w-9 place-items-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-muted)] transition-colors hover:text-[var(--foreground)]"
                 title={isBalanceHidden ? "Show Balance" : "Hide Balance"}
+                aria-label={isBalanceHidden ? "Show balance" : "Hide balance"}
               >
                 {isBalanceHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
               </button>
 
               {/* Language Switcher */}
-              <div className="flex items-center p-0.5 rounded-xl bg-white/5 border border-white/10 text-xs font-mono font-bold">
-                <button
-                  onClick={() => setLanguage("ha")}
-                  className={`px-2 py-1 rounded-lg transition-colors ${
-                    language === "ha" ? "bg-amber-500 text-slate-950" : "text-slate-400"
-                  }`}
-                >
-                  HA
-                </button>
-                <button
-                  onClick={() => setLanguage("en")}
-                  className={`px-2 py-1 rounded-lg transition-colors ${
-                    language === "en" ? "bg-amber-500 text-slate-950" : "text-slate-400"
-                  }`}
-                >
-                  EN
-                </button>
-                <button
-                  onClick={() => setLanguage("fr")}
-                  className={`px-2 py-1 rounded-lg transition-colors ${
-                    language === "fr" ? "bg-amber-500 text-slate-950" : "text-slate-400"
-                  }`}
-                >
-                  FR
-                </button>
+              <div className="hidden sm:flex items-center p-0.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[11px] font-mono font-bold">
+                {(["ha", "en", "fr"] as const).map((lang) => (
+                  <button
+                    key={lang}
+                    onClick={() => setLanguage(lang)}
+                    className={`px-2 py-1 rounded-lg transition-colors ${
+                      language === lang
+                        ? "bg-amber-500 text-slate-950"
+                        : "text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
+                    }`}
+                  >
+                    {lang.toUpperCase()}
+                  </button>
+                ))}
               </div>
 
-              {/* Notifications Bell */}
+              {/* Notifications */}
               <Link
                 href="/agent/notifications"
-                className="relative w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-slate-300 transition-colors"
+                className="relative grid h-9 w-9 place-items-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-muted)] transition-colors hover:text-[var(--foreground)]"
+                aria-label="Notifications"
               >
                 <Bell className="w-4 h-4" />
                 {notificationsCount > 0 && (
@@ -287,15 +410,15 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
                 )}
               </Link>
 
-              {/* Profile Avatar */}
+              {/* Profile */}
               <Link
                 href="/agent/profile"
-                className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-500 text-slate-950 flex items-center justify-center font-extrabold text-xs shadow-md shadow-amber-500/20"
+                className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-tr from-amber-500 to-orange-500 text-slate-950 font-extrabold text-[11px] shadow-sm"
+                aria-label="Profile"
               >
                 AG
               </Link>
 
-              {/* Day / Night + Sign out */}
               <ShellAccount />
             </div>
           </header>
@@ -306,24 +429,25 @@ export const AgencyShell: React.FC<{ children: React.ReactNode }> = ({ children 
       </div>
 
       {/* Mobile Fixed Bottom Navigation (48px+ touch targets) */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[var(--nav-bg)] backdrop-blur-2xl border-t border-white/10 px-2 py-1.5 flex items-center justify-around safe-area-bottom shadow-2xl">
+      <nav
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[var(--nav-bg)] backdrop-blur-2xl border-t border-[var(--border)] px-2 py-1.5 flex items-center justify-around shadow-2xl"
+        style={{ paddingBottom: "max(0.375rem, env(safe-area-inset-bottom))" }}
+      >
         {mobileBottomNavItems.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive = isItemActive(item.href);
           const Icon = item.icon;
           return (
             <Link
               key={item.href}
               href={item.href}
               className={`flex flex-col items-center justify-center py-1 px-3 min-w-[56px] min-h-[48px] rounded-2xl transition-all ${
-                isActive ? "text-amber-400 font-bold" : "text-slate-400 hover:text-slate-200"
+                isActive ? "text-amber-500 font-bold" : "text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
               }`}
             >
-              <div className={`p-1 rounded-xl transition-all ${isActive ? "bg-amber-500/20" : ""}`}>
-                <Icon className={`w-5 h-5 ${isActive ? "text-amber-400 stroke-[2.5]" : "text-slate-400"}`} />
+              <div className={`p-1 rounded-xl transition-all ${isActive ? "bg-amber-500/15" : ""}`}>
+                <Icon className={`w-5 h-5 ${isActive ? "text-amber-500 stroke-[2.5]" : ""}`} />
               </div>
-              <span className="text-[10px] mt-0.5 leading-tight font-medium tracking-tight">
-                {item.label}
-              </span>
+              <span className="text-[10px] mt-0.5 leading-tight font-medium tracking-tight">{item.label}</span>
             </Link>
           );
         })}
