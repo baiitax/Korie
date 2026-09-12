@@ -28,8 +28,8 @@ export default function AggregatorExceptionsPage() {
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
       {/* Header */}
       <div>
-        <h1 className="text-xl sm:text-2xl font-black text-white">Operational Exceptions Center</h1>
-        <p className="text-xs text-slate-400">
+        <h1 className="text-xl sm:text-2xl font-black text-[var(--foreground)]">Operational Exceptions Center</h1>
+        <p className="text-xs text-[var(--foreground-muted)]">
           Centralized resolution queue for float shortages, compliance notices, rejected transfers, and provider delays
         </p>
       </div>
@@ -39,29 +39,29 @@ export default function AggregatorExceptionsPage() {
         {filteredExceptions.map((exc) => (
           <div
             key={exc.id}
-            className="p-5 sm:p-6 rounded-3xl bg-[#091122] border border-white/10 hover:border-amber-500/30 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+            className="p-5 sm:p-6 rounded-3xl bg-[var(--surface)] border border-[var(--border)] hover:border-amber-500/40 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
           >
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <span className="font-mono font-bold text-white text-sm">{exc.reference}</span>
+                <span className="font-mono font-bold text-[var(--foreground)] text-sm">{exc.reference}</span>
                 <span
                   className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
                     exc.severity === "HIGH"
-                      ? "bg-rose-500/10 text-rose-400 border border-rose-500/20"
-                      : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                      ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
+                      : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
                   }`}
                 >
                   {exc.severity} SEVERITY
                 </span>
-                <span className="text-xs text-teal-300 font-mono">• {exc.category}</span>
-                <span className="text-xs text-slate-500 font-mono">• Owner: {exc.owner}</span>
+                <span className="text-xs text-teal-600 dark:text-teal-300 font-mono">• {exc.category}</span>
+                <span className="text-xs text-[var(--foreground-muted)] font-mono">• Owner: {exc.owner}</span>
               </div>
 
-              <div className="text-sm font-bold text-white">{exc.affectedEntity}</div>
-              <p className="text-xs text-slate-300 max-w-2xl">{exc.description}</p>
+              <div className="text-sm font-bold text-[var(--foreground)]">{exc.affectedEntity}</div>
+              <p className="text-xs text-[var(--foreground)] max-w-2xl">{exc.description}</p>
 
-              <div className="p-2.5 rounded-xl bg-slate-900 border border-white/5 text-[11px] text-teal-300 font-mono">
-                <span className="font-bold text-amber-400">Recommended Action: </span>
+              <div className="p-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] text-[11px] text-teal-600 dark:text-teal-300 font-mono">
+                <span className="font-bold text-amber-600 dark:text-amber-400">Recommended Action: </span>
                 <span>{exc.recommendedAction}</span>
               </div>
             </div>
@@ -78,7 +78,7 @@ export default function AggregatorExceptionsPage() {
               )}
 
               {exc.currentState === "RESOLVED" ? (
-                <span className="px-4 py-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-mono font-bold flex items-center gap-1.5">
+                <span className="px-4 py-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-xs font-mono font-bold flex items-center gap-1.5">
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   <span>Resolved</span>
                 </span>

@@ -49,8 +49,8 @@ export default function AggregatorAgentsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-black text-white">Agency Network Directory</h1>
-          <p className="text-xs text-slate-400">
+          <h1 className="text-xl sm:text-2xl font-black text-[var(--foreground)]">Agency Network Directory</h1>
+          <p className="text-xs text-[var(--foreground-muted)]">
             Supervise authorized cash points, POS hardware terminals, drawer cash positions, and float levels
           </p>
         </div>
@@ -73,16 +73,16 @@ export default function AggregatorAgentsPage() {
       </div>
 
       {/* Filters Bar */}
-      <div className="p-4 rounded-2xl bg-[#091122] border border-white/10 space-y-3">
+      <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border)] space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
           <div className="relative sm:col-span-2">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--foreground-muted)]" />
             <input
               type="text"
               placeholder="Search agent code, name, phone, business..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+              className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] text-xs text-[var(--foreground)] placeholder-[var(--foreground-muted)] focus:outline-none focus:ring-1 focus:ring-teal-500"
             />
           </div>
 
@@ -90,7 +90,7 @@ export default function AggregatorAgentsPage() {
             <select
               value={selectedTerritoryId}
               onChange={(e) => setSelectedTerritoryId(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-xs text-white focus:outline-none focus:ring-1 focus:ring-teal-500"
+              className="w-full px-3 py-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] text-xs text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-teal-500"
             >
               <option value="ALL">All Territories</option>
               {territories.map((t) => (
@@ -105,7 +105,7 @@ export default function AggregatorAgentsPage() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-xs text-white focus:outline-none focus:ring-1 focus:ring-teal-500"
+              className="w-full px-3 py-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] text-xs text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-teal-500"
             >
               <option value="ALL">All Statuses</option>
               <option value="ACTIVE">ACTIVE</option>
@@ -118,10 +118,10 @@ export default function AggregatorAgentsPage() {
       </div>
 
       {/* Agents Table */}
-      <div className="rounded-3xl bg-[#091122] border border-white/10 overflow-hidden shadow-xl">
+      <div className="rounded-3xl bg-[var(--surface)] border border-[var(--border)] overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-[#060a16] text-slate-400 font-mono uppercase text-[10px] border-b border-white/5">
+            <thead className="bg-[var(--surface-2)] text-[var(--foreground-muted)] font-mono uppercase text-[10px] border-b border-[var(--border)]">
               <tr>
                 <th className="px-4 py-3">Agent Code & Name</th>
                 <th className="px-4 py-3">Territory & Branch</th>
@@ -132,36 +132,36 @@ export default function AggregatorAgentsPage() {
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5 font-medium">
+            <tbody className="divide-y divide-[var(--border)] font-medium">
               {filteredAgents.map((agt) => (
-                <tr key={agt.id} className="hover:bg-white/[0.02] transition-colors">
+                <tr key={agt.id} className="hover:bg-[var(--surface-2)] transition-colors">
                   <td className="px-4 py-3.5">
-                    <div className="font-bold text-white">{agt.fullName}</div>
-                    <div className="text-[10px] text-teal-300 font-mono">
+                    <div className="font-bold text-[var(--foreground)]">{agt.fullName}</div>
+                    <div className="text-[10px] text-teal-600 dark:text-teal-300 font-mono">
                       {agt.agentCode} • {agt.businessName}
                     </div>
                   </td>
                   <td className="px-4 py-3.5">
-                    <div className="text-white">{agt.territoryName}</div>
-                    <div className="text-[10px] text-slate-400">{agt.lga}</div>
+                    <div className="text-[var(--foreground)]">{agt.territoryName}</div>
+                    <div className="text-[10px] text-[var(--foreground-muted)]">{agt.lga}</div>
                   </td>
-                  <td className="px-4 py-3.5 text-right font-mono font-bold text-teal-300">
+                  <td className="px-4 py-3.5 text-right font-mono font-bold text-teal-600 dark:text-teal-300">
                     {formatCurrency(agt.walletBalance)}
                   </td>
-                  <td className="px-4 py-3.5 text-right font-mono text-slate-300">
+                  <td className="px-4 py-3.5 text-right font-mono text-[var(--foreground)]">
                     {formatCurrency(agt.cashInDrawer)}
                   </td>
-                  <td className="px-4 py-3.5 text-right font-mono font-bold text-emerald-400">
+                  <td className="px-4 py-3.5 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
                     {formatCurrency(agt.todayVolume)}
                   </td>
                   <td className="px-4 py-3.5 text-center">
                     <span
                       className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
                         agt.status === "ACTIVE"
-                          ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
                           : agt.status === "RESTRICTED"
-                          ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                          : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                          ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                          : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
                       }`}
                     >
                       {agt.status}
@@ -176,7 +176,7 @@ export default function AggregatorAgentsPage() {
                     </button>
                     <Link
                       href={`/aggregator/agents/${agt.id}`}
-                      className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 text-[11px] font-bold"
+                      className="px-2.5 py-1 rounded-lg bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--foreground)] text-[11px] font-bold"
                     >
                       Profile
                     </Link>

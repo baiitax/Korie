@@ -63,31 +63,31 @@ export default function AggregatorTransactionsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-black text-white">Network Transaction Command Center</h1>
-          <p className="text-xs text-slate-400">
+          <h1 className="text-xl sm:text-2xl font-black text-[var(--foreground)]">Network Transaction Command Center</h1>
+          <p className="text-xs text-[var(--foreground-muted)]">
             Immutable settlement stream across Agency Cash-In/Out, Dynamic NUBAN Transfers, and Card POS Terminals
           </p>
         </div>
         <button
           onClick={exportCSV}
-          className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 text-xs font-bold text-white flex items-center gap-2 transition-colors self-start sm:self-auto"
+          className="px-4 py-2 rounded-xl bg-[var(--surface-2)] hover:bg-[var(--surface-3)] border border-[var(--border)] text-xs font-bold text-[var(--foreground)] flex items-center gap-2 transition-colors self-start sm:self-auto"
         >
-          <Download className="w-4 h-4 text-teal-400" />
+          <Download className="w-4 h-4 text-teal-600 dark:text-teal-400" />
           <span>Export Ledger CSV</span>
         </button>
       </div>
 
       {/* Filters Bar */}
-      <div className="p-4 rounded-2xl bg-[#091122] border border-white/10 space-y-3">
+      <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border)] space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
           <div className="relative sm:col-span-2">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--foreground-muted)]" />
             <input
               type="text"
               placeholder="Search reference, correlation ID, agent, customer..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+              className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] text-xs text-[var(--foreground)] placeholder-[var(--foreground-muted)] focus:outline-none focus:ring-1 focus:ring-teal-500"
             />
           </div>
 
@@ -95,7 +95,7 @@ export default function AggregatorTransactionsPage() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-xs text-white focus:outline-none focus:ring-1 focus:ring-teal-500"
+              className="w-full px-3 py-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] text-xs text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-teal-500"
             >
               <option value="ALL">All Statuses</option>
               <option value="SUCCESSFUL">SUCCESSFUL</option>
@@ -109,7 +109,7 @@ export default function AggregatorTransactionsPage() {
             <select
               value={channelFilter}
               onChange={(e) => setChannelFilter(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-xs text-white focus:outline-none focus:ring-1 focus:ring-teal-500"
+              className="w-full px-3 py-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] text-xs text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-teal-500"
             >
               <option value="ALL">All Payment Rails</option>
               <option value="CARD_POS">Card POS Terminal</option>
@@ -122,10 +122,10 @@ export default function AggregatorTransactionsPage() {
       </div>
 
       {/* Transactions Table */}
-      <div className="rounded-3xl bg-[#091122] border border-white/10 overflow-hidden shadow-xl">
+      <div className="rounded-3xl bg-[var(--surface)] border border-[var(--border)] overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-[#060a16] text-slate-400 font-mono uppercase text-[10px] border-b border-white/5">
+            <thead className="bg-[var(--surface-2)] text-[var(--foreground-muted)] font-mono uppercase text-[10px] border-b border-[var(--border)]">
               <tr>
                 <th className="px-4 py-3">Reference / Correlation</th>
                 <th className="px-4 py-3">Executing Entity & Territory</th>
@@ -137,41 +137,41 @@ export default function AggregatorTransactionsPage() {
                 <th className="px-4 py-3 text-right">Audit</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5 font-medium">
+            <tbody className="divide-y divide-[var(--border)] font-medium">
               {filteredTransactions.map((tx) => (
-                <tr key={tx.id} className="hover:bg-white/[0.02] transition-colors">
+                <tr key={tx.id} className="hover:bg-[var(--surface-2)] transition-colors">
                   <td className="px-4 py-3.5">
-                    <div className="font-mono font-bold text-white">{tx.reference}</div>
-                    <div className="text-[10px] text-slate-400 font-mono">{tx.correlationId}</div>
+                    <div className="font-mono font-bold text-[var(--foreground)]">{tx.reference}</div>
+                    <div className="text-[10px] text-[var(--foreground-muted)] font-mono">{tx.correlationId}</div>
                   </td>
                   <td className="px-4 py-3.5">
-                    <div className="text-white font-bold">{tx.agentName || tx.merchantName}</div>
-                    <div className="text-[10px] text-slate-400">
+                    <div className="text-[var(--foreground)] font-bold">{tx.agentName || tx.merchantName}</div>
+                    <div className="text-[10px] text-[var(--foreground-muted)]">
                       {tx.territoryName} • {tx.customerName}
                     </div>
                   </td>
                   <td className="px-4 py-3.5">
-                    <span className="px-2 py-1 rounded-md text-[10px] font-mono bg-white/5 text-teal-300 border border-white/5">
+                    <span className="px-2 py-1 rounded-md text-[10px] font-mono bg-[var(--surface-2)] text-teal-600 dark:text-teal-300 border border-[var(--border)]">
                       {tx.type} • {tx.channel.replace("_", " ")}
                     </span>
                   </td>
-                  <td className="px-4 py-3.5 text-right font-mono font-bold text-white">
+                  <td className="px-4 py-3.5 text-right font-mono font-bold text-[var(--foreground)]">
                     {formatCurrency(tx.amount)}
                   </td>
-                  <td className="px-4 py-3.5 text-right font-mono text-slate-400">
+                  <td className="px-4 py-3.5 text-right font-mono text-[var(--foreground-muted)]">
                     {formatCurrency(tx.fee)}
                   </td>
-                  <td className="px-4 py-3.5 text-right font-mono font-bold text-amber-400">
+                  <td className="px-4 py-3.5 text-right font-mono font-bold text-amber-600 dark:text-amber-400">
                     {formatCurrency(tx.aggregatorCommission)}
                   </td>
                   <td className="px-4 py-3.5 text-center">
                     <span
                       className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
                         tx.status === "SUCCESSFUL"
-                          ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
                           : tx.status === "PENDING"
-                          ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                          : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                          ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                          : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
                       }`}
                     >
                       {tx.status}
@@ -180,7 +180,7 @@ export default function AggregatorTransactionsPage() {
                   <td className="px-4 py-3.5 text-right">
                     <button
                       onClick={() => openTransactionInvestigation(tx)}
-                      className="px-2.5 py-1 rounded-lg bg-teal-500/10 hover:bg-teal-500/20 text-teal-300 text-[11px] font-bold border border-teal-500/20"
+                      className="px-2.5 py-1 rounded-lg bg-teal-500/10 hover:bg-teal-500/20 text-teal-600 dark:text-teal-300 text-[11px] font-bold border border-teal-500/20"
                     >
                       Investigate
                     </button>

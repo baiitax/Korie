@@ -57,8 +57,8 @@ export default function AggregatorBranchesPage() {
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
       {/* Header */}
       <div>
-        <h1 className="text-xl sm:text-2xl font-black text-white">Aggregator Regional Operations Hubs</h1>
-        <p className="text-xs text-slate-400">
+        <h1 className="text-xl sm:text-2xl font-black text-[var(--foreground)]">Aggregator Regional Operations Hubs</h1>
+        <p className="text-xs text-[var(--foreground-muted)]">
           Physical support offices, cashier distribution centers, and field supervisor headquarters
         </p>
       </div>
@@ -68,37 +68,37 @@ export default function AggregatorBranchesPage() {
         {branches.map((b) => (
           <div
             key={b.id}
-            className="p-6 rounded-3xl bg-[#091122] border border-white/10 hover:border-teal-500/30 transition-all flex flex-col justify-between space-y-4"
+            className="p-6 rounded-3xl bg-[var(--surface)] border border-[var(--border)] hover:border-teal-500/40 transition-all flex flex-col justify-between space-y-4"
           >
             <div>
               <div className="flex items-start justify-between">
-                <div className="w-10 h-10 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400">
+                <div className="w-10 h-10 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-600 dark:text-teal-400">
                   <Building2 className="w-5 h-5" />
                 </div>
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                   {b.country === "NG" ? "🇳🇬 NGN" : "🇳🇪 XOF"}
                 </span>
               </div>
 
-              <h3 className="font-bold text-white text-base mt-3 leading-snug">{b.name}</h3>
-              <div className="text-xs text-slate-400 mt-1 flex items-start gap-1">
-                <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0 mt-0.5" />
+              <h3 className="font-bold text-[var(--foreground)] text-base mt-3 leading-snug">{b.name}</h3>
+              <div className="text-xs text-[var(--foreground-muted)] mt-1 flex items-start gap-1">
+                <MapPin className="w-3.5 h-3.5 text-[var(--foreground-muted)] shrink-0 mt-0.5" />
                 <span>{b.address}, {b.city}</span>
               </div>
             </div>
 
-            <div className="p-3 bg-slate-900 rounded-2xl border border-white/5 space-y-1.5 text-xs">
-              <div className="flex justify-between text-slate-400">
+            <div className="p-3 bg-[var(--surface-2)] rounded-2xl border border-[var(--border)] space-y-1.5 text-xs">
+              <div className="flex justify-between text-[var(--foreground-muted)]">
                 <span>Hub Lead:</span>
-                <span className="text-white font-medium">{b.manager}</span>
+                <span className="text-[var(--foreground)] font-medium">{b.manager}</span>
               </div>
-              <div className="flex justify-between text-slate-400">
+              <div className="flex justify-between text-[var(--foreground-muted)]">
                 <span>Phone:</span>
-                <span className="text-teal-300 font-mono">{b.phone}</span>
+                <span className="text-teal-600 dark:text-teal-300 font-mono">{b.phone}</span>
               </div>
-              <div className="flex justify-between text-slate-400 pt-1 border-t border-white/5">
+              <div className="flex justify-between text-[var(--foreground-muted)] pt-1 border-t border-[var(--border)]">
                 <span>Network Scope:</span>
-                <span className="text-slate-200 font-medium">{b.assignedAgents} Agents • {b.assignedMerchants} Merchants</span>
+                <span className="text-[var(--foreground)] font-medium">{b.assignedAgents} Agents • {b.assignedMerchants} Merchants</span>
               </div>
             </div>
           </div>

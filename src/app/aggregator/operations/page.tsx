@@ -43,12 +43,12 @@ export default function AggregatorOperationsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+          <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
             <Activity className="w-5 h-5 animate-pulse" />
           </div>
           <div>
-            <h1 className="text-xl sm:text-2xl font-black text-white">Live Operations Center</h1>
-            <p className="text-xs text-slate-400">
+            <h1 className="text-xl sm:text-2xl font-black text-[var(--foreground)]">Live Operations Center</h1>
+            <p className="text-xs text-[var(--foreground-muted)]">
               Real-time transaction telemetry, failed payment diagnostics, float warnings, and exception resolution
             </p>
           </div>
@@ -68,64 +68,64 @@ export default function AggregatorOperationsPage() {
         <div
           onClick={() => setActiveTab("stream")}
           className={`p-4 rounded-2xl border cursor-pointer transition-all space-y-1 ${
-            activeTab === "stream" ? "bg-[#0f1d38] border-teal-500" : "bg-[#091122] border-white/10"
+            activeTab === "stream" ? "bg-[var(--surface-2)] border-teal-500" : "bg-[var(--surface)] border-[var(--border)]"
           }`}
         >
-          <div className="text-[10px] font-mono uppercase text-slate-400 flex items-center gap-1.5">
-            <Activity className="w-3.5 h-3.5 text-teal-400" />
+          <div className="text-[10px] font-mono uppercase text-[var(--foreground-muted)] flex items-center gap-1.5">
+            <Activity className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
             <span>Live Stream</span>
           </div>
-          <div className="text-xl font-bold font-mono text-white">{transactions.length} Active Events</div>
-          <div className="text-[10px] text-teal-300 font-mono">Sub-second telemetry</div>
+          <div className="text-xl font-bold font-mono text-[var(--foreground)]">{transactions.length} Active Events</div>
+          <div className="text-[10px] text-teal-600 dark:text-teal-300 font-mono">Sub-second telemetry</div>
         </div>
 
         <div
           onClick={() => setActiveTab("failed")}
           className={`p-4 rounded-2xl border cursor-pointer transition-all space-y-1 ${
-            activeTab === "failed" ? "bg-[#0f1d38] border-rose-500" : "bg-[#091122] border-white/10"
+            activeTab === "failed" ? "bg-[var(--surface-2)] border-rose-500" : "bg-[var(--surface)] border-[var(--border)]"
           }`}
         >
-          <div className="text-[10px] font-mono uppercase text-rose-400 flex items-center gap-1.5">
+          <div className="text-[10px] font-mono uppercase text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
             <AlertCircle className="w-3.5 h-3.5" />
             <span>Failed Transactions</span>
           </div>
-          <div className="text-xl font-bold font-mono text-rose-400">{failedTransactions.length} Recorded</div>
-          <div className="text-[10px] text-slate-400 font-mono">Auto-retry diagnostics</div>
+          <div className="text-xl font-bold font-mono text-rose-600 dark:text-rose-400">{failedTransactions.length} Recorded</div>
+          <div className="text-[10px] text-[var(--foreground-muted)] font-mono">Auto-retry diagnostics</div>
         </div>
 
         <div
           onClick={() => setActiveTab("exceptions")}
           className={`p-4 rounded-2xl border cursor-pointer transition-all space-y-1 ${
-            activeTab === "exceptions" ? "bg-[#0f1d38] border-amber-500" : "bg-[#091122] border-white/10"
+            activeTab === "exceptions" ? "bg-[var(--surface-2)] border-amber-500" : "bg-[var(--surface)] border-[var(--border)]"
           }`}
         >
-          <div className="text-[10px] font-mono uppercase text-amber-400 flex items-center gap-1.5">
+          <div className="text-[10px] font-mono uppercase text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
             <AlertOctagon className="w-3.5 h-3.5" />
             <span>Operational Exceptions</span>
           </div>
-          <div className="text-xl font-bold font-mono text-amber-400">{openExceptions.length} Pending Action</div>
-          <div className="text-[10px] text-slate-400 font-mono">Float & compliance queue</div>
+          <div className="text-xl font-bold font-mono text-amber-600 dark:text-amber-400">{openExceptions.length} Pending Action</div>
+          <div className="text-[10px] text-[var(--foreground-muted)] font-mono">Float & compliance queue</div>
         </div>
 
         <div
           onClick={() => setActiveTab("risk")}
           className={`p-4 rounded-2xl border cursor-pointer transition-all space-y-1 ${
-            activeTab === "risk" ? "bg-[#0f1d38] border-purple-500" : "bg-[#091122] border-white/10"
+            activeTab === "risk" ? "bg-[var(--surface-2)] border-purple-500" : "bg-[var(--surface)] border-[var(--border)]"
           }`}
         >
-          <div className="text-[10px] font-mono uppercase text-purple-400 flex items-center gap-1.5">
+          <div className="text-[10px] font-mono uppercase text-purple-600 dark:text-purple-400 flex items-center gap-1.5">
             <ShieldAlert className="w-3.5 h-3.5" />
             <span>Risk Velocity Alerts</span>
           </div>
-          <div className="text-xl font-bold font-mono text-purple-300">{activeRiskAlerts.length} Active Flags</div>
-          <div className="text-[10px] text-slate-400 font-mono">Fraud pattern detector</div>
+          <div className="text-xl font-bold font-mono text-purple-600 dark:text-purple-300">{activeRiskAlerts.length} Active Flags</div>
+          <div className="text-[10px] text-[var(--foreground-muted)] font-mono">Fraud pattern detector</div>
         </div>
       </div>
 
       {/* Main Operational Feed Table */}
-      <div className="rounded-3xl bg-[#091122] border border-white/10 overflow-hidden shadow-xl">
-        <div className="p-4 sm:p-5 border-b border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#060a16]">
-          <h2 className="text-base font-bold text-white uppercase font-mono tracking-wider">
+      <div className="rounded-3xl bg-[var(--surface)] border border-[var(--border)] overflow-hidden shadow-xl">
+        <div className="p-4 sm:p-5 border-b border-[var(--border)] flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[var(--surface-2)]">
+          <h2 className="text-base font-bold text-[var(--foreground)] uppercase font-mono tracking-wider">
             {activeTab === "stream" && "All Realtime Network Events"}
             {activeTab === "failed" && "Failed & Interrupted Transactions"}
             {activeTab === "exceptions" && "Operational Exceptions Ledger"}
@@ -133,13 +133,13 @@ export default function AggregatorOperationsPage() {
           </h2>
 
           <div className="relative w-full sm:w-72">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--foreground-muted)]" />
             <input
               type="text"
               placeholder="Search reference, agent, or entity..."
               value={filterSearch}
               onChange={(e) => setFilterSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-slate-900 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+              className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] text-xs text-[var(--foreground)] placeholder-[var(--foreground-muted)] focus:outline-none focus:ring-1 focus:ring-teal-500"
             />
           </div>
         </div>
@@ -150,29 +150,29 @@ export default function AggregatorOperationsPage() {
             {exceptions.map((exc) => (
               <div
                 key={exc.id}
-                className="p-4 rounded-2xl bg-slate-900 border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                className="p-4 rounded-2xl bg-[var(--surface-2)] border border-[var(--border)] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
               >
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-white">{exc.reference}</span>
+                    <span className="font-mono font-bold text-[var(--foreground)]">{exc.reference}</span>
                     <span
                       className={`px-2 py-0.2 rounded text-[10px] font-mono font-bold ${
                         exc.severity === "HIGH"
-                          ? "bg-rose-500/10 text-rose-400 border border-rose-500/20"
-                          : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                          ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
+                          : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
                       }`}
                     >
                       {exc.severity} SEVERITY
                     </span>
-                    <span className="text-slate-400 font-mono">• {exc.category}</span>
+                    <span className="text-[var(--foreground-muted)] font-mono">• {exc.category}</span>
                   </div>
-                  <div className="text-white font-medium">{exc.affectedEntity}</div>
-                  <p className="text-slate-400 text-[11px]">{exc.description}</p>
+                  <div className="text-[var(--foreground)] font-medium">{exc.affectedEntity}</div>
+                  <p className="text-[var(--foreground-muted)] text-[11px]">{exc.description}</p>
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
                   {exc.currentState === "RESOLVED" ? (
-                    <span className="px-3 py-1 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-mono font-bold">
+                    <span className="px-3 py-1 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-xs font-mono font-bold">
                       RESOLVED
                     </span>
                   ) : (
@@ -192,25 +192,25 @@ export default function AggregatorOperationsPage() {
             {riskAlerts.map((ra) => (
               <div
                 key={ra.id}
-                className="p-4 rounded-2xl bg-slate-900 border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                className="p-4 rounded-2xl bg-[var(--surface-2)] border border-[var(--border)] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
               >
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-purple-300">{ra.alertType}</span>
-                    <span className="px-2 py-0.2 rounded text-[10px] font-mono font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                    <span className="font-mono font-bold text-purple-600 dark:text-purple-300">{ra.alertType}</span>
+                    <span className="px-2 py-0.2 rounded text-[10px] font-mono font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
                       {ra.severity}
                     </span>
                   </div>
-                  <div className="text-white font-bold">{ra.entityName}</div>
-                  <p className="text-slate-400 text-[11px]">{ra.details}</p>
-                  <div className="text-[10px] text-teal-400 font-mono">
+                  <div className="text-[var(--foreground)] font-bold">{ra.entityName}</div>
+                  <p className="text-[var(--foreground-muted)] text-[11px]">{ra.details}</p>
+                  <div className="text-[10px] text-teal-600 dark:text-teal-400 font-mono">
                     Recommended: {ra.recommendedAction}
                   </div>
                 </div>
 
                 <div className="shrink-0">
                   {ra.status === "ACKNOWLEDGED" ? (
-                    <span className="px-3 py-1 rounded-xl bg-white/5 text-slate-400 font-mono text-xs">
+                    <span className="px-3 py-1 rounded-xl bg-[var(--surface-2)] text-[var(--foreground-muted)] font-mono text-xs">
                       Acknowledged
                     </span>
                   ) : (
@@ -228,7 +228,7 @@ export default function AggregatorOperationsPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-[#060a16] text-slate-400 font-mono uppercase text-[10px] border-b border-white/5">
+              <thead className="bg-[var(--surface-2)] text-[var(--foreground-muted)] font-mono uppercase text-[10px] border-b border-[var(--border)]">
                 <tr>
                   <th className="px-4 py-3">Reference / Correlation</th>
                   <th className="px-4 py-3">Executing Entity</th>
@@ -238,33 +238,33 @@ export default function AggregatorOperationsPage() {
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5 font-medium">
+              <tbody className="divide-y divide-[var(--border)] font-medium">
                 {(activeTab === "failed" ? failedTransactions : transactions).map((tx) => (
-                  <tr key={tx.id} className="hover:bg-white/[0.02] transition-colors">
+                  <tr key={tx.id} className="hover:bg-[var(--surface-2)] transition-colors">
                     <td className="px-4 py-3.5">
-                      <div className="font-mono font-bold text-white">{tx.reference}</div>
-                      <div className="text-[10px] text-slate-400 font-mono">{tx.correlationId}</div>
+                      <div className="font-mono font-bold text-[var(--foreground)]">{tx.reference}</div>
+                      <div className="text-[10px] text-[var(--foreground-muted)] font-mono">{tx.correlationId}</div>
                     </td>
                     <td className="px-4 py-3.5">
-                      <div className="text-white font-bold">{tx.agentName || tx.merchantName}</div>
-                      <div className="text-[10px] text-slate-400">{tx.territoryName}</div>
+                      <div className="text-[var(--foreground)] font-bold">{tx.agentName || tx.merchantName}</div>
+                      <div className="text-[10px] text-[var(--foreground-muted)]">{tx.territoryName}</div>
                     </td>
                     <td className="px-4 py-3.5">
-                      <span className="px-2 py-1 rounded-md text-[10px] font-mono bg-white/5 text-teal-300 border border-white/5">
+                      <span className="px-2 py-1 rounded-md text-[10px] font-mono bg-[var(--surface-2)] text-teal-600 dark:text-teal-300 border border-[var(--border)]">
                         {tx.type} • {tx.channel.replace("_", " ")}
                       </span>
                     </td>
-                    <td className="px-4 py-3.5 text-right font-mono font-bold text-white">
+                    <td className="px-4 py-3.5 text-right font-mono font-bold text-[var(--foreground)]">
                       {formatCurrency(tx.amount)}
                     </td>
                     <td className="px-4 py-3.5 text-center">
                       <span
                         className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
                           tx.status === "SUCCESSFUL"
-                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
                             : tx.status === "PENDING"
-                            ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                            : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                            ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                            : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
                         }`}
                       >
                         {tx.status}
@@ -273,7 +273,7 @@ export default function AggregatorOperationsPage() {
                     <td className="px-4 py-3.5 text-right">
                       <button
                         onClick={() => openTransactionInvestigation(tx)}
-                        className="px-2.5 py-1 rounded-lg bg-teal-500/10 hover:bg-teal-500/20 text-teal-300 text-[11px] font-bold border border-teal-500/20"
+                        className="px-2.5 py-1 rounded-lg bg-teal-500/10 hover:bg-teal-500/20 text-teal-600 dark:text-teal-300 text-[11px] font-bold border border-teal-500/20"
                       >
                         Investigate
                       </button>

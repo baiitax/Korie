@@ -45,8 +45,8 @@ export default function AggregatorNotificationsPage() {
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-5xl mx-auto">
       {/* Header */}
       <div>
-        <h1 className="text-xl sm:text-2xl font-black text-white">Aggregator Notification Center</h1>
-        <p className="text-xs text-slate-400">
+        <h1 className="text-xl sm:text-2xl font-black text-[var(--foreground)]">Aggregator Notification Center</h1>
+        <p className="text-xs text-[var(--foreground-muted)]">
           Real-time operational notifications, settlement alerts, and compliance updates
         </p>
       </div>
@@ -58,20 +58,20 @@ export default function AggregatorNotificationsPage() {
             key={n.id}
             className={`p-4 sm:p-5 rounded-2xl border transition-all flex items-start gap-4 ${
               !n.read
-                ? "bg-[#0c162c] border-amber-500/30"
-                : "bg-[#091122] border-white/5 opacity-80"
+                ? "bg-[var(--surface-2)] border-amber-500/30"
+                : "bg-[var(--surface)] border-[var(--border)] opacity-80"
             }`}
           >
-            <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 text-amber-400">
+            <div className="w-9 h-9 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] flex items-center justify-center shrink-0 text-amber-600 dark:text-amber-400">
               <Bell className="w-4 h-4" />
             </div>
 
             <div className="space-y-1 flex-1">
               <div className="flex items-center justify-between">
-                <span className="font-bold text-white text-sm">{n.title}</span>
-                <span className="text-[10px] text-slate-500 font-mono">{n.time}</span>
+                <span className="font-bold text-[var(--foreground)] text-sm">{n.title}</span>
+                <span className="text-[10px] text-[var(--foreground-muted)] font-mono">{n.time}</span>
               </div>
-              <p className="text-xs text-slate-300">{n.message}</p>
+              <p className="text-xs text-[var(--foreground)]">{n.message}</p>
             </div>
           </div>
         ))}

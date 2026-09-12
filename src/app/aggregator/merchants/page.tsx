@@ -31,23 +31,23 @@ export default function AggregatorMerchantsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-black text-white">Merchant Acquiring Network</h1>
-          <p className="text-xs text-slate-400">
+          <h1 className="text-xl sm:text-2xl font-black text-[var(--foreground)]">Merchant Acquiring Network</h1>
+          <p className="text-xs text-[var(--foreground-muted)]">
             Supervise enterprise retail chains, wholesale distributors, POS standees, and Providus/Coris settlement routes
           </p>
         </div>
       </div>
 
       {/* Search Bar */}
-      <div className="p-4 rounded-2xl bg-[#091122] border border-white/10">
+      <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border)]">
         <div className="relative w-full sm:w-96">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--foreground-muted)]" />
           <input
             type="text"
             placeholder="Search business, merchant code, category..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-slate-900 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+            className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] text-xs text-[var(--foreground)] placeholder-[var(--foreground-muted)] focus:outline-none focus:ring-1 focus:ring-teal-500"
           />
         </div>
       </div>
@@ -57,43 +57,43 @@ export default function AggregatorMerchantsPage() {
         {filteredMerchants.map((mch) => (
           <div
             key={mch.id}
-            className="p-6 rounded-3xl bg-[#091122] border border-white/10 hover:border-teal-500/30 transition-all flex flex-col justify-between space-y-5"
+            className="p-6 rounded-3xl bg-[var(--surface)] border border-[var(--border)] hover:border-teal-500/40 transition-all flex flex-col justify-between space-y-5"
           >
             <div>
               <div className="flex items-start justify-between">
                 <div>
-                  <h3 className="font-bold text-white text-base leading-snug">{mch.businessName}</h3>
-                  <div className="text-xs text-teal-300 font-mono mt-0.5">{mch.merchantCode}</div>
+                  <h3 className="font-bold text-[var(--foreground)] text-base leading-snug">{mch.businessName}</h3>
+                  <div className="text-xs text-teal-600 dark:text-teal-300 font-mono mt-0.5">{mch.merchantCode}</div>
                 </div>
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                   {mch.status}
                 </span>
               </div>
 
-              <div className="text-xs text-slate-400 mt-2 space-y-0.5">
-                <div>Category: <span className="text-slate-200">{mch.category}</span></div>
-                <div>Territory: <span className="text-slate-200">{mch.territoryName}</span></div>
+              <div className="text-xs text-[var(--foreground-muted)] mt-2 space-y-0.5">
+                <div>Category: <span className="text-[var(--foreground)]">{mch.category}</span></div>
+                <div>Territory: <span className="text-[var(--foreground)]">{mch.territoryName}</span></div>
               </div>
             </div>
 
-            <div className="p-3 bg-slate-900 rounded-2xl border border-white/5 space-y-1.5 text-xs">
+            <div className="p-3 bg-[var(--surface-2)] rounded-2xl border border-[var(--border)] space-y-1.5 text-xs">
               <div className="flex justify-between">
-                <span className="text-slate-400">Today's TPV:</span>
-                <span className="font-mono font-bold text-emerald-400">{formatCurrency(mch.todayVolume)}</span>
+                <span className="text-[var(--foreground-muted)]">Today's TPV:</span>
+                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(mch.todayVolume)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Transactions:</span>
-                <span className="font-mono text-white">{mch.todayTxCount} orders</span>
+                <span className="text-[var(--foreground-muted)]">Transactions:</span>
+                <span className="font-mono text-[var(--foreground)]">{mch.todayTxCount} orders</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Settlement Route:</span>
-                <span className="text-teal-300 font-mono text-[11px]">{mch.settlementBank}</span>
+                <span className="text-[var(--foreground-muted)]">Settlement Route:</span>
+                <span className="text-teal-600 dark:text-teal-300 font-mono text-[11px]">{mch.settlementBank}</span>
               </div>
             </div>
 
             <Link
               href={`/aggregator/merchants/${mch.id}`}
-              className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-teal-500/10 border border-white/10 hover:border-teal-500/30 text-xs font-bold text-teal-300 flex items-center justify-center gap-1.5 transition-colors"
+              className="w-full py-2.5 rounded-xl bg-[var(--surface-2)] hover:bg-teal-500/10 border border-[var(--border)] hover:border-teal-500/40 text-xs font-bold text-teal-600 dark:text-teal-300 flex items-center justify-center gap-1.5 transition-colors"
             >
               <span>Inspect Merchant Profile</span>
               <ChevronRight className="w-4 h-4" />

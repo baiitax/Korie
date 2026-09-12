@@ -62,8 +62,8 @@ export default function AggregatorReportsPage() {
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
       {/* Header */}
       <div>
-        <h1 className="text-xl sm:text-2xl font-black text-white">Aggregator Financial & Network Reports</h1>
-        <p className="text-xs text-slate-400">
+        <h1 className="text-xl sm:text-2xl font-black text-[var(--foreground)]">Aggregator Financial & Network Reports</h1>
+        <p className="text-xs text-[var(--foreground-muted)]">
           Official statutory statements, commission settlement journals, and regulatory compliance audits
         </p>
       </div>
@@ -73,24 +73,24 @@ export default function AggregatorReportsPage() {
         {reports.map((r) => (
           <div
             key={r.id}
-            className="p-6 rounded-3xl bg-[#091122] border border-white/10 hover:border-teal-500/30 transition-all flex flex-col justify-between space-y-4"
+            className="p-6 rounded-3xl bg-[var(--surface)] border border-[var(--border)] hover:border-teal-500/40 transition-all flex flex-col justify-between space-y-4"
           >
             <div>
               <div className="flex items-start justify-between">
-                <div className="w-10 h-10 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400">
+                <div className="w-10 h-10 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-600 dark:text-teal-400">
                   <FileSpreadsheet className="w-5 h-5" />
                 </div>
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-white/5 text-slate-300 border border-white/10">
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[var(--surface-2)] text-[var(--foreground)] border border-[var(--border)]">
                   {r.format}
                 </span>
               </div>
 
-              <h3 className="text-base font-bold text-white mt-3">{r.title}</h3>
-              <p className="text-xs text-slate-400 mt-1">{r.description}</p>
+              <h3 className="text-base font-bold text-[var(--foreground)] mt-3">{r.title}</h3>
+              <p className="text-xs text-[var(--foreground-muted)] mt-1">{r.description}</p>
             </div>
 
-            <div className="pt-2 border-t border-white/5 flex items-center justify-between">
-              <span className="text-[11px] font-mono text-slate-400">{r.period}</span>
+            <div className="pt-2 border-t border-[var(--border)] flex items-center justify-between">
+              <span className="text-[11px] font-mono text-[var(--foreground-muted)]">{r.period}</span>
               <button
                 onClick={() => handleDownload(r.id, r.title)}
                 disabled={downloadingId === r.id}

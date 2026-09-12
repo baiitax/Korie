@@ -43,8 +43,8 @@ export default function AggregatorDevicesPage() {
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-5xl mx-auto">
       {/* Header */}
       <div>
-        <h1 className="text-xl sm:text-2xl font-black text-white">Authorized Devices & POS Terminals</h1>
-        <p className="text-xs text-slate-400">
+        <h1 className="text-xl sm:text-2xl font-black text-[var(--foreground)]">Authorized Devices & POS Terminals</h1>
+        <p className="text-xs text-[var(--foreground-muted)]">
           Manage hardware devices, tablets, and POS terminals authenticated to your aggregator network
         </p>
       </div>
@@ -54,21 +54,21 @@ export default function AggregatorDevicesPage() {
         {devices.map((dev) => (
           <div
             key={dev.id}
-            className="p-5 rounded-3xl bg-[#091122] border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+            className="p-5 rounded-3xl bg-[var(--surface)] border border-[var(--border)] flex flex-col sm:flex-row sm:items-center justify-between gap-4"
           >
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400 shrink-0">
+              <div className="w-10 h-10 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-600 dark:text-teal-400 shrink-0">
                 {dev.deviceName.includes("iPhone") ? <Smartphone className="w-5 h-5" /> : <Laptop className="w-5 h-5" />}
               </div>
               <div className="space-y-0.5">
-                <div className="font-bold text-white text-sm">{dev.deviceName}</div>
-                <div className="text-xs text-slate-400">{dev.browser} • {dev.location}</div>
-                <div className="text-[10px] text-teal-300 font-mono">Last active: {dev.lastActive}</div>
+                <div className="font-bold text-[var(--foreground)] text-sm">{dev.deviceName}</div>
+                <div className="text-xs text-[var(--foreground-muted)]">{dev.browser} • {dev.location}</div>
+                <div className="text-[10px] text-teal-600 dark:text-teal-300 font-mono">Last active: {dev.lastActive}</div>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="px-3 py-1 rounded-full text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <span className="px-3 py-1 rounded-full text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                 {dev.status}
               </span>
             </div>

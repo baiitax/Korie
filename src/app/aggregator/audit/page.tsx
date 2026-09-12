@@ -45,17 +45,17 @@ export default function AggregatorAuditPage() {
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
       {/* Header */}
       <div>
-        <h1 className="text-xl sm:text-2xl font-black text-white">Immutable Security Audit Ledger</h1>
-        <p className="text-xs text-slate-400">
+        <h1 className="text-xl sm:text-2xl font-black text-[var(--foreground)]">Immutable Security Audit Ledger</h1>
+        <p className="text-xs text-[var(--foreground-muted)]">
           Tamper-evident logs of all administrative logins, float dispatches, KYC reviews, and settlement authorizations
         </p>
       </div>
 
       {/* Table */}
-      <div className="rounded-3xl bg-[#091122] border border-white/10 overflow-hidden shadow-xl">
+      <div className="rounded-3xl bg-[var(--surface)] border border-[var(--border)] overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-[#060a16] text-slate-400 font-mono uppercase text-[10px] border-b border-white/5">
+            <thead className="bg-[var(--surface-2)] text-[var(--foreground-muted)] font-mono uppercase text-[10px] border-b border-[var(--border)]">
               <tr>
                 <th className="px-4 py-3">Timestamp & Correlation</th>
                 <th className="px-4 py-3">Actor / Operator</th>
@@ -64,21 +64,21 @@ export default function AggregatorAuditPage() {
                 <th className="px-4 py-3 text-right">Volume</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5 font-medium">
+            <tbody className="divide-y divide-[var(--border)] font-medium">
               {auditEvents.map((evt) => (
-                <tr key={evt.id} className="hover:bg-white/[0.02] transition-colors">
+                <tr key={evt.id} className="hover:bg-[var(--surface-2)] transition-colors">
                   <td className="px-4 py-3.5">
-                    <div className="font-mono font-bold text-white">{evt.timestamp}</div>
-                    <div className="text-[10px] text-slate-400 font-mono">{evt.correlationId}</div>
+                    <div className="font-mono font-bold text-[var(--foreground)]">{evt.timestamp}</div>
+                    <div className="text-[10px] text-[var(--foreground-muted)] font-mono">{evt.correlationId}</div>
                   </td>
-                  <td className="px-4 py-3.5 text-slate-200">{evt.actor}</td>
+                  <td className="px-4 py-3.5 text-[var(--foreground)]">{evt.actor}</td>
                   <td className="px-4 py-3.5">
-                    <span className="px-2 py-0.5 rounded bg-white/5 text-[10px] font-mono text-teal-300 font-bold">
+                    <span className="px-2 py-0.5 rounded bg-[var(--surface-2)] text-[10px] font-mono text-teal-600 dark:text-teal-300 font-bold">
                       {evt.action}
                     </span>
                   </td>
-                  <td className="px-4 py-3.5 font-mono text-slate-300">{evt.entity}</td>
-                  <td className="px-4 py-3.5 text-right font-mono font-bold text-amber-400">{evt.amount}</td>
+                  <td className="px-4 py-3.5 font-mono text-[var(--foreground)]">{evt.entity}</td>
+                  <td className="px-4 py-3.5 text-right font-mono font-bold text-amber-600 dark:text-amber-400">{evt.amount}</td>
                 </tr>
               ))}
             </tbody>
