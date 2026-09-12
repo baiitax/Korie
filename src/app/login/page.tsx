@@ -201,6 +201,11 @@ export default function LoginPage() {
               amaka.owner@koriemerchant.com<br />
               Password: KorieMerchant@2026!
             </div>
+            <div className="text-[11px] font-semibold text-slate-300 pt-2">Demo aggregator account</div>
+            <div className="text-[11px] text-slate-400 font-mono leading-relaxed">
+              hassan.bawa@korieaggregator.com<br />
+              Password: KorieAggregator@2026!
+            </div>
             <div className="text-[11px] font-semibold text-slate-300 pt-2">Compliance officer (staff)</div>
             <div className="text-[11px] text-slate-400 font-mono leading-relaxed">
               {quick ? (
