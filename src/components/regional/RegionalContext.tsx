@@ -46,16 +46,29 @@ export function RegionalProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      try {
-        const res = await regionalApiFetch("/api/regional/session");
-        const json = await res.json();
-        if (!res.ok || !json?.payload?.manager) {
-          if (!cancelled) setManagerError(json?.error?.message || "SESSION_FAILED");
+      // The Supabase browser client can still be hydrating the session from
+      // storage in the first moments after the login redirect — retry
+      // briefly before declaring the session unavailable.
+      const maxAttempts = 8;
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        if (cancelled) return;
+        try {
+          const res = await regionalApiFetch("/api/regional/session");
+          const json = await res.json();
+          if (!res.ok || !json?.payload?.manager) {
+            if (!cancelled) setManagerError(json?.error?.message || "SESSION_FAILED");
+            return;
+          }
+          if (!cancelled) setManager(json.payload.manager);
+          return;
+        } catch (e: any) {
+          if (e?.message === "REGIONAL_SESSION_UNAVAILABLE" && attempt < maxAttempts) {
+            await new Promise((r) => setTimeout(r, 400));
+            continue;
+          }
+          if (!cancelled) setManagerError("REGIONAL_SESSION_UNAVAILABLE");
           return;
         }
-        if (!cancelled) setManager(json.payload.manager);
-      } catch {
-        if (!cancelled) setManagerError("REGIONAL_SESSION_UNAVAILABLE");
       }
     })();
     return () => {
