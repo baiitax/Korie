@@ -9,26 +9,48 @@ import {
   Mail,
   Phone,
   CheckCircle2,
+  AlertCircle,
   X,
 } from "lucide-react";
 
 export default function AggregatorTeamPage() {
-  const { team, t } = useAggregator();
+  const { team, inviteTeamMember, t } = useAggregator();
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [inviteName, setInviteName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
+  const [invitePhone, setInvitePhone] = useState("");
   const [inviteRole, setInviteRole] = useState("OPERATIONS_MANAGER");
   const [inviteSuccess, setInviteSuccess] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSendInvite = (e: React.FormEvent) => {
+  const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault();
-    setInviteSuccess(true);
-    setTimeout(() => {
-      setInviteSuccess(false);
-      setIsInviteOpen(false);
-      setInviteName("");
-      setInviteEmail("");
-    }, 2000);
+    if (!inviteName.trim() || !inviteEmail.trim()) return;
+    setIsSubmitting(true);
+    setInviteError(null);
+    const result = await inviteTeamMember({
+      fullName: inviteName.trim(),
+      email: inviteEmail.trim(),
+      role: inviteRole,
+      phone: invitePhone.trim() || undefined,
+    });
+    setIsSubmitting(false);
+    if (result.success) {
+      setInviteSuccess(true);
+    } else {
+      setInviteError(result.error || "Could not send invitation.");
+    }
+  };
+
+  const closeInviteModal = () => {
+    setIsInviteOpen(false);
+    setInviteSuccess(false);
+    setInviteError(null);
+    setInviteName("");
+    setInviteEmail("");
+    setInvitePhone("");
+    setInviteRole("OPERATIONS_MANAGER");
   };
 
   return (
@@ -124,7 +146,7 @@ export default function AggregatorTeamPage() {
             <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
               <h3 className="font-bold text-[var(--foreground)] text-base">Invite Aggregator Staff</h3>
               <button
-                onClick={() => setIsInviteOpen(false)}
+                onClick={closeInviteModal}
                 className="p-1.5 rounded-lg bg-[var(--surface-2)] text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
               >
                 <X className="w-4 h-4" />
@@ -134,8 +156,17 @@ export default function AggregatorTeamPage() {
             {inviteSuccess ? (
               <div className="py-8 text-center space-y-2">
                 <CheckCircle2 className="w-12 h-12 text-emerald-600 dark:text-emerald-400 mx-auto" />
-                <h4 className="font-bold text-[var(--foreground)]">Invitation Dispatched!</h4>
-                <p className="text-xs text-[var(--foreground-muted)]">Security setup link sent to {inviteEmail}</p>
+                <h4 className="font-bold text-[var(--foreground)]">Staff Record Created</h4>
+                <p className="text-xs text-[var(--foreground-muted)]">
+                  {inviteName} was added as {inviteRole.replace("_", " ")} with status INVITED. They complete
+                  registration themselves to activate their account.
+                </p>
+                <button
+                  onClick={closeInviteModal}
+                  className="mt-2 px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold"
+                >
+                  Done
+                </button>
               </div>
             ) : (
               <form onSubmit={handleSendInvite} className="space-y-3">
@@ -162,6 +193,16 @@ export default function AggregatorTeamPage() {
                   />
                 </div>
                 <div>
+                  <label className="text-[11px] font-mono text-[var(--foreground-muted)] block mb-1">Phone (optional)</label>
+                  <input
+                    type="tel"
+                    placeholder="+234..."
+                    value={invitePhone}
+                    onChange={(e) => setInvitePhone(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] text-[var(--foreground)] text-xs font-mono focus:outline-none focus:ring-1 focus:ring-teal-500"
+                  />
+                </div>
+                <div>
                   <label className="text-[11px] font-mono text-[var(--foreground-muted)] block mb-1">Assigned Role</label>
                   <select
                     value={inviteRole}
@@ -171,24 +212,39 @@ export default function AggregatorTeamPage() {
                     <option value="OPERATIONS_MANAGER">OPERATIONS_MANAGER (Manage Agents & Merchants)</option>
                     <option value="FINANCE_MANAGER">FINANCE_MANAGER (Float Dispatches & Payouts)</option>
                     <option value="COMPLIANCE_OFFICER">COMPLIANCE_OFFICER (KYC & Documents)</option>
+                    <option value="RISK_OFFICER">RISK_OFFICER (Fraud & Velocity Monitoring)</option>
                     <option value="FIELD_OFFICER">FIELD_OFFICER (Territory Inspections)</option>
                     <option value="AUDITOR">AUDITOR (Read-only Compliance)</option>
+                    <option value="ANALYST">ANALYST (Read-only Reporting)</option>
                   </select>
                 </div>
+
+                {inviteError && (
+                  <div className="flex items-start gap-2 p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-[11px] text-rose-600 dark:text-rose-400">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                    <span>{inviteError}</span>
+                  </div>
+                )}
+
+                <p className="text-[10px] text-[var(--foreground-muted)]">
+                  No invite email is sent automatically. A staff record is created with status INVITED; the person
+                  completes their own registration to link and activate the account.
+                </p>
 
                 <div className="pt-2 flex items-center justify-end gap-3">
                   <button
                     type="button"
-                    onClick={() => setIsInviteOpen(false)}
+                    onClick={closeInviteModal}
                     className="px-4 py-2 rounded-xl bg-[var(--surface-2)] text-[var(--foreground)] text-xs font-bold"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold"
+                    disabled={isSubmitting}
+                    className="px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold disabled:opacity-50"
                   >
-                    Send Invitation
+                    {isSubmitting ? "Creating…" : "Create Staff Record"}
                   </button>
                 </div>
               </form>

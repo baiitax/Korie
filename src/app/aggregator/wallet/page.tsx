@@ -21,28 +21,33 @@ export default function AggregatorWalletPage() {
     formatDate,
     openLiquidityModal,
     isBalanceHidden,
+    runSettlement,
     t,
   } = useAggregator();
 
-  const [payoutAmount, setPayoutAmount] = useState("");
-  const [payoutSuccess, setPayoutSuccess] = useState(false);
+  const [payoutSuccess, setPayoutSuccess] = useState<{ batchReference?: string } | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [payoutError, setPayoutError] = useState<string | null>(null);
 
   const mask = (val: string) => (isBalanceHidden ? "••••••••" : val);
 
-  const handleManualSweep = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!payoutAmount || Number(payoutAmount) <= 0) return;
-
+  // Real settlement run — the same run_daily_settlement() RPC agency ops
+  // uses. It sums every EARNED agent commission not yet in a batch for
+  // today, posts a real settlement batch + ledger entries, and returns the
+  // batch reference. There is no client-supplied "amount": the server
+  // determines the payable total from actual earned commissions, never a
+  // client-entered figure.
+  const handleRunSettlement = async () => {
     setIsProcessing(true);
-    setTimeout(() => {
-      setIsProcessing(false);
-      setPayoutSuccess(true);
-      setTimeout(() => {
-        setPayoutSuccess(false);
-        setPayoutAmount("");
-      }, 3000);
-    }, 1200);
+    setPayoutError(null);
+    setPayoutSuccess(null);
+    const result = await runSettlement(aggregator.currency);
+    setIsProcessing(false);
+    if (result.success) {
+      setPayoutSuccess({ batchReference: result.batchReference });
+    } else {
+      setPayoutError(result.error || "Could not run settlement.");
+    }
   };
 
   return (
@@ -115,68 +120,79 @@ export default function AggregatorWalletPage() {
           </div>
         </div>
 
-        {/* Right Col: On-Demand Payout to Bank */}
+        {/* Right Col: Run Commission Settlement */}
         <div className="p-6 rounded-3xl bg-[var(--surface)] border border-[var(--border)] space-y-4">
           <div>
-            <h3 className="font-bold text-[var(--foreground)] text-base">On-Demand Commission Payout</h3>
+            <h3 className="font-bold text-[var(--foreground)] text-base">Run Commission Settlement</h3>
             <p className="text-xs text-[var(--foreground-muted)] mt-0.5">
-              Push approved commissions directly to your corporate bank account instantly.
+              Settles every agent commission your network has earned but not yet batched today. The server computes
+              the payable total from real earned commissions — you never enter an amount.
             </p>
           </div>
 
           {payoutSuccess ? (
             <div className="p-6 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-center space-y-2">
               <CheckCircle2 className="w-10 h-10 text-emerald-600 dark:text-emerald-400 mx-auto" />
-              <div className="font-bold text-[var(--foreground)] text-sm">Payout Dispatched via NIP!</div>
-              <div className="text-xs text-[var(--foreground)] font-mono">
-                Transferred to {aggregator.settlementBank} • {aggregator.settlementAccountMasked}
+              <div className="font-bold text-[var(--foreground)] text-sm">Settlement Batch Posted</div>
+              {payoutSuccess.batchReference && (
+                <div className="text-xs text-[var(--foreground)] font-mono">Reference: {payoutSuccess.batchReference}</div>
+              )}
+              <div className="text-xs text-[var(--foreground-muted)]">
+                View it under{" "}
+                <a href="/aggregator/settlements" className="underline text-teal-600 dark:text-teal-400">
+                  Settlements
+                </a>
+                .
               </div>
+              <button
+                onClick={() => setPayoutSuccess(null)}
+                className="text-[11px] underline text-teal-600 dark:text-teal-400"
+              >
+                Run another
+              </button>
             </div>
           ) : (
-            <form onSubmit={handleManualSweep} className="space-y-4">
-              <div>
-                <label className="text-[11px] font-mono text-[var(--foreground-muted)] block mb-1">
-                  Payout Amount ({aggregator.currency})
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-amber-600 dark:text-amber-400 font-bold">₦</span>
-                  <input
-                    type="number"
-                    required
-                    placeholder="e.g. 2,000,000"
-                    max={aggregator.availableLiquidity}
-                    value={payoutAmount}
-                    onChange={(e) => setPayoutAmount(e.target.value)}
-                    className="w-full pl-8 pr-3.5 py-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] text-[var(--foreground)] font-mono font-bold text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
-                  />
-                </div>
-              </div>
-
+            <div className="space-y-4">
               <div className="p-3 bg-[var(--surface-2)] rounded-xl border border-[var(--border)] space-y-1 text-xs">
                 <div className="flex justify-between text-[var(--foreground-muted)]">
-                  <span>Transfer Fee:</span>
-                  <span className="text-[var(--foreground)] font-mono">₦0.00 (Tier-1 Zero Fee)</span>
+                  <span>Currency:</span>
+                  <span className="text-[var(--foreground)] font-mono">{aggregator.currency}</span>
                 </div>
                 <div className="flex justify-between text-[var(--foreground-muted)]">
-                  <span>SLA Speed:</span>
-                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">Instant Direct Credit</span>
+                  <span>Destination:</span>
+                  <span className="text-[var(--foreground)] font-mono">
+                    {aggregator.settlementBank} • {aggregator.settlementAccountMasked}
+                  </span>
+                </div>
+                <div className="flex justify-between text-[var(--foreground-muted)]">
+                  <span>Pending settlement (this month):</span>
+                  <span className="text-amber-600 dark:text-amber-400 font-mono font-bold">
+                    {mask(formatCurrency(aggregator.pendingCommissions))}
+                  </span>
                 </div>
               </div>
 
+              {payoutError && (
+                <div className="flex items-start gap-2 p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-[11px] text-rose-600 dark:text-rose-400">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  <span>{payoutError}</span>
+                </div>
+              )}
+
               <button
-                type="submit"
-                disabled={isProcessing || !payoutAmount}
+                onClick={handleRunSettlement}
+                disabled={isProcessing}
                 className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 <ArrowUpRight className="w-4 h-4 stroke-[2.5]" />
-                <span>{isProcessing ? "Pushing via Providus NIP..." : "Withdraw to Providus Bank"}</span>
+                <span>{isProcessing ? "Running settlement…" : "Run Today's Settlement"}</span>
               </button>
-            </form>
+            </div>
           )}
 
           <div className="p-3 rounded-xl bg-[var(--surface-2)]/40 border border-[var(--border)] text-[11px] text-[var(--foreground-muted)] flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
-            <span>Dual maker-checker authenticated corporate settlement node.</span>
+            <span>Idempotent per org/currency/day — running twice on the same day reuses the existing batch.</span>
           </div>
         </div>
       </div>
