@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Public_Sans, Source_Serif_4 } from "next/font/google";
+import { headers } from "next/headers";
 import "./globals.css";
 import { CountryProvider } from "@/components/ui/CountryContext";
 import { AuthProvider } from "@/components/auth/AuthContext";
@@ -111,6 +112,15 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // The CSP set in middleware.ts uses a per-request nonce with
+  // 'strict-dynamic' — every inline <script> below must carry it or the
+  // browser will refuse to execute it. Read it from the request headers
+  // middleware attached (this makes the layout dynamically rendered,
+  // which is required for a fresh nonce every request; the app already
+  // required per-request auth/session handling everywhere, so this does
+  // not change any existing caching behavior).
+  const nonce = headers().get("x-nonce") ?? undefined;
+
   return (
     <html
       lang="en"
@@ -118,8 +128,9 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <script
+          nonce={nonce}
           type="application/ld+json"
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
@@ -143,6 +154,7 @@ export default function RootLayout({
           }}
         />
         <script
+          nonce={nonce}
           type="application/ld+json"
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
