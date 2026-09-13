@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
   if (decision === 'APPROVED') {
     const { data: approved, error: approveError } = await admin.rpc('approve_agent_float_topup', {
       p_request_id: request.id,
-      p_reviewer_id: manager.managerId,
+      p_reviewer_id: manager.authUserId,
     });
     if (approveError || !approved) {
       return createErrorResponse({
@@ -140,7 +140,7 @@ export async function POST(req: NextRequest) {
     .from('agent_float_topup_requests')
     .update({
       status: 'REJECTED',
-      reviewed_by: manager.managerId,
+      reviewed_by: manager.authUserId,
       reviewed_at: new Date().toISOString(),
       notes: notes ? String(notes).slice(0, 500) : null,
     })
