@@ -63,10 +63,20 @@ export interface BankTransaction {
   createdAt: string;
 }
 
+interface IdempotencyRecord {
+  fingerprint: string;
+  journalId: string;
+  transaction: BankTransaction;
+  createdAt: string;
+}
+
 interface BankStoreState {
   positions: Record<BankNodeId, BankLiquidityPosition>;
   transactions: BankTransaction[];
   seq: number;
+  /** Executed idempotency keys (24h TTL) — replays return the recorded
+   *  journal instead of posting twice. File-backed with the rest of state. */
+  idempotency: Record<string, IdempotencyRecord>;
 }
 
 function ngnPosition(): BankLiquidityPosition {
@@ -100,6 +110,7 @@ export class BankCoreEngine {
     positions: { providus_ng: ngnPosition(), coris_ne: xofPosition() },
     transactions: [],
     seq: 0,
+    idempotency: {},
   };
 
   private constructor() {
@@ -119,6 +130,7 @@ export class BankCoreEngine {
       if (data.positions) this.state.positions = { ...this.state.positions, ...data.positions };
       if (data.transactions) this.state.transactions = data.transactions;
       if (typeof data.seq === 'number') this.state.seq = data.seq;
+      if (data.idempotency) this.state.idempotency = data.idempotency;
     } catch {
       /* corrupt/missing — keep seeds */
     }
@@ -328,14 +340,86 @@ export class BankCoreEngine {
     return null;
   }
 
-  public async creditInbound(params: { accountNumber: string; amount: number; narration?: string }): Promise<{
+  /**
+   * Per-key promise-chain mutex. Money mutations run their balance check,
+   * journal post, and wallet move inside `withLock(sender)` so concurrent
+   * debits cannot both pass the check before either moves funds (TOCTOU).
+   * In-process only — a multi-instance deployment needs a distributed lock.
+   */
+  private locks = new Map<string, Promise<void>>();
+  private async withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
+    const prev = this.locks.get(key) || Promise.resolve();
+    let release!: () => void;
+    const next = new Promise<void>(resolve => { release = resolve; });
+    const chained = prev.then(() => next);
+    this.locks.set(key, chained);
+    await prev;
+    try {
+      return await fn();
+    } finally {
+      release();
+      if (this.locks.get(key) === chained) this.locks.delete(key);
+    }
+  }
+
+  private validateIdempotencyKey(key: string | undefined): { code: string; message: string } | null {
+    if (!key) return null;
+    if (key.length < 8) {
+      return { code: 'IDEMPOTENCY_KEY_TOO_SHORT', message: 'Idempotency keys must be at least 8 characters.' };
+    }
+    return null;
+  }
+
+  private pruneIdempotency(now: number) {
+    for (const [k, r] of Object.entries(this.state.idempotency)) {
+      if (Date.parse(r.createdAt) <= now - 24 * 3600 * 1000) delete this.state.idempotency[k];
+    }
+  }
+
+  private checkIdempotency(key: string | undefined, fingerprint: string):
+    | { verdict: 'proceed' }
+    | { verdict: 'replay'; journalId: string; transaction: BankTransaction }
+    | { verdict: 'mismatch' } {
+    if (!key) return { verdict: 'proceed' };
+    this.pruneIdempotency(Date.now());
+    const existing = this.state.idempotency[key];
+    if (!existing) return { verdict: 'proceed' };
+    if (existing.fingerprint !== fingerprint) return { verdict: 'mismatch' };
+    return { verdict: 'replay', journalId: existing.journalId, transaction: existing.transaction };
+  }
+
+  private recordIdempotency(key: string | undefined, fingerprint: string, journalId: string, transaction: BankTransaction) {
+    if (!key) return;
+    this.state.idempotency[key] = { fingerprint, journalId, transaction, createdAt: new Date().toISOString() };
+    this.persist();
+  }
+
+  private static idempotencyMismatch(): { code: string; message: string } {
+    return {
+      code: 'IDEMPOTENCY_KEY_REUSED',
+      message: 'This idempotency key was already used for a different operation. Reuse keys only for retries of the identical request.',
+    };
+  }
+
+  public async creditInbound(params: { accountNumber: string; amount: number; narration?: string; idempotencyKey?: string }): Promise<{
     success: boolean;
     transaction?: BankTransaction;
     journalId?: string;
     code?: string;
     message?: string;
+    replayed?: boolean;
   }> {
     const amount = Math.round(params.amount);
+    // Idempotency first, from RAW params: a retried request must replay the
+    // recorded outcome even if live validation would now fail (e.g. an
+    // in-memory account row wiped by restart). Fingerprints never depend on
+    // resolved records — identical requests hash identically, always.
+    const keyErr = this.validateIdempotencyKey(params.idempotencyKey);
+    if (keyErr) return { success: false, ...keyErr };
+    const fingerprint = `FUND|${params.accountNumber}|${amount}`;
+    const fast = this.checkIdempotency(params.idempotencyKey, fingerprint);
+    if (fast.verdict === 'mismatch') return { success: false, ...BankCoreEngine.idempotencyMismatch() };
+    if (fast.verdict === 'replay') return { success: true, transaction: fast.transaction, journalId: fast.journalId, replayed: true };
     const account = AccountLifecycleEngine.getInstance().getAccount(params.accountNumber);
     if (!account || account.currency !== 'NGN') {
       return { success: false, code: 'ACCOUNT_NOT_FOUND', message: 'No NGN account with that number.' };
@@ -345,36 +429,42 @@ export class BankCoreEngine {
     if (!Number.isInteger(amount) || amount <= 0) {
       return { success: false, code: 'INVALID_AMOUNT', message: 'Enter a positive whole-₦ amount.' };
     }
-    const minor = amount * 100;
-    const ledgerTx = await LedgerService.postTransaction({
-      orgId: 'org_kor_99182',
-      transactionReference: this.ref('CREDIT'),
-      description: `Inbound bank credit — ${account.accountName}`,
-      currency: 'NGN',
-      entries: [
-        { accountId: 'acc_asset_bank_settlement_ngn', entryType: 'DEBIT', amount: minor, narration: `Partner bank credit received for ${account.accountNumber}` },
-        { accountId: 'acc_liab_customer_wallets_ngn', entryType: 'CREDIT', amount: minor, narration: `Wallet credit — ${account.accountNumber}` },
-      ],
-    });
-    this.moveWallet(account.customerId, amount);
-    this.moveNostro(minor);
+    return this.withLock(`wallet:${account.customerId}`, async () => {
+      const check = this.checkIdempotency(params.idempotencyKey, fingerprint);
+      if (check.verdict === 'mismatch') return { success: false, ...BankCoreEngine.idempotencyMismatch() };
+      if (check.verdict === 'replay') return { success: true, transaction: check.transaction, journalId: check.journalId, replayed: true };
+      const minor = amount * 100;
+      const ledgerTx = await LedgerService.postTransaction({
+        orgId: 'org_kor_99182',
+        transactionReference: this.ref('CREDIT'),
+        description: `Inbound bank credit — ${account.accountName}`,
+        currency: 'NGN',
+        entries: [
+          { accountId: 'acc_asset_bank_settlement_ngn', entryType: 'DEBIT', amount: minor, narration: `Partner bank credit received for ${account.accountNumber}` },
+          { accountId: 'acc_liab_customer_wallets_ngn', entryType: 'CREDIT', amount: minor, narration: `Wallet credit — ${account.accountNumber}` },
+        ],
+      });
+      this.moveWallet(account.customerId, amount);
+      this.moveNostro(minor);
 
-    const tx: BankTransaction = {
-      id: `bk-tx-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      reference: ledgerTx.transaction.transactionReference,
-      type: 'INBOUND_CREDIT',
-      currency: 'NGN',
-      amount,
-      toAccount: account.accountNumber,
-      accountHolder: account.accountName,
-      status: 'SUCCESSFUL',
-      ledgerJournalId: ledgerTx.transaction.id,
-      gatewayMode: this.gatewayMode().mode,
-      narration: params.narration || `Inbound credit — ${account.accountName}`,
-      createdAt: new Date().toISOString(),
-    };
-    this.log(tx);
-    return { success: true, transaction: tx, journalId: ledgerTx.transaction.id };
+      const tx: BankTransaction = {
+        id: `bk-tx-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        reference: ledgerTx.transaction.transactionReference,
+        type: 'INBOUND_CREDIT',
+        currency: 'NGN',
+        amount,
+        toAccount: account.accountNumber,
+        accountHolder: account.accountName,
+        status: 'SUCCESSFUL',
+        ledgerJournalId: ledgerTx.transaction.id,
+        gatewayMode: this.gatewayMode().mode,
+        narration: params.narration || `Inbound credit — ${account.accountName}`,
+        createdAt: new Date().toISOString(),
+      };
+      this.log(tx);
+      this.recordIdempotency(params.idempotencyKey, fingerprint, ledgerTx.transaction.id, tx);
+      return { success: true, transaction: tx, journalId: ledgerTx.transaction.id };
+    });
   }
 
   /** Wallet-to-wallet transfer between two KoriePay NGN accounts. */
@@ -383,8 +473,17 @@ export class BankCoreEngine {
     toAccount: string;
     amount: number;
     narration?: string;
-  }): Promise<{ success: boolean; transaction?: BankTransaction; journalId?: string; code?: string; message?: string }> {
+    idempotencyKey?: string;
+  }): Promise<{ success: boolean; transaction?: BankTransaction; journalId?: string; code?: string; message?: string; replayed?: boolean }> {
     const amount = Math.round(params.amount);
+    // Idempotency first, from RAW params — replays survive restarts and
+    // validation drift (see creditInbound).
+    const keyErr = this.validateIdempotencyKey(params.idempotencyKey);
+    if (keyErr) return { success: false, ...keyErr };
+    const fingerprint = `INTERNAL|${params.fromAccount}|${params.toAccount}|${amount}`;
+    const fast = this.checkIdempotency(params.idempotencyKey, fingerprint);
+    if (fast.verdict === 'mismatch') return { success: false, ...BankCoreEngine.idempotencyMismatch() };
+    if (fast.verdict === 'replay') return { success: true, transaction: fast.transaction, journalId: fast.journalId, replayed: true };
     const from = AccountLifecycleEngine.getInstance().getAccount(params.fromAccount);
     const to = AccountLifecycleEngine.getInstance().getAccount(params.toAccount);
     if (!from || !to) return { success: false, code: 'ACCOUNT_NOT_FOUND', message: 'One of the accounts was not found.' };
@@ -394,41 +493,53 @@ export class BankCoreEngine {
     const toBlocked = this.restrictionBlock(to, 'CREDIT', 'INTERNAL');
     if (toBlocked) return { success: false, ...toBlocked };
     if (!Number.isInteger(amount) || amount <= 0) return { success: false, code: 'INVALID_AMOUNT', message: 'Enter a positive whole-₦ amount.' };
-    const available = this.walletOf(from.customerId);
-    if (available < amount) {
-      return { success: false, code: 'INSUFFICIENT_BALANCE', message: `Sender wallet ₦${available.toLocaleString()} cannot cover ₦${amount.toLocaleString()}.` };
+    // Fast-path balance read (lock-free); the authoritative check runs inside
+    // the sender lock together with the journal post and wallet moves.
+    const fastAvailable = this.walletOf(from.customerId);
+    if (fastAvailable < amount) {
+      return { success: false, code: 'INSUFFICIENT_BALANCE', message: `Sender wallet ₦${fastAvailable.toLocaleString()} cannot cover ₦${amount.toLocaleString()}.` };
     }
-    const minor = amount * 100;
-    const ledgerTx = await LedgerService.postTransaction({
-      orgId: 'org_kor_99182',
-      transactionReference: this.ref('P2P'),
-      description: `Internal transfer ${from.accountNumber} → ${to.accountNumber}`,
-      currency: 'NGN',
-      entries: [
-        { accountId: 'acc_liab_customer_wallets_ngn', entryType: 'DEBIT', amount: minor, narration: `Internal transfer debit — sender ${from.accountNumber}` },
-        { accountId: 'acc_liab_customer_wallets_ngn', entryType: 'CREDIT', amount: minor, narration: `Internal transfer credit — recipient ${to.accountNumber}` },
-      ],
-    });
-    this.moveWallet(from.customerId, -amount);
-    this.moveWallet(to.customerId, amount);
+    return this.withLock(`wallet:${from.customerId}`, async () => {
+      const check = this.checkIdempotency(params.idempotencyKey, fingerprint);
+      if (check.verdict === 'mismatch') return { success: false, ...BankCoreEngine.idempotencyMismatch() };
+      if (check.verdict === 'replay') return { success: true, transaction: check.transaction, journalId: check.journalId, replayed: true };
+      const available = this.walletOf(from.customerId);
+      if (available < amount) {
+        return { success: false, code: 'INSUFFICIENT_BALANCE', message: `Sender wallet ₦${available.toLocaleString()} cannot cover ₦${amount.toLocaleString()}.` };
+      }
+      const minor = amount * 100;
+      const ledgerTx = await LedgerService.postTransaction({
+        orgId: 'org_kor_99182',
+        transactionReference: this.ref('P2P'),
+        description: `Internal transfer ${from.accountNumber} → ${to.accountNumber}`,
+        currency: 'NGN',
+        entries: [
+          { accountId: 'acc_liab_customer_wallets_ngn', entryType: 'DEBIT', amount: minor, narration: `Internal transfer debit — sender ${from.accountNumber}` },
+          { accountId: 'acc_liab_customer_wallets_ngn', entryType: 'CREDIT', amount: minor, narration: `Internal transfer credit — recipient ${to.accountNumber}` },
+        ],
+      });
+      this.moveWallet(from.customerId, -amount);
+      this.moveWallet(to.customerId, amount);
 
-    const tx: BankTransaction = {
-      id: `bk-tx-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      reference: ledgerTx.transaction.transactionReference,
-      type: 'INTERNAL_TRANSFER',
-      currency: 'NGN',
-      amount,
-      fromAccount: from.accountNumber,
-      toAccount: to.accountNumber,
-      accountHolder: to.accountName,
-      status: 'SUCCESSFUL',
-      ledgerJournalId: ledgerTx.transaction.id,
-      gatewayMode: this.gatewayMode().mode,
-      narration: params.narration || `Transfer to ${to.accountName}`,
-      createdAt: new Date().toISOString(),
-    };
-    this.log(tx);
-    return { success: true, transaction: tx, journalId: ledgerTx.transaction.id };
+      const tx: BankTransaction = {
+        id: `bk-tx-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        reference: ledgerTx.transaction.transactionReference,
+        type: 'INTERNAL_TRANSFER',
+        currency: 'NGN',
+        amount,
+        fromAccount: from.accountNumber,
+        toAccount: to.accountNumber,
+        accountHolder: to.accountName,
+        status: 'SUCCESSFUL',
+        ledgerJournalId: ledgerTx.transaction.id,
+        gatewayMode: this.gatewayMode().mode,
+        narration: params.narration || `Transfer to ${to.accountName}`,
+        createdAt: new Date().toISOString(),
+      };
+      this.log(tx);
+      this.recordIdempotency(params.idempotencyKey, fingerprint, ledgerTx.transaction.id, tx);
+      return { success: true, transaction: tx, journalId: ledgerTx.transaction.id };
+    });
   }
 
   /** Outbound to another bank (NIP) — wallet down, nostro down, fee revenue up. */
@@ -439,8 +550,17 @@ export class BankCoreEngine {
     destinationAccount: string;
     destinationName?: string;
     narration?: string;
-  }): Promise<{ success: boolean; transaction?: BankTransaction; journalId?: string; code?: string; message?: string }> {
+    idempotencyKey?: string;
+  }): Promise<{ success: boolean; transaction?: BankTransaction; journalId?: string; code?: string; message?: string; replayed?: boolean }> {
     const amount = Math.round(params.amount);
+    // Idempotency first, from RAW params — replays survive restarts and
+    // validation drift (see creditInbound).
+    const keyErr = this.validateIdempotencyKey(params.idempotencyKey);
+    if (keyErr) return { success: false, ...keyErr };
+    const fingerprint = `NIP|${params.fromAccount}|${amount}|${params.destinationBank}|${params.destinationAccount}`;
+    const fast = this.checkIdempotency(params.idempotencyKey, fingerprint);
+    if (fast.verdict === 'mismatch') return { success: false, ...BankCoreEngine.idempotencyMismatch() };
+    if (fast.verdict === 'replay') return { success: true, transaction: fast.transaction, journalId: fast.journalId, replayed: true };
     const from = AccountLifecycleEngine.getInstance().getAccount(params.fromAccount);
     if (!from || from.currency !== 'NGN') return { success: false, code: 'ACCOUNT_NOT_FOUND', message: 'No NGN account with that number.' };
     const fromBlocked = this.restrictionBlock(from, 'DEBIT', 'NIP');
@@ -451,44 +571,56 @@ export class BankCoreEngine {
       return { success: false, code: 'DESTINATION_REQUIRED', message: 'Destination account (10 digits) and bank are required.' };
     }
     const total = amount + BANK_NIP_FEE_NGN;
-    const available = this.walletOf(from.customerId);
-    if (available < total) {
-      return { success: false, code: 'INSUFFICIENT_BALANCE', message: `Wallet ₦${available.toLocaleString()} cannot cover ₦${total.toLocaleString()} (incl. ₦${BANK_NIP_FEE_NGN} fee).` };
+    // Fast-path balance read (lock-free); the authoritative check runs inside
+    // the sender lock together with the journal post and wallet moves.
+    const fastAvailable = this.walletOf(from.customerId);
+    if (fastAvailable < total) {
+      return { success: false, code: 'INSUFFICIENT_BALANCE', message: `Wallet ₦${fastAvailable.toLocaleString()} cannot cover ₦${total.toLocaleString()} (incl. ₦${BANK_NIP_FEE_NGN} fee).` };
     }
-    const feeMinor = BANK_NIP_FEE_NGN * 100;
-    const amountMinor = amount * 100;
-    const ledgerTx = await LedgerService.postTransaction({
-      orgId: 'org_kor_99182',
-      transactionReference: this.ref('NIP'),
-      description: `NIP outbound — ${from.accountName} → ${params.destinationBank}`,
-      currency: 'NGN',
-      entries: [
-        { accountId: 'acc_liab_customer_wallets_ngn', entryType: 'DEBIT', amount: amountMinor + feeMinor, narration: `NIP debit ${from.accountNumber} (amount + fee)` },
-        { accountId: 'acc_asset_bank_settlement_ngn', entryType: 'CREDIT', amount: amountMinor, narration: `NIP payout via nostro — ${params.destinationBank} ${dest}` },
-        { accountId: 'acc_rev_tx_fees_ngn', entryType: 'CREDIT', amount: feeMinor, narration: `NIP outbound fee revenue — ₦${BANK_NIP_FEE_NGN}` },
-      ],
-    });
-    this.moveWallet(from.customerId, -total);
-    this.moveNostro(-amountMinor);
+    return this.withLock(`wallet:${from.customerId}`, async () => {
+      const check = this.checkIdempotency(params.idempotencyKey, fingerprint);
+      if (check.verdict === 'mismatch') return { success: false, ...BankCoreEngine.idempotencyMismatch() };
+      if (check.verdict === 'replay') return { success: true, transaction: check.transaction, journalId: check.journalId, replayed: true };
+      const available = this.walletOf(from.customerId);
+      if (available < total) {
+        return { success: false, code: 'INSUFFICIENT_BALANCE', message: `Wallet ₦${available.toLocaleString()} cannot cover ₦${total.toLocaleString()} (incl. ₦${BANK_NIP_FEE_NGN} fee).` };
+      }
+      const feeMinor = BANK_NIP_FEE_NGN * 100;
+      const amountMinor = amount * 100;
+      const ledgerTx = await LedgerService.postTransaction({
+        orgId: 'org_kor_99182',
+        transactionReference: this.ref('NIP'),
+        description: `NIP outbound — ${from.accountName} → ${params.destinationBank}`,
+        currency: 'NGN',
+        entries: [
+          { accountId: 'acc_liab_customer_wallets_ngn', entryType: 'DEBIT', amount: amountMinor + feeMinor, narration: `NIP debit ${from.accountNumber} (amount + fee)` },
+          { accountId: 'acc_asset_bank_settlement_ngn', entryType: 'CREDIT', amount: amountMinor, narration: `NIP payout via nostro — ${params.destinationBank} ${dest}` },
+          { accountId: 'acc_rev_tx_fees_ngn', entryType: 'CREDIT', amount: feeMinor, narration: `NIP outbound fee revenue — ₦${BANK_NIP_FEE_NGN}` },
+        ],
+      });
+      this.moveWallet(from.customerId, -total);
+      this.moveNostro(-amountMinor);
 
-    const tx: BankTransaction = {
-      id: `bk-tx-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      reference: ledgerTx.transaction.transactionReference,
-      type: 'NIP_OUT',
-      currency: 'NGN',
-      amount,
-      fee: BANK_NIP_FEE_NGN,
-      fromAccount: from.accountNumber,
-      toAccount: dest,
-      toBank: params.destinationBank,
-      accountHolder: params.destinationName,
-      status: 'SUCCESSFUL',
-      ledgerJournalId: ledgerTx.transaction.id,
-      gatewayMode: this.gatewayMode().mode,
-      narration: params.narration || `Transfer to ${params.destinationBank} ${dest}`,
-      createdAt: new Date().toISOString(),
-    };
-    this.log(tx);
-    return { success: true, transaction: tx, journalId: ledgerTx.transaction.id };
+      const tx: BankTransaction = {
+        id: `bk-tx-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        reference: ledgerTx.transaction.transactionReference,
+        type: 'NIP_OUT',
+        currency: 'NGN',
+        amount,
+        fee: BANK_NIP_FEE_NGN,
+        fromAccount: from.accountNumber,
+        toAccount: dest,
+        toBank: params.destinationBank,
+        accountHolder: params.destinationName,
+        status: 'SUCCESSFUL',
+        ledgerJournalId: ledgerTx.transaction.id,
+        gatewayMode: this.gatewayMode().mode,
+        narration: params.narration || `Transfer to ${params.destinationBank} ${dest}`,
+        createdAt: new Date().toISOString(),
+      };
+      this.log(tx);
+      this.recordIdempotency(params.idempotencyKey, fingerprint, ledgerTx.transaction.id, tx);
+      return { success: true, transaction: tx, journalId: ledgerTx.transaction.id };
+    });
   }
 }

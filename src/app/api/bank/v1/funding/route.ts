@@ -19,14 +19,16 @@ export async function POST(req: NextRequest) {
       accountNumber: String(body.accountNumber || ''),
       amount: Number(body.amount),
       narration: body.narration ? String(body.narration) : undefined,
+      idempotencyKey: req.headers.get('idempotency-key') || undefined,
     });
     if (!result.success) {
+      const status = result.code === 'IDEMPOTENCY_KEY_REUSED' ? 422 : 400;
       return NextResponse.json(
         { success: false, error: { code: result.code || 'CREDIT_FAILED', message: result.message } },
-        { status: 400 },
+        { status },
       );
     }
-    return NextResponse.json({ success: true, data: { transaction: result.transaction, journalId: result.journalId } });
+    return NextResponse.json({ success: true, data: { transaction: result.transaction, journalId: result.journalId, ...(result.replayed ? { replayed: true } : {}) } });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Funding engine error';
     return NextResponse.json({ success: false, error: { code: 'ENGINE_ERROR', message } }, { status: 500 });
