@@ -14,6 +14,7 @@ import {
 
 export default function AggregatorTransactionsPage() {
   const {
+    aggregator,
     transactions,
     territories,
     selectedTerritoryId,
@@ -54,7 +55,7 @@ export default function AggregatorTransactionsPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `sahel-syndicate-transactions-${Date.now()}.csv`;
+    a.download = `${(aggregator.code || "aggregator").toLowerCase()}-transactions-${Date.now()}.csv`;
     a.click();
   };
 

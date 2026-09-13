@@ -32,7 +32,7 @@ export default function AggregatorCommissionsPage() {
           <div className="text-2xl font-black font-mono text-amber-600 dark:text-amber-400">
             {formatCurrency(commissions.todayEarned)}
           </div>
-          <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">+14.2% vs yesterday</div>
+          <div className="text-[10px] text-[var(--foreground-muted)] font-mono">Earned today on network activity</div>
         </div>
 
         <div className="p-5 rounded-3xl bg-[var(--surface)] border border-[var(--border)] space-y-1">

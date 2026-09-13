@@ -39,8 +39,15 @@ export default function AggregatorSettlementsPage() {
           </div>
         </div>
         <div className="p-5 rounded-3xl bg-[var(--surface)] border border-[var(--border)] space-y-1">
-          <div className="text-[10px] font-mono uppercase text-emerald-600 dark:text-emerald-400">Settlement SLA</div>
-          <div className="text-2xl font-black font-mono text-emerald-600 dark:text-emerald-400">100.0%</div>
+          <div className="text-[10px] font-mono uppercase text-emerald-600 dark:text-emerald-400">Settlements Completed</div>
+          <div className="text-2xl font-black font-mono text-emerald-600 dark:text-emerald-400">
+            {settlements.length > 0
+              ? `${((settlements.filter((s) => s.status === "COMPLETED").length / settlements.length) * 100).toFixed(1)}%`
+              : "—"}
+          </div>
+          <div className="text-[10px] text-[var(--foreground-muted)] font-mono">
+            {settlements.filter((s) => s.status === "COMPLETED").length}/{settlements.length} batches settled
+          </div>
         </div>
       </div>
 

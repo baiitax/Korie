@@ -92,7 +92,7 @@ export default function AggregatorLiquidityPage() {
             <h2 className="text-base font-bold text-[var(--foreground)]">Agency Nodes Requiring Float Attention</h2>
           </div>
           <span className="text-xs font-mono text-amber-600 dark:text-amber-400 font-bold">
-            {lowFloatAgents.length} Nodes Below Minimum Threshold (₦250k)
+            {lowFloatAgents.length} Nodes Below Their Configured Minimum
           </span>
         </div>
 

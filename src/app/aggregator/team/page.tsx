@@ -186,7 +186,7 @@ export default function AggregatorTeamPage() {
                   <input
                     type="email"
                     required
-                    placeholder="ibrahim.ops@sahel-syndicate.ng"
+                    placeholder="colleague@yourcompany.com"
                     value={inviteEmail}
                     onChange={(e) => setInviteEmail(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] text-[var(--foreground)] text-xs font-mono focus:outline-none focus:ring-1 focus:ring-teal-500"
