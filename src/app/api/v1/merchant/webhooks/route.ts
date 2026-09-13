@@ -4,6 +4,7 @@ import { authenticateMerchantRequest } from '@/lib/security/merchantAuth';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { createSuccessResponse, createErrorResponse } from '@/lib/security/apiResponse';
 import { encryptWebhookSecret } from '@/lib/security/webhookSecretCrypto';
+import { validateWebhookDestination } from '@/lib/security/ssrfGuard';
 
 const ALLOWED_EVENTS = [
   'payment.successful', 'payment.failed', 'payment.refunded',
@@ -66,6 +67,19 @@ export async function POST(req: NextRequest) {
   if (!url || !/^https:\/\//.test(url)) {
     return createErrorResponse({ code: 'INVALID_URL', message: 'A valid HTTPS webhook URL is required.', requestId: staff.requestId, httpStatus: 400 });
   }
+
+  // Defense-in-depth SSRF check at registration time (CWE-918): rejects
+  // hostnames/IPs that are already obviously private/internal so a
+  // merchant gets an immediate, clear error instead of every future
+  // delivery to this endpoint silently failing the same check at dispatch
+  // time. The dispatch-time check in ssrfGuard.safeFetch remains the real
+  // enforcement point (DNS can change after registration), so this is a
+  // convenience/early-feedback check, not a substitute for it.
+  const destinationCheck = await validateWebhookDestination(url);
+  if (!destinationCheck.ok) {
+    return createErrorResponse({ code: 'INVALID_URL', message: destinationCheck.reason, requestId: staff.requestId, httpStatus: 400 });
+  }
+
   if (events.length === 0) {
     return createErrorResponse({ code: 'MISSING_EVENTS', message: 'Select at least one event to subscribe to.', requestId: staff.requestId, httpStatus: 400 });
   }

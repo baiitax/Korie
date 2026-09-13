@@ -4,6 +4,7 @@ import { authenticateMerchantRequest } from '@/lib/security/merchantAuth';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { createSuccessResponse, createErrorResponse } from '@/lib/security/apiResponse';
 import { decryptWebhookSecret } from '@/lib/security/webhookSecretCrypto';
+import { safeFetch } from '@/lib/security/ssrfGuard';
 
 /**
  * POST /api/v1/merchant/webhooks/:id/test
@@ -61,11 +62,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   let errorMessage: string | null = null;
 
   try {
-    const res = await fetch(endpoint.url, {
+    // safeFetch (not the global fetch) resolves and validates the
+    // destination IP itself and pins the connection to it, blocking a
+    // merchant-supplied URL from reaching internal/private infrastructure
+    // (SSRF, CWE-918) — see src/lib/security/ssrfGuard.ts.
+    const res = await safeFetch(endpoint.url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-KoriePay-Signature': signature, 'X-KoriePay-Event': 'ping.test' },
       body: payloadBody,
-      signal: AbortSignal.timeout(8000),
+      timeoutMs: 8000,
     });
     responseCode = res.status;
     status = res.ok ? 'DELIVERED' : 'FAILED';

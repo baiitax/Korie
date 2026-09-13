@@ -1,6 +1,7 @@
 import { createHmac, randomUUID } from 'crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { decryptWebhookSecret } from '@/lib/security/webhookSecretCrypto';
+import { safeFetch } from '@/lib/security/ssrfGuard';
 
 /**
  * Real webhook event dispatcher — fires an actual signed HTTP POST to every
@@ -55,11 +56,18 @@ export async function dispatchMerchantWebhookEvent(
       let errorMessage: string | null = null;
 
       try {
-        const res = await fetch((endpoint as any).url, {
+        // safeFetch (not the global fetch) resolves and validates the
+        // destination IP itself and pins the connection to it, blocking a
+        // merchant-supplied URL from reaching internal/private
+        // infrastructure (SSRF, CWE-918) — see
+        // src/lib/security/ssrfGuard.ts. This is the automated dispatch
+        // path (fired on real payment/settlement events), so it gets the
+        // same protection as the manual test-send route.
+        const res = await safeFetch((endpoint as any).url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-KoriePay-Signature': signature, 'X-KoriePay-Event': eventType },
           body: payloadBody,
-          signal: AbortSignal.timeout(8000),
+          timeoutMs: 8000,
         });
         responseCode = res.status;
         status = res.ok ? 'DELIVERED' : 'FAILED';
