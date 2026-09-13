@@ -213,7 +213,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // aggregator console) verify the session server-side on every call and
       // run their own session contexts — they deliberately don't ride this
       // customer AuthContext. Route there and let their gates take over.
-      if (role === "COMPLIANCE_OFFICER" || role === "ADMIN" || role === "AGGREGATOR" || role === "SUPPORT") {
+      if (role === "COMPLIANCE_OFFICER" || role === "ADMIN" || role === "AGGREGATOR" || role === "SUPPORT" || role === "REGIONAL_MANAGER") {
         router.push(redirectTo);
         return { success: true, redirectTo };
       }
