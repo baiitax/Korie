@@ -4,6 +4,8 @@
  * role resolution, rate limiting, and safe error normalization.
  */
 
+import { CustomerLifecycleEngine } from '@/lib/customer/CustomerLifecycleEngine';
+
 export type UserRole =
   | 'CUSTOMER'
   | 'AGENT'
@@ -579,8 +581,23 @@ export class AuthService {
       };
     }
 
+    // Persist a real customer row: registration used to return vapor (the user
+    // evaporated; OTP→session had no subject to bind). The engine row is
+    // in-memory like the rest of the customer book — restart wipes it, and
+    // sessions bound to wiped subjects fail closed (SESSION_SUBJECT_GONE).
+    const record = CustomerLifecycleEngine.getInstance().registerCustomer({
+      tenantId: 'tenant-korie-core',
+      fullName: `${firstName.trim()} ${lastName.trim()}`,
+      email: email.trim().toLowerCase(),
+      phone: normalizedPhone,
+      country,
+      customerType: 'PERSONAL',
+      kycTier: 'TIER_1',
+      riskStatus: 'LOW',
+    });
+
     const newUser: AuthUser = {
-      id: `cust_${country.toLowerCase()}_${Date.now().toString(36)}`,
+      id: record.id,
       email: email.trim().toLowerCase(),
       phone: normalizedPhone,
       firstName: firstName.trim(),

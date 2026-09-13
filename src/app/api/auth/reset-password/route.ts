@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   try {
-    const { identifier, newPassword, recoveryCode } = await request.json();
+    const { newPassword } = await request.json();
 
     if (!newPassword || newPassword.length < 8) {
       return NextResponse.json(
@@ -17,20 +17,29 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        passwordReset: true,
-        updatedAt: new Date().toISOString(),
+    // HONEST DEFAULT: this route used to answer passwordReset:true without a
+    // recovery-code check and without any credential store to update — a
+    // fabricated reset. Per-user passwords do not exist server-side (the
+    // sandbox verifies a single demo password), so there is nothing truthful
+    // to rotate. Refuse instead of claiming a reset happened.
+    return NextResponse.json(
+      {
+        success: false,
+        error: {
+          code: 'PASSWORD_RESET_UNAVAILABLE',
+          message:
+            'Password reset is unavailable: no per-user credential store exists server-side, so no password was changed.',
+        },
       },
-    });
+      { status: 501 }
+    );
   } catch {
     return NextResponse.json(
       {
         success: false,
         error: {
-          code: 'RESET_PASSWORD_ERROR',
-          message: 'Unable to update account password.',
+          code: 'PASSWORD_RESET_ERROR',
+          message: 'Unable to process the password reset at this time.',
         },
       },
       { status: 500 }

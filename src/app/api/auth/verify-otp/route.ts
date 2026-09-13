@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
+import { SessionEngine, SessionEngineError } from '@/lib/auth/SessionEngine';
 
 export async function POST(request: Request) {
   try {
-    const { code, identifier } = await request.json();
+    const { code, identifier, country } = await request.json();
 
-    if (!code || code.length < 6) {
+    if (!code || String(code).trim().length < 6) {
       return NextResponse.json(
         {
           success: false,
@@ -17,16 +18,33 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validation passes for 123456 or standard valid 6-digit test tokens
+    const result = SessionEngine.getInstance().verifyOtp(
+      String(identifier || ''),
+      String(code),
+      country === 'NE' ? 'NE' : 'NG'
+    );
     return NextResponse.json({
       success: true,
       data: {
         verified: true,
-        sessionToken: `kp_sess_${Date.now().toString(36)}`,
+        sessionToken: result.sessionToken,
+        expiresAt: result.expiresAt,
+        subjectType: result.subjectType,
+        subjectId: result.subjectId,
+        maskedDestination: result.maskedDestination,
         verifiedAt: new Date().toISOString(),
       },
     });
-  } catch {
+  } catch (err: unknown) {
+    if (err instanceof SessionEngineError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: { code: err.code, message: err.message, ...(err.details ? { details: err.details } : {}) },
+        },
+        { status: err.httpStatus }
+      );
+    }
     return NextResponse.json(
       {
         success: false,

@@ -1,5 +1,6 @@
 import { RequestContext } from '@/types/apiGateway';
 import { DeveloperWorkspaceEngine } from '@/lib/developer/DeveloperWorkspaceEngine';
+import { SessionEngine } from '@/lib/auth/SessionEngine';
 
 export interface AuthValidationResult {
   isAuthenticated: boolean;
@@ -44,6 +45,65 @@ export async function authenticateApiRequest(
       errorMessage: 'Empty Bearer token.',
       httpStatus: 401,
     };
+  }
+
+  // Server sessions (kp_sess_*) verify against the session registry, not the
+  // credential registry. Unregistered, revoked, expired, or subject-less
+  // sessions fail closed with distinct codes.
+  if (token.startsWith('kp_sess_')) {
+    let sessionCheck: ReturnType<SessionEngine['verifySession']>;
+    try {
+      sessionCheck = SessionEngine.getInstance().verifySession(token);
+    } catch {
+      return {
+        isAuthenticated: false,
+        errorCode: 'AUTH_REGISTRY_UNAVAILABLE',
+        errorMessage: 'Session verification is unavailable; failing closed.',
+        httpStatus: 503,
+      };
+    }
+    if (!sessionCheck.ok) {
+      const messages: Record<string, string> = {
+        INVALID_SESSION: 'This session is invalid or unrecognized.',
+        SESSION_REVOKED: 'This session has been signed out.',
+        SESSION_EXPIRED: 'This session has expired. Verify a fresh code.',
+        SESSION_SUBJECT_GONE: 'This session no longer maps to a registered customer or agent.',
+      };
+      return {
+        isAuthenticated: false,
+        errorCode: sessionCheck.code,
+        errorMessage: messages[sessionCheck.code],
+        httpStatus: 401,
+      };
+    }
+    const session = sessionCheck.session;
+    for (const requiredScope of requiredScopes) {
+      if (!DeveloperWorkspaceEngine.scopeSatisfies(session.scopes || [], requiredScope)) {
+        return {
+          isAuthenticated: false,
+          errorCode: 'FORBIDDEN_INSUFFICIENT_SCOPE',
+          errorMessage: `Access denied. This session lacks the required scope: '${requiredScope}'.`,
+          httpStatus: 403,
+        };
+      }
+    }
+    const sessionContext: RequestContext = {
+      requestId,
+      correlationId,
+      environment: 'SANDBOX',
+      orgId: 'org_kor_99182',
+      userId: session.subjectId,
+      userRole: 'SESSION',
+      scopes: session.scopes,
+      apiKeyId: session.id,
+      ipAddress,
+      idempotencyKey,
+      startTime: Date.now(),
+      ...(session.subjectType === 'CUSTOMER'
+        ? { customerId: session.subjectId }
+        : { agentId: session.subjectId }),
+    };
+    return { isAuthenticated: true, context: sessionContext };
   }
 
   let verification: ReturnType<DeveloperWorkspaceEngine['verifySecret']>;

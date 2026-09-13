@@ -41,6 +41,10 @@ export interface RequestContext {
   orgId: string;
   userId?: string;
   userRole?: string;
+  /** Set by the session layer (SessionEngine) for kp_sess_* bearers — the
+   *  authoritative subject claims the portal scope resolvers read first. */
+  customerId?: string;
+  agentId?: string;
   scopes: string[];
   apiKeyId?: string;
   ipAddress: string;

@@ -178,6 +178,14 @@ export class DeveloperWorkspaceEngine {
    *  approved — sandbox is the only self-serve environment. */
   private productionAccessStatus: 'NOT_REQUESTED' | 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' = 'NOT_REQUESTED';
 
+  /** Canonical scope grant per bootstrap seed id — single source for the
+   *  seed rows below and for hydrate-time scope migration. */
+  public static seedScopesFor(seedId: string): string[] {
+    if (seedId === 'cred_seed_admin') return [...STANDARD_SANDBOX_SCOPES, 'admin:read', 'admin:write'];
+    if (seedId === 'cred_seed_dev') return [...STANDARD_SANDBOX_SCOPES, 'developer:read', 'developer:write'];
+    return [];
+  }
+
   private credentials: StoredCredential[] = (() => {
     const seedPub = `kp_test_pub_${crypto.randomBytes(18).toString('hex')}`;
     const seedSec = `kp_test_sec_${crypto.randomBytes(18).toString('hex')}`;
@@ -211,7 +219,7 @@ export class DeveloperWorkspaceEngine {
       secretKeyMasked: mask(SANDBOX_DEV_KEY),
       secretKeyHash: hashSecret(SANDBOX_DEV_KEY, SANDBOX_DEV_SALT),
       secretSalt: SANDBOX_DEV_SALT,
-      scopes: [...STANDARD_SANDBOX_SCOPES, 'developer:read', 'developer:write'],
+      scopes: DeveloperWorkspaceEngine.seedScopesFor('cred_seed_dev'),
       status: 'ACTIVE',
       createdAt: '2026-09-10T00:00:00Z',
       lastUsedAt: '',
@@ -230,7 +238,9 @@ export class DeveloperWorkspaceEngine {
       secretKeyMasked: mask(SANDBOX_ADMIN_KEY),
       secretKeyHash: hashSecret(SANDBOX_ADMIN_KEY, SANDBOX_ADMIN_SALT),
       secretSalt: SANDBOX_ADMIN_SALT,
-      scopes: [...STANDARD_SANDBOX_SCOPES, 'developer:read', 'developer:write', 'admin:read', 'admin:write'],
+      // Least privilege: the admin console calls /api/admin/* only, so the
+      // admin seed carries admin scopes, not developer ones.
+      scopes: DeveloperWorkspaceEngine.seedScopesFor('cred_seed_admin'),
       status: 'ACTIVE',
       createdAt: '2026-09-10T00:00:00Z',
       lastUsedAt: '',
@@ -286,6 +296,14 @@ export class DeveloperWorkspaceEngine {
       if (data.applications) this.applications = data.applications;
       if (data.productionAccessStatus) this.productionAccessStatus = data.productionAccessStatus;
       if (data.credentials) this.credentials = data.credentials;
+      // Seed-scope migration: persisted seed rows gain scopes added to the
+      // code grant later (additive only — narrowing still needs revoke).
+      for (const c of this.credentials) {
+        if (!c.isSeed) continue;
+        const canonical = DeveloperWorkspaceEngine.seedScopesFor(c.id);
+        if (!canonical.length) continue;
+        c.scopes = Array.from(new Set([...(c.scopes || []), ...canonical]));
+      }
       if (data.webhookEndpoints) this.webhookEndpoints = data.webhookEndpoints;
       if (data.requestLogs) this.requestLogs = data.requestLogs;
       if (data.activity) this.activity = data.activity;
