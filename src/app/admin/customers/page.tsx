@@ -22,6 +22,7 @@ import {
   Award,
 } from "lucide-react";
 import { CustomerRecord, CustomerLifecycleStatus, CustomerAccountRecord, AccountRestrictionType } from "@/types/customerProductFactory";
+import { adminFetch } from "@/lib/consoleKeys";
 
 export default function CustomersAdminPage() {
   const [customers, setCustomers] = useState<CustomerRecord[]>([]);
@@ -41,6 +42,7 @@ export default function CustomersAdminPage() {
   const [targetAccountId, setTargetAccountId] = useState<string>("");
   const [restrictionType, setRestrictionType] = useState<AccountRestrictionType>("DEBIT_ONLY");
   const [restrictionReason, setRestrictionReason] = useState("Suspicious high velocity transaction activity");
+  const [restrictionActor, setRestrictionActor] = useState("");
 
   const fetchData = async () => {
     setLoading(true);
@@ -136,13 +138,14 @@ export default function CustomersAdminPage() {
     if (!targetAccountId) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/accounts/${targetAccountId}`, {
+      const res = await adminFetch(`/api/accounts/${targetAccountId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "RESTRICT",
           restriction: restrictionType,
           reason: restrictionReason,
+          actor: restrictionActor,
         }),
       });
       const json = await res.json();
@@ -451,6 +454,18 @@ export default function CustomersAdminPage() {
                   required
                   value={restrictionReason}
                   onChange={(e) => setRestrictionReason(e.target.value)}
+                  className="w-full bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-mono text-slate-400 uppercase mb-1">Authorising identity (email)</label>
+                <input
+                  type="email"
+                  required
+                  value={restrictionActor}
+                  onChange={(e) => setRestrictionActor(e.target.value)}
+                  placeholder="maker@koriepay.com — recorded as the restriction maker"
                   className="w-full bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
                 />
               </div>

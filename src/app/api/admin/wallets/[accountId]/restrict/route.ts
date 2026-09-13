@@ -49,7 +49,7 @@ export async function POST(req: NextRequest, { params }: { params: { accountId: 
     if (!found) {
       return NextResponse.json(gateway.createError('ACCOUNT_NOT_FOUND', 'No account with that id or number.'), { status: 404 });
     }
-    const result = engine.applyRestriction(found.id, body.restriction as AccountRestrictionType, body.reason.trim());
+    const result = engine.applyRestriction(found.id, body.restriction as AccountRestrictionType, body.reason.trim(), body.actor);
     if (!result.success || !result.account) {
       return NextResponse.json(gateway.createError(result.error || 'RESTRICT_FAILED', 'The restriction was refused.'), { status: 422 });
     }

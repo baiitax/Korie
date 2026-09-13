@@ -104,6 +104,8 @@ export const STANDARD_SANDBOX_SCOPES = [
   'merchant:write',
   'checkout:create',
   'bills:vend',
+  'bank:read',
+  'bank:write',
   'fx:read',
   'fx:quote',
 ];

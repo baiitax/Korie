@@ -10,7 +10,7 @@ import { bankApiGuard } from '@/lib/bank/bankApiGuard';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
-  const denied = bankApiGuard(req);
+  const denied = await bankApiGuard(req, 'read');
   if (denied) return denied;
   try {
     const engine = BankCoreEngine.getInstance();
@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const denied = bankApiGuard(req);
+  const denied = await bankApiGuard(req, 'write');
   if (denied) return denied;
   try {
     const body = await req.json().catch(() => ({}));

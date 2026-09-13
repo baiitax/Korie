@@ -36,7 +36,7 @@ export async function POST(req: NextRequest, { params }: { params: { accountId: 
         { status: 409 },
       );
     }
-    const result = engine.liftRestriction(found.id, body.restriction as AccountRestrictionType);
+    const result = engine.liftRestriction(found.id, body.restriction as AccountRestrictionType, body.actor);
     if (!result.success || !result.account) {
       return NextResponse.json(gateway.createError(result.error || 'LIFT_FAILED', 'The lift was refused.'), { status: 422 });
     }

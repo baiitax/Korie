@@ -23,7 +23,7 @@ import {
   Radio,
   Plus,
 } from "lucide-react";
-import { getPortalBearer } from "@/lib/customerPortalClient";
+import { getAdminBearer } from "@/lib/consoleKeys";
 
 function naira(n: number): string {
   return `₦${(n || 0).toLocaleString("en-NG")}`;
@@ -41,7 +41,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<{ ok: boolean; 
   try {
     const res = await fetch(path, {
       ...init,
-      headers: { Authorization: getPortalBearer(), "Content-Type": "application/json", ...(init?.headers || {}) },
+      headers: { Authorization: getAdminBearer(), "Content-Type": "application/json", ...(init?.headers || {}) },
     });
     const payload = await res.json().catch(() => null);
     if (!res.ok) {

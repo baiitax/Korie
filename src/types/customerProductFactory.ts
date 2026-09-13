@@ -102,6 +102,10 @@ export interface CustomerAccountRecord {
   ledgerBalance: number;
   heldBalance: number;
   restrictions?: AccountRestrictionType[];
+  /** Dual-control attribution: who placed each restriction and when. Absent
+   *  for restrictions recorded before attribution existed — those lifts
+   *  cannot be maker-checked and are allowed with no maker on file. */
+  restrictionMakers?: Partial<Record<AccountRestrictionType, { by: string; at: string; reason?: string }>>;
   openedAt: string;
   lastActivityAt?: string;
   closedAt?: string;

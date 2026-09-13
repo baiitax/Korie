@@ -188,7 +188,7 @@ export class AccountLifecycleEngine {
     return { success: true, account: newAcc };
   }
 
-  public applyRestriction(accountId: string, restriction: AccountRestrictionType, reason: string): { success: boolean; account?: CustomerAccountRecord; error?: string } {
+  public applyRestriction(accountId: string, restriction: AccountRestrictionType, reason: string, maker?: string): { success: boolean; account?: CustomerAccountRecord; error?: string } {
     const account = this.accounts.get(accountId);
     if (!account) {
       return { success: false, error: 'ACCOUNT_NOT_FOUND' };
@@ -197,6 +197,12 @@ export class AccountLifecycleEngine {
     account.restrictions = account.restrictions || [];
     if (!account.restrictions.includes(restriction)) {
       account.restrictions.push(restriction);
+    }
+    // Dual-control attribution: record who placed this restriction so the
+    // lift path can enforce maker ≠ checker.
+    if (maker && maker.trim()) {
+      account.restrictionMakers = account.restrictionMakers || {};
+      account.restrictionMakers[restriction] = { by: maker.trim(), at: new Date().toISOString(), reason };
     }
     if (restriction === 'FULL_FREEZE') {
       account.status = 'FROZEN';
@@ -209,13 +215,24 @@ export class AccountLifecycleEngine {
     return { success: true, account };
   }
 
-  public liftRestriction(accountId: string, restriction: AccountRestrictionType): { success: boolean; account?: CustomerAccountRecord; error?: string } {
+  public liftRestriction(accountId: string, restriction: AccountRestrictionType, checker?: string): { success: boolean; account?: CustomerAccountRecord; error?: string } {
     const account = this.accounts.get(accountId);
     if (!account) {
       return { success: false, error: 'ACCOUNT_NOT_FOUND' };
     }
 
+    // Maker ≠ checker: the identity that placed the restriction cannot lift
+    // it. Restrictions with no maker on file (pre-attribution rows) lift
+    // without this check — there is nothing to compare against.
+    const maker = account.restrictionMakers?.[restriction]?.by;
+    if (maker && checker && maker.trim().toLowerCase() === checker.trim().toLowerCase()) {
+      return { success: false, error: 'MAKER_EQUALS_CHECKER' };
+    }
+
     account.restrictions = (account.restrictions || []).filter((r) => r !== restriction);
+    if (account.restrictionMakers) {
+      delete account.restrictionMakers[restriction];
+    }
     if (account.restrictions.length === 0) {
       account.status = 'OPEN';
     }
