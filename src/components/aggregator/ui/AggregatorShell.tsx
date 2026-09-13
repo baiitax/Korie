@@ -43,6 +43,7 @@ import {
   Search,
   PanelLeftClose,
   PanelLeftOpen,
+  UserCircle,
 } from "lucide-react";
 
 /**
@@ -221,6 +222,7 @@ export const AggregatorShell: React.FC<{ children: React.ReactNode }> = ({ child
         { label: "Security", href: "/aggregator/security", icon: Shield },
         { label: "Support", href: "/aggregator/support", icon: LifeBuoy },
         { label: "Settings", href: "/aggregator/settings", icon: Settings },
+        { label: "Profile", href: "/aggregator/profile", icon: UserCircle },
       ],
     },
   ];

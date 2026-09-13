@@ -71,16 +71,18 @@ export interface AggregatorApiKey {
 
 export interface AggregatorSupportTicket {
   id: string;
-  ticket_number: string;
+  ticketNumber: string;
   subject: string;
   description: string;
   category: string;
   priority: string;
   status: string;
   channel: string;
-  created_at: string;
-  updated_at?: string;
-  resolved_at?: string;
+  createdAt: string;
+  updatedAt?: string;
+  resolvedAt?: string;
+  firstResponseDueAt?: string;
+  resolutionDueAt?: string;
 }
 
 export interface AggregatorSupportSummary {
@@ -100,8 +102,24 @@ export interface AggregatorOperationsSnapshot {
     agentName: string;
     createdAt: string;
   }[];
-  openExceptions: any[];
-  openRiskAlerts: any[];
+  openExceptions: {
+    id: string;
+    reference: string;
+    category: string;
+    severity: string;
+    affectedEntity: string;
+    currentState: string;
+    detectedAt: string;
+  }[];
+  openRiskAlerts: {
+    id: string;
+    alertType: string;
+    severity: string;
+    entityType: string;
+    details: string;
+    status: string;
+    detectedAt: string;
+  }[];
 }
 
 const EMPTY_AGGREGATOR: AggregatorOrganization = {
@@ -244,6 +262,12 @@ interface AggregatorContextType {
 
   acknowledgeRiskAlert: (alertId: string) => Promise<void>;
   resolveException: (exceptionId: string, notes: string) => Promise<void>;
+  decideComplianceRecord: (
+    recordId: string,
+    entityType: "AGENT" | "MERCHANT",
+    decision: "APPROVED" | "REJECTED",
+    rejectionReason?: string
+  ) => Promise<{ success: boolean; message?: string }>;
   onboardAgent: (agentData: Partial<AggregatedAgent> & { fullName: string; phone: string }) => Promise<{ success: boolean; error?: string }>;
   createTerritory: (data: { name: string; country: AggregatorCountry; stateOrRegion?: string; lgaOrCommune?: string; supervisorName?: string; hubAddress?: string; hubPhone?: string }) => Promise<{ success: boolean; error?: string }>;
   createTarget: (data: { title: string; metricType: string; targetValue: number; unit?: string; period?: string; deadline: string }) => Promise<{ success: boolean; error?: string }>;
@@ -752,6 +776,30 @@ export function AggregatorProvider({ children }: { children: React.ReactNode }) 
     }
   };
 
+  const decideComplianceRecord = async (
+    recordId: string,
+    entityType: "AGENT" | "MERCHANT",
+    decision: "APPROVED" | "REJECTED",
+    rejectionReason?: string
+  ): Promise<{ success: boolean; message?: string }> => {
+    try {
+      const res = await aggregatorApiFetch(`/api/v1/aggregator/compliance/${recordId}/decision`, {
+        method: "POST",
+        body: JSON.stringify({ entityType, decision, rejectionReason }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json.status === "success") {
+        setComplianceRecords((prev) =>
+          prev.map((c) => (c.id === recordId ? { ...c, status: decision, reviewNotes: rejectionReason || c.reviewNotes } : c))
+        );
+        return { success: true };
+      }
+      return { success: false, message: json?.error?.message || json?.message || "Could not record the decision." };
+    } catch {
+      return { success: false, message: "Network error — could not record the decision." };
+    }
+  };
+
   const onboardAgent = async (data: Partial<AggregatedAgent> & { fullName: string; phone: string }) => {
     try {
       const res = await aggregatorApiFetch("/api/v1/aggregator/agents", {
@@ -978,6 +1026,7 @@ export function AggregatorProvider({ children }: { children: React.ReactNode }) 
         openTransactionInvestigation,
         closeTransactionInvestigation,
         acknowledgeRiskAlert,
+        decideComplianceRecord,
         resolveException,
         onboardAgent,
         createTerritory,

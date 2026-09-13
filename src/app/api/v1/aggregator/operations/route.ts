@@ -49,8 +49,31 @@ export async function GET(req: NextRequest) {
     admin.from('aggregator_risk_alerts').select('id, alert_type, severity, entity_type, details, status, detected_at').eq('aggregator_id', staff.aggregatorId).eq('status', 'OPEN').order('detected_at', { ascending: false }).limit(50),
   ]);
 
+  // Mapped to the same camelCase DTO shape the /exceptions and /risk
+  // endpoints already return, so the Operations Center page can render
+  // these without special-casing raw DB column names.
+  const mappedExceptions = (exceptions || []).map((e: any) => ({
+    id: e.id,
+    reference: e.reference,
+    category: e.category,
+    severity: e.severity,
+    affectedEntity: e.affected_entity,
+    currentState: e.current_state,
+    detectedAt: e.detected_at,
+  }));
+
+  const mappedRiskAlerts = (riskAlerts || []).map((r: any) => ({
+    id: r.id,
+    alertType: r.alert_type,
+    severity: r.severity,
+    entityType: r.entity_type,
+    details: r.details,
+    status: r.status,
+    detectedAt: r.detected_at,
+  }));
+
   return createSuccessResponse(
-    { failedTransactions, openExceptions: exceptions || [], openRiskAlerts: riskAlerts || [] },
+    { failedTransactions, openExceptions: mappedExceptions, openRiskAlerts: mappedRiskAlerts },
     { code: 'OPERATIONS_SNAPSHOT_RETRIEVED', requestId: staff.requestId, environment: 'PRODUCTION' },
   );
 }

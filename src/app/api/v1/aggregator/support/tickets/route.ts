@@ -33,7 +33,25 @@ export async function GET(req: NextRequest) {
     return createErrorResponse({ code: 'TICKETS_LOOKUP_FAILED', message: 'Could not load support tickets.', requestId: staff.requestId, httpStatus: 500 });
   }
 
-  return createSuccessResponse({ tickets: data || [] }, { code: 'TICKETS_RETRIEVED', requestId: staff.requestId, environment: 'PRODUCTION' });
+  // Mapped to camelCase — the page consumes ticketNumber/createdAt/etc,
+  // never the raw DB column names.
+  const mapped = (data || []).map((t: any) => ({
+    id: t.id,
+    ticketNumber: t.ticket_number,
+    subject: t.subject,
+    description: t.description,
+    category: t.category,
+    priority: t.priority,
+    status: t.status,
+    channel: t.channel,
+    createdAt: t.created_at,
+    updatedAt: t.updated_at,
+    resolvedAt: t.resolved_at,
+    firstResponseDueAt: t.first_response_due_at,
+    resolutionDueAt: t.resolution_due_at,
+  }));
+
+  return createSuccessResponse({ tickets: mapped }, { code: 'TICKETS_RETRIEVED', requestId: staff.requestId, environment: 'PRODUCTION' });
 }
 
 export async function POST(req: NextRequest) {
