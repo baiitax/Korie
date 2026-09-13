@@ -16,6 +16,7 @@ export type PortalLoadingContext =
   | "customer"
   | "developer"
   | "merchant"
+  | "regional"
   | "support";
 
 /**

@@ -61,6 +61,21 @@ export async function GET(req: NextRequest) {
     return createSuccessResponse({ role: "AGGREGATOR", redirectTo: "/aggregator", status: aggregatorRow?.status }, { requestId: `KP-REQ-${Date.now()}`, environment: "PRODUCTION" });
   }
 
+  // Regional managers: network-level field operations supervising
+  // aggregators across a Niger region or Nigerian state(s). Resolved from
+  // their own table, before the generic workforce path.
+  const { data: regionalRow } = await admin
+    .from("regional_manager_users")
+    .select("id, status")
+    .eq("auth_user_id", authUserId)
+    .maybeSingle();
+  if (regionalRow) {
+    return createSuccessResponse(
+      { role: "REGIONAL_MANAGER", redirectTo: "/regional", status: regionalRow.status },
+      { requestId: `KP-REQ-${Date.now()}`, environment: "PRODUCTION" },
+    );
+  }
+
   // Internal workforce personas. Staff live in user_profiles +
   // organization_members (one ACTIVE role per user), not in the self-serve
   // persona tables above. Route them to the operator portal their role
