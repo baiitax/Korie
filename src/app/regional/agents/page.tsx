@@ -45,7 +45,7 @@ export default function RegionalAgentsPage() {
         const res = await regionalApiFetch("/api/regional/agents");
         const json = await res.json();
         if (!res.ok) setError(json?.error?.message || "AGENTS_FAILED");
-        else if (!cancelled) setRows(json.payload.agents);
+        else if (!cancelled) setRows(json.data.agents);
       } catch {
         setError("REGIONAL_SESSION_UNAVAILABLE");
       }

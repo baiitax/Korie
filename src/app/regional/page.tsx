@@ -80,7 +80,7 @@ export default function RegionalDashboardPage() {
       if (!res.ok) {
         setError(json?.error?.message || "OVERVIEW_FAILED");
       } else {
-        setData(json.payload);
+        setData(json.data);
         setUpdatedAt(new Date().toISOString());
       }
     } catch {

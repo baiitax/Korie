@@ -54,8 +54,8 @@ export default function RegionalRiskPage() {
         const json = await res.json();
         if (!res.ok) setError(json?.error?.message || "RISK_FAILED");
         else if (!cancelled) {
-          setAlerts(json.payload.alerts);
-          setExceptions(json.payload.exceptions);
+          setAlerts(json.data.alerts);
+          setExceptions(json.data.exceptions);
         }
       } catch {
         setError("REGIONAL_SESSION_UNAVAILABLE");

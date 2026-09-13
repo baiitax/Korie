@@ -50,8 +50,8 @@ export default function RegionalFloatPage() {
       const json = await res.json();
       if (!res.ok) setError(json?.error?.message || "FLOAT_FAILED");
       else {
-        setAccounts(json.payload.accounts);
-        setRequests(json.payload.requests);
+        setAccounts(json.data.accounts);
+        setRequests(json.data.requests);
       }
     } catch {
       setError("REGIONAL_SESSION_UNAVAILABLE");

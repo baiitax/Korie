@@ -55,11 +55,11 @@ export function RegionalProvider({ children }: { children: React.ReactNode }) {
         try {
           const res = await regionalApiFetch("/api/regional/session");
           const json = await res.json();
-          if (!res.ok || !json?.payload?.manager) {
+          if (!res.ok || !json?.data?.manager) {
             if (!cancelled) setManagerError(json?.error?.message || "SESSION_FAILED");
             return;
           }
-          if (!cancelled) setManager(json.payload.manager);
+          if (!cancelled) setManager(json.data.manager);
           return;
         } catch (e: any) {
           if (e?.message === "REGIONAL_SESSION_UNAVAILABLE" && attempt < maxAttempts) {
