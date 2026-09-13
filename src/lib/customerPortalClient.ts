@@ -15,7 +15,16 @@
 
 export const DEFAULT_SANDBOX_TOKEN = "kp_test_cdb3db2b9b22a98c9c1b";
 
+/** Session bearer minted by OTP verification (AuthContext stores it here). */
+export const SESSION_TOKEN_STORAGE = "kp_session_token";
+
 function getPortalToken(): string {
+  try {
+    const session = sessionStorage.getItem(SESSION_TOKEN_STORAGE);
+    if (session && session.trim()) return session.trim();
+  } catch {
+    /* storage unavailable — fall through to the sandbox default */
+  }
   if (typeof process !== "undefined" && process.env.NEXT_PUBLIC_KP_SANDBOX_TOKEN) {
     return process.env.NEXT_PUBLIC_KP_SANDBOX_TOKEN;
   }

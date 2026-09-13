@@ -14,12 +14,12 @@ import { ArrowRight, ArrowLeft, RotateCw, ShieldCheck, CheckCircle2 } from "luci
 
 export default function OtpVerificationPage() {
   const router = useRouter();
-  const { verifyOtp, user, pendingDestination, jurisdiction } = useAuth();
+  const { verifyOtp, requestOtp, otpTestCode, user, pendingDestination, jurisdiction } = useAuth();
 
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [countdown, setCountdown] = useState(45);
+  const [countdown, setCountdown] = useState(60);
   const [resendCount, setResendCount] = useState(0);
   const [isResending, setIsResending] = useState(false);
   const [resendNotice, setResendNotice] = useState<string | null>(null);
@@ -55,20 +55,26 @@ export default function OtpVerificationPage() {
     }
   };
 
-  const handleResend = () => {
-    if (countdown > 0 || resendCount >= 3) return;
+  const handleResend = async () => {
+    if (countdown > 0 || resendCount >= 5) return;
 
     setIsResending(true);
     setError(null);
     setResendNotice(null);
 
-    setTimeout(() => {
-      setIsResending(false);
+    try {
+      const res = await requestOtp();
+      if (!res.success) {
+        setError(res.error || "Could not request a new code.");
+        return;
+      }
       setResendCount((prev) => prev + 1);
-      setCountdown(45);
-      setResendNotice("A new 6-digit one-time passcode has been dispatched.");
+      setCountdown(60);
+      setResendNotice("A new 6-digit one-time passcode has been issued.");
       setOtp(["", "", "", "", "", ""]);
-    }, 600);
+    } finally {
+      setIsResending(false);
+    }
   };
 
   const maskedTarget =
@@ -95,6 +101,15 @@ export default function OtpVerificationPage() {
             <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
               <span>{resendNotice}</span>
+            </div>
+          )}
+
+          {otpTestCode && (
+            <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs space-y-1">
+              <p className="font-bold">Sandbox test mode — no SMS provider is configured.</p>
+              <p>
+                Your code is <span className="font-mono text-base font-black tracking-widest">{otpTestCode}</span>
+              </p>
             </div>
           )}
 
@@ -139,7 +154,7 @@ export default function OtpVerificationPage() {
                 <span className="text-xs text-slate-400 font-mono">
                   Resend code in 00:{countdown < 10 ? `0${countdown}` : countdown}
                 </span>
-              ) : resendCount >= 3 ? (
+              ) : resendCount >= 5 ? (
                 <span className="text-xs text-amber-400">
                   Maximum resends reached. Please contact Support if you need assistance.
                 </span>

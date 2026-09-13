@@ -12,18 +12,27 @@ interface AuthContextType {
   language: "en" | "ha" | "fr";
   jurisdiction: JurisdictionCode;
   pendingDestination?: string;
+  /** Identifier the OTP flow verifies (set at registration). */
+  pendingIdentifier: string | null;
+  /** Server session bearer from OTP verification (drives portal API calls). */
+  sessionToken: string | null;
+  /** Sandbox test-mode OTP code, when the server reveals one. */
+  otpTestCode: string | null;
   setLanguage: (lang: "en" | "ha" | "fr") => void;
   setJurisdiction: (jurisdiction: JurisdictionCode) => void;
   setActiveRole: (role: UserRole) => void;
   login: (params: LoginParams) => Promise<AuthResult>;
   register: (params: RegisterParams) => Promise<AuthResult>;
   logout: () => Promise<void>;
+  requestOtp: () => Promise<{ success: boolean; error?: string }>;
   verifyOtp: (code: string) => Promise<{ success: boolean; error?: string }>;
   verifyMfa: (code: string) => Promise<{ success: boolean; error?: string }>;
   biometricLogin: (selectedRole?: UserRole) => Promise<AuthResult>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const SESSION_TOKEN_STORAGE = "kp_session_token";
 
 const DEFAULT_USER: AuthUser = {
   id: "usr_default_01",
@@ -54,6 +63,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [language, setLanguage] = useState<"en" | "ha" | "fr">("en");
   const [jurisdiction, setJurisdiction] = useState<JurisdictionCode>("NG");
   const [pendingDestination, setPendingDestination] = useState<string | undefined>(undefined);
+  const [pendingIdentifier, setPendingIdentifier] = useState<string | null>(null);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const [otpTestCode, setOtpTestCode] = useState<string | null>(null);
 
   // Sync user state with session storage if available
   useEffect(() => {
@@ -63,10 +75,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setActiveRole(storedRole);
         setUser((prev) => (prev ? { ...prev, role: storedRole } : null));
       }
+      const storedToken = sessionStorage.getItem(SESSION_TOKEN_STORAGE);
+      if (storedToken) setSessionToken(storedToken);
     } catch {
       // Safe fallback
     }
   }, []);
+
+  const storeSessionToken = (token: string | null) => {
+    setSessionToken(token);
+    try {
+      if (token) sessionStorage.setItem(SESSION_TOKEN_STORAGE, token);
+      else sessionStorage.removeItem(SESSION_TOKEN_STORAGE);
+    } catch {}
+  };
+
+  const resolveOtpIdentifier = (): string | null =>
+    pendingIdentifier || user?.phone || user?.email || null;
 
   const login = async (params: LoginParams): Promise<AuthResult> => {
     setIsLoading(true);
@@ -105,21 +130,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  /**
+   * Registration goes through the SERVER route: the client-side service used
+   * to be called in-browser, where its engine row evaporated with the page.
+   * Server-side the customer row persists (process lifetime) so the OTP step
+   * can bind a session to it.
+   */
   const register = async (params: RegisterParams): Promise<AuthResult> => {
     setIsLoading(true);
     try {
-      const result = await authService.registerCustomer(params);
-      if (result.success && result.user) {
-        setUser(result.user);
-        setActiveRole("CUSTOMER");
-        setJurisdiction(result.user.country);
-        setPendingDestination(result.maskedDestination);
-
-        if (result.requiresOtp) {
-          router.push("/otp");
-        }
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(params),
+        cache: "no-store",
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.success) {
+        return {
+          success: false,
+          errorCode: json?.error?.code || `HTTP_${res.status}`,
+          errorMessage: json?.error?.message || "Registration could not be completed.",
+        };
       }
-      return result;
+      const data = json.data;
+      setUser(data.user);
+      setActiveRole("CUSTOMER");
+      setJurisdiction(data.user.country);
+      setPendingDestination(data.maskedDestination);
+      setPendingIdentifier(params.phone);
+      setOtpTestCode(null);
+
+      if (data.requiresOtp) {
+        router.push("/otp");
+      }
+      return {
+        success: true,
+        user: data.user,
+        requiresOtp: data.requiresOtp,
+        maskedDestination: data.maskedDestination,
+        redirectTo: data.redirectTo,
+      };
+    } catch {
+      return {
+        success: false,
+        errorCode: "NETWORK_ERROR",
+        errorMessage: "The console could not reach the server. Check the connection and try again.",
+      };
     } finally {
       setIsLoading(false);
     }
@@ -128,8 +185,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async (): Promise<void> => {
     setIsLoading(true);
     try {
+      // Best-effort server-side revocation of the session bearer.
+      if (sessionToken) {
+        try {
+          await fetch("/api/auth/logout", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${sessionToken}` },
+            cache: "no-store",
+          });
+        } catch {}
+      }
       setUser(null);
       setIsAuthenticated(false);
+      storeSessionToken(null);
+      setPendingIdentifier(null);
+      setOtpTestCode(null);
       try {
         sessionStorage.removeItem("kp_user_role");
         sessionStorage.removeItem("kp_user_session");
@@ -140,34 +210,94 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const requestOtp = async (): Promise<{ success: boolean; error?: string }> => {
+    const identifier = resolveOtpIdentifier();
+    if (!identifier) {
+      return { success: false, error: "No phone or email on file for this verification. Start from registration." };
+    }
+    try {
+      const res = await fetch("/api/auth/resend-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier, country: jurisdiction }),
+        cache: "no-store",
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.success) {
+        return { success: false, error: json?.error?.message || `Request failed (${json?.error?.code || res.status}).` };
+      }
+      setPendingDestination(json.data.maskedDestination);
+      setOtpTestCode(json.data.testMode ? json.data.testCode || null : null);
+      return { success: true };
+    } catch {
+      return { success: false, error: "The console could not reach the server. Check the connection and try again." };
+    }
+  };
+
+  /**
+   * OTP verification goes through the SERVER registry: the code must match a
+   * live challenge for the pending identifier, and success mints a real
+   * session bearer that portal API calls attach from here on. The old
+   * client-side "any 6 digits pass" check is gone.
+   */
   const verifyOtp = async (code: string): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true);
     try {
-      if (code === "123456" || code.length === 6) {
-        setIsAuthenticated(true);
-        if (user) {
-          setUser({ ...user, status: "ACTIVE", kycStatus: "VERIFIED" });
-        }
-        const route = authService.resolveDashboardRoute(activeRole, "VERIFIED");
-        router.push(route);
-        return { success: true };
+      const identifier = resolveOtpIdentifier();
+      if (!identifier) {
+        return { success: false, error: "No phone or email on file for this verification. Start from registration." };
       }
-      return { success: false, error: "The one-time passcode you entered is invalid or expired." };
+      const res = await fetch("/api/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier, code, country: jurisdiction }),
+        cache: "no-store",
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.success) {
+        return { success: false, error: json?.error?.message || "The one-time passcode you entered is invalid or expired." };
+      }
+      storeSessionToken(json.data.sessionToken);
+      setOtpTestCode(null);
+      setIsAuthenticated(true);
+      if (user) {
+        setUser({ ...user, status: "ACTIVE" });
+      }
+      const route = authService.resolveDashboardRoute(activeRole, user?.kycStatus || "VERIFIED");
+      router.push(route);
+      return { success: true };
+    } catch {
+      return { success: false, error: "An unexpected error occurred during verification. Please try again." };
     } finally {
       setIsLoading(false);
     }
   };
 
+  /**
+   * Honest MFA: no authenticator enrollment exists server-side, so step-up
+   * cannot complete. The server 501s and this surfaces its message — the old
+   * client-side "any 6 digits elevate to AAL2" is gone. Privileged console
+   * access continues through the console key gate, not this step.
+   */
   const verifyMfa = async (code: string): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true);
     try {
-      if (code === "123456" || code.length === 6) {
-        setIsAuthenticated(true);
-        const route = authService.resolveDashboardRoute(activeRole, "VERIFIED");
-        router.push(route);
-        return { success: true };
+      const res = await fetch("/api/auth/mfa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+        cache: "no-store",
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.success) {
+        return { success: false, error: json?.error?.message || "Invalid authenticator security token. Please check your authenticator app." };
       }
-      return { success: false, error: "Invalid authenticator security token. Please check your authenticator app." };
+      setIsAuthenticated(true);
+      const route = authService.resolveDashboardRoute(activeRole, "VERIFIED");
+      router.push(route);
+      return { success: true };
+    } catch {
+      return { success: false, error: "An unexpected error occurred during step-up authentication. Please try again." };
     } finally {
       setIsLoading(false);
     }
@@ -215,6 +345,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         language,
         jurisdiction,
         pendingDestination,
+        pendingIdentifier,
+        sessionToken,
+        otpTestCode,
         setLanguage,
         setJurisdiction,
         setActiveRole: (role) => {
@@ -229,6 +362,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login,
         register,
         logout,
+        requestOtp,
         verifyOtp,
         verifyMfa,
         biometricLogin,

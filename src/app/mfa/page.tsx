@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import AuthShell from "@/components/auth/AuthShell";
 import AuthCard from "@/components/auth/AuthCard";
 import AuthHeader from "@/components/auth/AuthHeader";
@@ -13,7 +12,6 @@ import { useAuth } from "@/components/auth/AuthContext";
 import { ArrowRight, ArrowLeft, ShieldAlert, Smartphone, Key, HelpCircle } from "lucide-react";
 
 export default function MfaChallengePage() {
-  const router = useRouter();
   const { verifyMfa, user } = useAuth();
 
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
@@ -34,11 +32,12 @@ export default function MfaChallengePage() {
           setIsVerifying(false);
           return;
         }
-        // Simulated backup key acceptance
-        setTimeout(() => {
-          setIsVerifying(false);
-          router.push("/admin");
-        }, 600);
+        // No bypass: backup codes verify through the same server step-up as
+        // authenticator codes (currently unenrolled — the server says so).
+        const res = await verifyMfa(backupCode.trim());
+        if (!res.success) {
+          setError(res.error || "The backup recovery key was rejected.");
+        }
         return;
       }
 
@@ -75,6 +74,11 @@ export default function MfaChallengePage() {
 
         <AuthCard>
           <AuthErrorAlert error={error} onDismiss={() => setError(null)} />
+
+          <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs">
+            Authenticator MFA is not enrolled in this sandbox — step-up cannot complete here.
+            Privileged console access uses the console key gate instead.
+          </div>
 
           <form
             onSubmit={(e) => {

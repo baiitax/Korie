@@ -26,7 +26,7 @@ export default function ResetPasswordPage() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -47,14 +47,30 @@ export default function ResetPasswordPage() {
       return;
     }
 
+    // No fake success: the server owns the answer. With no per-user
+    // credential store it honestly refuses (501) and this surfaces why.
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const res = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newPassword: password, recoveryCode: fullCode }),
+        cache: "no-store",
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.success) {
+        setError(json?.error?.message || "Password reset failed. Please try again.");
+        return;
+      }
       setIsSuccess(true);
       setTimeout(() => {
         router.push("/login");
       }, 2000);
-    }, 800);
+    } catch {
+      setError("The console could not reach the server. Check the connection and try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
