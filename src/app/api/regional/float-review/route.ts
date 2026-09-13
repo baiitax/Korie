@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { authenticateRegionalManagerRequest } from '@/lib/security/regionalManagerAuth';
+import { authorizeRegionalRequest } from '@/lib/security/regionalManagerAuth';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { createSuccessResponse, createErrorResponse } from '@/lib/security/apiResponse';
 
@@ -20,15 +20,8 @@ export const dynamic = 'force-dynamic';
  * audit-logged in audit_events with the manager's verified identity.
  */
 export async function POST(req: NextRequest) {
-  const auth = await authenticateRegionalManagerRequest(req);
-  if (!auth.isAuthenticated || !auth.manager) {
-    return createErrorResponse({
-      code: auth.errorCode || 'UNAUTHORIZED',
-      message: auth.errorMessage || 'Not authorized.',
-      requestId: `KP-REQ-${Date.now()}`,
-      httpStatus: auth.httpStatus || 401,
-    });
-  }
+  const auth = await authorizeRegionalRequest(req, 'regional.liquidity.view');
+  if (!auth.ok) return auth.response;
   const manager = auth.manager;
 
   let body: any;

@@ -4,64 +4,33 @@ import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRegional } from "@/components/regional/RegionalContext";
 import { regionalApiFetch } from "@/lib/regional/regionalSession";
-import { Building2, Users, Activity, Wallet, Clock, AlertTriangle, FileWarning, Target, BadgeCheck, ChevronRight, RefreshCw } from "lucide-react";
-
-interface AggregatorSummary {
-  id: string;
-  code: string;
-  name: string;
-  status: string;
-  kyb: string;
-  tier: string;
-  agentsTotal: number;
-  agentsActive: number;
-  territories: { id: string; name: string; code: string; stateOrRegion: string }[];
-}
+import { PageHeader, StatCard, EmptyState, LoadingRows, ErrorNote, Pill, TrendChart, statusPillKind } from "@/components/regional/ui";
+import { Building2, Users, Activity, Wallet, Clock, AlertTriangle, LifeBuoy, ChevronRight, BadgeCheck, FileWarning } from "lucide-react";
 
 interface Overview {
   country: string;
   territories: string[];
-  aggregators: AggregatorSummary[];
-  agents: { total: number; active: number; pending: number; suspended: number; kycVerified: number };
-  volumeByCurrency: Record<string, { count: number; volume: number }>;
-  volume30dByCurrency: Record<string, { count: number; volume: number }>;
-  floatByCurrency: Record<string, number>;
-  floatAccountCount: number;
+  generatedAt: string;
+  kpis: {
+    aggregators: { total: number; active: number; inactive: number; suspended: number };
+    agents: { total: number; active: number; inactive: number; pending: number };
+    volumeToday: Record<string, { count: number; volume: number }>;
+    volume7d: Record<string, { count: number; volume: number }>;
+    volume30d: Record<string, { count: number; volume: number }>;
+  };
+  health: {
+    aggregator: { healthy: number; attention: number; atRisk: number; suspended: number };
+    agents: { ACTIVE: number; LOW_ACTIVITY: number; DORMANT: number; NO_ACTIVITY: number };
+    liquidity: { HEALTHY: number; MONITOR: number; LOW: number; CRITICAL: number; lowFloatAgents: number };
+    transactions: { total30d: number; successRate: number | null; byStatus: Record<string, number> };
+    compliance: Record<string, number>;
+  };
+  trend: Record<string, { date: string; count: number; volume: number }[]>;
   pendingTopups: number;
   openAlerts: number;
   openExceptions: number;
-  activeTargets: number;
-}
-
-function StatCard({
-  icon: Icon,
-  label,
-  value,
-  hint,
-  tone = "default",
-}: {
-  icon: React.ElementType;
-  label: string;
-  value: string;
-  hint?: string;
-  tone?: "default" | "warn" | "good";
-}) {
-  const toneClass =
-    tone === "warn"
-      ? "text-amber-500"
-      : tone === "good"
-        ? "text-teal-500"
-        : "text-[var(--foreground)]";
-  return (
-    <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border)] flex flex-col gap-2 min-w-0">
-      <div className="flex items-center gap-2 text-[var(--muted)]">
-        <Icon className="w-4 h-4 shrink-0" />
-        <span className="text-[11px] font-medium uppercase tracking-wide truncate">{label}</span>
-      </div>
-      <div className={`text-xl sm:text-2xl font-bold truncate ${toneClass}`}>{value}</div>
-      {hint && <div className="text-[11px] text-[var(--muted)] truncate">{hint}</div>}
-    </div>
-  );
+  support: { openTickets: number; slaAtRisk: number; openEscalations: number };
+  aggregators: { id: string; code: string; name: string; status: string; kyb: string; tier: string; agentsTotal: number; agentsActive: number; tx30d: { count: number; volume: number; currency: string } }[];
 }
 
 export default function RegionalDashboardPage() {
@@ -69,7 +38,6 @@ export default function RegionalDashboardPage() {
   const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -77,12 +45,8 @@ export default function RegionalDashboardPage() {
     try {
       const res = await regionalApiFetch("/api/regional/overview");
       const json = await res.json();
-      if (!res.ok) {
-        setError(json?.error?.message || "OVERVIEW_FAILED");
-      } else {
-        setData(json.data);
-        setUpdatedAt(new Date().toISOString());
-      }
+      if (!res.ok) setError(json?.error?.message || "OVERVIEW_FAILED");
+      else setData(json.data);
     } catch {
       setError("REGIONAL_SESSION_UNAVAILABLE");
     } finally {
@@ -94,133 +58,187 @@ export default function RegionalDashboardPage() {
     if (manager) void load();
   }, [manager, load]);
 
-  const volumeLine = (data: Overview | null) => {
-    if (!data) return "—";
-    const entries = Object.entries(data.volume30dByCurrency);
-    if (entries.length === 0) return "0";
-    return entries.map(([cur, v]) => formatCurrency(v.volume, cur)).join(" · ");
-  };
-  const floatLine = (data: Overview | null) => {
-    if (!data) return "—";
-    const entries = Object.entries(data.floatByCurrency);
-    if (entries.length === 0) return "0";
-    return entries.map(([cur, v]) => formatCurrency(v, cur)).join(" · ");
+  const vol = (m: Record<string, { count: number; volume: number }> | undefined) => {
+    if (!m || Object.keys(m).length === 0) return "0";
+    return Object.entries(m)
+      .map(([cur, v]) => formatCurrency(v.volume, cur))
+      .join(" · ");
   };
 
   if (managerError) {
     return (
       <div className="p-6 sm:p-8">
-        <div className="p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border)] text-sm text-[var(--muted)]">
-          {t("session.error")} — <Link href="/login" className="text-teal-500 hover:underline">{t("session.signInPrompt")}</Link>
+        <div className="p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border)] text-sm text-[var(--foreground-muted)]">
+          {t("session.error")} — <Link href="/login" className="text-[var(--brand-primary)] hover:underline">{t("session.signInPrompt")}</Link>
         </div>
       </div>
     );
   }
 
+  const h = data?.health;
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold">{t("dashboard.title")}</h1>
-          <p className="text-sm text-[var(--muted)] mt-1 max-w-2xl">{t("dashboard.subtitle")}</p>
-        </div>
-        <button
-          onClick={() => void load()}
-          disabled={loading}
-          className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] disabled:opacity-50"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-          {t("common.refresh")}
-        </button>
-      </div>
+      <PageHeader title={t("dashboard.commandCenter")}  onRefresh={load} refreshing={loading}>
+        {data && <span className="hidden sm:inline text-[11px] text-[var(--foreground-muted)]">{t("common.lastUpdated")}: {new Date(data.generatedAt).toLocaleTimeString()}</span>}
+      </PageHeader>
 
-      {error && (
-        <div className="p-4 rounded-xl border border-rose-500/30 bg-rose-500/10 text-sm text-rose-500">{error}</div>
-      )}
-
+      {error && <ErrorNote message={error} onRetry={load} />}
       {loading && !data ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="h-24 rounded-2xl bg-[var(--surface)] border border-[var(--border)] animate-pulse" />
-          ))}
-        </div>
+        <LoadingRows rows={6} />
       ) : data ? (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <StatCard icon={Building2} label={t("dashboard.aggregators")} value={String(data.aggregators.length)} hint={data.territories.join(" · ")} />
-            <StatCard icon={Users} label={t("dashboard.agentsActive")} value={String(data.agents.active)} tone="good" hint={`${t("dashboard.agentsTotal")}: ${data.agents.total}`} />
-            <StatCard icon={BadgeCheck} label={t("dashboard.kycVerified")} value={String(data.agents.kycVerified)} hint={`${data.agents.pending} pending · ${data.agents.suspended} suspended`} />
-            <StatCard icon={Activity} label={t("dashboard.volume30d")} value={volumeLine(data)} hint={`${Object.values(data.volumeByCurrency).reduce((s, v) => s + v.count, 0)} ${t("dashboard.transactions")} ${t("dashboard.allTime")}`} />
-            <StatCard icon={Wallet} label={t("dashboard.floatTotal")} value={floatLine(data)} hint={`${data.floatAccountCount} ${t("float.accounts").toLowerCase()}`} />
-            <StatCard icon={Clock} label={t("dashboard.pendingTopups")} value={String(data.pendingTopups)} tone={data.pendingTopups > 0 ? "warn" : "default"} />
-            <StatCard icon={AlertTriangle} label={t("dashboard.openAlerts")} value={String(data.openAlerts)} tone={data.openAlerts > 0 ? "warn" : "default"} />
-            <StatCard icon={FileWarning} label={t("dashboard.openExceptions")} value={String(data.openExceptions)} tone={data.openExceptions > 0 ? "warn" : "default"} />
-          </div>
+          {/* KPI command center */}
+          <section className="space-y-3">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <StatCard icon={Building2} label={t("dashboard.aggregators")} value={String(data.kpis.aggregators.total)} hint={`${data.kpis.aggregators.active} ${t("dashboard.aggActive")} · ${data.kpis.aggregators.inactive} ${t("dashboard.aggInactive")} · ${data.kpis.aggregators.suspended} ${t("dashboard.aggSuspended")}`} />
+              <StatCard icon={Users} label={t("dashboard.agents")} value={String(data.kpis.agents.total)} tone="good" hint={`${data.kpis.agents.active} ${t("dashboard.agentsActive")} · ${data.kpis.agents.inactive} ${t("dashboard.agentsInactive")} · ${data.kpis.agents.pending} ${t("dashboard.agentsPending")}`} />
+              <StatCard icon={Activity} label={t("dashboard.volumeToday")} value={vol(data.kpis.volumeToday)} hint={`${t("dashboard.volume7d")}: ${vol(data.kpis.volume7d)}`} />
+              <StatCard icon={Wallet} label={t("dashboard.volume30d")} value={vol(data.kpis.volume30d)} hint={Object.values(data.kpis.volume30d).reduce((s, v) => s + v.count, 0) + " " + t("dashboard.txns")} />
+            </div>
+          </section>
 
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">{t("dashboard.byAggregator")}</h2>
-              {updatedAt && (
-                <span className="text-[11px] text-[var(--muted)]">
-                  {t("common.lastUpdated")}: {new Date(updatedAt).toLocaleTimeString()}
-                </span>
+          {/* Regional health */}
+          {h && (
+            <section>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">{t("dashboard.health")}</h2>
+                <span className="text-[10px] text-[var(--foreground-muted)]" title={t("dashboard.healthRules")}>ⓘ {t("dashboard.healthRules")}</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border)]">
+                  <div className="text-[11px] font-semibold uppercase text-[var(--foreground-muted)]">{t("dashboard.healthAgg")}</div>
+                  <div className="mt-2 space-y-1 text-xs">
+                    <div className="flex justify-between"><span>{t("dashboard.healthy")}</span><b className="text-[var(--brand-primary)]">{h.aggregator.healthy}</b></div>
+                    <div className="flex justify-between"><span>{t("dashboard.attention")}</span><b className="text-amber-500">{h.aggregator.attention}</b></div>
+                    <div className="flex justify-between"><span>{t("dashboard.atRisk")}</span><b className="text-rose-500">{h.aggregator.atRisk}</b></div>
+                    <div className="flex justify-between"><span>{t("dashboard.suspended")}</span><b>{h.aggregator.suspended}</b></div>
+                  </div>
+                </div>
+                <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border)]">
+                  <div className="text-[11px] font-semibold uppercase text-[var(--foreground-muted)]">{t("dashboard.healthAgents")}</div>
+                  <div className="mt-2 space-y-1 text-xs">
+                    <div className="flex justify-between"><span>{t("agents.activity_ACTIVE")}</span><b className="text-[var(--brand-primary)]">{h.agents.ACTIVE}</b></div>
+                    <div className="flex justify-between"><span>{t("dashboard.lowActivity")}</span><b className="text-amber-500">{h.agents.LOW_ACTIVITY}</b></div>
+                    <div className="flex justify-between"><span>{t("dashboard.dormant")}</span><b className="text-rose-500">{h.agents.DORMANT + h.agents.NO_ACTIVITY}</b></div>
+                  </div>
+                </div>
+                <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border)]">
+                  <div className="text-[11px] font-semibold uppercase text-[var(--foreground-muted)]">{t("dashboard.healthLiquidity")}</div>
+                  <div className="mt-2 space-y-1 text-xs">
+                    <div className="flex justify-between"><span>{t("liquidity.status.HEALTHY")}</span><b className="text-[var(--brand-primary)]">{h.liquidity.HEALTHY}</b></div>
+                    <div className="flex justify-between"><span>{t("liquidity.status.MONITOR")}</span><b className="text-sky-500">{h.liquidity.MONITOR}</b></div>
+                    <div className="flex justify-between"><span>{t("dashboard.lowFloat")}</span><b className="text-amber-500">{h.liquidity.LOW}</b></div>
+                    <div className="flex justify-between"><span>{t("dashboard.criticalFloat")}</span><b className="text-rose-500">{h.liquidity.CRITICAL}</b></div>
+                  </div>
+                </div>
+                <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border)]">
+                  <div className="text-[11px] font-semibold uppercase text-[var(--foreground-muted)]">{t("dashboard.healthTx")}</div>
+                  <div className="mt-2 space-y-1 text-xs">
+                    <div className="flex justify-between"><span>{t("dashboard.successRate")}</span><b className={h.transactions.successRate !== null && h.transactions.successRate >= 0.95 ? "text-[var(--brand-primary)]" : "text-amber-500"}>{h.transactions.successRate !== null ? `${(h.transactions.successRate * 100).toFixed(1)}%` : "—"}</b></div>
+                    {Object.entries(h.transactions.byStatus).slice(0, 4).map(([s, n]) => (
+                      <div key={s} className="flex justify-between"><span>{s}</span><b>{n}</b></div>
+                    ))}
+                  </div>
+                </div>
+                <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border)]">
+                  <div className="text-[11px] font-semibold uppercase text-[var(--foreground-muted)]">{t("dashboard.healthCompliance")}</div>
+                  <div className="mt-2 space-y-1 text-xs">
+                    {Object.keys(h.compliance).length === 0 ? (
+                      <div className="text-[var(--foreground-muted)]">{t("common.none")}</div>
+                    ) : (
+                      Object.entries(h.compliance).slice(0, 5).map(([s, n]) => (
+                        <div key={s} className="flex justify-between"><span>{s}</span><b>{n}</b></div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* Trend + alerts */}
+          <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border)]">
+              <h3 className="text-sm font-bold mb-3">{t("dashboard.trend30d")}</h3>
+              {Object.keys(data.trend).length === 0 ? (
+                <div className="text-xs text-[var(--foreground-muted)] py-8 text-center">{t("transactions.empty_transactions")}</div>
+              ) : (
+                Object.entries(data.trend).map(([cur, series]) => (
+                  <div key={cur} className="mb-3 last:mb-0">
+                    <div className="text-[10px] font-mono font-bold text-[var(--foreground-muted)] mb-1">{cur}</div>
+                    <TrendChart series={series} currency={cur} />
+                  </div>
+                ))
               )}
             </div>
-            {data.aggregators.length === 0 ? (
-              <div className="p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border)] text-center">
-                <Target className="w-8 h-8 mx-auto text-[var(--muted)] mb-3" />
-                <div className="text-sm font-semibold">{t("dashboard.noAggregators")}</div>
-                <p className="text-xs text-[var(--muted)] mt-1 max-w-md mx-auto">{t("dashboard.noAggregatorsBody")}</p>
+            <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border)]">
+              <h3 className="text-sm font-bold mb-3">{t("dashboard.alertsEscalations")}</h3>
+              <div className="space-y-2">
+                <Link href="/regional/risk" className="flex items-center justify-between p-3 rounded-xl bg-[var(--surface-elevated)] border border-[var(--border)] hover:border-[var(--brand-border)]">
+                  <span className="flex items-center gap-2 text-sm"><AlertTriangle className="w-4 h-4 text-amber-500" />{t("dashboard.openAlerts")}</span>
+                  <Pill kind={data.openAlerts > 0 ? "warn" : "ok"}>{data.openAlerts}</Pill>
+                </Link>
+                <Link href="/regional/risk" className="flex items-center justify-between p-3 rounded-xl bg-[var(--surface-elevated)] border border-[var(--border)] hover:border-[var(--brand-border)]">
+                  <span className="flex items-center gap-2 text-sm"><FileWarning className="w-4 h-4 text-amber-500" />{t("dashboard.openExceptions")}</span>
+                  <Pill kind={data.openExceptions > 0 ? "warn" : "ok"}>{data.openExceptions}</Pill>
+                </Link>
+                <Link href="/regional/liquidity" className="flex items-center justify-between p-3 rounded-xl bg-[var(--surface-elevated)] border border-[var(--border)] hover:border-[var(--brand-border)]">
+                  <span className="flex items-center gap-2 text-sm"><Clock className="w-4 h-4 text-amber-500" />{t("dashboard.pendingTopups")}</span>
+                  <Pill kind={data.pendingTopups > 0 ? "warn" : "ok"}>{data.pendingTopups}</Pill>
+                </Link>
+                <Link href="/regional/support" className="flex items-center justify-between p-3 rounded-xl bg-[var(--surface-elevated)] border border-[var(--border)] hover:border-[var(--brand-border)]">
+                  <span className="flex items-center gap-2 text-sm"><LifeBuoy className="w-4 h-4" />{t("dashboard.openTickets")}</span>
+                  <Pill kind={data.support.slaAtRisk > 0 ? "warn" : "ok"}>{data.support.openTickets} · {t("dashboard.slaAtRisk")}: {data.support.slaAtRisk}</Pill>
+                </Link>
               </div>
+            </div>
+          </section>
+
+          {/* Aggregator performance */}
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">{t("dashboard.byAggregator")}</h2>
+              <Link href="/regional/aggregators" className="text-xs font-semibold text-[var(--brand-primary)] hover:underline inline-flex items-center gap-1">
+                {t("common.viewAll")} <ChevronRight className="w-3 h-3" />
+              </Link>
+            </div>
+            {data.aggregators.length === 0 ? (
+              <EmptyState icon={Building2} title={t("dashboard.noAggregators")} body={t("dashboard.noAggregatorsBody")} />
             ) : (
               <div className="space-y-3">
                 {data.aggregators.map((agg) => (
-                  <div key={agg.id} className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border)]">
+                  <Link key={agg.id} href={`/regional/aggregators/${agg.id}`} className="block p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--brand-border)] transition-colors">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-sm font-bold truncate">{agg.name}</span>
-                          <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-[var(--surface-2)] border border-[var(--border)] text-[var(--muted)]">{agg.code}</span>
-                        </div>
-                        <div className="text-xs text-[var(--muted)] mt-1">
-                          {agg.territories.map((tr) => tr.stateOrRegion).join(" · ")}
+                          <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground-muted)]">{agg.code}</span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            agg.status === "ACTIVE" ? "bg-teal-500/10 text-teal-600 dark:text-teal-400" : "bg-amber-500/10 text-amber-500"
-                          }`}
-                        >
-                          {agg.status}
-                        </span>
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[var(--surface-2)] border border-[var(--border)] text-[var(--muted)]">
-                          KYB {agg.kyb}
-                        </span>
+                      <div className="flex items-center gap-1.5">
+                        <Pill kind={statusPillKind(agg.status)}>{agg.status}</Pill>
+                        <Pill kind="muted">KYB {agg.kyb}</Pill>
                       </div>
                     </div>
-                    <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+                    <div className="mt-3 grid grid-cols-3 gap-3 text-xs">
                       <div>
-                        <div className="text-[var(--muted)]">{t("dashboard.agentsTotal")}</div>
+                        <div className="text-[var(--foreground-muted)]">{t("dashboard.agents")}</div>
                         <div className="font-bold">{agg.agentsTotal}</div>
                       </div>
                       <div>
-                        <div className="text-[var(--muted)]">{t("dashboard.agentsActive")}</div>
-                        <div className="font-bold text-teal-500">{agg.agentsActive}</div>
+                        <div className="text-[var(--foreground-muted)]">{t("dashboard.agentsActive")}</div>
+                        <div className="font-bold text-[var(--brand-primary)]">{agg.agentsActive}</div>
                       </div>
                       <div>
-                        <div className="text-[var(--muted)]">{t("dashboard.activeTargets")}</div>
-                        <div className="font-bold">{data.activeTargets}</div>
+                        <div className="text-[var(--foreground-muted)]">{t("dashboard.volume30d")}</div>
+                        <div className="font-bold font-mono">{formatCurrency(agg.tx30d.volume, agg.tx30d.currency)} <span className="text-[var(--foreground-muted)]">({agg.tx30d.count})</span></div>
                       </div>
                     </div>
-                    <Link href="/regional/agents" className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-teal-500 hover:underline">
-                      {t("common.viewAll")} <ChevronRight className="w-3 h-3" />
-                    </Link>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}
-          </div>
+          </section>
         </>
       ) : null}
     </div>

@@ -162,6 +162,44 @@ async function main() {
     }
   }
 
+  /* 4. Support-desk officer rows for the managers (the documented cross-desk
+   *    pattern: internal staff carry a support_officers row so their
+   *    escalations attribute to a real identity). Least-privilege role:
+   *    SUPPORT_READ_ONLY — the regional portal's own API decides what a
+   *    manager may file; the desk role grants nothing extra. */
+  for (const m of MANAGERS) {
+    const { data: rmRow } = await admin
+      .from("regional_manager_users")
+      .select("id, auth_user_id")
+      .eq("email", m.email)
+      .maybeSingle();
+    if (!rmRow) continue;
+    const { data: existingOfficer } = await admin
+      .from("support_officers")
+      .select("id")
+      .eq("auth_user_id", rmRow.auth_user_id)
+      .maybeSingle();
+    if (existingOfficer) {
+      console.log(`Officer row already exists for ${m.email}`);
+      continue;
+    }
+    const { error } = await admin.from("support_officers").insert({
+      org_id: "10000000-0000-0000-0000-000000000001",
+      auth_user_id: rmRow.auth_user_id,
+      officer_code: `RM-${m.country}-${m.fullName.split(" ").pop().toUpperCase().slice(0, 6)}`,
+      full_name: m.fullName,
+      email: m.email,
+      role: "SUPPORT_READ_ONLY",
+      tier: "TIER_0_AUTOMATION",
+      jurisdiction: m.country,
+      languages: ["en", "fr"],
+      max_capacity: 0,
+      status: "OFFLINE",
+    });
+    if (error) throw error;
+    console.log(`Created support officer (SUPPORT_READ_ONLY) for ${m.email}`);
+  }
+
   console.log("\nDone. Sign-in (both use password " + PASSWORD + "):");
   MANAGERS.forEach((m) => console.log(`  ${m.email} — ${m.country} — ${m.territories.join(", ")}`));
 }

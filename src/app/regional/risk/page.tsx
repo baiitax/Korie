@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRegional } from "@/components/regional/RegionalContext";
 import { regionalApiFetch } from "@/lib/regional/regionalSession";
+import { PageHeader, EmptyState, LoadingRows, ErrorNote, Pill } from "@/components/regional/ui";
 import { ShieldAlert, FileWarning } from "lucide-react";
 
 interface RiskAlert {
@@ -18,7 +20,6 @@ interface RiskAlert {
   detected_at: string;
   aggregator?: { code: string; name: string };
 }
-
 interface ExceptionRow {
   id: string;
   reference: string | null;
@@ -34,9 +35,9 @@ interface ExceptionRow {
 
 function severityPill(sev: string) {
   const s = (sev || "").toUpperCase();
-  if (["CRITICAL", "HIGH"].includes(s)) return "bg-rose-500/10 text-rose-500 border-rose-500/30";
-  if (s === "MEDIUM") return "bg-amber-500/10 text-amber-500 border-amber-500/30";
-  return "bg-slate-500/10 text-slate-400 border-slate-500/30";
+  if (["CRITICAL", "HIGH"].includes(s)) return <Pill kind="bad">{sev}</Pill>;
+  if (s === "MEDIUM") return <Pill kind="warn">{sev}</Pill>;
+  return <Pill kind="muted">{sev}</Pill>;
 }
 
 export default function RegionalRiskPage() {
@@ -66,36 +67,23 @@ export default function RegionalRiskPage() {
     };
   }, [manager]);
 
-  if (managerError) {
-    return (
-      <div className="p-6 sm:p-8">
-        <div className="p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border)] text-sm text-[var(--muted)]">{t("session.error")}</div>
-      </div>
-    );
-  }
+  if (managerError) return <div className="p-6 sm:p-8"><div className="p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border)] text-sm text-[var(--foreground-muted)]">{t("session.error")}</div></div>;
 
   const openAlerts = (alerts ?? []).filter((a) => a.status === "OPEN");
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6">
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold">{t("risk.title")}</h1>
-        <p className="text-sm text-[var(--muted)] mt-1 max-w-2xl">{t("risk.subtitle")}</p>
-      </div>
+      <PageHeader title={t("risk.title")} subtitle={t("risk.subtitle")} />
+      <p className="-mt-3 text-[11px] text-[var(--foreground-muted)]">{t("risk.viewInvestigate")} · <Link href="/regional/support" className="text-[var(--brand-primary)] hover:underline">{t("support.newEscalation")} →</Link></p>
 
-      {error && <div className="p-4 rounded-xl border border-rose-500/30 bg-rose-500/10 text-sm text-rose-500">{error}</div>}
+      {error && <ErrorNote message={error} />}
 
       <section>
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)] mb-3">
-          {t("risk.alerts")} · {openAlerts.length}
-        </h2>
-        {alerts === null ? (
-          <div className="h-20 rounded-2xl bg-[var(--surface)] border border-[var(--border)] animate-pulse" />
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--foreground-muted)] mb-3">{t("risk.alerts")} · {openAlerts.length}</h2>
+        {alerts === null && !error ? (
+          <LoadingRows rows={3} />
         ) : openAlerts.length === 0 ? (
-          <div className="p-8 rounded-2xl bg-[var(--surface)] border border-[var(--border)] text-center">
-            <ShieldAlert className="w-8 h-8 mx-auto text-[var(--muted)] mb-3" />
-            <div className="text-sm font-semibold">{t("risk.emptyAlerts")}</div>
-          </div>
+          <EmptyState icon={ShieldAlert} title={t("risk.emptyAlerts")} />
         ) : (
           <div className="space-y-3">
             {openAlerts.map((a) => (
@@ -104,23 +92,19 @@ export default function RegionalRiskPage() {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-bold">{a.alert_type}</span>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${severityPill(a.severity)}`}>{a.severity}</span>
+                      {severityPill(a.severity)}
                     </div>
-                    <div className="text-xs text-[var(--muted)] mt-1">
+                    <div className="text-xs text-[var(--foreground-muted)] mt-1">
                       {a.aggregator ? `${a.aggregator.code} · ${a.aggregator.name}` : ""} {a.entity_type ? `· ${a.entity_type}` : ""}
                     </div>
                   </div>
-                  <div className="text-xs text-[var(--muted)]">{formatDate(a.detected_at)}</div>
+                  <div className="text-xs text-[var(--foreground-muted)]">{formatDate(a.detected_at)}</div>
                 </div>
                 {a.details && typeof a.details === "object" && Object.keys(a.details).length > 0 && (
-                  <pre className="mt-3 p-3 rounded-xl bg-[var(--background)] border border-[var(--border)] text-[11px] font-mono overflow-x-auto">
-                    {JSON.stringify(a.details, null, 2)}
-                  </pre>
+                  <pre className="mt-3 p-3 rounded-xl bg-[var(--surface-elevated)] border border-[var(--border)] text-[11px] font-mono overflow-x-auto">{JSON.stringify(a.details, null, 2)}</pre>
                 )}
                 {a.recommended_action && (
-                  <div className="mt-2 text-xs text-[var(--muted)]">
-                    <span className="font-semibold">{t("risk.col.action")}:</span> {a.recommended_action}
-                  </div>
+                  <div className="mt-2 text-xs text-[var(--foreground-muted)]"><span className="font-semibold">{t("risk.col.action")}:</span> {a.recommended_action}</div>
                 )}
               </div>
             ))}
@@ -129,39 +113,31 @@ export default function RegionalRiskPage() {
       </section>
 
       <section>
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)] mb-3">
-          {t("risk.exceptions")} · {exceptions?.filter((e) => !e.resolved_at).length ?? 0}
-        </h2>
-        {exceptions === null ? (
-          <div className="h-20 rounded-2xl bg-[var(--surface)] border border-[var(--border)] animate-pulse" />
-        ) : exceptions.length === 0 ? (
-          <div className="p-8 rounded-2xl bg-[var(--surface)] border border-[var(--border)] text-center">
-            <FileWarning className="w-8 h-8 mx-auto text-[var(--muted)] mb-3" />
-            <div className="text-sm font-semibold">{t("risk.emptyExceptions")}</div>
-          </div>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--foreground-muted)] mb-3">{t("risk.exceptions")} · {exceptions?.filter((e) => !e.resolved_at).length ?? 0}</h2>
+        {exceptions === null && !error ? (
+          <LoadingRows rows={3} />
+        ) : exceptions && exceptions.length === 0 ? (
+          <EmptyState icon={FileWarning} title={t("risk.emptyExceptions")} />
         ) : (
           <div className="space-y-3">
-            {exceptions.map((e) => (
+            {(exceptions ?? []).map((e) => (
               <div key={e.id} className={`p-4 rounded-2xl bg-[var(--surface)] border ${e.resolved_at ? "border-[var(--border)] opacity-70" : "border-amber-500/30"}`}>
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-bold">{e.category}</span>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${severityPill(e.severity)}`}>{e.severity}</span>
-                      {e.reference && <span className="text-[10px] font-mono text-[var(--muted)]">{e.reference}</span>}
+                      {severityPill(e.severity)}
+                      {e.reference && <span className="text-[10px] font-mono text-[var(--foreground-muted)]">{e.reference}</span>}
                     </div>
-                    {e.description && <div className="text-xs text-[var(--muted)] mt-1">{e.description}</div>}
-                    {e.affected_entity && <div className="text-[11px] text-[var(--muted)] mt-0.5">{e.affected_entity} · {e.current_state}</div>}
+                    {e.description && <div className="text-xs text-[var(--foreground-muted)] mt-1">{e.description}</div>}
                   </div>
-                  <div className="text-xs text-[var(--muted)] whitespace-nowrap">
+                  <div className="text-xs text-[var(--foreground-muted)] whitespace-nowrap">
                     {formatDate(e.detected_at)}
-                    {e.resolved_at && <div className="text-teal-500">{e.resolved_at ? formatDate(e.resolved_at) : ""}</div>}
+                    {e.resolved_at && <div className="text-[var(--brand-primary)]">{formatDate(e.resolved_at)}</div>}
                   </div>
                 </div>
                 {e.recommended_action && (
-                  <div className="mt-2 text-xs text-[var(--muted)]">
-                    <span className="font-semibold">{t("risk.col.action")}:</span> {e.recommended_action}
-                  </div>
+                  <div className="mt-2 text-xs text-[var(--foreground-muted)]"><span className="font-semibold">{t("risk.col.action")}:</span> {e.recommended_action}</div>
                 )}
               </div>
             ))}

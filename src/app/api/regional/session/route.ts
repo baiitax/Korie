@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { authenticateRegionalManagerRequest } from '@/lib/security/regionalManagerAuth';
+import { authorizeRegionalRequest } from '@/lib/security/regionalManagerAuth';
 import { createSuccessResponse, createErrorResponse } from '@/lib/security/apiResponse';
 
 export const dynamic = 'force-dynamic';
@@ -12,15 +12,8 @@ export const dynamic = 'force-dynamic';
  * Supabase token — nothing here is client-asserted.
  */
 export async function GET(req: NextRequest) {
-  const auth = await authenticateRegionalManagerRequest(req);
-  if (!auth.isAuthenticated || !auth.manager) {
-    return createErrorResponse({
-      code: auth.errorCode || 'UNAUTHORIZED',
-      message: auth.errorMessage || 'Not authorized.',
-      requestId: `KP-REQ-${Date.now()}`,
-      httpStatus: auth.httpStatus || 401,
-    });
-  }
+  const auth = await authorizeRegionalRequest(req, 'regional.dashboard.view');
+  if (!auth.ok) return auth.response;
   const m = auth.manager;
   return createSuccessResponse(
     {
@@ -33,6 +26,7 @@ export async function GET(req: NextRequest) {
         country: m.country,
         territories: m.territories,
         status: m.status,
+        permissions: m.permissions,
       },
     },
     { requestId: m.requestId, environment: 'PRODUCTION' },

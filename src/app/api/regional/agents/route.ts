@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { authenticateRegionalManagerRequest } from '@/lib/security/regionalManagerAuth';
+import { authorizeRegionalRequest } from '@/lib/security/regionalManagerAuth';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { createSuccessResponse, createErrorResponse } from '@/lib/security/apiResponse';
 
@@ -14,15 +14,8 @@ export const dynamic = 'force-dynamic';
  * agent has never transacted.
  */
 export async function GET(req: NextRequest) {
-  const auth = await authenticateRegionalManagerRequest(req);
-  if (!auth.isAuthenticated || !auth.manager) {
-    return createErrorResponse({
-      code: auth.errorCode || 'UNAUTHORIZED',
-      message: auth.errorMessage || 'Not authorized.',
-      requestId: `KP-REQ-${Date.now()}`,
-      httpStatus: auth.httpStatus || 401,
-    });
-  }
+  const auth = await authorizeRegionalRequest(req, 'regional.agents.view');
+  if (!auth.ok) return auth.response;
   const { country, territories } = auth.manager;
   const admin = getSupabaseAdminClient();
 

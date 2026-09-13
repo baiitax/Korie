@@ -13,6 +13,7 @@ export interface RegionalManager {
   country: "NG" | "NE";
   territories: string[];
   status: string;
+  permissions: string[];
 }
 
 interface RegionalContextType {
