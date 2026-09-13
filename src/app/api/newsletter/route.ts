@@ -1,7 +1,17 @@
 import { NextResponse } from "next/server";
+import { checkRateLimit, getClientIp } from "@/lib/security/rateLimiter";
 
 export async function POST(request: Request) {
   try {
+    const ip = getClientIp(request);
+    const rateLimit = checkRateLimit(`newsletter-subscribe:${ip}`, "REGISTRATION", 15);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: `Too many subscription attempts. Please try again in ${rateLimit.resetSeconds} seconds.` },
+        { status: 429 }
+      );
+    }
+
     const { email } = await request.json();
 
     if (!email || !email.includes("@")) {

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { createSuccessResponse, createErrorResponse } from "@/lib/security/apiResponse";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { checkRateLimit, getClientIp } from "@/lib/security/rateLimiter";
 
 /**
  * POST /api/auth/agent/register
@@ -42,6 +43,17 @@ function normalizePhone(raw: string, country: "NG" | "NE"): string {
 }
 
 export async function POST(req: NextRequest) {
+  // This creates a real Supabase Auth user + agents row per call and has
+  // no account/API-key identifier to key a limiter on yet — key on IP so
+  // it can't be scripted into mass fake-agent creation or used to enumerate
+  // which emails/phones are already registered via the EMAIL_IN_USE /
+  // EMAIL_OR_PHONE_IN_USE responses.
+  const ip = getClientIp(req);
+  const rateLimit = checkRateLimit(`agent-register:${ip}`, "REGISTRATION");
+  if (!rateLimit.allowed) {
+    return fail("TOO_MANY_ATTEMPTS", `Too many registration attempts. Please try again in ${rateLimit.resetSeconds} seconds.`, 429);
+  }
+
   let body: Record<string, unknown>;
   try {
     body = await req.json();

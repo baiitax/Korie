@@ -1,7 +1,20 @@
 import { NextResponse } from "next/server";
+import { checkRateLimit, getClientIp } from "@/lib/security/rateLimiter";
 
 export async function POST(request: Request) {
   try {
+    // Public, unauthenticated intake form — no login, no CAPTCHA anywhere
+    // in this flow. Without a per-IP throttle this is a free spam/log-flood
+    // vector (each submission is written straight into server logs).
+    const ip = getClientIp(request);
+    const rateLimit = checkRateLimit(`contact-form:${ip}`, "REGISTRATION", 15);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: `Too many submissions. Please try again in ${rateLimit.resetSeconds} seconds.` },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
     const { fullName, email, phone, businessName, selectedCountry, locationCity, category, monthlyVolume, message, formType } = body;
 

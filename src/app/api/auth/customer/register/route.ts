@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { createSuccessResponse, createErrorResponse } from "@/lib/security/apiResponse";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { checkRateLimit, getClientIp } from "@/lib/security/rateLimiter";
 
 /**
  * POST /api/auth/customer/register
@@ -37,6 +38,15 @@ function normalizePhone(raw: string, country: "NG" | "NE"): string {
 }
 
 export async function POST(req: NextRequest) {
+  // Public, unauthenticated account-creation endpoint — key the throttle
+  // on IP (no account identifier exists yet) to blunt scripted mass
+  // signup / email-enumeration abuse via the EMAIL_IN_USE response.
+  const ip = getClientIp(req);
+  const rateLimit = checkRateLimit(`customer-register:${ip}`, "REGISTRATION");
+  if (!rateLimit.allowed) {
+    return fail("TOO_MANY_ATTEMPTS", `Too many registration attempts. Please try again in ${rateLimit.resetSeconds} seconds.`, 429);
+  }
+
   let body: Record<string, unknown>;
   try {
     body = await req.json();

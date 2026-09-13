@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { createSuccessResponse, createErrorResponse } from '@/lib/security/apiResponse';
+import { checkRateLimit, getClientIp } from '@/lib/security/rateLimiter';
 
 /**
  * POST /api/v1/agency/onboarding/apply
@@ -13,6 +14,14 @@ import { createSuccessResponse, createErrorResponse } from '@/lib/security/apiRe
  * self-activates an agent account.
  */
 export async function POST(req: NextRequest) {
+  // Public, unauthenticated application intake — key on IP, same rationale
+  // as the self-serve register routes.
+  const ip = getClientIp(req);
+  const rateLimit = checkRateLimit(`agency-onboarding-apply:${ip}`, 'REGISTRATION');
+  if (!rateLimit.allowed) {
+    return createErrorResponse({ code: 'TOO_MANY_ATTEMPTS', message: `Too many applications submitted. Please try again in ${rateLimit.resetSeconds} seconds.`, requestId: `KP-REQ-${Date.now()}`, httpStatus: 429 });
+  }
+
   let body: any;
   try {
     body = await req.json();
