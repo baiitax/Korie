@@ -9,12 +9,29 @@ export async function POST(req: NextRequest) {
   const requestId = req.headers.get('x-request-id') || `KP-WHK-${Date.now()}`;
   const rawBody = await req.text();
 
-  // Test secret for sandbox webhooks
-  const secretKey = process.env.KORIEPAY_WEBHOOK_SECRET || 'whsec_test_secret_99281a0e';
+  // KORIEPAY_WEBHOOK_SECRET must be configured — there is no safe hardcoded
+  // fallback for a signing secret. Without it, every request is rejected
+  // rather than silently trusted (fail closed, not fail open).
+  const secretKey = process.env.KORIEPAY_WEBHOOK_SECRET;
+  if (!secretKey) {
+    return createErrorResponse({
+      code: 'WEBHOOK_NOT_CONFIGURED',
+      message: 'Webhook signing secret is not configured on the server.',
+      requestId,
+      httpStatus: 503,
+    });
+  }
 
   const verification = verifyWebhookSignature(rawBody, signatureHeader, secretKey);
+  if (!verification.isValid) {
+    return createErrorResponse({
+      code: 'INVALID_WEBHOOK_SIGNATURE',
+      message: 'Webhook signature verification failed.',
+      requestId,
+      httpStatus: 401,
+    });
+  }
 
-  // If testing in sandbox, accept test pings gracefully
   let parsedPayload: any = {};
   try {
     parsedPayload = JSON.parse(rawBody);
