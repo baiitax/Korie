@@ -46,6 +46,7 @@ import {
   initialDeveloperAuditLogs,
 } from '@/services/developerDataService';
 import { DeveloperLocale, getDeveloperTranslation } from '@/locales/developer';
+import { devFetch } from "@/lib/consoleKeys";
 
 interface DeveloperContextType {
   environment: DeveloperEnvironment;
@@ -543,7 +544,7 @@ export const DeveloperProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setWorkspacePhase('loading');
     setWorkspaceError(null);
     try {
-      const res = await fetch('/api/developers/workspace', { cache: 'no-store' });
+      const res = await devFetch('/api/developers/workspace', { cache: 'no-store' });
       const json = await res.json().catch(() => null);
       if (!res.ok || !json || !json.success) {
         throw new Error(json?.error?.message ?? `Workspace API ${res.status}`);

@@ -47,6 +47,16 @@ export class DeveloperWorkspaceEngineError extends Error {
 
 interface StoredCredential extends ApiCredential {
   secretKeyRaw?: string;
+  /** Salted SHA-256 of the raw secret — the ONLY persisted verifier. Raw secrets
+   *  are returned once at create/rotate and never stored; masked previews cannot
+   *  verify. Credentials persisted before hashes existed fail closed. */
+  secretKeyHash?: string;
+  secretSalt?: string;
+  /** Owner binding: server sessions resolve agent/customer identity from this. */
+  ownerUserId?: string;
+  /** Operator keys (console use) carry a role; app keys leave this unset. */
+  operatorRole?: 'OPERATOR' | 'ADMIN' | 'SYSTEM';
+  isSeed?: boolean;
 }
 
 const STORE_PATH =
@@ -59,6 +69,44 @@ const mask = (raw: string) => {
 
 const generateKey = (env: DeveloperEnvironment, kind: 'sec' | 'pub') =>
   `kp_${env === 'PRODUCTION' ? 'live' : 'test'}_${kind}_${crypto.randomBytes(18).toString('hex')}`;
+
+const hashSecret = (raw: string, salt: string): string =>
+  crypto.createHash('sha256').update(`${salt}:${raw}`).digest('hex');
+
+/** Timing-safe comparison — verification must not leak prefix information. */
+const secretsEqual = (candidateHash: string, storedHash: string): boolean => {
+  const a = Buffer.from(candidateHash, 'hex');
+  const b = Buffer.from(storedHash, 'hex');
+  if (a.length !== b.length) return false;
+  try {
+    return crypto.timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
+};
+
+/** Sandbox bootstrap keys. Fixed documented values so consoles and integrations
+ *  have a first credential; rotate immediately via the credentials API (revoke
+ *  the seed, issue a replacement). NEVER use these values outside SANDBOX. */
+export const SANDBOX_DEV_KEY = 'kp_test_cdb3db2b9b22a98c9c1b';
+export const SANDBOX_ADMIN_KEY = 'kp_test_admin_sandbox_7f3a9c2e5b1d8046';
+const SANDBOX_DEV_SALT = 'kp-seed-dev-01';
+const SANDBOX_ADMIN_SALT = 'kp-seed-admin-01';
+
+export const STANDARD_SANDBOX_SCOPES = [
+  'payments:read',
+  'payments:write',
+  'transfers:write',
+  'wallets:read',
+  'wallets:write',
+  'kyc:verify',
+  'agency:write',
+  'merchant:write',
+  'checkout:create',
+  'bills:vend',
+  'fx:read',
+  'fx:quote',
+];
 
 export class DeveloperWorkspaceEngine {
   private static instance: DeveloperWorkspaceEngine | null = null;
@@ -146,6 +194,48 @@ export class DeveloperWorkspaceEngine {
       createdAt: '2026-01-15T10:05:00Z',
       lastUsedAt: '2026-09-03T16:10:00Z',
       createdByName: 'Ibrahim Abubakar',
+      // No hash: minted before verifiable issuance existed. Listed for
+      // inventory honesty; fails closed on every verification attempt.
+      isSeed: true,
+    },
+    {
+      id: 'cred_seed_dev',
+      appId: 'app_sand_88201',
+      orgId: 'org_kor_99182',
+      name: 'Sandbox Developer Bootstrap',
+      type: 'SECRET_KEY',
+      environment: 'SANDBOX',
+      publicKey: 'kp_test_pub_sandbox_dev_bootstrap',
+      secretKeyMasked: mask(SANDBOX_DEV_KEY),
+      secretKeyHash: hashSecret(SANDBOX_DEV_KEY, SANDBOX_DEV_SALT),
+      secretSalt: SANDBOX_DEV_SALT,
+      scopes: [...STANDARD_SANDBOX_SCOPES, 'developer:read', 'developer:write'],
+      status: 'ACTIVE',
+      createdAt: '2026-09-10T00:00:00Z',
+      lastUsedAt: '',
+      createdByName: 'SYSTEM_SEED',
+      ownerUserId: 'usr_dev_01',
+      isSeed: true,
+    },
+    {
+      id: 'cred_seed_admin',
+      appId: 'operator-console',
+      orgId: 'org_kor_99182',
+      name: 'Sandbox Admin Bootstrap (ROTATE ME)',
+      type: 'SECRET_KEY',
+      environment: 'SANDBOX',
+      publicKey: 'kp_test_pub_sandbox_admin_bootstrap',
+      secretKeyMasked: mask(SANDBOX_ADMIN_KEY),
+      secretKeyHash: hashSecret(SANDBOX_ADMIN_KEY, SANDBOX_ADMIN_SALT),
+      secretSalt: SANDBOX_ADMIN_SALT,
+      scopes: [...STANDARD_SANDBOX_SCOPES, 'developer:read', 'developer:write', 'admin:read', 'admin:write'],
+      status: 'ACTIVE',
+      createdAt: '2026-09-10T00:00:00Z',
+      lastUsedAt: '',
+      createdByName: 'SYSTEM_SEED',
+      ownerUserId: 'usr_dev_02',
+      operatorRole: 'ADMIN',
+      isSeed: true,
     },
     ];
   })();
@@ -350,16 +440,25 @@ export class DeveloperWorkspaceEngine {
     this.hydrate();
     return this.credentials
       .filter(c => !environment || c.environment === environment)
-      .map(({ secretKeyRaw: _raw, ...cred }) => ({ ...cred, secretKeyMasked: cred.secretKeyMasked }))
+      .map(({ secretKeyRaw: _raw, secretKeyHash: _h, secretSalt: _s, ...cred }) => ({ ...cred, secretKeyMasked: cred.secretKeyMasked }))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
   public createCredential(
-    input: { appId: string; name?: string; environment: DeveloperEnvironment; scopes?: string[] },
+    input: {
+      appId: string;
+      name?: string;
+      environment: DeveloperEnvironment;
+      scopes?: string[];
+      ownerUserId?: string;
+      operatorRole?: 'OPERATOR' | 'ADMIN' | 'SYSTEM';
+    },
     actor: string,
   ): { credential: ApiCredential; secretKeyRaw: string } {
-    const app = this.getApplication(input.appId);
-    if (app.status !== 'ACTIVE') throw new DeveloperWorkspaceEngineError('FORBIDDEN', `Application is ${app.status}`, 403);
+    this.hydrate();
+    const isOperatorKey = input.appId === 'operator-console';
+    const app = isOperatorKey ? null : this.getApplication(input.appId);
+    if (app && app.status !== 'ACTIVE') throw new DeveloperWorkspaceEngineError('FORBIDDEN', `Application is ${app.status}`, 403);
     if (input.environment === 'PRODUCTION') {
       if (this.productionAccessStatus !== 'APPROVED')
         throw new DeveloperWorkspaceEngineError(
@@ -367,13 +466,16 @@ export class DeveloperWorkspaceEngine {
           'Production credentials require approved production access. Complete the sandbox checklist and request production access first.',
           403,
         );
-      if (app.environment !== 'PRODUCTION')
+      if (app && app.environment !== 'PRODUCTION')
         throw new DeveloperWorkspaceEngineError('VALIDATION_ERROR', 'Production keys require a production application', 400);
     }
+    if (isOperatorKey && !input.operatorRole)
+      throw new DeveloperWorkspaceEngineError('VALIDATION_ERROR', 'Operator keys require an operatorRole (OPERATOR, ADMIN or SYSTEM)', 400);
     const secretKeyRaw = generateKey(input.environment, 'sec');
+    const secretSalt = crypto.randomBytes(16).toString('hex');
     const entry: StoredCredential = {
       id: this.nextId('cred'),
-      appId: app.id,
+      appId: isOperatorKey ? 'operator-console' : (app as { id: string }).id,
       orgId: this.organization.id,
       name: (input.name || '').trim() || (input.environment === 'SANDBOX' ? 'Sandbox Primary' : 'Production Primary'),
       type: 'SECRET_KEY',
@@ -381,15 +483,20 @@ export class DeveloperWorkspaceEngine {
       publicKey: generateKey(input.environment, 'pub'),
       secretKeyMasked: mask(secretKeyRaw),
       secretKeyRaw,
-      scopes: input.scopes && input.scopes.length ? input.scopes : app.scopes,
+      secretKeyHash: hashSecret(secretKeyRaw, secretSalt),
+      secretSalt,
+      scopes: input.scopes && input.scopes.length ? input.scopes : (app ? app.scopes : []),
       status: 'ACTIVE',
       createdAt: this.now(),
       lastUsedAt: '',
       createdByName: actor,
+      ownerUserId: input.ownerUserId,
+      operatorRole: input.operatorRole,
     };
     this.credentials.unshift(entry);
-    this.logActivity(actor, 'credential.generated', `Generated ${input.environment} secret key for ${app.name}`);
-    const { secretKeyRaw: _raw, ...cred } = entry;
+    this.persist();
+    this.logActivity(actor, 'credential.generated', `Generated ${input.environment} secret key for ${isOperatorKey ? 'operator console' : (app as { name: string }).name}`);
+    const { secretKeyRaw: _raw, secretKeyHash: _h, secretSalt: _s, ...cred } = entry;
     return { credential: { ...cred, secretKeyMasked: entry.secretKeyMasked }, secretKeyRaw };
   }
 
@@ -401,11 +508,14 @@ export class DeveloperWorkspaceEngine {
     // Hydrating again mid-mutation (e.g. via getApplication) would discard this
     // in-flight change — resolve the owning application without re-hydration.
     const app = this.applications.find(a => a.id === cred.appId);
-    // Archive the old secret (grace window) and issue a fresh pair.
+    // Archive the old secret (grace window) and issue a fresh pair. The old HASH
+    // is retained until grace expiry so the previous secret keeps verifying
+    // for 24h; the raw was never stored and cannot leak.
     cred.status = 'ROTATING';
     cred.gracePeriodExpiresAt = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
     delete cred.secretKeyRaw;
     const secretKeyRaw = generateKey(cred.environment, 'sec');
+    const secretSalt = crypto.randomBytes(16).toString('hex');
     const fresh: StoredCredential = {
       id: this.nextId('cred'),
       appId: cred.appId,
@@ -416,15 +526,20 @@ export class DeveloperWorkspaceEngine {
       publicKey: cred.publicKey,
       secretKeyMasked: mask(secretKeyRaw),
       secretKeyRaw,
+      secretKeyHash: hashSecret(secretKeyRaw, secretSalt),
+      secretSalt,
       scopes: cred.scopes,
       status: 'ACTIVE',
       createdAt: this.now(),
       lastUsedAt: '',
       createdByName: actor,
+      ownerUserId: cred.ownerUserId,
+      operatorRole: cred.operatorRole,
     };
     this.credentials.unshift(fresh);
+    this.persist();
     this.logActivity(actor, 'credential.rotated', `Rotated ${cred.environment} secret key for ${app?.name ?? cred.appId}`);
-    const { secretKeyRaw: _raw, ...rest } = fresh;
+    const { secretKeyRaw: _raw, secretKeyHash: _h, secretSalt: _s, ...rest } = fresh;
     return { credential: { ...rest, secretKeyMasked: fresh.secretKeyMasked }, secretKeyRaw };
   }
 
@@ -438,9 +553,54 @@ export class DeveloperWorkspaceEngine {
     cred.status = 'REVOKED';
     cred.gracePeriodExpiresAt = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
     delete cred.secretKeyRaw;
+    // The verifier is RETAINED (salted hash only, never the raw): it lets
+    // verifySecret answer KEY_REVOKED distinctly instead of INVALID_API_KEY.
+    // The REVOKED status fails closed on every attempt and there is no
+    // un-revoke path, so the retained hash cannot re-authenticate anything.
+    this.persist();
     this.logActivity(actor, 'credential.revoked', `Revoked ${cred.environment} secret key for ${app?.name ?? cred.appId}`);
-    const { secretKeyRaw: _raw, ...rest } = cred;
+    const { secretKeyRaw: _raw, secretKeyHash: _h, secretSalt: _s, ...rest } = cred;
     return { ...rest, secretKeyMasked: cred.secretKeyMasked };
+  }
+
+  /**
+   * Verifies a presented bearer against the registry. This is the single
+   * authentication choke point for every API route (via authMiddleware):
+   * unknown, revoked, expired, grace-lapsed, or pre-hash legacy credentials
+   * all fail closed with distinct codes. On success the credential's
+   * lastUsedAt is touched (file-backed usage proof).
+   */
+  public verifySecret(rawSecret: string): { ok: true; credential: StoredCredential } | { ok: false; code: 'INVALID_API_KEY' | 'KEY_REVOKED' | 'KEY_EXPIRED' | 'KEY_GRACE_LAPSED' } {
+    this.hydrate();
+    const now = Date.now();
+    for (const cred of this.credentials) {
+      if (!cred.secretKeyHash || !cred.secretSalt) continue; // pre-hash legacy: can never verify
+      let matches = false;
+      try {
+        matches = secretsEqual(hashSecret(rawSecret, cred.secretSalt), cred.secretKeyHash);
+      } catch {
+        matches = false;
+      }
+      if (!matches) continue;
+      if (cred.status === 'REVOKED') return { ok: false, code: 'KEY_REVOKED' };
+      if (cred.expiresAt && Date.parse(cred.expiresAt) <= now) return { ok: false, code: 'KEY_EXPIRED' };
+      if (cred.status === 'ROTATING') {
+        const graceOk = cred.gracePeriodExpiresAt ? Date.parse(cred.gracePeriodExpiresAt) > now : false;
+        if (!graceOk) return { ok: false, code: 'KEY_GRACE_LAPSED' };
+      }
+      if (cred.status !== 'ACTIVE' && cred.status !== 'ROTATING') return { ok: false, code: 'INVALID_API_KEY' };
+      cred.lastUsedAt = new Date(now).toISOString();
+      this.persist();
+      return { ok: true, credential: cred };
+    }
+    return { ok: false, code: 'INVALID_API_KEY' };
+  }
+
+  /** Scope matcher: exact, `prefix:*`, or global `*`. */
+  public static scopeSatisfies(granted: string[], required: string): boolean {
+    if (granted.includes(required) || granted.includes('*')) return true;
+    const prefix = required.split(':')[0];
+    return granted.includes(`${prefix}:*`);
   }
 
   public isProductionAccessApproved(): boolean {

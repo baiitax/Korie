@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AdminConfigurationEngine, AdminConfigurationEngineError } from '@/lib/admin/AdminConfigurationEngine';
+import { adminApiGuard } from '@/lib/security/apiGuards';
 
 export const dynamic = "force-dynamic";
 
 export async function GET(_req: NextRequest) {
+  const guard = await adminApiGuard(_req, 'read');
+  if (!guard.ok) return guard.response;
   try {
     const engine = AdminConfigurationEngine.getInstance();
     const gateway = engine.getGateway();

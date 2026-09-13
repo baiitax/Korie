@@ -17,6 +17,7 @@ import { NextResponse } from 'next/server';
 import { ApiGatewayEngine } from '@/lib/gateway/ApiGatewayEngine';
 import { CustomerHarmIncidentEngine } from '@/lib/consumer/CustomerHarmIncidentEngine';
 import { ComplaintDisputeEngine } from '@/lib/complaints/ComplaintDisputeEngine';
+import { adminApiGuard } from '@/lib/security/apiGuards';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,6 +28,8 @@ type Severity = (typeof SEVERITIES)[number];
 type IncidentStatus = (typeof STATUSES)[number];
 
 export async function POST(request: Request) {
+  const guard = await adminApiGuard(request, 'write');
+  if (!guard.ok) return guard.response;
   const gateway = ApiGatewayEngine.getInstance();
   try {
     const body = await request.json().catch(() => ({}));
@@ -107,6 +110,8 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const guard = await adminApiGuard(request, 'write');
+  if (!guard.ok) return guard.response;
   const gateway = ApiGatewayEngine.getInstance();
   try {
     const body = await request.json().catch(() => ({}));

@@ -4,6 +4,7 @@
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cx } from '@/components/compliance/ui/Ck';
+import { PORTAL_DEMO_MODE } from '@/services/compliancePortalData';
 
 export function usePaging<T>(rows: T[], pageSize = 8) {
   const [page, setPage] = useState(0);
@@ -54,12 +55,30 @@ export function useNowTick(ms = 60_000) {
   }, [ms]);
 }
 
-export const DemoStrip: React.FC<{ t: Record<string, any> }> = ({ t }) => (
-  <div className="flex items-center gap-2 text-[0.64rem] font-bold text-[var(--kpc-ink-3)]">
-    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block animate-pulse" />
-    {t.common.demoNote}
-  </div>
-);
+export const DemoStrip: React.FC<{ t: Record<string, any> }> = ({ t }) => {
+  if (!PORTAL_DEMO_MODE) return null;
+  return (
+    <div className="flex items-center gap-2 text-[0.64rem] font-bold text-[var(--kpc-ink-3)]">
+      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block animate-pulse" />
+      {t.common.demoNote}
+    </div>
+  );
+};
+
+/** Shell-wide demo banner: same flag, no translations needed. Rendered once
+ *  by ComplianceShell so every compliance page carries the label. */
+export const DemoStripStandalone: React.FC = () => {
+  if (!PORTAL_DEMO_MODE) return null;
+  return (
+    <div
+      role="status"
+      className="mb-3 flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-[0.7rem] font-bold text-amber-200"
+    >
+      <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-amber-500" />
+      Demonstration data — volumes, queues and cases on this portal are illustrative fixtures, not live records.
+    </div>
+  );
+};
 
 export function chipTxt(v: string, t: Record<string, any>): string {
   const map: Record<string, string> = {

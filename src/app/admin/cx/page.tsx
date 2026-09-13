@@ -23,6 +23,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useAdmin } from "@/components/admin/AdminContext";
 import type { CxCaseRow, CxSnapshot } from "@/lib/admin/CxTruthService";
+import { adminFetch } from "@/lib/consoleKeys";
 import {
   AlertTriangle,
   ArrowRight,
@@ -113,7 +114,7 @@ export default function CustomerExperiencePage() {
       setRefreshing(true);
       try {
         const qs = countryFilter === "GLOBAL" ? "" : `?country=${countryFilter}`;
-        const res = await fetch(`/api/admin/cx/overview${qs}`, { cache: "no-store" });
+        const res = await adminFetch(`/api/admin/cx/overview${qs}`, { cache: "no-store" });
         const json = await res.json();
         if (!res.ok || json?.success === false) {
           throw new Error(json?.error?.message || json?.error || `HTTP ${res.status}`);
@@ -205,7 +206,7 @@ export default function CustomerExperiencePage() {
     if (!incidentFor) return;
     setBusy(`${incidentFor.key}:INCIDENT`);
     try {
-      const res = await fetch("/api/admin/cx/incidents", {
+      const res = await adminFetch("/api/admin/cx/incidents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -237,7 +238,7 @@ export default function CustomerExperiencePage() {
     async (incidentId: string, status: string, reference: string) => {
       setBusy(`${incidentId}:${status}`);
       try {
-        const res = await fetch("/api/admin/cx/incidents", {
+        const res = await adminFetch("/api/admin/cx/incidents", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ incidentId, status, actor: compAuthorizer }),

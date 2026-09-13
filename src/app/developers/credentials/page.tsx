@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight, Check, Copy, KeyRound, Plus, RefreshCw, ShieldAlert, X } from "lucide-react";
 import { useDeveloper } from "@/components/developer/DeveloperContext";
 import type { ApiCredential, DeveloperEnvironment, ProductionRequestStatus } from "@/types/developer";
+import { devFetch } from "@/lib/consoleKeys";
 import {
   Card,
   CardHeader,
@@ -18,7 +19,7 @@ import {
 } from "@/components/developer/WorkspaceBits";
 
 const POST = async (url: string, body?: unknown) => {
-  const res = await fetch(url, {
+  const res = await devFetch(url, {
     method: "POST",
     headers: body ? { "Content-Type": "application/json" } : undefined,
     body: body ? JSON.stringify(body) : undefined,

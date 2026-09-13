@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ApiGatewayEngine } from '@/lib/gateway/ApiGatewayEngine';
 import { LedgerService } from '@/lib/services/LedgerService';
 import { BankCoreEngine } from '@/lib/bank/BankCoreEngine';
+import { adminApiGuard } from '@/lib/security/apiGuards';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +27,8 @@ export interface LedgerActivityRow {
 }
 
 export async function GET(req: NextRequest) {
+  const guard = await adminApiGuard(req, 'read');
+  if (!guard.ok) return guard.response;
   const gateway = ApiGatewayEngine.getInstance();
   try {
     const params = new URL(req.url).searchParams;

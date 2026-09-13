@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Search, Download, RefreshCw, ChevronDown, ChevronRight } from "lucide-react";
+import { adminFetch } from "@/lib/consoleKeys";
 
 interface ActivityRow {
   id: string;
@@ -39,7 +40,7 @@ export default function TransactionsPage() {
     setLoading(true);
     setError(null);
     try {
-      const r = await fetch("/api/admin/ledger/activity?kind=ALL&limit=200", { cache: "no-store" });
+      const r = await adminFetch("/api/admin/ledger/activity?kind=ALL&limit=200", { cache: "no-store" });
       const json = await r.json();
       if (!r.ok || !json?.success) throw new Error(json?.error?.message || `HTTP ${r.status}`);
       setRows(json.data.rows);

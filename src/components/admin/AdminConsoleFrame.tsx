@@ -7,6 +7,8 @@ import AdminTopBar from "./AdminTopBar";
 import AdminMobileNav from "./AdminMobileNav";
 import ConsoleShell from "@/components/console/ConsoleShell";
 import ConsoleCommandPalette from "@/components/console/ConsoleCommandPalette";
+import ConsoleKeyGate from "@/components/console/ConsoleKeyGate";
+import { SANDBOX_ADMIN_BOOTSTRAP_KEY } from "@/lib/consoleKeys";
 import { useAdmin } from "./AdminContext";
 import {
   adminNavGroups,
@@ -158,7 +160,16 @@ export const AdminConsoleFrame: React.FC<{ children: React.ReactNode }> = ({
           />
         }
       >
-        {children}
+        <ConsoleKeyGate
+          kind="admin"
+          title="Super Admin console"
+          sessionPath="/api/admin/session"
+          bootstrapKey={SANDBOX_ADMIN_BOOTSTRAP_KEY}
+          credentialsHref="/admin/api-credentials"
+          credentialsLabel="API Credentials"
+        >
+          {children}
+        </ConsoleKeyGate>
       </ConsoleShell>
     </>
   );

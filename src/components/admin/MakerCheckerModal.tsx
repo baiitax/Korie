@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useAdmin } from "./AdminContext";
+import { adminFetch } from "@/lib/consoleKeys";
 import {
   ShieldAlert,
   X,
@@ -34,7 +35,7 @@ async function executeWiredAction(
 ): Promise<ExecutionOutcome> {
   if (actionType === "WALLET_FREEZE") {
     try {
-      const r = await fetch(`/api/admin/wallets/${encodeURIComponent(resourceId)}/restrict`, {
+      const r = await adminFetch(`/api/admin/wallets/${encodeURIComponent(resourceId)}/restrict`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ restriction: "FULL_FREEZE", reason, actor: checkerEmail }),
@@ -51,7 +52,7 @@ async function executeWiredAction(
   }
   if (actionType === "WALLET_UNFREEZE") {
     try {
-      const r = await fetch(`/api/admin/wallets/${encodeURIComponent(resourceId)}/lift`, {
+      const r = await adminFetch(`/api/admin/wallets/${encodeURIComponent(resourceId)}/lift`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ restriction: "FULL_FREEZE", actor: checkerEmail }),
@@ -95,7 +96,7 @@ export const MakerCheckerModal: React.FC = () => {
     setFormError(null);
     setActionDone(null);
     const amount = Number((req.payload as Record<string, unknown> | undefined)?.amount);
-    fetch("/api/admin/config/automation/decide", {
+    adminFetch("/api/admin/config/automation/decide", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -120,7 +121,7 @@ export const MakerCheckerModal: React.FC = () => {
           const exec = await executeWiredAction(req.actionType, req.resourceId, req.reason, "automation@koriepay.com");
           if (cancelled) return;
           setOutcome(exec);
-          void fetch("/api/admin/config/automation/complete", {
+          void adminFetch("/api/admin/config/automation/complete", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -173,7 +174,7 @@ export const MakerCheckerModal: React.FC = () => {
       setOutcome(exec);
       // 2. Persist the decision. If this fails the screen says so loudly —
       // an unrecorded approval is never presented as complete.
-      const r = await fetch("/api/admin/maker-checker/decisions", {
+      const r = await adminFetch("/api/admin/maker-checker/decisions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

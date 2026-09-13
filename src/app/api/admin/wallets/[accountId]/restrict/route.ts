@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ApiGatewayEngine } from '@/lib/gateway/ApiGatewayEngine';
 import { AccountLifecycleEngine } from '@/lib/customer/AccountLifecycleEngine';
 import type { AccountRestrictionType } from '@/types/customerProductFactory';
+import { adminApiGuard } from '@/lib/security/apiGuards';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +19,8 @@ const ALLOWED: AccountRestrictionType[] = [
 ];
 
 export async function POST(req: NextRequest, { params }: { params: { accountId: string } }) {
+  const guard = await adminApiGuard(req, 'write');
+  if (!guard.ok) return guard.response;
   const gateway = ApiGatewayEngine.getInstance();
   try {
     const body = (await req.json()) as { restriction?: string; reason?: string; actor?: string };

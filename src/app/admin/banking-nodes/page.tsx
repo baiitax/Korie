@@ -12,6 +12,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useAdmin } from "@/components/admin/AdminContext";
+import { adminFetch } from "@/lib/consoleKeys";
 import {
   Server,
   RefreshCw,
@@ -85,8 +86,8 @@ export default function BankingNodesPage() {
     if (!silent) setPhase("loading");
     try {
       const [snapRes, connRes] = await Promise.all([
-        fetch("/api/admin/overview/executive?country=GLOBAL", { cache: "no-store" }),
-        fetch("/api/admin/config/connectors", { cache: "no-store" }),
+        adminFetch("/api/admin/overview/executive?country=GLOBAL", { cache: "no-store" }),
+        adminFetch("/api/admin/config/connectors", { cache: "no-store" }),
       ]);
       const snapJson = await snapRes.json();
       const connJson = await connRes.json();
@@ -109,7 +110,7 @@ export default function BankingNodesPage() {
     setBusyId(connectorId);
     setNotice(null);
     try {
-      const res = await fetch(`/api/admin/config/connectors/${connectorId}/probe`, {
+      const res = await adminFetch(`/api/admin/config/connectors/${connectorId}/probe`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ actor: "System Administrator" }),
@@ -136,7 +137,7 @@ export default function BankingNodesPage() {
     setBusyId(`role-${connectorId}`);
     setNotice(null);
     try {
-      const res = await fetch(`/api/admin/config/connectors/${connectorId}/role`, {
+      const res = await adminFetch(`/api/admin/config/connectors/${connectorId}/role`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ role, actor: "System Administrator" }),

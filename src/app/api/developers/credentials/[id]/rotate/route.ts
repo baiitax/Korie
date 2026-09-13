@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { DeveloperWorkspaceEngine, DeveloperWorkspaceEngineError } from '@/lib/developer/DeveloperWorkspaceEngine';
+import { developerApiGuard } from '@/lib/security/apiGuards';
 
 export async function POST(req: NextRequest) {
+  const guard = await developerApiGuard(req, 'write');
+  if (!guard.ok) return guard.response;
   const engine = DeveloperWorkspaceEngine.getInstance();
   try {
     const gateway = engine.getGateway();

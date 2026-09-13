@@ -33,6 +33,8 @@ import {
 import KorieLogo from '@/components/brand/KorieLogo';
 import PortalFooter from '@/components/ui/PortalFooter';
 import ShellAccount from '@/components/ui/ShellAccount';
+import ConsoleKeyGate from '@/components/console/ConsoleKeyGate';
+import { SANDBOX_DEV_BOOTSTRAP_KEY } from '@/lib/consoleKeys';
 
 /**
  * DeveloperShell — premium floating-rail workspace shell (spec-compliant).
@@ -425,7 +427,16 @@ export const DeveloperShell: React.FC<{ children: React.ReactNode }> = ({ childr
           {/* Main content */}
           <main className="flex-1 w-full px-4 sm:px-6 lg:px-8 py-6" id="main-content">
             <div className="mx-auto w-full max-w-[1600px]">
-              {children}
+              <ConsoleKeyGate
+                kind="dev"
+                title="Developer console"
+                sessionPath="/api/developers/session"
+                bootstrapKey={SANDBOX_DEV_BOOTSTRAP_KEY}
+                credentialsHref="/developers/credentials"
+                credentialsLabel="API Credentials"
+              >
+                {children}
+              </ConsoleKeyGate>
             </div>
           </main>
 

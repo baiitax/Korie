@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useAdmin } from "@/components/admin/AdminContext";
 import { Wallet, Search, RefreshCw, Lock, LockOpen, AlertTriangle } from "lucide-react";
+import { adminFetch } from "@/lib/consoleKeys";
 
 interface WalletAccount {
   id: string;
@@ -67,7 +68,7 @@ export default function WalletsAdminPage() {
     setLoading(true);
     setError(null);
     try {
-      const r = await fetch(`/api/admin/wallets/overview?country=${countryFilter}`, { cache: "no-store" });
+      const r = await adminFetch(`/api/admin/wallets/overview?country=${countryFilter}`, { cache: "no-store" });
       const json = await r.json();
       if (!r.ok || !json?.success) throw new Error(json?.error?.message || `HTTP ${r.status}`);
       setData(json.data);

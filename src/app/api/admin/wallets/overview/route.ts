@@ -8,10 +8,13 @@ import { CustomerLifecycleEngine } from '@/lib/customer/CustomerLifecycleEngine'
 import { AgentManagementEngine } from '@/lib/agents/AgentManagementEngine';
 import { SubledgerEngine } from '@/lib/financial/SubledgerEngine';
 import { LedgerService } from '@/lib/services/LedgerService';
+import { adminApiGuard } from '@/lib/security/apiGuards';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
+  const guard = await adminApiGuard(req, 'read');
+  if (!guard.ok) return guard.response;
   const gateway = ApiGatewayEngine.getInstance();
   try {
     const raw = (new URL(req.url).searchParams.get('country') || 'GLOBAL').toUpperCase();

@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw } from "lucide-react";
+import { adminFetch } from "@/lib/consoleKeys";
 
 interface ActivityRow {
   id: string;
@@ -35,7 +36,7 @@ export default function TransfersAdminPage() {
     setLoading(true);
     setError(null);
     try {
-      const r = await fetch("/api/admin/ledger/activity?kind=BANK&limit=200", { cache: "no-store" });
+      const r = await adminFetch("/api/admin/ledger/activity?kind=BANK&limit=200", { cache: "no-store" });
       const json = await r.json();
       if (!r.ok || !json?.success) throw new Error(json?.error?.message || `HTTP ${r.status}`);
       setRows((json.data.rows as ActivityRow[]).filter((t) => TRANSFER_TYPES.has(t.type)));

@@ -18,6 +18,7 @@ import Link from "next/link";
 import { useAdmin } from "./AdminContext";
 import { Activity, RefreshCw, ShieldAlert, Timer, Repeat2, Star, Siren, ArrowRight, Landmark } from "lucide-react";
 import type { CxSnapshot } from "@/lib/admin/CxTruthService";
+import { adminFetch } from "@/lib/consoleKeys";
 
 const PRIORITY_TONE: Record<string, string> = {
   P0: "bg-rose-500/15 text-rose-300 border-rose-500/30",
@@ -49,7 +50,7 @@ export const ExperienceHealthPulse: React.FC = () => {
       setRefreshing(true);
       try {
         const qs = countryFilter === "GLOBAL" ? "" : `?country=${countryFilter}`;
-        const res = await fetch(`/api/admin/cx/overview${qs}`, { cache: "no-store" });
+        const res = await adminFetch(`/api/admin/cx/overview${qs}`, { cache: "no-store" });
         const json = await res.json();
         if (!res.ok || json?.success === false) throw new Error(json?.error?.message || json?.error || `HTTP ${res.status}`);
         setSnapshot(json.data as CxSnapshot);

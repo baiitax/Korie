@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ApiGatewayEngine } from '@/lib/gateway/ApiGatewayEngine';
 import { BillerServiceEngine } from '@/lib/agent/BillerServiceEngine';
 import { LedgerService } from '@/lib/services/LedgerService';
+import { adminApiGuard } from '@/lib/security/apiGuards';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +21,8 @@ function maskPhone(phone: string | undefined): string | null {
 }
 
 export async function GET(_req: NextRequest) {
+  const guard = await adminApiGuard(_req, 'read');
+  if (!guard.ok) return guard.response;
   const gateway = ApiGatewayEngine.getInstance();
   try {
     const engine = BillerServiceEngine.getInstance();

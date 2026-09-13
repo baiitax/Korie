@@ -25,6 +25,7 @@ import ConsoleShell from '@/components/console/ConsoleShell';
 import ConsoleTopBar from '@/components/console/ConsoleTopBar';
 import ConsoleMobileNav from '@/components/console/ConsoleMobileNav';
 import ConsoleCommandPalette from '@/components/console/ConsoleCommandPalette';
+import { DemoStripStandalone } from '@/components/compliance/workspaces/helpers';
 
 /* ------------------------------------------------------------------ */
 /* Navigation model                                                    */
@@ -439,6 +440,7 @@ export const ComplianceShell: React.FC<{ children: React.ReactNode }> = ({ child
           </>
         }
       >
+        <DemoStripStandalone />
         {children}
       </ConsoleShell>
     </div>

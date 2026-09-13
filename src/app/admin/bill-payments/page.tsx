@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { RefreshCw, Receipt, Landmark } from "lucide-react";
+import { adminFetch } from "@/lib/consoleKeys";
 
 interface BillerRow {
   billerId: string;
@@ -50,7 +51,7 @@ export default function BillPaymentsAdminPage() {
     setLoading(true);
     setError(null);
     try {
-      const r = await fetch("/api/admin/billers/overview", { cache: "no-store" });
+      const r = await adminFetch("/api/admin/billers/overview", { cache: "no-store" });
       const json = await r.json();
       if (!r.ok || !json?.success) throw new Error(json?.error?.message || `HTTP ${r.status}`);
       setData(json.data);

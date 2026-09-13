@@ -4,10 +4,13 @@
 // POST /api/admin/maker-checker/decisions
 import { NextRequest, NextResponse } from 'next/server';
 import { AdminConfigurationEngine } from '@/lib/admin/AdminConfigurationEngine';
+import { adminApiGuard } from '@/lib/security/apiGuards';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
+  const guard = await adminApiGuard(req, 'write');
+  if (!guard.ok) return guard.response;
   const engine = AdminConfigurationEngine.getInstance();
   const gateway = engine.getGateway();
   try {
@@ -23,6 +26,15 @@ export async function POST(req: NextRequest) {
     }
     if (typeof body.executed !== 'boolean') {
       return NextResponse.json(gateway.createError('FIELD_REQUIRED', 'executed (boolean) is required — the audit must state whether anything changed.'), { status: 400 });
+    }
+    // Maker ≠ checker: the audit trail must refuse to legitimize a
+    // self-approval. A rejection changes nothing, so it may be self-recorded;
+    // an approval authorizes execution and needs a second human.
+    if (
+      decision === 'APPROVED' &&
+      (body.requestedBy as string).trim().toLowerCase() === (body.reviewer as string).trim().toLowerCase()
+    ) {
+      return NextResponse.json(gateway.createError('MAKER_EQUALS_CHECKER', 'The reviewer must differ from the requester: an approval cannot be self-authorized.'), { status: 422 });
     }
     const entry = engine.recordMakerCheckerDecision({
       requestId: body.requestId as string,

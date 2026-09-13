@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AdminConfigurationEngine, AdminConfigurationEngineError } from '@/lib/admin/AdminConfigurationEngine';
+import { adminApiGuard } from '@/lib/security/apiGuards';
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
+  const guard = await adminApiGuard(req, 'read');
+  if (!guard.ok) return guard.response;
   try {
     const engine = AdminConfigurationEngine.getInstance();
     const gateway = engine.getGateway();
@@ -18,6 +21,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
+  const guard = await adminApiGuard(req, 'write');
+  if (!guard.ok) return guard.response;
   try {
     const engine = AdminConfigurationEngine.getInstance();
     const gateway = engine.getGateway();
@@ -34,6 +39,8 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const guard = await adminApiGuard(req, 'write');
+  if (!guard.ok) return guard.response;
   try {
     const engine = AdminConfigurationEngine.getInstance();
     const gateway = engine.getGateway();

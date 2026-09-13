@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight, Check, Circle, Copy, Layers, Radio, Terminal, Zap } from "lucide-react";
 import { useDeveloper } from "@/components/developer/DeveloperContext";
 import type { ApiRequestLog } from "@/types/developer";
+import { devFetch } from "@/lib/consoleKeys";
 import {
   Card,
   CardHeader,
@@ -49,7 +50,7 @@ export default function DeveloperDashboardPage() {
     setRequestsPhase("loading");
     setRequestsError(null);
     try {
-      const res = await fetch("/api/developers/requests", { cache: "no-store" });
+      const res = await devFetch("/api/developers/requests", { cache: "no-store" });
       const json = await res.json().catch(() => null);
       if (!res.ok || !json || !json.success) {
         throw new Error(json?.error?.message ?? `Requests API ${res.status}`);

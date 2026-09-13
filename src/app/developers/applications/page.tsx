@@ -5,6 +5,7 @@ import Link from "next/link";
 import { KeyRound, Layers, Plus, ShieldCheck, Trash2, X } from "lucide-react";
 import { useDeveloper } from "@/components/developer/DeveloperContext";
 import type { DeveloperApplication } from "@/types/developer";
+import { devFetch } from "@/lib/consoleKeys";
 import {
   Card,
   CardHeader,
@@ -20,7 +21,7 @@ import {
 type AppStatus = DeveloperApplication["status"];
 
 async function postJson(url: string, body: unknown) {
-  const res = await fetch(url, {
+  const res = await devFetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -34,7 +35,7 @@ async function postJson(url: string, body: unknown) {
 }
 
 async function patchJson(url: string, body: unknown) {
-  const res = await fetch(url, {
+  const res = await devFetch(url, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),

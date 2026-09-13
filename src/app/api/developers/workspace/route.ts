@@ -1,8 +1,11 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from 'next/server';
 import { DeveloperWorkspaceEngine, DeveloperWorkspaceEngineError } from '@/lib/developer/DeveloperWorkspaceEngine';
+import { developerApiGuard } from '@/lib/security/apiGuards';
 
 export async function GET(req: NextRequest) {
+  const guard = await developerApiGuard(req, 'read');
+  if (!guard.ok) return guard.response;
   const engine = DeveloperWorkspaceEngine.getInstance();
   try {
     const gateway = engine.getGateway();

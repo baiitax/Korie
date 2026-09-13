@@ -15,6 +15,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useAdmin } from "./AdminContext";
 import ExperienceHealthPulse from "./ExperienceHealthPulse";
+import { adminFetch } from "@/lib/consoleKeys";
 import {
   ArrowRightLeft,
   Server,
@@ -139,7 +140,7 @@ export const CommandCenterOverview: React.FC = () => {
     async (silent = false) => {
       if (!silent) setPhase((p) => (p === "ready" ? p : "loading"));
       try {
-        const res = await fetch(`/api/admin/overview/executive?country=${countryFilter}`, { cache: "no-store" });
+        const res = await adminFetch(`/api/admin/overview/executive?country=${countryFilter}`, { cache: "no-store" });
         const json = await res.json();
         if (!res.ok || !json?.success) throw new Error(json?.error?.message || `HTTP ${res.status}`);
         setSnapshot(json.data as TruthSnapshot);

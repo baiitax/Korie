@@ -1,4 +1,5 @@
 import { RequestContext } from '@/types/apiGateway';
+import { DeveloperWorkspaceEngine } from '@/lib/developer/DeveloperWorkspaceEngine';
 
 export interface AuthValidationResult {
   isAuthenticated: boolean;
@@ -9,7 +10,12 @@ export interface AuthValidationResult {
 }
 
 /**
- * Validates incoming HTTP requests against KoriePay API key vault and scope definitions.
+ * Validates incoming HTTP requests against the credential registry
+ * (DeveloperWorkspaceEngine). R-01 remediation: bearer format alone
+ * authenticates nothing — the presented secret must match a stored verifier
+ * for an ACTIVE (or in-grace ROTATING) credential, and scopes, environment,
+ * org and owner all come from that record. Unknown, revoked, expired and
+ * pre-hash legacy credentials fail closed with distinct codes.
  */
 export async function authenticateApiRequest(
   request: Request,
@@ -25,47 +31,54 @@ export async function authenticateApiRequest(
     return {
       isAuthenticated: false,
       errorCode: 'UNAUTHORIZED_MISSING_TOKEN',
-      errorMessage: 'Missing or malformed Authorization header. Please provide a valid Bearer token (kp_live_... or kp_test_...).',
+      errorMessage: 'Missing or malformed Authorization header. Please provide a valid Bearer token.',
       httpStatus: 401,
     };
   }
 
   const token = authHeader.replace('Bearer ', '').trim();
-  const isLiveKey = token.startsWith('kp_live_') || token.startsWith('pk_live_');
-  const isTestKey = token.startsWith('kp_test_') || token.startsWith('pk_test_');
-
-  // In production, validate token against Supabase / Key Vault
-  // For sandbox and live test requests, ensure token has valid structure
-  if (!isLiveKey && !isTestKey && token.length < 16) {
+  if (!token) {
     return {
       isAuthenticated: false,
-      errorCode: 'INVALID_API_KEY',
-      errorMessage: 'The provided API key is invalid or unrecognized.',
+      errorCode: 'UNAUTHORIZED_MISSING_TOKEN',
+      errorMessage: 'Empty Bearer token.',
       httpStatus: 401,
     };
   }
 
-  const environment = isLiveKey ? 'PRODUCTION' : 'SANDBOX';
-  const orgId = 'org_kor_99182'; // Sahel Global Technologies Ltd
+  let verification: ReturnType<DeveloperWorkspaceEngine['verifySecret']>;
+  try {
+    verification = DeveloperWorkspaceEngine.getInstance().verifySecret(token);
+  } catch {
+    return {
+      isAuthenticated: false,
+      errorCode: 'AUTH_REGISTRY_UNAVAILABLE',
+      errorMessage: 'Credential verification is unavailable; failing closed.',
+      httpStatus: 503,
+    };
+  }
 
-  // Default mock scopes for authorized keys
-  const grantedScopes = [
-    'payments:read',
-    'payments:write',
-    'transfers:write',
-    'wallets:read',
-    'wallets:write',
-    'kyc:verify',
-    'agency:write',
-    'checkout:create',
-    'bills:vend',
-    'fx:read',
-    'fx:quote',
-  ];
+  if (!verification.ok) {
+    const messages: Record<string, string> = {
+      INVALID_API_KEY: 'The provided API key is invalid or unrecognized.',
+      KEY_REVOKED: 'This API key has been revoked.',
+      KEY_EXPIRED: 'This API key has expired.',
+      KEY_GRACE_LAPSED: 'This rotated API key is past its grace window; use the replacement.',
+    };
+    return {
+      isAuthenticated: false,
+      errorCode: verification.code,
+      errorMessage: messages[verification.code],
+      httpStatus: 401,
+    };
+  }
 
-  // Verify that all required scopes are satisfied
+  const cred = verification.credential;
+  const grantedScopes = cred.scopes || [];
+
+  // Verify that all required scopes are satisfied (exact, prefix:* or *).
   for (const requiredScope of requiredScopes) {
-    if (!grantedScopes.includes(requiredScope) && !grantedScopes.includes('*')) {
+    if (!DeveloperWorkspaceEngine.scopeSatisfies(grantedScopes, requiredScope)) {
       return {
         isAuthenticated: false,
         errorCode: 'FORBIDDEN_INSUFFICIENT_SCOPE',
@@ -78,14 +91,13 @@ export async function authenticateApiRequest(
   const context: RequestContext = {
     requestId,
     correlationId,
-    environment,
-    orgId,
-    userId: 'usr_dev_01',
-    userRole: 'ORGANIZATION_ADMIN',
+    environment: cred.environment === 'PRODUCTION' ? 'PRODUCTION' : 'SANDBOX',
+    orgId: cred.orgId,
+    userId: cred.ownerUserId,
+    userRole: cred.operatorRole,
     scopes: grantedScopes,
-    apiKeyId: 'cred_sand_01',
+    apiKeyId: cred.id,
     ipAddress,
-    country: 'NG',
     idempotencyKey,
     startTime: Date.now(),
   };

@@ -33,7 +33,15 @@ import {
   Watchlist,
 } from '@/types/compliancePortal';
 
-export const PORTAL_DEMO_MODE = true;
+/**
+ * Demo-data labeling switch for the compliance portal. Every volume, queue
+ * and case in this portal is illustrative fixture data, so the DemoStrip
+ * shows by default; a deployment backed by live case data sets
+ * NEXT_PUBLIC_PORTAL_DEMO_MODE=false to hide it. The flag only controls the
+ * label — it never turns fixtures into real records.
+ */
+export const PORTAL_DEMO_MODE: boolean =
+  (process.env.NEXT_PUBLIC_PORTAL_DEMO_MODE || '').trim().toLowerCase() !== 'false';
 
 /* ---------- time helpers (relative to "now" so demo never ages) ---------- */
 const MIN = 60_000;
