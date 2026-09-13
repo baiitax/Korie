@@ -1,25 +1,40 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAggregator } from "@/components/aggregator/AggregatorContext";
 import {
-  Settings,
   Building2,
   Bell,
-  Shield,
   Check,
+  AlertCircle,
 } from "lucide-react";
 
 export default function AggregatorSettingsPage() {
-  const { aggregator, language, setLanguage, t } = useAggregator();
-  const [emailAlerts, setEmailAlerts] = useState(true);
-  const [smsAlerts, setSmsAlerts] = useState(true);
+  const { aggregator, notificationPreferences, updateNotificationPreferences, t } = useAggregator();
+  const [emailAlerts, setEmailAlerts] = useState(notificationPreferences.lowFloatEmailAlerts);
+  const [smsAlerts, setSmsAlerts] = useState(notificationPreferences.lowFloatSmsAlerts);
+  const [isSaving, setIsSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  const handleSave = (e: React.FormEvent) => {
+  useEffect(() => {
+    setEmailAlerts(notificationPreferences.lowFloatEmailAlerts);
+    setSmsAlerts(notificationPreferences.lowFloatSmsAlerts);
+  }, [notificationPreferences]);
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 2500);
+    setIsSaving(true);
+    setSaveError(null);
+    setSavedSuccess(false);
+    const result = await updateNotificationPreferences({ lowFloatEmailAlerts: emailAlerts, lowFloatSmsAlerts: smsAlerts });
+    setIsSaving(false);
+    if (result.success) {
+      setSavedSuccess(true);
+      setTimeout(() => setSavedSuccess(false), 2500);
+    } else {
+      setSaveError(result.error || "Could not save settings.");
+    }
   };
 
   return (
@@ -28,14 +43,21 @@ export default function AggregatorSettingsPage() {
       <div>
         <h1 className="text-xl sm:text-2xl font-black text-[var(--foreground)]">Aggregator Network Settings</h1>
         <p className="text-xs text-[var(--foreground-muted)]">
-          Configure corporate settlement accounts, automatic float threshold alerts, and communication preferences
+          Configure corporate settlement account details and low-float alert preferences
         </p>
       </div>
 
       {savedSuccess && (
         <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-mono flex items-center gap-2">
           <Check className="w-4 h-4" />
-          <span>Aggregator network settings updated successfully.</span>
+          <span>Notification preferences saved.</span>
+        </div>
+      )}
+
+      {saveError && (
+        <div className="flex items-start gap-2 p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-600 dark:text-rose-400">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>{saveError}</span>
         </div>
       )}
 
@@ -47,8 +69,8 @@ export default function AggregatorSettingsPage() {
               <Building2 className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-[var(--foreground)] text-base">Providus Bank Settlement Account</h3>
-              <p className="text-xs text-[var(--foreground-muted)]">Destination account for daily automated commission clearing.</p>
+              <h3 className="font-bold text-[var(--foreground)] text-base">Settlement Account</h3>
+              <p className="text-xs text-[var(--foreground-muted)]">Destination account for commission settlement runs.</p>
             </div>
           </div>
 
@@ -72,6 +94,10 @@ export default function AggregatorSettingsPage() {
               />
             </div>
           </div>
+          <p className="text-[10px] text-[var(--foreground-muted)]">
+            To change your settlement account, contact support — this requires manual verification and is not
+            self-service.
+          </p>
         </div>
 
         {/* Notifications */}
@@ -81,16 +107,18 @@ export default function AggregatorSettingsPage() {
               <Bell className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-[var(--foreground)] text-base">Automated Network Alerts</h3>
-              <p className="text-xs text-[var(--foreground-muted)]">Get notified immediately upon critical float shortages or risk anomalies.</p>
+              <h3 className="font-bold text-[var(--foreground)] text-base">Low Agent Float Alerts</h3>
+              <p className="text-xs text-[var(--foreground-muted)]">
+                Choose how you're notified when an agent's float drops below their configured threshold.
+              </p>
             </div>
           </div>
 
           <div className="space-y-3 pt-2">
             <div className="flex items-center justify-between p-3.5 rounded-2xl bg-[var(--surface-2)] border border-[var(--border)]">
               <div>
-                <div className="font-bold text-xs text-[var(--foreground)]">Low Agent Float Notifications</div>
-                <div className="text-[11px] text-[var(--foreground-muted)]">Dispatch SMS/Email alerts when an agent float drops below ₦250k</div>
+                <div className="font-bold text-xs text-[var(--foreground)]">Email Alerts</div>
+                <div className="text-[11px] text-[var(--foreground-muted)]">Sent to {aggregator.contactEmail}</div>
               </div>
               <button
                 type="button"
@@ -102,15 +130,32 @@ export default function AggregatorSettingsPage() {
                 <div className="w-4 h-4 rounded-full bg-white shadow-md" />
               </button>
             </div>
+
+            <div className="flex items-center justify-between p-3.5 rounded-2xl bg-[var(--surface-2)] border border-[var(--border)]">
+              <div>
+                <div className="font-bold text-xs text-[var(--foreground)]">SMS Alerts</div>
+                <div className="text-[11px] text-[var(--foreground-muted)]">Sent to {aggregator.contactPhone}</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSmsAlerts(!smsAlerts)}
+                className={`w-12 h-6 rounded-full transition-colors p-1 flex items-center ${
+                  smsAlerts ? "bg-teal-500 justify-end" : "bg-[var(--surface-3)] justify-start"
+                }`}
+              >
+                <div className="w-4 h-4 rounded-full bg-white shadow-md" />
+              </button>
+            </div>
           </div>
         </div>
 
         <div className="flex justify-end">
           <button
             type="submit"
-            className="px-6 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs shadow-lg shadow-teal-500/20 transition-all"
+            disabled={isSaving}
+            className="px-6 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs shadow-lg shadow-teal-500/20 transition-all disabled:opacity-50"
           >
-            Save Settings
+            {isSaving ? "Saving…" : "Save Settings"}
           </button>
         </div>
       </form>

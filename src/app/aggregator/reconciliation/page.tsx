@@ -13,18 +13,29 @@ import {
 } from "lucide-react";
 
 export default function AggregatorReconciliationPage() {
-  const { reconciliations, aggregator, formatCurrency, formatDate, t } = useAggregator();
+  const { reconciliations, aggregator, formatCurrency, formatDate, t, runReconciliation } = useAggregator();
   const [isMatching, setIsMatching] = useState(false);
   const [matchedSuccess, setMatchedSuccess] = useState(false);
+  const [matchError, setMatchError] = useState<string | null>(null);
 
-  const handleRunReconciliation = () => {
+  const handleRunReconciliation = async () => {
     setIsMatching(true);
-    setTimeout(() => {
-      setIsMatching(false);
+    setMatchError(null);
+    setMatchedSuccess(false);
+    const result = await runReconciliation();
+    setIsMatching(false);
+    if (result.success) {
       setMatchedSuccess(true);
-      setTimeout(() => setMatchedSuccess(false), 3000);
-    }, 1400);
+      setTimeout(() => setMatchedSuccess(false), 4000);
+    } else {
+      setMatchError(result.error || "Could not run reconciliation.");
+    }
   };
+
+  const totalVolumeReconciled = reconciliations.reduce((sum, r) => sum + r.internalLedgerTotal, 0);
+  const totalVariance = reconciliations.reduce((sum, r) => sum + Math.abs(r.varianceAmount), 0);
+  const totalVariancePct = totalVolumeReconciled > 0 ? (totalVariance / totalVolumeReconciled) * 100 : 0;
+  const isBalanced = reconciliations.every((r) => r.status === "MATCHED" || r.status === "RESOLVED");
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
@@ -50,8 +61,15 @@ export default function AggregatorReconciliationPage() {
         <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 flex items-center gap-3 text-xs font-mono">
           <CheckCircle2 className="w-5 h-5 shrink-0" />
           <span>
-            Three-way reconciliation complete: 100% of network transaction records match Providus Bank & Coris Bank credit settlement journals. Zero variance detected.
+            Reconciliation pass complete against your real ledger for today. Result recorded below.
           </span>
+        </div>
+      )}
+
+      {matchError && (
+        <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 flex items-center gap-3 text-xs font-mono">
+          <AlertTriangle className="w-5 h-5 shrink-0" />
+          <span>{matchError}</span>
         </div>
       )}
 
@@ -59,17 +77,19 @@ export default function AggregatorReconciliationPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="p-5 rounded-3xl bg-[var(--surface)] border border-[var(--border)] space-y-1">
           <div className="text-[10px] font-mono uppercase text-teal-600 dark:text-teal-400">Total Volume Reconciled</div>
-          <div className="text-2xl font-black font-mono text-[var(--foreground)]">{formatCurrency(74200000)}</div>
+          <div className="text-2xl font-black font-mono text-[var(--foreground)]">{formatCurrency(totalVolumeReconciled)}</div>
         </div>
         <div className="p-5 rounded-3xl bg-[var(--surface)] border border-[var(--border)] space-y-1">
           <div className="text-[10px] font-mono uppercase text-emerald-600 dark:text-emerald-400">Total Unresolved Variance</div>
-          <div className="text-2xl font-black font-mono text-emerald-600 dark:text-emerald-400">₦0.00 (0.00%)</div>
+          <div className="text-2xl font-black font-mono text-emerald-600 dark:text-emerald-400">
+            {formatCurrency(totalVariance)} ({totalVariancePct.toFixed(2)}%)
+          </div>
         </div>
         <div className="p-5 rounded-3xl bg-[var(--surface)] border border-[var(--border)] space-y-1">
           <div className="text-[10px] font-mono uppercase text-[var(--foreground-muted)]">Audit Status</div>
-          <div className="text-2xl font-black text-teal-600 dark:text-teal-400 flex items-center gap-1.5">
+          <div className={`text-2xl font-black flex items-center gap-1.5 ${isBalanced ? "text-teal-600 dark:text-teal-400" : "text-amber-600 dark:text-amber-400"}`}>
             <ShieldCheck className="w-6 h-6" />
-            <span>BALANCED</span>
+            <span>{reconciliations.length === 0 ? "NO DATA YET" : isBalanced ? "BALANCED" : "REVIEW NEEDED"}</span>
           </div>
         </div>
       </div>
@@ -95,6 +115,13 @@ export default function AggregatorReconciliationPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border)] font-medium">
+              {reconciliations.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-4 py-10 text-center text-[var(--foreground-muted)] font-mono text-[11px]">
+                    No reconciliation batches yet — run one above to generate the first record.
+                  </td>
+                </tr>
+              )}
               {reconciliations.map((r) => (
                 <tr key={r.id} className="hover:bg-[var(--surface-2)] transition-colors">
                   <td className="px-4 py-3.5 font-mono text-[var(--foreground)]">{r.date}</td>
@@ -110,10 +137,17 @@ export default function AggregatorReconciliationPage() {
                     {formatCurrency(r.varianceAmount)}
                   </td>
                   <td className="px-4 py-3.5 text-center">
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                      <CheckCircle2 className="w-3 h-3" />
-                      <span>{r.status}</span>
-                    </span>
+                    {r.status === "MATCHED" || r.status === "RESOLVED" ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                        <CheckCircle2 className="w-3 h-3" />
+                        <span>{r.status}</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                        <AlertTriangle className="w-3 h-3" />
+                        <span>{r.status}</span>
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}

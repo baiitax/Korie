@@ -280,6 +280,8 @@ interface AggregatorContextType {
   issueApiKey: (data: { keyName?: string; environment: "SANDBOX" | "PRODUCTION" }) => Promise<{ success: boolean; error?: string; secretKey?: string; publicKey?: string }>;
   revokeApiKey: (id: string) => Promise<{ success: boolean; error?: string }>;
   submitSupportTicket: (data: { subject: string; description: string; category?: string; priority?: string }) => Promise<{ success: boolean; error?: string }>;
+  notificationPreferences: { lowFloatEmailAlerts: boolean; lowFloatSmsAlerts: boolean };
+  updateNotificationPreferences: (prefs: { lowFloatEmailAlerts: boolean; lowFloatSmsAlerts: boolean }) => Promise<{ success: boolean; error?: string }>;
 
   isOffline: boolean;
   notificationsCount: number;
@@ -326,6 +328,10 @@ export function AggregatorProvider({ children }: { children: React.ReactNode }) 
   const [language, setLanguageState] = useState<SupportedLanguage>("en");
   const [isOffline, setIsOffline] = useState<boolean>(false);
   const [notificationsCount, setNotificationsCount] = useState<number>(0);
+  const [notificationPreferences, setNotificationPreferences] = useState<{ lowFloatEmailAlerts: boolean; lowFloatSmsAlerts: boolean }>({
+    lowFloatEmailAlerts: true,
+    lowFloatSmsAlerts: true,
+  });
 
   // Modals state
   const [isLiquidityModalOpen, setIsLiquidityModalOpen] = useState(false);
@@ -664,6 +670,18 @@ export function AggregatorProvider({ children }: { children: React.ReactNode }) 
     }
   }, []);
 
+  const refreshSettings = React.useCallback(async () => {
+    try {
+      const res = await aggregatorApiFetch("/api/v1/aggregator/settings");
+      const json = await res.json();
+      if (res.ok && json.status === "success" && json.data?.notificationPreferences) {
+        setNotificationPreferences(json.data.notificationPreferences);
+      }
+    } catch {
+      // leave prior state as-is
+    }
+  }, []);
+
   useEffect(() => {
     (async () => {
       const token = await getAggregatorAccessToken();
@@ -693,6 +711,7 @@ export function AggregatorProvider({ children }: { children: React.ReactNode }) 
         refreshApiKeys(),
         refreshSupportTickets(),
         refreshOperations(),
+        refreshSettings(),
       ]);
       setIsBootstrapping(false);
     })();
@@ -953,6 +972,18 @@ export function AggregatorProvider({ children }: { children: React.ReactNode }) 
     }
   };
 
+  const updateNotificationPreferences = async (prefs: { lowFloatEmailAlerts: boolean; lowFloatSmsAlerts: boolean }) => {
+    try {
+      const res = await aggregatorApiFetch("/api/v1/aggregator/settings", { method: "PATCH", body: JSON.stringify(prefs) });
+      const json = await res.json();
+      if (!res.ok || json.status !== "success") return { success: false, error: json?.error?.message || "Could not update settings." };
+      setNotificationPreferences(json.data.notificationPreferences);
+      return { success: true };
+    } catch {
+      return { success: false, error: "Network error. Please try again." };
+    }
+  };
+
   return (
     <AggregatorContext.Provider
       value={{
@@ -1040,6 +1071,8 @@ export function AggregatorProvider({ children }: { children: React.ReactNode }) 
         issueApiKey,
         revokeApiKey,
         submitSupportTicket,
+        notificationPreferences,
+        updateNotificationPreferences,
         isOffline,
         notificationsCount,
       }}
