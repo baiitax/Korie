@@ -1,4 +1,4 @@
-import { AuthService } from '../src/lib/auth/authService';
+import { AuthService, DEMO_PASSWORD } from '../src/lib/auth/authService';
 
 async function runAuthValidationSuite() {
   console.log('================================================================');
@@ -85,14 +85,14 @@ async function runAuthValidationSuite() {
   console.log('\n--- TEST GROUP 6: Authentication & Step-Up Logic ---');
   const custLogin = await authService.authenticate({
     identifier: 'amina.bello@example.ng',
-    password: 'password',
+    password: DEMO_PASSWORD,
     selectedRoleOverride: 'CUSTOMER',
   });
   assert('Authenticates customer and provides direct dashboard route', custLogin.success && custLogin.redirectTo === '/customer');
 
   const adminLogin = await authService.authenticate({
     identifier: 'super.admin@koriepay.com',
-    password: 'password',
+    password: DEMO_PASSWORD,
     selectedRoleOverride: 'ADMIN',
   });
   assert('Forces MFA step-up challenge for administrative login', adminLogin.success && adminLogin.requiresMfa === true && adminLogin.redirectTo === '/mfa');
