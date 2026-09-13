@@ -32,7 +32,10 @@ export function translateRegional(
   }
   if (params) {
     Object.entries(params).forEach(([k, v]) => {
-      current = current.replace(new RegExp(`{{\\s*${k}\\s*}}`, "g"), String(v));
+      // Accept both {{k}} and single-brace {k} placeholder styles.
+      current = current
+        .replace(new RegExp(`{{\\s*${k}\\s*}}`, "g"), String(v))
+        .replace(new RegExp(`(?<![{}])\\{\\s*${k}\\s*\\}(?![}])`, "g"), String(v));
     });
   }
   return current;
