@@ -3,6 +3,7 @@ import { randomBytes, scryptSync, timingSafeEqual } from 'crypto';
 import { authenticateAgentRequest } from '@/lib/security/agentAuth';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { createSuccessResponse, createErrorResponse } from '@/lib/security/apiResponse';
+import { checkRateLimit } from '@/lib/security/rateLimiter';
 
 /**
  * POST /api/v1/agency/settings/pin
@@ -63,6 +64,21 @@ export async function POST(req: NextRequest) {
   const hasExistingPin = !!agentRow?.pin_hash && !!agentRow?.pin_salt;
 
   if (hasExistingPin) {
+    // A 4-6 digit PIN is only 10,000-1,000,000 combinations — trivially
+    // brute-forceable without a tight, PIN-specific throttle (the general
+    // per-endpoint AUTH category, 60/min, is far too loose for this). Keyed
+    // per agent, not per IP, so an attacker can't dodge it by rotating
+    // source addresses.
+    const pinRateLimit = checkRateLimit(`agent-pin-verify:${agent.agentId}`, 'AUTH', 5);
+    if (!pinRateLimit.allowed) {
+      return createErrorResponse({
+        code: 'TOO_MANY_ATTEMPTS',
+        message: `Too many PIN attempts. Try again in ${pinRateLimit.resetSeconds} seconds.`,
+        requestId: agent.requestId,
+        httpStatus: 429,
+      });
+    }
+
     if (typeof current_pin !== 'string' || !current_pin) {
       return createErrorResponse({
         code: 'CURRENT_PIN_REQUIRED',
