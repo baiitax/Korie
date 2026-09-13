@@ -74,6 +74,15 @@ export class AccountAuthorizationGateway {
     if (!product || product.status !== 'ACTIVE') {
       return { decision: 'DECLINE', authorized: false, policyVersion: 'v2.4', reasonCodes: ['PRODUCT_INACTIVE'] };
     }
+    // Tier fit: the customer's KYC tier must meet the product's minimum.
+    const tierRank = (t: string) => ({ TIER_1: 1, TIER_2: 2, TIER_3: 3 } as Record<string, number>)[t] || 0;
+    if (product.minKycTier && tierRank(customer.kycTier) < tierRank(product.minKycTier)) {
+      return { decision: 'DECLINE', authorized: false, policyVersion: 'v2.4', reasonCodes: [`KYC_TIER_INSUFFICIENT: ${customer.kycTier} below product minimum ${product.minKycTier}`] };
+    }
+    // Risk fit: customers scoring above the product ceiling cannot send on it.
+    if (typeof product.maxRiskScore === 'number' && customer.riskScore > product.maxRiskScore) {
+      return { decision: 'DECLINE', authorized: false, policyVersion: 'v2.4', reasonCodes: [`RISK_SCORE_EXCEEDED: ${customer.riskScore} above product ceiling ${product.maxRiskScore}`] };
+    }
     if (!product.allowedChannels.includes(channel)) {
       reasonCodes.push(`CHANNEL_DISALLOWED: ${channel}`);
     }

@@ -26,6 +26,8 @@ import { LedgerService } from '../services/LedgerService';
 import { SubledgerEngine } from '../financial/SubledgerEngine';
 import { AccountLifecycleEngine } from '../customer/AccountLifecycleEngine';
 import { CustomerLifecycleEngine } from '../customer/CustomerLifecycleEngine';
+import { AccountAuthorizationGateway } from '../authorization/AccountAuthorizationGateway';
+import { AccountLimitEngine } from '../limits/AccountLimitEngine';
 import { AdminConfigurationEngine } from '../admin/AdminConfigurationEngine';
 
 const STORE_PATH = process.env.BANK_CORE_STORE_PATH || '/tmp/korie-bank-store.json';
@@ -503,6 +505,19 @@ export class BankCoreEngine {
       const check = this.checkIdempotency(params.idempotencyKey, fingerprint);
       if (check.verdict === 'mismatch') return { success: false, ...BankCoreEngine.idempotencyMismatch() };
       if (check.verdict === 'replay') return { success: true, transaction: check.transaction, journalId: check.journalId, replayed: true };
+      // Policy authorization: customer status, product, tier/risk fit, channel,
+      // and tiered single/daily limits. Amounts here are MAJOR whole units,
+      // matching the limit engine's denomination.
+      const verdict = AccountAuthorizationGateway.getInstance().canCustomerPerformAction({
+        customerId: from.customerId,
+        accountId: from.id,
+        transactionAmount: amount,
+        transactionType: 'DEBIT',
+        channel: 'VIRTUAL_ACCOUNT',
+      });
+      if (!verdict.authorized) {
+        return { success: false, code: 'AUTHORIZATION_DECLINED', message: verdict.reasonCodes.join('; ') };
+      }
       const available = this.walletOf(from.customerId);
       if (available < amount) {
         return { success: false, code: 'INSUFFICIENT_BALANCE', message: `Sender wallet ₦${available.toLocaleString()} cannot cover ₦${amount.toLocaleString()}.` };
@@ -520,6 +535,7 @@ export class BankCoreEngine {
       });
       this.moveWallet(from.customerId, -amount);
       this.moveWallet(to.customerId, amount);
+      AccountLimitEngine.getInstance().recordTransactionConsumption(from.id, amount);
 
       const tx: BankTransaction = {
         id: `bk-tx-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -581,6 +597,17 @@ export class BankCoreEngine {
       const check = this.checkIdempotency(params.idempotencyKey, fingerprint);
       if (check.verdict === 'mismatch') return { success: false, ...BankCoreEngine.idempotencyMismatch() };
       if (check.verdict === 'replay') return { success: true, transaction: check.transaction, journalId: check.journalId, replayed: true };
+      // Policy authorization (limits count the full debit: amount + NIP fee).
+      const verdict = AccountAuthorizationGateway.getInstance().canCustomerPerformAction({
+        customerId: from.customerId,
+        accountId: from.id,
+        transactionAmount: total,
+        transactionType: 'DEBIT',
+        channel: 'NIP',
+      });
+      if (!verdict.authorized) {
+        return { success: false, code: 'AUTHORIZATION_DECLINED', message: verdict.reasonCodes.join('; ') };
+      }
       const available = this.walletOf(from.customerId);
       if (available < total) {
         return { success: false, code: 'INSUFFICIENT_BALANCE', message: `Wallet ₦${available.toLocaleString()} cannot cover ₦${total.toLocaleString()} (incl. ₦${BANK_NIP_FEE_NGN} fee).` };
@@ -600,6 +627,7 @@ export class BankCoreEngine {
       });
       this.moveWallet(from.customerId, -total);
       this.moveNostro(-amountMinor);
+      AccountLimitEngine.getInstance().recordTransactionConsumption(from.id, total);
 
       const tx: BankTransaction = {
         id: `bk-tx-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,

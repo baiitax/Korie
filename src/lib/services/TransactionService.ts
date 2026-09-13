@@ -5,6 +5,9 @@ import { OutboxService } from './OutboxService';
 import { AuditService } from './AuditService';
 import { RequestContext } from '@/types/apiGateway';
 import { SubledgerEngine } from '../financial/SubledgerEngine';
+import { AccountAuthorizationGateway } from '../authorization/AccountAuthorizationGateway';
+import { AccountLifecycleEngine } from '../customer/AccountLifecycleEngine';
+import { AccountLimitEngine } from '../limits/AccountLimitEngine';
 
 /**
  * Debits the customer's per-currency wallet subledger (the authoritative
@@ -37,6 +40,48 @@ function debitCustomerSubledger(params: {
 
 const transactionsStore = new Map<string, DbTransaction>();
 
+/**
+ * Policy authorization for customer-owned TransactionService sends.
+ *
+ * Returns the account + major-unit amount to record against the daily limit
+ * AFTER the send succeeds, or null when there is no customer subject to
+ * evaluate (the v1 integrator path, which debits no customer wallet).
+ *
+ * LIMITATION (stated, not hidden): the limit check happens before the
+ * provider flight and consumption is recorded after success, so two sends
+ * racing on the same account could jointly overrun the daily cap. The
+ * portal UI issues sends sequentially per user, and the bank-core paths
+ * (which carry the concurrency battery) hold the sender lock across
+ * check + debit + record. A reserve/refund pattern under lock would close
+ * this window if integrator concurrency ever requires it.
+ */
+function authorizeCustomerSend(params: {
+  sourceCustomerId?: string;
+  currency: 'NGN' | 'XOF';
+  amountMinor: number;
+  channel: string;
+}): { accountId: string; majorAmount: number } | null {
+  if (!params.sourceCustomerId) return null;
+  const account = AccountLifecycleEngine.getInstance()
+    .getAccounts(params.sourceCustomerId)
+    .find((a) => a.currency === params.currency && a.status !== 'CLOSED');
+  if (!account) {
+    throw new Error(`AUTHORIZATION_DECLINED: no ${params.currency} account on file for this customer.`);
+  }
+  const majorAmount = Math.round(params.amountMinor / 100);
+  const verdict = AccountAuthorizationGateway.getInstance().canCustomerPerformAction({
+    customerId: params.sourceCustomerId,
+    accountId: account.id,
+    transactionAmount: majorAmount,
+    transactionType: 'DEBIT',
+    channel: params.channel,
+  });
+  if (!verdict.authorized) {
+    throw new Error(`AUTHORIZATION_DECLINED: ${verdict.reasonCodes.join('; ')}`);
+  }
+  return { accountId: account.id, majorAmount };
+}
+
 export class TransactionService {
   /**
    * Executes an atomic Bilateral Cross-Border Remittance (NGN <-> XOF).
@@ -62,6 +107,15 @@ export class TransactionService {
     if (params.amount < 100) {
       throw new Error('INVALID_AMOUNT: Transfer amount must be at least 100 minor currency units.');
     }
+
+    // Policy authorization: declined here when the customer is not ACTIVE,
+    // the product/channel forbids the send, or tiered limits are exceeded.
+    const limitReservation = authorizeCustomerSend({
+      sourceCustomerId: params.sourceCustomerId,
+      currency: params.sourceCurrency,
+      amountMinor: params.amount,
+      channel: 'VIRTUAL_ACCOUNT',
+    });
 
     const fee = Math.floor(params.amount * 0.005); // 0.5% fee
     const netAmount = params.amount - fee;
@@ -155,6 +209,12 @@ export class TransactionService {
         amountMinorUnits: params.amount,
         narration: `Cross-border debit ${params.sourceCurrency} ${params.reference}`,
       });
+      if (limitReservation) {
+        AccountLimitEngine.getInstance().recordTransactionConsumption(
+          limitReservation.accountId,
+          limitReservation.majorAmount,
+        );
+      }
     }
 
     // 5. Publish Outbox Event
@@ -206,6 +266,14 @@ export class TransactionService {
       sourceCustomerId?: string;
     }
   ): Promise<DbTransaction> {
+    // Policy authorization (see cross-border path above).
+    const limitReservation = authorizeCustomerSend({
+      sourceCustomerId: params.sourceCustomerId,
+      currency: 'NGN',
+      amountMinor: params.amount,
+      channel: 'NIP',
+    });
+
     const fee = 5000; // ₦50.00 minor units
     const netAmount = params.amount - fee;
 
@@ -287,6 +355,12 @@ export class TransactionService {
         amountMinorUnits: params.amount,
         narration: `NIP debit ${params.reference}`,
       });
+      if (limitReservation) {
+        AccountLimitEngine.getInstance().recordTransactionConsumption(
+          limitReservation.accountId,
+          limitReservation.majorAmount,
+        );
+      }
     }
 
     await OutboxService.publishEvent({
