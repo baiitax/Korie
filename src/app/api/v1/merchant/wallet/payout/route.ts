@@ -12,6 +12,13 @@ import { createSuccessResponse, createErrorResponse } from '@/lib/security/apiRe
  * yet, so this locks the requested amount by debiting the merchant's real
  * settlement ledger balance into a PENDING_PROVIDER_INTEGRATION payout
  * request row — it never fabricates instant bank-delivered success.
+ *
+ * Calls public.request_merchant_payout(), which idempotency-short-circuits
+ * on (merchant_id, idempotency_key) and locks the settlement ledger row
+ * with SELECT...FOR UPDATE before checking the balance and posting the
+ * debit — closing a check-then-act race where two concurrent requests (or
+ * a client retry) could previously both read the same balance and both
+ * succeed, letting a merchant withdraw more than they actually had.
  */
 export async function GET(req: NextRequest) {
   const auth = await authenticateMerchantRequest(req, { requireActiveStatus: false });
@@ -54,58 +61,28 @@ export async function POST(req: NextRequest) {
     return createErrorResponse({ code: 'INVALID_AMOUNT', message: 'Enter a valid payout amount.', requestId: staff.requestId, httpStatus: 400 });
   }
 
+  const idempotencyKey = req.headers.get('idempotency-key') || req.headers.get('Idempotency-Key') || null;
+
   const admin = getSupabaseAdminClient();
 
-  const { data: merchant, error: merchantError } = await admin
-    .from('merchant_profiles')
-    .select('currency, settlement_bank, settlement_account_number, settlement_ledger_account_id, ledger_accounts(id, balance)')
-    .eq('id', staff.merchantId)
-    .single();
-
-  if (merchantError || !merchant) {
-    return createErrorResponse({ code: 'MERCHANT_LOOKUP_FAILED', message: 'Could not load business profile.', requestId: staff.requestId, httpStatus: 500 });
-  }
-
-  const ledgerRel: any = merchant.ledger_accounts;
-  const ledgerAccount = Array.isArray(ledgerRel) ? ledgerRel[0] : ledgerRel;
-  const availableBalance = Number(ledgerAccount?.balance ?? 0);
-
-  if (!ledgerAccount) {
-    return createErrorResponse({ code: 'SETTLEMENT_ACCOUNT_MISSING', message: 'Settlement account not yet provisioned.', requestId: staff.requestId, httpStatus: 500 });
-  }
-
-  if (amount > availableBalance) {
-    return createErrorResponse({ code: 'INSUFFICIENT_BALANCE', message: `Payout amount exceeds your available balance of ${availableBalance}.`, requestId: staff.requestId, httpStatus: 400 });
-  }
-
-  // Lock the requested amount out of the available balance immediately so
-  // the merchant cannot double-spend it while the payout is pending.
-  const { error: debitError } = await admin
-    .from('ledger_accounts')
-    .update({ balance: availableBalance - amount, updated_at: new Date().toISOString() })
-    .eq('id', ledgerAccount.id);
-
-  if (debitError) {
-    return createErrorResponse({ code: 'LEDGER_UPDATE_FAILED', message: 'Could not reserve payout amount.', requestId: staff.requestId, httpStatus: 500 });
-  }
-
-  const { data: payout, error } = await admin
-    .from('merchant_payout_requests')
-    .insert({
-      merchant_id: staff.merchantId,
-      requested_by: staff.staffId,
-      amount,
-      currency: merchant.currency,
-      destination_bank: merchant.settlement_bank,
-      destination_account: merchant.settlement_account_number,
-      status: 'PENDING_PROVIDER_INTEGRATION',
-    })
-    .select()
-    .single();
+  const { data: payout, error } = await admin.rpc('request_merchant_payout', {
+    p_merchant_id: staff.merchantId,
+    p_requested_by: staff.staffId,
+    p_amount: amount,
+    p_idempotency_key: idempotencyKey,
+  });
 
   if (error || !payout) {
-    // Roll back the reservation if the request row could not be created.
-    await admin.from('ledger_accounts').update({ balance: availableBalance, updated_at: new Date().toISOString() }).eq('id', ledgerAccount.id);
+    const message = error?.message || '';
+    if (message.includes('INSUFFICIENT_BALANCE')) {
+      return createErrorResponse({ code: 'INSUFFICIENT_BALANCE', message: 'Payout amount exceeds your available settlement balance.', requestId: staff.requestId, httpStatus: 400 });
+    }
+    if (message.includes('MERCHANT_SETTLEMENT_ACCOUNT_NOT_PROVISIONED')) {
+      return createErrorResponse({ code: 'SETTLEMENT_ACCOUNT_MISSING', message: 'Settlement account not yet provisioned.', requestId: staff.requestId, httpStatus: 500 });
+    }
+    if (message.includes('INVALID_AMOUNT')) {
+      return createErrorResponse({ code: 'INVALID_AMOUNT', message: 'Enter a valid payout amount.', requestId: staff.requestId, httpStatus: 400 });
+    }
     return createErrorResponse({ code: 'PAYOUT_CREATE_FAILED', message: 'Could not create payout request.', requestId: staff.requestId, httpStatus: 500 });
   }
 
@@ -116,7 +93,7 @@ export async function POST(req: NextRequest) {
     target_type: 'merchant_payout_requests',
     target_id: payout.id,
     result: 'SUCCESS',
-    reason: `Requested payout of ${amount} ${merchant.currency}.`,
+    reason: `Requested payout of ${amount} ${payout.currency}.`,
   });
 
   return createSuccessResponse(

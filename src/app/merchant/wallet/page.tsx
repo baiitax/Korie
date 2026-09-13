@@ -106,6 +106,7 @@ export default function MerchantWalletPage() {
     try {
       const res = await merchantApiFetch("/api/v1/merchant/wallet/payout", {
         method: "POST",
+        headers: { "Idempotency-Key": `payout-${Date.now()}-${Math.random().toString(36).slice(2, 10)}` },
         body: JSON.stringify({ amount: Number(payoutAmount) }),
       });
       const json = await res.json();
