@@ -3,6 +3,7 @@ import { randomBytes } from 'crypto';
 import { authenticateMerchantRequest } from '@/lib/security/merchantAuth';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { createSuccessResponse, createErrorResponse } from '@/lib/security/apiResponse';
+import { encryptWebhookSecret } from '@/lib/security/webhookSecretCrypto';
 
 const ALLOWED_EVENTS = [
   'payment.successful', 'payment.failed', 'payment.refunded',
@@ -72,9 +73,17 @@ export async function POST(req: NextRequest) {
   const admin = getSupabaseAdminClient();
   const secret = `whsec_${randomBytes(24).toString('hex')}`;
 
+  // The raw secret is shown to the merchant exactly once in this response
+  // (see the success message below) and never again — only its encrypted
+  // form is persisted. It must be reversible (not hashed) because KoriePay
+  // needs the plaintext back to compute the outgoing HMAC signature on
+  // every webhook delivery; see webhookSecretCrypto.ts for why a one-way
+  // hash (correct for merchant_api_keys.secret_key_hash) doesn't work here.
+  const encryptedSecret = encryptWebhookSecret(secret);
+
   const { data, error } = await admin
     .from('merchant_webhook_endpoints')
-    .insert({ merchant_id: staff.merchantId, url, events, secret_hash: secret })
+    .insert({ merchant_id: staff.merchantId, url, events, secret_hash: encryptedSecret })
     .select('id, url, events, status, created_at')
     .single();
 

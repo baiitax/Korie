@@ -3,6 +3,7 @@ import { createHmac, randomUUID } from 'crypto';
 import { authenticateMerchantRequest } from '@/lib/security/merchantAuth';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { createSuccessResponse, createErrorResponse } from '@/lib/security/apiResponse';
+import { decryptWebhookSecret } from '@/lib/security/webhookSecretCrypto';
 
 /**
  * POST /api/v1/merchant/webhooks/:id/test
@@ -41,7 +42,19 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     data: { message: 'This is a real test event dispatched from your KoriePay Merchant Portal.' },
   };
   const payloadBody = JSON.stringify(payload);
-  const signature = createHmac('sha256', endpoint.secret_hash || 'unset').update(payloadBody).digest('hex');
+
+  // secret_hash stores an AES-256-GCM encrypted signing secret (see
+  // webhookSecretCrypto.ts), never plaintext — decrypt it here, the one
+  // place a real signature actually needs to be computed.
+  let signingSecret = 'unset';
+  try {
+    if (endpoint.secret_hash) signingSecret = decryptWebhookSecret(endpoint.secret_hash);
+  } catch {
+    // Malformed/legacy value — fall through with 'unset' rather than 500ing;
+    // the test delivery will simply fail signature verification on the
+    // merchant's end, which is an honest outcome for a broken endpoint.
+  }
+  const signature = createHmac('sha256', signingSecret).update(payloadBody).digest('hex');
 
   let status: 'DELIVERED' | 'FAILED' = 'FAILED';
   let responseCode: number | null = null;

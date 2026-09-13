@@ -1,5 +1,6 @@
 import { createHmac, randomUUID } from 'crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { decryptWebhookSecret } from '@/lib/security/webhookSecretCrypto';
 
 /**
  * Real webhook event dispatcher — fires an actual signed HTTP POST to every
@@ -33,7 +34,21 @@ export async function dispatchMerchantWebhookEvent(
       const eventId = randomUUID();
       const payload = { event: eventType, eventId, merchantId, sentAt: new Date().toISOString(), data };
       const payloadBody = JSON.stringify(payload);
-      const signature = createHmac('sha256', (endpoint as any).secret_hash || 'unset').update(payloadBody).digest('hex');
+
+      // secret_hash stores an AES-256-GCM encrypted signing secret (see
+      // webhookSecretCrypto.ts), never plaintext.
+      let signingSecret = 'unset';
+      try {
+        const raw = (endpoint as any).secret_hash;
+        if (raw) signingSecret = decryptWebhookSecret(raw);
+      } catch {
+        // Malformed/legacy value — dispatch continues with an 'unset'
+        // secret so the delivery attempt (and its honest FAILED signature
+        // mismatch on the merchant's end) is still logged, rather than
+        // silently skipping the endpoint or throwing inside a best-effort
+        // background dispatcher.
+      }
+      const signature = createHmac('sha256', signingSecret).update(payloadBody).digest('hex');
 
       let status: 'DELIVERED' | 'FAILED' = 'FAILED';
       let responseCode: number | null = null;
