@@ -53,6 +53,17 @@ export async function GET(
 
   // Resolve the wallet by UUID, or by its account number (the customer-facing
   // wallet reference). Both come straight from the database of record.
+  //
+  // NOTE (open finding, not fixed here): customer wallets carry org_id set
+  // to one of the two KoriePay platform tenant orgs, not the calling
+  // merchant/aggregator's own org — there is no merchant_id/aggregator_id
+  // column on `wallets` linking a wallet to a specific external tenant. So a
+  // same-org check against `context.orgId` cannot be applied without first
+  // deciding the real authorization model this endpoint is supposed to
+  // enforce (e.g. "may only look up a wallet the caller has an active
+  // transaction/consent relationship with"), which is a product decision,
+  // not a mechanical fix — flagged for a follow-up pass rather than guessed
+  // at here to avoid silently breaking every legitimate caller.
   let query = admin
     .from("wallets")
     .select("id, account_number, currency, balance, locked_balance, status, updated_at, ledger_accounts(account_number)");

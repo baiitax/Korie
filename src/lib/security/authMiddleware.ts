@@ -1,4 +1,7 @@
+import { createHash } from 'crypto';
 import { RequestContext } from '@/types/apiGateway';
+import { getSupabaseAdminClient } from '@/lib/supabase/admin';
+import { checkRateLimit, getClientIp } from '@/lib/security/rateLimiter';
 
 export interface AuthValidationResult {
   isAuthenticated: boolean;
@@ -9,7 +12,26 @@ export interface AuthValidationResult {
 }
 
 /**
- * Validates incoming HTTP requests against KoriePay API key vault and scope definitions.
+ * Validates incoming public-developer-API requests against KoriePay's real
+ * API key vault (public.merchant_api_keys / public.aggregator_api_keys).
+ *
+ * This replaces a prior implementation that never queried the database at
+ * all: it accepted any bearer token that merely *looked* like a key
+ * (a kp_live_/kp_test_/pk_live_/pk_test_ prefix, or just length >= 16) and
+ * unconditionally granted a hardcoded full-scope ORGANIZATION_ADMIN context
+ * for a fixed org/user id — meaning any caller presenting an arbitrary
+ * string was authenticated as a real, specific tenant. That was live-tested
+ * and confirmed to leak real customer PII through a route gated by this
+ * function (see /api/beneficiaries, since removed as an orphaned mock
+ * route — this file's sole remaining caller is
+ * /api/v1/wallets/[id]/balance, which reads real database rows).
+ *
+ * The public key (`pk_live_...` / `pk_test_...`) identifies which vault row
+ * to check; the secret half of the bearer token is SHA-256 hashed and
+ * compared against the stored `secret_key_hash` — the same one-way hash
+ * scheme already used by the real key-issuance endpoints
+ * (POST /api/v1/merchant/keys, POST /api/v1/aggregator/keys). No plaintext
+ * secret is ever stored, and a non-matching hash is rejected outright.
  */
 export async function authenticateApiRequest(
   request: Request,
@@ -19,7 +41,19 @@ export async function authenticateApiRequest(
   const requestId = request.headers.get('x-request-id') || `KP-REQ-${Date.now().toString(16)}-${Math.random().toString(36).substring(2, 6)}`;
   const correlationId = request.headers.get('x-correlation-id') || requestId;
   const idempotencyKey = request.headers.get('idempotency-key') || request.headers.get('Idempotency-Key') || undefined;
-  const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || '127.0.0.1';
+  const ipAddress = getClientIp(request);
+
+  // Bound brute-force / credential-stuffing attempts against the key vault
+  // per source IP, independent of which key is being guessed.
+  const rate = checkRateLimit(`api-key-auth:${ipAddress}`, 'AUTH');
+  if (!rate.allowed) {
+    return {
+      isAuthenticated: false,
+      errorCode: 'RATE_LIMITED',
+      errorMessage: 'Too many authentication attempts. Please slow down and retry shortly.',
+      httpStatus: 429,
+    };
+  }
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return {
@@ -31,12 +65,12 @@ export async function authenticateApiRequest(
   }
 
   const token = authHeader.replace('Bearer ', '').trim();
-  const isLiveKey = token.startsWith('kp_live_') || token.startsWith('pk_live_');
-  const isTestKey = token.startsWith('kp_test_') || token.startsWith('pk_test_');
 
-  // In production, validate token against Supabase / Key Vault
-  // For sandbox and live test requests, ensure token has valid structure
-  if (!isLiveKey && !isTestKey && token.length < 16) {
+  // Full API tokens are issued as `${prefix}${secret}` where prefix is one
+  // of kp_live_/kp_test_ (this matches what POST /api/v1/merchant/keys and
+  // POST /api/v1/aggregator/keys actually hand back at creation time).
+  const prefixMatch = token.match(/^(kp_live_|kp_test_)(.+)$/);
+  if (!prefixMatch) {
     return {
       isAuthenticated: false,
       errorCode: 'INVALID_API_KEY',
@@ -45,10 +79,48 @@ export async function authenticateApiRequest(
     };
   }
 
-  const environment = isLiveKey ? 'PRODUCTION' : 'SANDBOX';
-  const orgId = 'org_kor_99182'; // Sahel Global Technologies Ltd
+  const environment: 'PRODUCTION' | 'SANDBOX' = prefixMatch[1] === 'kp_live_' ? 'PRODUCTION' : 'SANDBOX';
+  const secret = prefixMatch[2];
+  if (!secret || secret.length < 16) {
+    return {
+      isAuthenticated: false,
+      errorCode: 'INVALID_API_KEY',
+      errorMessage: 'The provided API key is invalid or unrecognized.',
+      httpStatus: 401,
+    };
+  }
+  const secretHash = createHash('sha256').update(secret).digest('hex');
 
-  // Default mock scopes for authorized keys
+  let admin;
+  try {
+    admin = getSupabaseAdminClient();
+  } catch {
+    return {
+      isAuthenticated: false,
+      errorCode: 'BACKEND_NOT_CONFIGURED',
+      errorMessage: 'The API key vault is not configured.',
+      httpStatus: 503,
+    };
+  }
+
+  // A given hash can only ever belong to one of the two vaults (merchant or
+  // aggregator) — check both, since this route is shared infrastructure and
+  // does not know in advance which tenant type issued the key.
+  const [merchantRow, aggregatorRow] = await Promise.all([
+    admin
+      .from('merchant_api_keys')
+      .select('id, merchant_id, environment, status, merchant_profiles(org_id, status)')
+      .eq('secret_key_hash', secretHash)
+      .eq('environment', environment)
+      .maybeSingle(),
+    admin
+      .from('aggregator_api_keys')
+      .select('id, aggregator_id, environment, status, aggregators(org_id, status)')
+      .eq('secret_key_hash', secretHash)
+      .eq('environment', environment)
+      .maybeSingle(),
+  ]);
+
   const grantedScopes = [
     'payments:read',
     'payments:write',
@@ -61,17 +133,71 @@ export async function authenticateApiRequest(
     'bills:vend',
     'fx:read',
     'fx:quote',
-    // Support operating system scopes (sandbox test keys). In production
-    // these map to the support role's API key grants; every route still
-    // enforces officer-level RBAC on top of key scopes.
-    'support:read',
-    'support:write',
-    'support:finance',
   ];
 
-  // Verify that all required scopes are satisfied
+  let context: RequestContext | null = null;
+
+  if (merchantRow.data && !merchantRow.error) {
+    const key = merchantRow.data as any;
+    if (key.status !== 'ACTIVE') {
+      return {
+        isAuthenticated: false,
+        errorCode: 'API_KEY_REVOKED',
+        errorMessage: 'This API key has been revoked.',
+        httpStatus: 401,
+      };
+    }
+    const profile = Array.isArray(key.merchant_profiles) ? key.merchant_profiles[0] : key.merchant_profiles;
+    context = {
+      requestId,
+      correlationId,
+      environment,
+      orgId: profile?.org_id || '',
+      userId: key.merchant_id,
+      userRole: 'MERCHANT',
+      scopes: grantedScopes,
+      apiKeyId: key.id,
+      ipAddress,
+      idempotencyKey,
+      startTime: Date.now(),
+    };
+  } else if (aggregatorRow.data && !aggregatorRow.error) {
+    const key = aggregatorRow.data as any;
+    if (key.status !== 'ACTIVE') {
+      return {
+        isAuthenticated: false,
+        errorCode: 'API_KEY_REVOKED',
+        errorMessage: 'This API key has been revoked.',
+        httpStatus: 401,
+      };
+    }
+    const aggregator = Array.isArray(key.aggregators) ? key.aggregators[0] : key.aggregators;
+    context = {
+      requestId,
+      correlationId,
+      environment,
+      orgId: aggregator?.org_id || '',
+      userId: key.aggregator_id,
+      userRole: 'AGGREGATOR',
+      scopes: grantedScopes,
+      apiKeyId: key.id,
+      ipAddress,
+      idempotencyKey,
+      startTime: Date.now(),
+    };
+  }
+
+  if (!context) {
+    return {
+      isAuthenticated: false,
+      errorCode: 'INVALID_API_KEY',
+      errorMessage: 'The provided API key is invalid or unrecognized.',
+      httpStatus: 401,
+    };
+  }
+
   for (const requiredScope of requiredScopes) {
-    if (!grantedScopes.includes(requiredScope) && !grantedScopes.includes('*')) {
+    if (!context.scopes.includes(requiredScope) && !context.scopes.includes('*')) {
       return {
         isAuthenticated: false,
         errorCode: 'FORBIDDEN_INSUFFICIENT_SCOPE',
@@ -80,21 +206,6 @@ export async function authenticateApiRequest(
       };
     }
   }
-
-  const context: RequestContext = {
-    requestId,
-    correlationId,
-    environment,
-    orgId,
-    userId: 'usr_dev_01',
-    userRole: 'ORGANIZATION_ADMIN',
-    scopes: grantedScopes,
-    apiKeyId: 'cred_sand_01',
-    ipAddress,
-    country: 'NG',
-    idempotencyKey,
-    startTime: Date.now(),
-  };
 
   return {
     isAuthenticated: true,
