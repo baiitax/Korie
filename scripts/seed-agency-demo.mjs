@@ -248,13 +248,18 @@ async function main() {
     ]);
     if (entriesErr) throw entriesErr;
 
+    // Balances must equal the journal-derived values (credit-positive
+    // convention): the float is CREDITED (+F), the treasury is DEBITED (-F).
+    // The ledger_accounts balance-integrity triggers (migration
+    // 20260914000050) verify these against the journal at commit, so a wrong
+    // sign here fails loudly instead of minting equity silently.
     await admin
       .from("ledger_accounts")
       .update({ balance: FUNDING_AMOUNT })
       .eq("id", floatAccountIds.WALLET_FLOAT);
     await admin
       .from("ledger_accounts")
-      .update({ balance: FUNDING_AMOUNT })
+      .update({ balance: -FUNDING_AMOUNT })
       .eq("id", treasuryAccountId);
 
     console.log(`Posted initial float funding: ₦${FUNDING_AMOUNT.toLocaleString()}`);
