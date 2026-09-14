@@ -21,6 +21,13 @@ export const dynamic = "force-dynamic";
  *  - ADASHI_PAYOUT      : Adashi/ROSCA payouts above the product-configured
  *    threshold (maker-checker enforced in authorize_adashi_payout since
  *    inception). Status PENDING.
+ *  - CASH_VARIANCE      : agent end-of-day cash-count breaks (§16
+ *    break-management, migration 20260914000052). A shortfall is already
+ *    journaled — the agent's cash position is corrected and the missing
+ *    value sits in SUSPENSE-<ccy> — and an overage is parked for review.
+ *    The resolve action is the checker step (the agent who counted is the
+ *    maker; the resolver here is back-office — SoD by construction).
+ *    Statuses VARIANCE_JOURNALED / OVERAGE_PENDING_REVIEW → RESOLVED.
  *
  * Every decision lands in control_approval_events (four-eyes audit trail)
  * and/or the movement's own event log. The RPCs enforce distinct approvers
@@ -28,7 +35,7 @@ export const dynamic = "force-dynamic";
  */
 
 type QueueItem = {
-  type: "AGENT_FLOAT_TOPUP" | "MERCHANT_PAYOUT" | "ADASHI_PAYOUT";
+  type: "AGENT_FLOAT_TOPUP" | "MERCHANT_PAYOUT" | "ADASHI_PAYOUT" | "CASH_VARIANCE";
   id: string;
   title: string;
   subtitle: string;
@@ -38,6 +45,7 @@ type QueueItem = {
   requested_at: string;
   approvals: number;
   required: number;
+  detail?: string;
 };
 
 export async function GET(request: NextRequest) {
@@ -135,6 +143,34 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // 4. Agent cash-count breaks awaiting back-office resolution (§16).
+    const { data: variances, error: varianceErr } = await admin
+      .from("agent_cash_reconciliations")
+      .select("id, agent_id, reconciliation_date, currency, opening_cash, today_cash_in, today_cash_out, expected_closing_cash, actual_physical_cash, difference, status, notes, submitted_at, agents(agent_name, email)")
+      .in("status", ["VARIANCE_JOURNALED", "OVERAGE_PENDING_REVIEW"])
+      .order("submitted_at", { ascending: true })
+      .limit(100);
+    if (varianceErr) throw varianceErr;
+    for (const v of variances ?? []) {
+      const agent = Array.isArray(v.agents) ? v.agents[0] : v.agents;
+      const isShort = Number(v.difference) < 0;
+      queue.push({
+        type: "CASH_VARIANCE",
+        id: v.id,
+        title: `${isShort ? "Cash shortfall" : "Cash overage"} — ${agent?.agent_name ?? v.agent_id}`,
+        subtitle: isShort
+          ? "Shortfall journaled: agent position corrected, missing value in suspense — resolve when the investigation closes"
+          : "Overage parked for review: no ledger value was created — document the source, return it, or forfeit it",
+        amount: Math.abs(Number(v.difference)),
+        currency: v.currency,
+        status: v.status,
+        requested_at: v.submitted_at,
+        approvals: 0,
+        required: 1,
+        detail: `Count ${Number(v.actual_physical_cash).toLocaleString()} vs expected ${Number(v.expected_closing_cash).toLocaleString()} ${v.currency} · ${v.reconciliation_date}${v.notes ? ` · ${v.notes}` : ""}`,
+      });
+    }
+
     // Approval counts for every queued item (distinct approvers so far).
     const ids = queue.map((q) => q.id);
     if (ids.length > 0) {
@@ -196,11 +232,18 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { type, id, decision, notes } = body;
-  if (!["AGENT_FLOAT_TOPUP", "MERCHANT_PAYOUT", "ADASHI_PAYOUT"].includes(type ?? "")) {
-    return NextResponse.json({ status: "error", error: { code: "INVALID_TYPE", message: "type must be AGENT_FLOAT_TOPUP, MERCHANT_PAYOUT or ADASHI_PAYOUT." } }, { status: 400 });
+  const { type, id, decision, notes, resolution } = body as typeof body & { resolution?: string };
+  if (![`AGENT_FLOAT_TOPUP`, `MERCHANT_PAYOUT`, `ADASHI_PAYOUT`, `CASH_VARIANCE`].includes(type ?? ``)) {
+    return NextResponse.json({ status: "error", error: { code: "INVALID_TYPE", message: "type must be AGENT_FLOAT_TOPUP, MERCHANT_PAYOUT, ADASHI_PAYOUT or CASH_VARIANCE." } }, { status: 400 });
   }
-  if (!["APPROVE", "REJECT"].includes(decision ?? "")) {
+  const CASH_VARIANCE_RESOLUTIONS = [
+    `RECOVERED_TO_TILL`, `WRITTEN_OFF`, `DOCUMENTED_AS_MISSED_TRANSACTION`, `RETURNED_TO_SENDER`, `FORFEITED_TO_INCOME`,
+  ];
+  if (type === `CASH_VARIANCE`) {
+    if (!CASH_VARIANCE_RESOLUTIONS.includes(resolution ?? ``)) {
+      return NextResponse.json({ status: "error", error: { code: "INVALID_RESOLUTION", message: `resolution must be one of ${CASH_VARIANCE_RESOLUTIONS.join(", ")}.` } }, { status: 400 });
+    }
+  } else if (![`APPROVE`, `REJECT`].includes(decision ?? ``)) {
     return NextResponse.json({ status: "error", error: { code: "INVALID_DECISION", message: "decision must be APPROVE or REJECT." } }, { status: 400 });
   }
   if (!id) {
@@ -251,6 +294,18 @@ export async function POST(request: NextRequest) {
       });
       if (error) throw error;
       result = data as Record<string, unknown>;
+    } else if (type === "CASH_VARIANCE") {
+      // The checker step of the reconciliation break workflow: resolve the
+      // cash variance on the books. SoD holds by construction — the agent
+      // submitted the count, a back-office reviewer resolves it here.
+      const { data, error } = await admin.rpc("resolve_cash_variance", {
+        p_reconciliation_id: id,
+        p_resolution: resolution,
+        p_posted_by: actorEmail,
+        p_notes: notes ?? null,
+      });
+      if (error) throw error;
+      result = data as Record<string, unknown>;
     } else {
       const { data, error } = await admin.rpc("authorize_adashi_payout", {
         p_payout_id: id,
@@ -265,7 +320,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       status: "ok",
-      decision: { type, id, decision, actor: actorEmail, result },
+      decision: { type, id, decision: type === "CASH_VARIANCE" ? `RESOLVE:${resolution}` : decision, actor: actorEmail, result },
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "The decision did not complete.";
@@ -273,7 +328,9 @@ export async function POST(request: NextRequest) {
       message.includes("SEGREGATION_OF_DUTIES_VIOLATION") ||
       message.includes("SECOND_APPROVER_MUST_BE_A_DIFFERENT_USER") ||
       message.includes("ALREADY_DECIDED") ||
-      message.includes("NOT_PENDING");
+      message.includes("NOT_PENDING") ||
+      message.includes("RECONCILIATION_NOT_RESOLVABLE_STATUS") ||
+      message.includes("INVALID_RESOLUTION_FOR");
     return NextResponse.json(
       { status: "error", error: { code: conflict ? "DECISION_CONFLICT" : "DECISION_FAILED", message } },
       { status: conflict ? 409 : 500 },

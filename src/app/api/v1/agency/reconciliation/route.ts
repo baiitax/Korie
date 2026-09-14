@@ -89,6 +89,9 @@ export async function POST(req: NextRequest) {
     if (message.includes('AGENT_FLOAT_NOT_PROVISIONED')) {
       return createErrorResponse({ code: 'AGENT_FLOAT_NOT_PROVISIONED', message: 'Your agent float account has not been provisioned yet. Contact support.', requestId: agent.requestId, httpStatus: 409 });
     }
+    if (message.includes('RECONCILIATION_ALREADY_JOURNALED')) {
+      return createErrorResponse({ code: 'RECONCILIATION_ALREADY_JOURNALED', message: "Today's count is already locked on the books. If the variance was a counting error, contact the back office to resolve it — do not resubmit.", requestId: agent.requestId, httpStatus: 409 });
+    }
     return createErrorResponse({ code: 'RECONCILIATION_SUBMIT_FAILED', message: 'Could not submit reconciliation. Please try again.', requestId: agent.requestId, httpStatus: 500 });
   }
 
