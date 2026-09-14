@@ -3,16 +3,17 @@
 /**
  * Consumer escalations — the complaints that landed on the compliance desk.
  *
- * Rows come from `ComplaintDisputeEngine` through `GET /api/complaints`, with
- * its own `?status &priority &country` filters used server-side. Transitions are
- * the engine's `TRANSITION_STATUS`, which owns the assignment, the resolution
- * timestamp and the SLA outcome.
+ * Rows come from the real `complaints` table through the registry-backed
+ * compliance data plane (`GET /api/compliance/data/complaints`), with its
+ * `?status &priority &country` filters applied server-side. Transitions go
+ * through the same allowlisted route (`PATCH .../complaints/:id`), which owns
+ * the assignment, the resolution timestamp and the SLA outcome.
  *
- * Two absences are deliberate and stated on screen: the engine's transition
- * takes a `notes` field it never persists (so this form does not offer one), and
- * the route's `COMPENSATE` action is not wired here because it trusts an amount
- * typed into the request body. Redress is settled in the module that can verify
- * the figure.
+ * Two absences are deliberate and stated on screen: there is no free-text
+ * `notes` field (the case narrative belongs on the case file, not a bare
+ * status transition), and there is no financial-compensation action here —
+ * redress must be verified against a real settlement/ledger source, not an
+ * amount typed into this form.
  */
 
 import React, { useMemo, useState } from 'react';

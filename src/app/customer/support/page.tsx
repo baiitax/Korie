@@ -30,12 +30,14 @@ import {
  * in-progress cases. Neither was true.
  *
  * Now: the form posts to `/api/customer/portal/disputes`, which creates a real
- * record in `ComplaintDisputeEngine` — the same queue the compliance desk
- * reads — and the number shown is that record's own `complaintReference`. The
- * list is the customer's own cases, read back from the server and scoped to the
- * session identity. Only categories the complaint engine actually accepts are
- * offered; there is no free-text "subject" field because the engine has no
- * subject column to store it in.
+ * row in `public.customer_disputes` and — via the sync-bridge in
+ * `src/lib/support/customerDisputeBridge.ts` — mirrors it into the real
+ * support back office (`support_tickets`, `support_disputes`) so a support
+ * officer actually sees and can work it. The number shown is that record's
+ * own real reference. The list is the customer's own cases, read back from
+ * the server and scoped to the session identity. Only categories the portal
+ * route actually accepts are offered; there is no free-text "subject" field
+ * because the schema has no subject column to store it in.
  *
  * Contact channels come from deployment config. If a channel is not
  * configured, it is not shown — a placeholder phone number on a banking portal

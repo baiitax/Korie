@@ -323,17 +323,13 @@ export async function runKycTierReview(input: {
 /**
  * Move a customer escalation to its next regulatory status.
  *
- * This is the complaints engine's own transition
- * (`PATCH /api/complaints/:id { action: 'TRANSITION_STATUS' }`), so the SLA
- * clock, the assignment and the resolution timestamp are written by the engine,
- * not by this screen. Two things the caller must know, both true today:
- *
- * 1. the endpoint accepts `notes` but `ComplaintDisputeEngine.transitionStatus`
- *    does not persist them, so the portal sends none and tells the officer where
- *    the narrative belongs (the case file);
- * 2. financial compensation exists on the same route (`COMPENSATE`) but is not
- *    offered in this console: it trusts an amount typed into the request, and
- *    nothing on this side can verify that figure against a settlement source.
+ * This writes directly to the real `complaints` table via the registry-backed
+ * compliance data plane (`PATCH /api/compliance/data/complaints/:id`), the
+ * same authenticated, allowlisted route every other compliance mutation goes
+ * through. There is no free-text `notes` field on this screen — the case
+ * narrative belongs on the case file, not on a bare status transition — and
+ * there is no financial-compensation action here: any redress amount must be
+ * verified against a real settlement/ledger source, not typed into this form.
  */
 export async function transitionEscalation(
   id: string,
