@@ -102,6 +102,7 @@ export const AdminRailSections: RailSection[] = [
     badgeSource: "reconciliation",
     items: [
       { label: "Immutable Ledger", href: "/admin/ledger" },
+      { label: "Money Approvals", href: "/admin/approvals" },
       { label: "Reconciliation", href: "/admin/reconciliation" },
       { label: "Treasury & Liquidity", href: "/admin/treasury" },
       { label: "FX Rates Engine", href: "/admin/fx" },

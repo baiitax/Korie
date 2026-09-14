@@ -100,7 +100,10 @@ export async function POST(req: NextRequest) {
     { id: payout.id, amount: Number(payout.amount), currency: payout.currency, status: payout.status, createdAt: payout.created_at },
     {
       code: 'PAYOUT_REQUESTED',
-      message: 'Payout request created and pending bank rail integration — this will not move to your bank instantly.',
+      message:
+        payout.status === 'PENDING_APPROVAL'
+          ? 'Payout request received — this amount requires internal dual approval before funds are locked for bank transfer.'
+          : 'Payout request created and pending bank rail integration — this will not move to your bank instantly.',
       requestId: staff.requestId,
       environment: 'PRODUCTION',
       status: 201,

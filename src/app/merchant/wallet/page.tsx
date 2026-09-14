@@ -24,6 +24,7 @@ interface PayoutRequest {
 }
 
 const STATUS_STYLES: Record<string, string> = {
+  PENDING_APPROVAL: "bg-violet-500/10 text-violet-400 border border-violet-500/20",
   PENDING_PROVIDER_INTEGRATION: "bg-amber-500/10 text-amber-400 border border-amber-500/20",
   PROCESSING: "bg-blue-500/10 text-blue-400 border border-blue-500/20",
   COMPLETED: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20",

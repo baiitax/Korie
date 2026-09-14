@@ -69,7 +69,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     });
   }
 
-  if (request.status !== 'PENDING') {
+  // Dual control (migration 20260914000051): a PENDING_SECOND_APPROVAL
+  // request is still decidable — the second, DIFFERENT reviewer calls this
+  // same endpoint to complete the four-eyes approval.
+  if (!['PENDING', 'PENDING_SECOND_APPROVAL'].includes(request.status)) {
     return createErrorResponse({
       code: 'TOPUP_REQUEST_ALREADY_DECIDED',
       message: `This request has already been ${request.status}.`,
@@ -113,14 +116,19 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   });
 
   if (approveError) {
-    const code = approveError.message?.includes('AGENT_FLOAT_NOT_PROVISIONED')
+    const msg = approveError.message ?? '';
+    const code = msg.includes('AGENT_FLOAT_NOT_PROVISIONED')
       ? 'AGENT_FLOAT_NOT_PROVISIONED'
-      : approveError.message?.includes('TOPUP_REQUEST_ALREADY_DECIDED')
-        ? 'TOPUP_REQUEST_ALREADY_DECIDED'
-        : 'TOPUP_APPROVE_FAILED';
+      : msg.includes('SECOND_APPROVER_MUST_BE_A_DIFFERENT_USER')
+        ? 'SECOND_APPROVER_MUST_BE_A_DIFFERENT_USER'
+        : msg.includes('TOPUP_REQUEST_ALREADY_DECIDED')
+          ? 'TOPUP_REQUEST_ALREADY_DECIDED'
+          : 'TOPUP_APPROVE_FAILED';
     return createErrorResponse({
       code,
-      message: approveError.message || 'Could not approve the float top-up request.',
+      message: code === 'SECOND_APPROVER_MUST_BE_A_DIFFERENT_USER'
+        ? 'Dual control: this reviewer already approved — a different reviewer must complete the second approval.'
+        : (approveError.message || 'Could not approve the float top-up request.'),
       requestId: `KP-REQ-${Date.now()}`,
       httpStatus: code === 'TOPUP_APPROVE_FAILED' ? 500 : 409,
     });
@@ -132,7 +140,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     target_type: 'agent_float_topup_requests',
     target_id: params.id,
     result: 'SUCCESS',
-    reason: `Approved by ops reviewer; amount=${request.amount} ${request.currency}`,
+    reason: `Approved by ops reviewer; amount=${request.amount} ${request.currency}; status=${approvedRequest.status}${approvedRequest.ledger_transaction_id ? `; ledger=${approvedRequest.ledger_transaction_id}` : ' (awaiting second approval)'}`,
   });
 
   return createSuccessResponse(

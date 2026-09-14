@@ -61,7 +61,9 @@ export async function POST(req: NextRequest) {
       httpStatus: 404,
     });
   }
-  if (request.status !== 'PENDING') {
+  // Dual control (migration 20260914000051): PENDING_SECOND_APPROVAL requests
+  // remain decidable — a second, DIFFERENT reviewer completes the approval.
+  if (!['PENDING', 'PENDING_SECOND_APPROVAL'].includes(request.status)) {
     return createErrorResponse({
       code: 'TOPUP_REQUEST_ALREADY_DECIDED',
       message: `This request has already been ${request.status}.`,
@@ -116,8 +118,8 @@ export async function POST(req: NextRequest) {
         stateOrRegion: agent.state_or_region,
         notes: notes ?? null,
       },
-      before_state: { status: 'PENDING' },
-      after_state: { status: 'APPROVED' },
+      before_state: { status: request.status },
+      after_state: { status: approved.status },
       ip_address: req.headers.get('x-forwarded-for') ?? 'unrecorded',
       request_id: `KP-REQ-${Date.now()}`,
       correlation_id: `KP-REQ-${Date.now()}`,
