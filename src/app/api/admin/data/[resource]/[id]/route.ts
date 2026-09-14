@@ -161,7 +161,16 @@ export async function PATCH(
   const { data: updated, error: updateErr } = await table
     .update(patch)
     .eq("id", params.id)
-    .select()
+    // Must use the SAME projection as GET/before-fetch (def.select ?? "*"),
+    // not the bare .select() this previously called. A bare .select()
+    // returns every column of the updated row regardless of the
+    // resource's declared allowlist — for resources like
+    // customer-identifiers (excludes id_number_encrypted),
+    // webhook-endpoints (excludes signing_secret_hash/masked), and
+    // api-credentials (excludes the API secret hash) this silently
+    // defeated the very projection those allowlists exist to enforce,
+    // leaking the secret back to the client on every successful PATCH.
+    .select(def.select ?? "*")
     .single();
   if (updateErr || !updated) {
     return NextResponse.json(
