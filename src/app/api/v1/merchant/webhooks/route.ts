@@ -5,6 +5,16 @@ import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { createSuccessResponse, createErrorResponse } from '@/lib/security/apiResponse';
 import { encryptWebhookSecret } from '@/lib/security/webhookSecretCrypto';
 import { validateWebhookDestination } from '@/lib/security/ssrfGuard';
+import { checkRateLimit } from '@/lib/security/rateLimiter';
+
+// dispatchMerchantWebhookEvent (webhookDispatch.ts) fires a real outbound
+// HTTP request to every ACTIVE endpoint on this merchant on every
+// transaction event, with no fan-out cap. Without a ceiling here, an
+// authenticated merchant could register an unbounded number of endpoints
+// pointing at a single third-party target and turn KoriePay into an
+// unwitting request-amplification/DDoS source, while also starving their
+// own real integrations of dispatch capacity.
+const MAX_WEBHOOK_ENDPOINTS_PER_MERCHANT = 10;
 
 const ALLOWED_EVENTS = [
   'payment.successful', 'payment.failed', 'payment.refunded',
@@ -54,6 +64,15 @@ export async function POST(req: NextRequest) {
   }
   const { staff } = auth;
 
+  // Per-merchant-account throttle on endpoint creation itself, independent
+  // of the per-merchant endpoint count cap below — bounds how fast a
+  // compromised or malicious session can attempt to reach that cap or
+  // otherwise hammer this route.
+  const creationRateLimit = checkRateLimit(`merchant-webhook-create:${staff.merchantId}`, 'DEFAULT', 20);
+  if (!creationRateLimit.allowed) {
+    return createErrorResponse({ code: 'RATE_LIMITED', message: `Too many webhook creation attempts. Try again in ${creationRateLimit.resetSeconds} seconds.`, requestId: staff.requestId, httpStatus: 429 });
+  }
+
   let body: any;
   try {
     body = await req.json();
@@ -85,6 +104,24 @@ export async function POST(req: NextRequest) {
   }
 
   const admin = getSupabaseAdminClient();
+
+  const { count: existingCount, error: countError } = await admin
+    .from('merchant_webhook_endpoints')
+    .select('id', { count: 'exact', head: true })
+    .eq('merchant_id', staff.merchantId);
+
+  if (countError) {
+    return createErrorResponse({ code: 'WEBHOOK_CREATE_FAILED', message: 'Could not verify existing webhook endpoints.', requestId: staff.requestId, httpStatus: 500 });
+  }
+  if ((existingCount ?? 0) >= MAX_WEBHOOK_ENDPOINTS_PER_MERCHANT) {
+    return createErrorResponse({
+      code: 'WEBHOOK_LIMIT_REACHED',
+      message: `You can register at most ${MAX_WEBHOOK_ENDPOINTS_PER_MERCHANT} webhook endpoints. Remove an existing endpoint before adding a new one.`,
+      requestId: staff.requestId,
+      httpStatus: 400,
+    });
+  }
+
   const secret = `whsec_${randomBytes(24).toString('hex')}`;
 
   // The raw secret is shown to the merchant exactly once in this response
