@@ -331,22 +331,33 @@ export const RESOURCES: Record<string, ResourceDef> = {
     search: ["account_number", "name"],
     filters: { type: { column: "type", op: "eq" }, currency: { column: "currency", op: "eq" }, status: { column: "status", op: "eq" } },
   },
-  "journal-entries": {
-    table: "journal_entries",
+  "ledger-transactions": {
+    table: "ledger_transactions",
     orderBy: "created_at",
-    search: ["journal_number", "description", "source_reference"],
-    filters: { status: { column: "status", op: "eq" }, currency: { column: "currency", op: "eq" } },
+    search: ["transaction_reference", "description"],
+    filters: {
+      status: { column: "status", op: "eq" },
+      currency: { column: "currency", op: "eq" },
+    },
   },
-  "gl-accounts": {
-    table: "gl_accounts",
-    orderBy: "account_code",
-    search: ["account_code", "account_name"],
-    filters: { category: { column: "category", op: "eq" }, currency: { column: "currency", op: "eq" }, is_active: { column: "is_active", op: "eq", boolean: true } },
-  },
-  "gl-journal-lines": {
-    table: "gl_journal_lines",
+  "ledger-entries": {
+    table: "ledger_entries",
     orderBy: "created_at",
-    filters: { journal_id: { column: "journal_id", op: "eq" }, account_code: { column: "account_code", op: "eq" } },
+    search: ["narration"],
+    filters: {
+      entry_type: { column: "entry_type", op: "eq" },
+      currency: { column: "currency", op: "eq" },
+      transaction_id: { column: "transaction_id", op: "eq" },
+    },
+    select: "id,transaction_id,account_id,entry_type,amount,currency,narration,created_at",
+  },
+  "daily-financial-closes": {
+    table: "daily_financial_closes",
+    orderBy: "close_date",
+    search: ["closed_by"],
+    filters: {
+      status: { column: "status", op: "eq" },
+    },
   },
   "reconciliation-exceptions": {
     table: "reconciliation_exceptions",

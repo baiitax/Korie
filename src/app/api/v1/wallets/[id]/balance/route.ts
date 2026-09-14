@@ -1,21 +1,27 @@
 import { NextRequest } from "next/server";
 import { authenticateApiRequest } from "@/lib/security/authMiddleware";
 import { createSuccessResponse, createErrorResponse } from "@/lib/security/apiResponse";
-import { AccountLifecycleEngine } from "@/lib/customer/AccountLifecycleEngine";
-import { SubledgerEngine } from "@/lib/financial/SubledgerEngine";
+import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 
 /**
  * GET /api/v1/wallets/:id/balance
  *
- * Returns the authoritative wallet balance, synchronised from the general
- * ledger subledger. Previously this route hardcoded a fabricated balance
- * (`balance: 85000000`, `formatted_available: '₦845,000.00'`) regardless of
- * the wallet — a fake financial value. It now resolves the account by id or
- * account number and reads `availableBalance`/`ledgerBalance`/`heldBalance`
- * from the subledger engine (the same source `AccountLifecycleEngine` uses).
+ * Returns the authoritative wallet balance read from the database of record.
+ * The wallet row and its linked ledger account are now kept in lockstep by
+ * database triggers (migration 20260914000050), so `wallets.balance` IS the
+ * ledger-backed balance — enforced to equal the journal-derived balance of
+ * the linked ledger account at every commit.
  *
- * Auth + scope are still required; a missing/unknown wallet returns 404.
+ * Previous iterations of this route returned fabricated numbers: first a
+ * hardcoded balance, then balances from an in-memory "subledger engine"
+ * seeded with demo customers. This version reads the real wallet by UUID or
+ * account number and reports its actual balance, locked balance, available
+ * balance and real ledger account reference.
+ *
+ * Auth + scope are required; a missing/unknown wallet returns 404.
  */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } },
@@ -33,11 +39,27 @@ export async function GET(
   const { context } = auth;
   const { id } = params;
 
-  // Resolve the account and its authoritative subledger-backed balance.
-  const accountEngine = AccountLifecycleEngine.getInstance();
-  const account = accountEngine.getAccount(id);
+  let admin;
+  try {
+    admin = getSupabaseAdminClient();
+  } catch {
+    return createErrorResponse({
+      code: "BACKEND_NOT_CONFIGURED",
+      message: "Wallet service is not configured.",
+      requestId: `KP-REQ-${Date.now()}`,
+      httpStatus: 503,
+    });
+  }
 
-  if (!account) {
+  // Resolve the wallet by UUID, or by its account number (the customer-facing
+  // wallet reference). Both come straight from the database of record.
+  let query = admin
+    .from("wallets")
+    .select("id, account_number, currency, balance, locked_balance, status, updated_at, ledger_accounts(account_number)");
+  query = UUID_RE.test(id) ? query.eq("id", id) : query.eq("account_number", id);
+
+  const { data: wallet, error } = await query.maybeSingle();
+  if (error || !wallet) {
     return createErrorResponse({
       code: "WALLET_NOT_FOUND",
       message: "Wallet not found.",
@@ -46,27 +68,26 @@ export async function GET(
     });
   }
 
-  const subledger = SubledgerEngine.getInstance().getSubledger("CUSTOMER_WALLET", account.customerId, account.currency);
-  const available = subledger?.availableBalance ?? account.availableBalance;
-  const ledger = subledger?.currentBalance ?? account.ledgerBalance;
-  const held = subledger?.heldBalance ?? account.heldBalance;
-
-  // No fabricated numbers: derive the currency and ledger reference from the
-  // record, not from guessing based on the id containing 'xof'.
-  const currency = account.currency;
-  const ledgerRef = `2010-CUST-WALLETS-${currency}`;
+  const balance = Number(wallet.balance ?? 0);
+  const locked = Number(wallet.locked_balance ?? 0);
+  const available = Math.max(balance - locked, 0);
+  const currency = wallet.currency;
+  // PostgREST embeds the many-to-one ledger account as a single object.
+  const ledger = wallet.ledger_accounts as { account_number?: string } | null | undefined;
+  const ledgerAccount = ledger?.account_number ?? null;
 
   return createSuccessResponse(
     {
-      wallet_id: account.id,
+      wallet_id: wallet.id,
+      wallet_account_number: wallet.account_number ?? null,
       currency,
-      balance: ledger,
-      locked_balance: held,
+      balance,
+      locked_balance: locked,
       available_balance: available,
       formatted_available: formatMoneySafe(available, currency),
-      ledger_account_reference: ledgerRef,
-      status: account.status,
-      updated_at: account.updatedAt,
+      ledger_account_reference: ledgerAccount,
+      status: wallet.status,
+      updated_at: wallet.updated_at,
     },
     {
       requestId: context.requestId,
