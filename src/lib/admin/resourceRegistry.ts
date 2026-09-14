@@ -250,6 +250,11 @@ export const RESOURCES: Record<string, ResourceDef> = {
   },
   "webhook-endpoints": {
     table: "webhook_endpoints",
+    // Explicit column allowlist — this table's signing_secret_hash column
+    // is a real HMAC signing secret (see webhookSecretCrypto.ts's write-up
+    // of the identical defect on merchant_webhook_endpoints.secret_hash),
+    // not something the generic admin data browser should ever return.
+    select: "id,org_id,url,environment,status,events,failure_count,last_delivered_at,created_at,updated_at",
     orderBy: "created_at",
     search: ["url"],
     filters: { status: { column: "status", op: "eq" }, environment: { column: "environment", op: "eq" } },
@@ -904,6 +909,13 @@ export const RESOURCES: Record<string, ResourceDef> = {
   },
   "identity-documents": {
     table: "identity_documents",
+    // storage_path_encrypted is an encrypted file-storage pointer, not
+    // something the generic admin browser should surface — an admin
+    // reviewing a document should see its metadata/status, not the raw
+    // storage locator. Nothing in the app currently reads this table (it
+    // predates the working KYC document flow), so this is a defensive
+    // allowlist rather than a fix to an active leak.
+    select: "id,identity_id,document_type,document_number_masked,file_sha256_hash,mime_type,file_size_bytes,verification_status,expires_at,uploaded_by,uploaded_at",
     orderBy: "uploaded_at",
     search: ["document_type", "identity_id"],
     filters: { verification_status: { column: "verification_status", op: "eq" }, identity_id: { column: "identity_id", op: "eq" } },
