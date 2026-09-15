@@ -467,6 +467,22 @@ export const RESOURCES: Record<string, ResourceDef> = {
     orderBy: "changed_at",
     search: ["source_currency", "destination_currency"],
   },
+  "fx-revaluations": {
+    // Daily mark-to-market rows written by run_fx_revaluation (migration
+    // 000057). A BASELINE row is the opening mark (zero P&L — no gain is
+    // invented at inception); POSTED rows carry the unrealized gain/loss
+    // journal; MARKED_NO_CHANGE means the governed rate had not moved.
+    table: "fx_revaluations",
+    orderBy: "valuation_date",
+    asc: false,
+    select:
+      "id, valuation_date, position_currency, base_currency, position_units, rate_used, rate_source, market_value_base, prior_rate_used, unrealized_gain_loss, status, ledger_transaction_id, run_by, created_at",
+    search: ["position_currency", "rate_source", "run_by"],
+    filters: {
+      status: { column: "status", op: "eq" },
+      position_currency: { column: "position_currency", op: "eq" },
+    },
+  },
   "fx-transactions": {
     table: "liquidity.fx_transactions",
     orderBy: "created_at",
