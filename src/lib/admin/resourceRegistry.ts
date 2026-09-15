@@ -445,6 +445,11 @@ export const RESOURCES: Record<string, ResourceDef> = {
     orderBy: "updated_at",
     search: ["source_currency", "destination_currency", "source"],
   },
+  "fx-rate-history": {
+    table: "fx_rate_history",
+    orderBy: "changed_at",
+    search: ["source_currency", "destination_currency"],
+  },
   "fx-transactions": {
     table: "liquidity.fx_transactions",
     orderBy: "created_at",
