@@ -11,8 +11,7 @@ import SecurityNotice from "@/components/auth/SecurityNotice";
 import AuthErrorAlert from "@/components/auth/AuthErrorAlert";
 import { useAuth } from "@/components/auth/AuthContext";
 import { KpayInlineLoader } from "@/components/loading";
-import { getComplianceQuickAccess } from "@/lib/complianceQuickAccess";
-import { ArrowRight, ShieldCheck } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 export default function LoginPage() {
   const { login, language, jurisdiction } = useAuth();
@@ -22,11 +21,6 @@ export default function LoginPage() {
   const [rememberDevice, setRememberDevice] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Seeded demonstration officer for the compliance portal. One click signs
-  // in and routes to /compliance; the portal re-verifies the session and the
-  // COMPLIANCE_OFFICER role server-side on every request.
-  const quick = getComplianceQuickAccess();
 
   const runLogin = async (email: string, pass: string) => {
     setError(null);
@@ -55,16 +49,6 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     await runLogin(identifier, password);
-  };
-
-  // Automated compliance sign-in: fill the visible form with the seeded
-  // officer's credentials and submit, so the operator sees exactly which
-  // account the automation used before the redirect happens.
-  const quickSignIn = async () => {
-    if (!quick || isLoading) return;
-    setIdentifier(quick.email);
-    setPassword(quick.password);
-    await runLogin(quick.email, quick.password);
   };
 
   const submitText =
@@ -149,86 +133,8 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Automated compliance officer sign-in — the one-click path the
-              portal owner asked for. Fills the form above with the seeded
-              officer's credentials and submits; the routing layer sends the
-              session to /compliance. */}
-          {quick && (
-            <div className="mt-4 pt-4 border-t border-white/[0.08]">
-              <button
-                type="button"
-                onClick={quickSignIn}
-                disabled={isLoading}
-                className="w-full py-3 rounded-2xl bg-white/[0.06] hover:bg-white/[0.1] border border-emerald-500/30 hover:border-emerald-500/50 text-emerald-300 font-bold text-xs tracking-wide transition-all disabled:opacity-60 flex items-center justify-center gap-2"
-              >
-                {isLoading ? (
-                  <KpayInlineLoader size="sm" className="border-emerald-400 border-t-emerald-400" />
-                ) : (
-                  <ShieldCheck className="w-4 h-4" />
-                )}
-                <span>
-                  {isLoading
-                    ? "Signing in as the compliance officer…"
-                    : `Automatic sign-in — Compliance officer (${quick.label})`}
-                </span>
-              </button>
-              <p className="mt-2 text-[10px] text-slate-500 leading-relaxed">
-                {quick.note} Signs in with <span className="font-mono">{quick.email}</span> and routes to the compliance
-                portal.
-              </p>
-            </div>
-          )}
-
           {/* Security Notice Pill */}
           <SecurityNotice />
-
-          {/* Real seeded demo accounts — every field below is a genuine
-              Supabase Auth user with a real wallet balance, not a mock. */}
-          <div className="w-full max-w-md mx-auto pt-4 border-t border-white/[0.08] space-y-1.5">
-            <div className="text-[11px] font-semibold text-slate-300">Demo customer accounts</div>
-            <div className="text-[11px] text-slate-400 font-mono leading-relaxed">
-              amina.bello@test.ng · chukwudi.eze@test.ng<br />
-              amadou.seydou@test.ne · fatima.oumarou@test.ne<br />
-              Password: KorieCustomer@2026!
-            </div>
-            <div className="text-[11px] font-semibold text-slate-300 pt-2">Demo agent account</div>
-            <div className="text-[11px] text-slate-400 font-mono leading-relaxed">
-              garba.kano@korieagent.com<br />
-              Password: KorieAgent@2026!
-            </div>
-            <div className="text-[11px] font-semibold text-slate-300 pt-2">Demo business account</div>
-            <div className="text-[11px] text-slate-400 font-mono leading-relaxed">
-              amaka.owner@koriemerchant.com<br />
-              Password: KorieMerchant@2026!
-            </div>
-            <div className="text-[11px] font-semibold text-slate-300 pt-2">Demo aggregator account</div>
-            <div className="text-[11px] text-slate-400 font-mono leading-relaxed">
-              hassan.bawa@korieaggregator.com<br />
-              Password: KorieAggregator@2026!
-            </div>
-            <div className="text-[11px] font-semibold text-slate-300 pt-2">Compliance officer (staff)</div>
-            <div className="text-[11px] text-slate-400 font-mono leading-relaxed">
-              {quick ? (
-                <>
-                  {quick.email}
-                  <br />
-                  Password: {quick.password}
-                </>
-              ) : (
-                <>Configured via NEXT_PUBLIC_COMPLIANCE_QUICK_EMAIL / _PASSWORD</>
-              )}
-            </div>
-            <div className="text-[11px] font-semibold text-slate-300 pt-2">Support officer (staff)</div>
-            <div className="text-[11px] text-slate-400 font-mono leading-relaxed">
-              zainab.support@koriepay.internal<br />
-              Password: KorieSupport@2026!
-            </div>
-            <div className="text-[11px] font-semibold text-slate-300 pt-2">Command center admin (staff)</div>
-            <div className="text-[11px] text-slate-400 font-mono leading-relaxed">
-              admin@koriepay.internal<br />
-              Password: KorieAdmin@2026!
-            </div>
-          </div>
         </AuthCard>
 
         {/* Create Account Prompt */}
