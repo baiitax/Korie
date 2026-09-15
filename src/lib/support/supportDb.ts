@@ -531,6 +531,69 @@ export async function nextDisputeNumber(): Promise<string> {
   return data as string;
 }
 
+export interface DisputeResolutionPosting {
+  recovery_reference: string;
+  posted_amount: number;
+  posted_currency: string;
+  new_wallet_balance: number;
+  transaction_status: string;
+}
+
+/**
+ * REAL double-entry posting for REFUND_APPROVED / REVERSAL_APPROVED /
+ * PARTIAL_REFUND dispute decisions (migration
+ * 20260914000052_dispute_resolution_real_posting.sql). Re-derives the
+ * amount/currency/wallet from the real customer_transactions row (never
+ * trusts support_disputes.claim_amount), posts a balanced ledger entry
+ * crediting the customer's wallet from the org's clearing/suspense
+ * account, and records the real decision + recovery_case_reference on the
+ * dispute row itself — replacing the prior fake in-memory
+ * DisputeChargebackEngine recording.
+ */
+export async function postDisputeResolution(params: {
+  disputeId: string;
+  decisionType: "REFUND_APPROVED" | "REVERSAL_APPROVED" | "PARTIAL_REFUND";
+  officerId: string;
+  reason: string;
+  partialAmount?: number | null;
+}): Promise<DisputeResolutionPosting> {
+  const admin = getSupabaseAdminClient();
+  const { data, error } = await admin.rpc("post_dispute_resolution", {
+    p_dispute_id: params.disputeId,
+    p_decision_type: params.decisionType,
+    p_officer_id: params.officerId,
+    p_reason: params.reason,
+    p_partial_amount: params.partialAmount ?? null,
+  });
+  if (error) throw new Error(`DISPUTE_RESOLUTION_POSTING_FAILED: ${error.message}`);
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) throw new Error("DISPUTE_RESOLUTION_POSTING_FAILED: no row returned");
+  return row as DisputeResolutionPosting;
+}
+
+/**
+ * REAL status-update path for REJECTED / UNDER_INVESTIGATION decisions
+ * (no money movement). Companion to postDisputeResolution.
+ */
+export async function recordDisputeNonFinancialDecision(params: {
+  disputeId: string;
+  decisionType: "REJECTED" | "UNDER_INVESTIGATION";
+  officerId: string;
+  reason: string;
+}): Promise<DisputeRow> {
+  const admin = getSupabaseAdminClient();
+  const { data, error } = await admin.rpc("record_dispute_non_financial_decision", {
+    p_dispute_id: params.disputeId,
+    p_decision_type: params.decisionType,
+    p_officer_id: params.officerId,
+    p_reason: params.reason,
+  });
+  if (error) throw new Error(`DISPUTE_NON_FINANCIAL_DECISION_FAILED: ${error.message}`);
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) throw new Error("DISPUTE_NON_FINANCIAL_DECISION_FAILED: no row returned");
+  return row as DisputeRow;
+}
+
 /* --------------------------------------------------------- escalations */
 
 export interface EscalationRow {

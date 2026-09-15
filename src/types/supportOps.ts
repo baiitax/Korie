@@ -155,8 +155,10 @@ export interface SupportDispute {
     decidedAt: string;
   };
   /**
-   * When a financial action was approved, the authoritative recovery case
-   * created in DisputeChargebackEngine (the balance is touched ONLY there).
+   * When a financial action was approved, the real ledger_transactions
+   * reference that public.post_dispute_resolution() posted — the balance
+   * is touched ONLY by that function, atomically with this reference being
+   * recorded.
    */
   recoveryCaseReference?: string;
   createdAt: string;

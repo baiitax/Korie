@@ -3281,7 +3281,9 @@ export const en = {
       recoveryCase: "Recovery case",
       noRecoveryCase: "No recovery case yet",
       addDecision: "Record decision",
-      decisionNote: "The decision is final for this dispute and is written to the recovery engine for refunds.",
+      partialAmount: "Refund amount",
+      partialAmountInvalid: "Enter an amount greater than 0 and no more than the claim amount.",
+      decisionNote: "The decision is final for this dispute. Refunds and reversals post a real, balanced ledger transaction that credits the customer's wallet immediately.",
       statusLabels: {
         OPEN: "Open",
         UNDER_REVIEW: "Under review",

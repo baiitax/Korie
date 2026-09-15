@@ -218,12 +218,21 @@ function DecisionModal({
   const { t, activeOfficer, toast } = useSupportOps();
   const [type, setType] = useState<string>("UNDER_INVESTIGATION");
   const [reason, setReason] = useState("");
+  const [partialAmount, setPartialAmount] = useState("");
   const [busy, setBusy] = useState(false);
 
+  const isPartial = type === "PARTIAL_REFUND";
+  const parsedPartial = Number(partialAmount);
+  const partialValid = !isPartial || (partialAmount.trim() !== "" && parsedPartial > 0 && parsedPartial <= dispute.claimAmount);
+
   const submit = async () => {
-    if (!reason.trim()) return;
+    if (!reason.trim() || !partialValid) return;
     setBusy(true);
-    const res = await supportOps.decideDispute(dispute.id, { type, reason: reason.trim() });
+    const res = await supportOps.decideDispute(dispute.id, {
+      type,
+      reason: reason.trim(),
+      ...(isPartial ? { partialAmount: parsedPartial } : {}),
+    });
     setBusy(false);
     if (isSupportApiError(res)) {
       const code = supportErrorCode(res);
@@ -257,6 +266,28 @@ function DecisionModal({
             ))}
           </select>
         </div>
+        {isPartial && (
+          <div>
+            <label htmlFor="dec-amount" className="mb-1 block text-xs font-bold">
+              {t("supportOps.disputes.partialAmount")} * (max {dispute.claimAmount.toLocaleString()} {dispute.currency === "XOF" ? "CFA" : dispute.currency === "NGN" ? "₦" : dispute.currency})
+            </label>
+            <input
+              id="dec-amount"
+              type="number"
+              min={0}
+              max={dispute.claimAmount}
+              step="0.01"
+              value={partialAmount}
+              onChange={(e) => setPartialAmount(e.target.value)}
+              className="w-full rounded-[var(--support-radius-input)] border border-[var(--border)] bg-[var(--input-bg)] px-3 py-2 text-sm outline-none focus:border-[var(--brand-border)]"
+            />
+            {partialAmount.trim() !== "" && !partialValid && (
+              <p className="mt-1 text-[11px] font-bold text-[var(--state-danger)]">
+                {t("supportOps.disputes.partialAmountInvalid")}
+              </p>
+            )}
+          </div>
+        )}
         <div>
           <label htmlFor="dec-reason" className="mb-1 block text-xs font-bold">{t("supportOps.disputes.reason")} *</label>
           <textarea
@@ -273,7 +304,7 @@ function DecisionModal({
             {t("supportOps.common.cancel")}
           </button>
           <button
-            disabled={!reason.trim() || busy}
+            disabled={!reason.trim() || !partialValid || busy}
             onClick={() => void submit()}
             className="flex items-center gap-2 rounded-[var(--support-radius-input)] bg-[var(--brand-primary)] px-4 py-2 text-xs font-extrabold text-[var(--brand-on-primary)] disabled:opacity-50"
           >

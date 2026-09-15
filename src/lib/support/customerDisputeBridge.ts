@@ -156,8 +156,9 @@ export async function syncCustomerDisputeToSupport(
     let disputeId: string | undefined;
 
     // Only open a formal support_disputes case (decision-owner routed,
-    // eligible for the DisputeChargebackEngine recovery path) when the
-    // customer actually claimed money against a specific transaction —
+    // eligible for a real ledger-posted refund/reversal via
+    // post_dispute_resolution) when the customer actually claimed money
+    // against a specific transaction —
     // e.g. ACCOUNT_RESTRICTION or a generic FEE_DISPUTE with no amount
     // doesn't need one; a human officer can still open one manually from
     // the ticket if it turns out to be warranted.

@@ -11,8 +11,9 @@
 //   • duplicates are detected before creation (surfaced, not auto-blocked);
 //   • every meaningful change appends an immutable support_events row (§51);
 //   • sensitive operations append a support_audit_log row (§52/§90);
-//   • financial decisions create recovery cases in DisputeChargebackEngine —
-//     Support NEVER touches balances directly (§31).
+//   • financial decisions post real, balanced double-entry ledger
+//     transactions via public.post_dispute_resolution() — Support decides,
+//     the database is the sole authority over balances (§31).
 //
 // This replaces the in-memory SupportOpsStore/SupportOpsEngine pair. Every
 // method below is async and reads/writes the hosted database directly —
@@ -46,7 +47,6 @@ import {
   ArticleLanguage,
 } from "@/types/supportOps";
 import { hasCapability, allowedEscalationDestinations, roleRank } from "./SupportPermissions";
-import { DisputeChargebackEngine } from "@/lib/recovery/DisputeChargebackEngine";
 import {
   listOfficers,
   getOfficerRow,
@@ -72,6 +72,9 @@ import {
   updateDisputeRow,
   nextDisputeNumber,
   disputeRowToDispute,
+  postDisputeResolution,
+  recordDisputeNonFinancialDecision,
+  type DisputeRow,
   listEscalationRows,
   getEscalationRow,
   insertEscalationRow,
@@ -799,13 +802,25 @@ export class SupportOpsEngine {
 
   /**
    * Financial decision (spec §29/§31): only decisionOwner-matched specialists
-   * or the Support Manager may decide. Approved refund/reversal creates a
-   * recovery case in the AUTHORITATIVE DisputeChargebackEngine — Support
-   * never writes balances.
+   * or the Support Manager may decide.
+   *
+   * REFUND_APPROVED / REVERSAL_APPROVED / PARTIAL_REFUND call the REAL
+   * SECURITY DEFINER function public.post_dispute_resolution() (migration
+   * 20260914000052), which re-derives the transaction's actual amount/
+   * currency/wallet from customer_transactions (never trusts this dispute
+   * row's claim_amount as authoritative), posts a balanced double-entry
+   * ledger transaction crediting the customer's wallet from the org's
+   * clearing/suspense account, and records the decision + a REAL
+   * recovery_case_reference directly on support_disputes — atomically, in
+   * the same database call. There is no separate in-memory recovery engine
+   * anymore; the ledger IS the recovery record.
+   *
+   * REJECTED / UNDER_INVESTIGATION (no money movement) go through the
+   * companion public.record_dispute_non_financial_decision() function.
    */
   async decideDispute(
     disputeId: string,
-    params: { type: DisputeDecisionType; reason: string },
+    params: { type: DisputeDecisionType; reason: string; partialAmount?: number },
     actor: SupportActor,
   ): Promise<EngineResult<SupportDispute & { recoveryCaseReference?: string }>> {
     if (!hasCapability(actor.role, "decide_dispute")) {
@@ -816,48 +831,62 @@ export class SupportOpsEngine {
     if (actor.role !== row.decision_owner && actor.role !== "SUPPORT_MANAGER" && actor.role !== "SUPER_ADMIN") {
       return { ok: false, code: "FORBIDDEN_DECISION_OWNER", error: `This dispute must be decided by ${row.decision_owner} (or the Support Manager).` };
     }
+    if (row.decision_type) {
+      return { ok: false, code: "DISPUTE_ALREADY_DECIDED", error: `This dispute already has a recorded decision (${row.decision_type}).` };
+    }
 
     const now = new Date().toISOString();
     let recoveryCaseReference: string | undefined;
+    let updatedRow: DisputeRow | null = null;
 
     const financial = ["REFUND_APPROVED", "REVERSAL_APPROVED", "PARTIAL_REFUND"].includes(params.type);
     if (financial) {
-      try {
-        const recovery = DisputeChargebackEngine.getInstance().createDispute({
-          transactionReference: row.transaction_reference,
-          claimantId: row.customer_id,
-          claimantName: row.customer_name,
-          claimantType: row.customer_id.startsWith("MCH") ? "MERCHANT" : row.customer_id.startsWith("AGT") ? "AGENT" : "CUSTOMER",
-          category:
-            row.category === "DUPLICATE" ? "DUPLICATE_CHARGE"
-            : row.category === "UNAUTHORIZED" ? "TRANSACTION_NOT_RECOGNIZED"
-            : row.category === "CHARGED_NOT_RECEIVED" ? "SERVICE_NOT_RECEIVED"
-            : row.category === "FAILED_TRANSACTION" ? "POS_CASH_DISPENSE_ERROR"
-            : "OTHER",
-          claimAmount: Number(row.claim_amount),
-          currency: row.currency,
-          priority: row.priority === "CRITICAL" ? "P0" : row.priority === "HIGH" || row.priority === "URGENT" ? "P1" : "P2",
-        });
-        recoveryCaseReference = recovery.disputeReference;
-      } catch {
-        return { ok: false, code: "RECOVERY_ENGINE_FAILURE", error: "The recovery engine could not accept the case. No balance was touched — retry." };
+      if (params.type === "PARTIAL_REFUND" && (!params.partialAmount || params.partialAmount <= 0)) {
+        return { ok: false, code: "PARTIAL_AMOUNT_REQUIRED", error: "A positive partial refund amount is required." };
       }
+      try {
+        const posting = await postDisputeResolution({
+          disputeId: row.id,
+          decisionType: params.type as "REFUND_APPROVED" | "REVERSAL_APPROVED" | "PARTIAL_REFUND",
+          officerId: actor.officerId,
+          reason: params.reason,
+          partialAmount: params.type === "PARTIAL_REFUND" ? params.partialAmount : null,
+        });
+        recoveryCaseReference = posting.recovery_reference;
+      } catch (e) {
+        return { ok: false, code: "LEDGER_POSTING_FAILED", error: `The ledger could not post this decision: ${e instanceof Error ? e.message : "unknown error"}. No balance was touched — retry or escalate.` };
+      }
+      // The RPC already wrote decision_type/status/recovery_case_reference/decided_at.
+      // Append the timeline entry separately since the SQL function doesn't touch it.
+      const refreshed = await getDisputeRow(row.id);
+      if (!refreshed) return { ok: false, code: "DISPUTE_NOT_FOUND", error: "Dispute vanished after posting." };
+      const timeline = ((refreshed.timeline as SupportDispute["timeline"]) || []).concat([
+        { label: `Decision: ${params.type} (recovery case ${recoveryCaseReference})`, detail: params.reason, by: actor.name, at: now },
+      ]);
+      updatedRow = await updateDisputeRow(row.id, { timeline });
+    } else {
+      try {
+        await recordDisputeNonFinancialDecision({
+          disputeId: row.id,
+          decisionType: params.type as "REJECTED" | "UNDER_INVESTIGATION",
+          officerId: actor.officerId,
+          reason: params.reason,
+        });
+      } catch (e) {
+        return { ok: false, code: "DECISION_WRITE_FAILED", error: e instanceof Error ? e.message : "Could not record the decision." };
+      }
+      const refreshed = await getDisputeRow(row.id);
+      if (!refreshed) return { ok: false, code: "DISPUTE_NOT_FOUND", error: "Dispute vanished after decision." };
+      const isFinal = params.type !== "UNDER_INVESTIGATION";
+      const timeline = ((refreshed.timeline as SupportDispute["timeline"]) || []).concat([
+        { label: `Decision: ${params.type}`, detail: params.reason, by: actor.name, at: now },
+      ]);
+      updatedRow = await updateDisputeRow(row.id, {
+        resolved_at: isFinal && params.type === "REJECTED" ? now : refreshed.resolved_at,
+        timeline,
+      });
     }
-
-    const isFinal = params.type !== "UNDER_INVESTIGATION";
-    const timeline = ((row.timeline as SupportDispute["timeline"]) || []).concat([
-      { label: `Decision: ${params.type}${recoveryCaseReference ? ` (recovery case ${recoveryCaseReference})` : ""}`, detail: params.reason, by: actor.name, at: now },
-    ]);
-    const updated = await updateDisputeRow(row.id, {
-      decision_type: params.type,
-      decided_by_officer_id: actor.officerId,
-      decision_reason: params.reason,
-      decided_at: now,
-      status: isFinal ? (params.type === "REJECTED" || params.type === "UNDER_INVESTIGATION" ? "DECISION" : "RESOLVED") : "UNDER_REVIEW",
-      resolved_at: isFinal && params.type !== "REJECTED" ? now : null,
-      recovery_case_reference: recoveryCaseReference ?? row.recovery_case_reference,
-      timeline,
-    });
+    const updated = updatedRow;
     if (!updated) return { ok: false, code: "DISPUTE_NOT_FOUND", error: "Dispute vanished." };
 
     await insertEventRow({
@@ -875,7 +904,7 @@ export class SupportOpsEngine {
       action: `DISPUTE_DECISION_${params.type.replace("_APPROVED", "")}`,
       entity_type: "SUPPORT_DISPUTE",
       entity_id: row.id,
-      details: `${row.dispute_number}: ${params.type}. ${params.reason}${recoveryCaseReference ? ` Recovery case ${recoveryCaseReference} created in the authoritative recovery engine.` : ""}`,
+      details: `${row.dispute_number}: ${params.type}. ${params.reason}${recoveryCaseReference ? ` Posted to the ledger as ${recoveryCaseReference}.` : ""}`,
       jurisdiction: row.jurisdiction,
     });
     await insertNotificationRow({

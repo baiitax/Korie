@@ -3279,7 +3279,9 @@ export const ha = {
       recoveryCase: "Aikin dawowa",
       noRecoveryCase: "Har yanzu babu aikin dawowa",
       addDecision: "Rubuta zabu",
-      decisionNote: "Zabun ya gama don wannan ƙonni kuma ana daidaita shi zuwa injin dawowa ga kuskure.",
+      partialAmount: "Adadin da za a mayar",
+      partialAmountInvalid: "Shigar da adadi mafi girma da 0 kuma bai wuce adadin ƙarar ba.",
+      decisionNote: "Zabun ƙarshe ne don wannan ƙonni. Mayarwa da sokewa suna aiwatar da ainihin rikodin lissafi mai daidaito wanda ke ba wa asusun abokin ciniki kuɗi nan take.",
       statusLabels: {
         OPEN: "A buɗe",
         UNDER_REVIEW: "Ana duba shi",

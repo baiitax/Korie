@@ -31,18 +31,23 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
 /**
  * PATCH /api/support/disputes/[id]
- * { status }                        → advance the workflow (RBAC update_dispute)
- * { decision: { type, reason } }    → financial decision (RBAC decide_dispute +
- *                                     decisionOwner match). Approved
- *                                     refund/reversal creates the recovery case
- *                                     in the authoritative recovery engine —
- *                                     Support never touches balances (§31).
+ * { status }                                            → advance the workflow (RBAC update_dispute)
+ * { decision: { type, reason, partialAmount? } }        → financial decision (RBAC decide_dispute +
+ *                                                          decisionOwner match). REFUND_APPROVED /
+ *                                                          REVERSAL_APPROVED / PARTIAL_REFUND post a
+ *                                                          real, balanced double-entry ledger
+ *                                                          transaction crediting the customer's wallet
+ *                                                          (public.post_dispute_resolution) — Support
+ *                                                          decides, the database is the sole authority
+ *                                                          over balances (§31). partialAmount is
+ *                                                          required for PARTIAL_REFUND and is capped
+ *                                                          server-side at the transaction's amount+fee.
  */
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const access = await requireSupportAccess(req, "support:write");
   if (!access.ok) return access.response;
 
-  let body: { status?: DisputeStatus; detail?: string; decision?: { type: DisputeDecisionType; reason: string } };
+  let body: { status?: DisputeStatus; detail?: string; decision?: { type: DisputeDecisionType; reason: string; partialAmount?: number } };
   try {
     body = await req.json();
   } catch {
@@ -55,10 +60,17 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (!body.decision.type || !body.decision.reason) {
       return operationalError("VALIDATION_FAILED", "decision.type and decision.reason are required.", 422, access.ctx.requestId);
     }
+    if (body.decision.type === "PARTIAL_REFUND" && !(Number(body.decision.partialAmount) > 0)) {
+      return operationalError("VALIDATION_FAILED", "A positive partialAmount is required for PARTIAL_REFUND.", 422, access.ctx.requestId);
+    }
     const result = await engine.decideDispute(params.id, body.decision, access.ctx.actor);
     if (!result.ok) {
       return operationalError(result.code ?? "DECISION_FAILED", result.error ?? "Decision not recorded.",
-        result.code === "FORBIDDEN" || result.code === "FORBIDDEN_DECISION_OWNER" ? 403 : result.code === "RECOVERY_ENGINE_FAILURE" ? 502 : 404,
+        result.code === "FORBIDDEN" || result.code === "FORBIDDEN_DECISION_OWNER" ? 403
+          : result.code === "DISPUTE_ALREADY_DECIDED" ? 409
+          : result.code === "LEDGER_POSTING_FAILED" ? 502
+          : result.code === "PARTIAL_AMOUNT_REQUIRED" ? 422
+          : 404,
         access.ctx.requestId);
     }
     return createSuccessResponse({ dispute: result.data }, { requestId: access.ctx.requestId, code: "DISPUTE_DECIDED" });

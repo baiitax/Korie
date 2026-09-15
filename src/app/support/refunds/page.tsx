@@ -4,11 +4,12 @@
 // File: src/app/support/refunds/page.tsx
 // Description: Refunds & Reversals (spec §31).
 //
-// Two real sources, clearly labelled:
-//   1. Support disputes carrying financial decisions (this portal's records).
-//   2. Recovery cases from DisputeChargebackEngine — the AUTHORITATIVE
-//      execution state. Support only ever requests; it never executes and
-//      never touches balances.
+// Two views of the same real data, clearly labelled:
+//   1. Support disputes carrying financial decisions (support_disputes rows).
+//   2. Recovery cases — those same decided disputes annotated with what the
+//      real ledger_transactions posting (public.post_dispute_resolution)
+//      actually recorded. Support decides; the database posts and is the
+//      sole authority over balances.
 // =============================================================================
 
 import React, { useCallback, useEffect, useState } from "react";

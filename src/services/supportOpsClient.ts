@@ -474,7 +474,7 @@ export const supportOps = {
       { method: "GET" },
     ),
 
-  decideDispute: (id: string, decision: { type: string; reason: string }) =>
+  decideDispute: (id: string, decision: { type: string; reason: string; partialAmount?: number }) =>
     supportFetch<{ dispute: DisputeDto }>(
       `/api/support/disputes/${encodeURIComponent(id)}`,
       { method: "PATCH", body: JSON.stringify({ decision }) },

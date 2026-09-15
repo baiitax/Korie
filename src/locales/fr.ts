@@ -3294,7 +3294,9 @@ export const fr = {
       recoveryCase: "Dossier de récupération",
       noRecoveryCase: "Pas encore de dossier de récupération",
       addDecision: "Enregistrer la décision",
-      decisionNote: "La décision est définitive et est transmise au moteur de récupération pour les remboursements.",
+      partialAmount: "Montant du remboursement",
+      partialAmountInvalid: "Saisissez un montant supérieur à 0 et ne dépassant pas le montant de la réclamation.",
+      decisionNote: "La décision est définitive pour ce litige. Les remboursements et les annulations enregistrent une véritable écriture comptable équilibrée qui crédite immédiatement le portefeuille du client.",
       statusLabels: {
         OPEN: "Ouvert",
         UNDER_REVIEW: "En examen",
