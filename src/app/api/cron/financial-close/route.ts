@@ -7,11 +7,15 @@ export const dynamic = "force-dynamic";
  * GET /api/cron/financial-close
  *
  * Scheduled entry point for the automated daily financial close (blocker B9).
- * Runs `run_daily_financial_close(p_close_date, p_closed_by)` on the ledger,
- * which verifies the accounting equation per currency, checks balance
- * drift / wallet sync / custodial floors / clearing ageing / commission
- * ageing / orphan journals, and writes (idempotently) a row into
- * daily_financial_closes with a full metrics breakdown.
+ * First runs `run_aggregator_reconciliation(p_reconciliation_date)` so the
+ * day's aggregator recon rows exist (honest statuses: MATCHED computed from
+ * both sides, PENDING_REVIEW when a bank statement has not been ingested),
+ * then runs `run_daily_financial_close(p_close_date, p_closed_by)` on the
+ * ledger, which verifies the accounting equation per currency, checks
+ * balance drift / wallet sync / custodial floors / clearing ageing /
+ * commission ageing / orphan journals / aggregator recon exceptions, and
+ * writes (idempotently) a row into daily_financial_closes with a full
+ * metrics breakdown.
  *
  * Schedule (vercel.json): 0 22 * * * — 22:00 UTC = 23:00 WAT, so the close
  * captures the full West-Africa day before midnight.
@@ -20,9 +24,11 @@ export const dynamic = "force-dynamic";
  * must match the CRON_SECRET environment variable. Without the variable
  * configured the endpoint refuses to run — it never opens unauthenticated.
  *
- * Optional query: ?date=YYYY-MM-DD to (re)run the close for a past date —
- * the close is idempotent (delete-then-insert per date), so re-running a day
- * simply replaces that day's close row.
+ * Optional query: ?date=YYYY-MM-DD to (re)run the recon + close for a past
+ * date — both functions are idempotent per date (the recon upserts per
+ * aggregator/currency; the close is delete-then-insert per date), so
+ * re-running a day simply refreshes that day's rows. A recon row already
+ * RESOLVED by an investigator is never reopened.
  */
 export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
@@ -67,6 +73,14 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // Reconcile first: the close must see the day's aggregator recon rows so
+    // aged PENDING_REVIEW / open MISMATCH items count as exceptions.
+    const { error: reconError } = await admin.rpc("run_aggregator_reconciliation", {
+      p_reconciliation_date: closeDate,
+      p_run_by: "cron",
+    });
+    if (reconError) throw reconError;
+
     const { data: close, error } = await admin.rpc("run_daily_financial_close", {
       p_close_date: closeDate,
       p_closed_by: "cron",

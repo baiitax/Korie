@@ -187,6 +187,23 @@ export const RESOURCES: Record<string, ResourceDef> = {
       kyb_status: { column: "kyb_status", op: "eq" },
     },
   },
+  "aggregator-reconciliations": {
+    // Daily three-way recon rows written by run_aggregator_reconciliation
+    // (migration 000056). Nullable bank/gateway totals mean "external data
+    // not ingested yet" — a PENDING_REVIEW row is awaiting a bank statement,
+    // never an assertion that the bank said zero.
+    table: "aggregator_reconciliations",
+    orderBy: "reconciliation_date",
+    asc: false,
+    select:
+      "id, aggregator_id, reconciliation_date, currency, channel_or_entity, provider_node, internal_ledger_total, provider_gateway_total, bank_settled_total, variance_amount, status, discrepancy_count, notes, created_at, resolved_at",
+    search: ["channel_or_entity", "provider_node"],
+    filters: {
+      status: { column: "status", op: "eq" },
+      currency: { column: "currency", op: "eq" },
+      aggregator_id: { column: "aggregator_id", op: "eq" },
+    },
+  },
 
   /* ── Merchants / partners / businesses ───────────────────────────── */
   "partners": {
