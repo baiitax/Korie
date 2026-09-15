@@ -26,7 +26,8 @@ export type ResourceApiError =
   | { kind: "not-found" }
   | { kind: "query-failed"; message: string }
   | { kind: "mutation-not-allowed" }
-  | { kind: "invalid-body"; message: string };
+  | { kind: "invalid-body"; message: string }
+  | { kind: "self-approval-blocked"; message: string };
 
 function getAdmin() {
   try {
@@ -191,6 +192,25 @@ export async function patchResource(
     .eq("id", id)
     .maybeSingle();
   if (fetchErr || !before) return { error: { kind: "not-found" } };
+
+  // Segregation-of-duties: block the maker from also being the checker.
+  // Declared per-resource (resourceRegistry.ts) rather than assumed, since
+  // most resources here are plain case-management records with no
+  // requester/approver split — only ones that model a real maker-checker
+  // workflow (e.g. pam-requests) carry this guard.
+  const guard = def.mutations.selfApprovalGuard;
+  if (guard && typeof patch.status === "string" && guard.approvalStatuses.includes(patch.status)) {
+    const requester = String((before as Record<string, unknown>)[guard.requesterColumn] ?? "").toLowerCase();
+    const approver = (actor.email ?? "").toLowerCase();
+    if (requester && approver && requester === approver) {
+      return {
+        error: {
+          kind: "self-approval-blocked",
+          message: "You requested this — a different reviewer must approve it (segregation of duties).",
+        },
+      };
+    }
+  }
 
   const { data: updated, error: updateErr } = await table.update(patch).eq("id", id).select().single();
   if (updateErr || !updated) return { error: { kind: "query-failed", message: updateErr?.message ?? "Update failed." } };

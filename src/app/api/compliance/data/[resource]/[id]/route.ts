@@ -99,10 +99,12 @@ export async function PATCH(
     const status =
       result.error.kind === "not-found" ? 404 :
       result.error.kind === "mutation-not-allowed" ? 403 :
+      result.error.kind === "self-approval-blocked" ? 409 :
       result.error.kind === "invalid-body" ? 400 : 400;
     const code =
       result.error.kind === "not-found" ? "NOT_FOUND" :
       result.error.kind === "mutation-not-allowed" ? "MUTATION_NOT_ALLOWED" :
+      result.error.kind === "self-approval-blocked" ? "SELF_APPROVAL_BLOCKED" :
       result.error.kind === "invalid-body" ? "INVALID_BODY" : "MUTATION_FAILED";
     const message = "message" in result.error ? result.error.message : result.error.kind;
     return NextResponse.json({ status: "error", error: { code, message } }, { status });

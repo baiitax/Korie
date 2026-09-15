@@ -23,6 +23,20 @@ export interface ResourceFilterDef {
 export interface ResourceMutationDef {
   /** Columns a PATCH may set. */
   columns: string[];
+  /**
+   * Segregation-of-duties guard: when a PATCH is about to move `status`
+   * into one of `approvalStatuses` (e.g. approving a request), the actor's
+   * verified email may not match the value already stored in
+   * `requesterColumn` on the row being patched. Declarative so every
+   * resource that models a maker-checker workflow through this generic
+   * mutation path gets the same server-enforced check — approval UI copy
+   * that claims "the requester cannot be the checker" must be backed by
+   * this, not by trusting the client.
+   */
+  selfApprovalGuard?: {
+    requesterColumn: string;
+    approvalStatuses: string[];
+  };
 }
 
 export interface ResourceDef {
@@ -681,7 +695,16 @@ export const RESOURCES: Record<string, ResourceDef> = {
     filters: {
       status: { column: "status", op: "eq" },
     },
-    mutations: { columns: ["status", "checker_email", "decided_at"] },
+    mutations: {
+      columns: ["status", "checker_email", "decided_at"],
+      // The compliance approvals UI (src/app/compliance/approvals/page.tsx)
+      // tells officers this is enforced server-side — it previously was
+      // not: the generic patchResource() path had no idea this table
+      // models a maker-checker workflow, so any COMPLIANCE_WRITE_ROLE
+      // holder could PATCH status:"APPROVED" on their own
+      // requester_email row. Fixed by making patchResource() consult this.
+      selfApprovalGuard: { requesterColumn: "requester_email", approvalStatuses: ["APPROVED"] },
+    },
   },
 
   /* ── Support ─────────────────────────────────────────────────────── */

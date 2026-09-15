@@ -239,22 +239,29 @@ export async function approvePamRequest(id: string, checkerEmail: string): Promi
   const res = await patch(`/api/compliance/data/pam-requests/${encodeURIComponent(id)}`, { status: 'APPROVED' });
   clearComplianceCacheAfterWrite();
   if (!res.ok) {
-    const code = typeof res.payload?.error === 'string' ? res.payload.error : `HTTP_${res.status || 'NETWORK'}`;
+    // The route returns { error: { code, message } } (an object), not a
+    // bare string — this previously read res.payload?.error as a string,
+    // which is never true for this shape, so every failure here silently
+    // fell back to a generic "HTTP_<status>" code and the SoD-specific
+    // copy below never actually matched a real response.
+    const errObj = res.payload?.error;
+    const code = typeof errObj === 'string' ? errObj : typeof errObj?.code === 'string' ? errObj.code : `HTTP_${res.status || 'NETWORK'}`;
+    const serverMessage = typeof errObj === 'object' && typeof errObj?.message === 'string' ? errObj.message : undefined;
+    const isSelfApproval = code === 'SELF_APPROVAL_BLOCKED' || code.startsWith('SEPARATION_OF_DUTIES') || code.startsWith('SEGREGATION_OF_DUTIES');
     return {
       ok: false,
       recorded: false,
       source: 'live',
       error: {
         code,
-        message: code.startsWith('SEPARATION_OF_DUTIES')
+        message: isSelfApproval
           ? 'The compliance service rejected this: the requester cannot be the checker.'
-          : code === 'REQUEST_NOT_FOUND'
+          : code === 'NOT_FOUND'
             ? 'That request is no longer in the privileged-access register.'
-            : 'The privileged-access service refused the approval.',
-        hint:
-          code.startsWith('SEPARATION_OF_DUTIES')
-            ? 'Sign in as a different officer, or have the named checker approve it from their own session.'
-            : 'Confirm the request id, then retry once.',
+            : serverMessage ?? 'The privileged-access service refused the approval.',
+        hint: isSelfApproval
+          ? 'Sign in as a different officer, or have the named checker approve it from their own session.'
+          : 'Confirm the request id, then retry once.',
       },
     };
   }

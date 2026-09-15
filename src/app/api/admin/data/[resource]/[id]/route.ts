@@ -158,6 +158,30 @@ export async function PATCH(
     );
   }
 
+  // Segregation-of-duties: this generic admin mutation path shares the
+  // resource registry with the compliance data plane (src/lib/admin/
+  // resourceApi.ts), which enforces the same declarative guard — a
+  // resource with `mutations.selfApprovalGuard` (currently pam-requests)
+  // must not let an admin approve a request they themselves made, even
+  // though ADMIN_ROLES is a broader role set than compliance's.
+  const guard = def.mutations.selfApprovalGuard;
+  if (guard && typeof patch.status === "string" && guard.approvalStatuses.includes(patch.status)) {
+    const requester = String((before as Record<string, unknown>)[guard.requesterColumn] ?? "").toLowerCase();
+    const approver = (auth.email ?? "").toLowerCase();
+    if (requester && approver && requester === approver) {
+      return NextResponse.json(
+        {
+          status: "error",
+          error: {
+            code: "SELF_APPROVAL_BLOCKED",
+            message: "You requested this — a different reviewer must approve it (segregation of duties).",
+          },
+        },
+        { status: 409 },
+      );
+    }
+  }
+
   const { data: updated, error: updateErr } = await table
     .update(patch)
     .eq("id", params.id)
