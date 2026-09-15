@@ -5,7 +5,15 @@ import {
   RiskRuleHit, 
   RiskBand 
 } from '@/types/riskEngine';
-import { DoubleEntryLedgerEngine } from '../financial/DoubleEntryLedgerEngine';
+// NOTE: this used to import DoubleEntryLedgerEngine, but never actually
+// called it — the import was dead weight. Removed as part of deleting the
+// orphaned DoubleEntryLedgerEngine.ts (unreachable from any live route; the
+// real ledger invariant is enforced by a Postgres trigger on
+// ledger_transactions/ledger_entries, not this in-memory class). This file
+// itself IS live (reachable via RiskDecisionEngine from the compliance
+// portal's "run risk evaluation" action), but its createCase/createHold
+// side effects remain in-memory-only and have no real blocking effect on
+// any transaction — see the module-level note below.
 
 export class FraudCaseManagementEngine {
   private static cases: Map<string, FraudCaseRecord> = new Map();
