@@ -17,6 +17,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import { agencyApiFetch } from '@/lib/agency/agentSession';
+import { useIdempotencyKeyMap } from '@/lib/idempotency/useIdempotencyKey';
 
 interface AdashiProductSummary {
   id: string;
@@ -96,6 +97,10 @@ export default function AgentAdashiPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
+  // Per-obligation stable key: minted once per obligation, reused across
+  // retries of collecting THAT SAME obligation.
+  const { getKey: getObligationCollectKey, reset: resetObligationCollectKey } =
+    useIdempotencyKeyMap('idemp-agent');
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createForm, setCreateForm] = useState({ productId: '', groupName: '', targetMembers: 6 });
@@ -207,13 +212,17 @@ export default function AgentAdashiPage() {
   const handleStartGroup = () =>
     selectedGroupId && runAction(() => agencyApiFetch(`/api/v1/agency/adashi/groups/${selectedGroupId}/start`, { method: 'POST' }));
 
-  const handleCollectObligation = (obligationId: string) =>
-    runAction(() =>
+  const handleCollectObligation = async (obligationId: string) => {
+    const ok = await runAction(() =>
       agencyApiFetch(`/api/v1/agency/adashi/obligations/${obligationId}/collect`, {
         method: 'POST',
-        headers: { 'idempotency-key': `idemp-agent-${obligationId}-${Date.now()}` },
+        headers: { 'idempotency-key': getObligationCollectKey(obligationId) },
       }),
     );
+    // Obligation is now collected — free the key so a future, unrelated
+    // action on this same obligation id can never collide with it.
+    if (ok) resetObligationCollectKey(obligationId);
+  };
 
   const handleTriggerPayout = (cycleId: string) =>
     runAction(() => agencyApiFetch(`/api/v1/agency/adashi/cycles/${cycleId}/payout`, { method: 'POST' }));

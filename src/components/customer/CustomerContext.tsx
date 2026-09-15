@@ -37,6 +37,16 @@ interface TransferExecutionParams {
   destinationCurrency?: CustomerCurrency;
   description?: string;
   isCrossBorder?: boolean;
+  /**
+   * Caller-supplied idempotency key for THIS attempt. Must be minted once
+   * per user intent (e.g. via `useIdempotencyKey` when the confirm/review
+   * screen opens) and reused across retries of the same attempt — never
+   * regenerated per network call, or a double-click / manual retry can
+   * post two real transfers past the backend's UNIQUE(customer_id,
+   * idempotency_key) dedup. Falls back to a fresh key only for legacy
+   * call sites that haven't been migrated yet.
+   */
+  idempotencyKey?: string;
 }
 
 /** Server-side history filters (mirrors parseTransactionQueryParams). */
@@ -151,6 +161,7 @@ interface CustomerContextType {
     fromCurrency: CustomerCurrency;
     toCurrency: CustomerCurrency;
     fromAmount: number;
+    idempotencyKey?: string;
   }) => Promise<{
     success: boolean;
     swap?: { fromAmount: number; toAmount: number; fromCurrency: string; toCurrency: string; reference: string };
@@ -575,11 +586,18 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
 
       // Idempotency: one key per user intent, reused across retries of THIS
       // submit, so a double-click or a retry after a timeout cannot create two
-      // transfers. (Server-side persistence is tracked in the integration plan.)
+      // transfers. The key MUST come from the caller (minted once, e.g. via
+      // `useIdempotencyKey`, when the review/confirm screen opened) — a key
+      // generated fresh in here on every call would defeat the backend's
+      // UNIQUE(customer_id, idempotency_key) dedup entirely. The inline
+      // fallback only protects legacy callers that haven't passed one yet.
+      const idempotencyKey =
+        params.idempotencyKey || `cust-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      const { idempotencyKey: _omit, ...transferParams } = params;
       const res = await portalFetch("/api/customer/portal/transfer", {
         method: "POST",
-        headers: { "Idempotency-Key": `cust-${Date.now()}-${Math.random().toString(36).slice(2, 10)}` },
-        body: JSON.stringify({ ...params }),
+        headers: { "Idempotency-Key": idempotencyKey },
+        body: JSON.stringify({ ...transferParams }),
       });
       const json = await res.json().catch(() => undefined);
       if (!res.ok) {
@@ -616,16 +634,27 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
    * error message returned here is the real, specific reason.
    */
   const executeFxSwap = useCallback(
-    async (params: { fromCurrency: CustomerCurrency; toCurrency: CustomerCurrency; fromAmount: number }) => {
+    async (params: {
+      fromCurrency: CustomerCurrency;
+      toCurrency: CustomerCurrency;
+      fromAmount: number;
+      /** Minted once per attempt by the caller (see `useIdempotencyKey`); reused across retries. */
+      idempotencyKey?: string;
+    }) => {
       if (isOffline) {
         return { success: false, error: "You're offline. We didn't run the swap — nothing moved." };
       }
       if (!params.fromAmount || params.fromAmount <= 0) return { success: false, error: "Enter a valid amount." };
 
+      // Same rule as executeTransfer: the key must be caller-supplied and
+      // stable across retries of one attempt, never regenerated per call.
+      const idempotencyKey =
+        params.idempotencyKey || `cust-fx-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      const { idempotencyKey: _omit, ...swapParams } = params;
       const res = await portalFetch("/api/customer/portal/fx/swap", {
         method: "POST",
-        headers: { "Idempotency-Key": `cust-fx-${Date.now()}-${Math.random().toString(36).slice(2, 10)}` },
-        body: JSON.stringify({ ...params }),
+        headers: { "Idempotency-Key": idempotencyKey },
+        body: JSON.stringify({ ...swapParams }),
       });
       const json = await res.json().catch(() => undefined);
       if (!res.ok) {

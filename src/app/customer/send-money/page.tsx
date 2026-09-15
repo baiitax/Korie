@@ -4,6 +4,7 @@ import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import AmountInput from "@/components/customer/ui/AmountInput";
 import { useCustomer } from "@/components/customer/CustomerContext";
+import { useIdempotencyKey } from "@/lib/idempotency/useIdempotencyKey";
 import PinModal from "@/components/customer/ui/PinModal";
 import { DataEmptyState, DataErrorState } from "@/components/customer/ui/CustomerStateViews";
 import { KpaySectionLoader } from "@/components/loading";
@@ -74,6 +75,11 @@ export default function SendMoneyPage() {
   const [isExecuting, setIsExecuting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [completedTx, setCompletedTx] = useState<CustomerTransaction | null>(null);
+  // Minted once when this transfer attempt is confirmed, reused across any
+  // retry of THIS attempt (double-click, modal reopen). Reset on success or
+  // when the customer restarts the form for a new transfer.
+  const { getKey: getTransferIdempotencyKey, reset: resetTransferIdempotencyKey } =
+    useIdempotencyKey("cust-xfer");
 
   // `wallets` is empty while the portal is loading and stays empty when the
   // profile has no linked account. Every wallet-derived value below assumes a
@@ -172,9 +178,15 @@ export default function SendMoneyPage() {
       destinationCurrency: destCurrency,
       description,
       isCrossBorder,
+      idempotencyKey: getTransferIdempotencyKey(),
     });
 
     setIsExecuting(false);
+    // A terminal outcome ends this attempt: on success the transfer is done
+    // and a retry must never reuse this key; on failure the customer sees
+    // the review screen again and can genuinely retry the SAME attempt, so
+    // the key is deliberately NOT reset here — only on success or restart.
+    if (result.success) resetTransferIdempotencyKey();
     // The loader is dismissed in the same tick as the real outcome. It used to
     // sit on a `setTimeout(800)` after the response landed, which only made the
     // UI look busy for no reason.
@@ -415,11 +427,20 @@ export default function SendMoneyPage() {
             </div>
 
             <div className="flex items-center gap-3 pt-2">
-              <button type="button" onClick={() => setStep(1)} className="w-1/2 py-3.5 rounded-2xl bg-[var(--surface)] hover:bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground)] font-semibold text-xs transition-colors">
+              <button
+                type="button"
+                onClick={() => { resetTransferIdempotencyKey(); setStep(1); }}
+                className="w-1/2 py-3.5 rounded-2xl bg-[var(--surface)] hover:bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground)] font-semibold text-xs transition-colors"
+              >
                 {t("common.back")}
               </button>
-              <button type="button" onClick={() => setIsPinModalOpen(true)} className="w-1/2 py-3.5 rounded-2xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-on-primary)] font-bold text-xs transition-colors shadow-[var(--shadow-md)]">
-                {t("transfers.confirmTransfer")}
+              <button
+                type="button"
+                disabled={isExecuting}
+                onClick={() => setIsPinModalOpen(true)}
+                className="w-1/2 py-3.5 rounded-2xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-on-primary)] font-bold text-xs transition-colors shadow-[var(--shadow-md)] disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {isExecuting ? "Processing..." : t("transfers.confirmTransfer")}
               </button>
             </div>
           </div>

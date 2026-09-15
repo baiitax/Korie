@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useCustomer } from "@/components/customer/CustomerContext";
 import AmountInput from "@/components/customer/ui/AmountInput";
+import { useIdempotencyKey } from "@/lib/idempotency/useIdempotencyKey";
 import PinModal from "@/components/customer/ui/PinModal";
 import ComingSoonServiceCard from "@/components/customer/ui/ComingSoonCard";
 import { formatMoney } from "@/lib/money";
@@ -19,6 +20,11 @@ export default function CustomerPaymentsPage() {
   const [isPaid, setIsPaid] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Minted once when the PIN modal is opened for this payment, reused across
+  // any retry of the SAME attempt; reset on success or when the amount is
+  // edited so a changed amount is never coalesced with a stale key.
+  const { getKey: getPaymentIdempotencyKey, reset: resetPaymentIdempotencyKey } =
+    useIdempotencyKey("cust-qr");
 
   const handlePay = (e: React.FormEvent) => { e.preventDefault(); setIsPinOpen(true); };
 
@@ -35,13 +41,18 @@ export default function CustomerPaymentsPage() {
       amount: parsed,
       currency: activeWallet!.currency,
       description: "In-store QR checkout payment",
+      idempotencyKey: getPaymentIdempotencyKey(),
     });
     setBusy(false);
     // Success is only claimed when the engine returned a transaction. The old
     // code called setIsPaid(true) after an un-awaited executeTransfer, which
     // told the customer a payment had settled when it may have failed.
-    if (result.success && result.transaction) setIsPaid(true);
-    else setError(result.error || t("customer.payments.failed"));
+    if (result.success && result.transaction) {
+      setIsPaid(true);
+      resetPaymentIdempotencyKey();
+    } else {
+      setError(result.error || t("customer.payments.failed"));
+    }
   };
 
   if (!enabled) {

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAgent } from "@/components/agent/AgentContext";
 import { LiquidityAmount } from "@/components/agent/ui/LiquidityAmount";
 import { useTransactionQuote } from "@/lib/agency/useTransactionQuote";
+import { useIdempotencyKey } from "@/lib/idempotency/useIdempotencyKey";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -36,6 +37,9 @@ export default function AgentCashOutPage() {
 
   const [isExecuting, setIsExecuting] = useState(false);
   const [executionError, setExecutionError] = useState<string | null>(null);
+  // Minted once per submit attempt, reused across retries of the SAME attempt.
+  const { getKey: getCashOutIdempotencyKey, reset: resetCashOutIdempotencyKey } =
+    useIdempotencyKey("agent-cashout");
 
   const parsedAmount = parseFloat(amount) || 0;
   const { quote, isLoading: isQuoteLoading } = useTransactionQuote("CASH_OUT", "NGN", parsedAmount);
@@ -76,11 +80,13 @@ export default function AgentCashOutPage() {
       customerAccount: accountNumber,
       customerBank: CASH_OUT_SOURCE,
       amount: parsedAmount,
+      idempotencyKey: getCashOutIdempotencyKey(),
     });
 
     setIsExecuting(false);
 
     if (result.success && result.transaction) {
+      resetCashOutIdempotencyKey();
       openReceipt(result.transaction);
       setAccountNumber("");
       setCustomerName("");

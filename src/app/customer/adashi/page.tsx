@@ -8,6 +8,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useCustomer } from '@/components/customer/CustomerContext';
 import { customerApiFetch } from '@/lib/customer/customerSession';
+import { useIdempotencyKeyMap } from '@/lib/idempotency/useIdempotencyKey';
 import {
   CheckCircle2,
   RefreshCw,
@@ -61,6 +62,10 @@ export default function CustomerAdashiHub() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  // Per-obligation stable idempotency key: minted once per obligation, reused
+  // across retries of paying that SAME obligation, reset once it's paid.
+  const { getKey: getObligationIdempotencyKey, reset: resetObligationIdempotencyKey } =
+    useIdempotencyKeyMap('idemp-cust');
 
   const fetchGroups = useCallback(async () => {
     try {
@@ -123,13 +128,19 @@ export default function CustomerAdashiHub() {
     try {
       setBusy(true);
       setMessage(null);
+      // Stable per-obligation key: a double-click or a manual retry of the
+      // SAME obligation payment reuses this key so the backend's
+      // UNIQUE(customer_id, idempotency_key) dedup actually catches it.
       const res = await customerApiFetch(`/api/customer/portal/adashi/obligations/${obligationId}/pay`, {
         method: 'POST',
-        headers: { 'idempotency-key': `idemp-cust-${obligationId}-${Date.now()}` },
+        headers: { 'idempotency-key': getObligationIdempotencyKey(obligationId) },
       });
       const data = await res.json();
       if (res.ok) {
         setMessage({ ok: true, text: data.message || t('customer.adashi.paySuccess') });
+        // Obligation is now PAID — free the key so a future, unrelated
+        // action on this same obligation id can never collide with it.
+        resetObligationIdempotencyKey(obligationId);
         if (selectedGroupId) fetchDetails(selectedGroupId);
       } else {
         setMessage({ ok: false, text: data.error?.message || t('customer.adashi.payFailed') });

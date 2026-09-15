@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAgent } from "@/components/agent/AgentContext";
 import { LiquidityAmount } from "@/components/agent/ui/LiquidityAmount";
 import { useTransactionQuote } from "@/lib/agency/useTransactionQuote";
+import { useIdempotencyKey } from "@/lib/idempotency/useIdempotencyKey";
 import { BANK_DIRECTORY } from "@/services/customerDataService";
 import {
   ArrowLeft,
@@ -29,6 +30,11 @@ export default function AgentCashInPage() {
 
   const [isExecuting, setIsExecuting] = useState(false);
   const [executionError, setExecutionError] = useState<string | null>(null);
+  // Minted once per submit attempt, reused across retries of the SAME
+  // attempt; reset on success (button is also disabled by isExecuting, so
+  // this only matters for a manual retry after a failure).
+  const { getKey: getCashInIdempotencyKey, reset: resetCashInIdempotencyKey } =
+    useIdempotencyKey("agent-cashin");
 
   const selectedBank = BANK_DIRECTORY.find((b) => b.code === bankCode) || BANK_DIRECTORY[0];
   const parsedAmount = parseFloat(amount) || 0;
@@ -68,11 +74,13 @@ export default function AgentCashInPage() {
       customerBank: selectedBank.name,
       customerPhone,
       amount: parsedAmount,
+      idempotencyKey: getCashInIdempotencyKey(),
     });
 
     setIsExecuting(false);
 
     if (result.success && result.transaction) {
+      resetCashInIdempotencyKey();
       openReceipt(result.transaction);
       setAccountNumber("");
       setCustomerName("");

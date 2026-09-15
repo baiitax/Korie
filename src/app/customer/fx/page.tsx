@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useCustomer } from "@/components/customer/CustomerContext";
+import { useIdempotencyKey } from "@/lib/idempotency/useIdempotencyKey";
 import AmountInput from "@/components/customer/ui/AmountInput";
 import { FX_RATES } from "@/services/customerDataService";
 import { formatMoney } from "@/lib/money";
@@ -34,11 +35,24 @@ export default function CustomerFxPage() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [swapResult, setSwapResult] = useState<{ from: string; to: string; reference: string } | null>(null);
+  // Minted once per swap attempt, reused across retries of the SAME attempt.
+  // Reset on success and whenever the amount changes, so editing the amount
+  // after a failed attempt is treated as a new intent, not a retry of the
+  // old one (which would otherwise coalesce onto the old key at the DB layer).
+  const { getKey: getSwapIdempotencyKey, reset: resetSwapIdempotencyKey } = useIdempotencyKey("cust-fx");
 
   useEffect(() => {
     const timer = setInterval(() => setCountdown((p) => (p <= 1 ? 60 : p - 1)), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Any change to the swap's actual parameters after a failed attempt is a
+  // NEW intent, not a retry of the old one — mint a fresh key so it can
+  // never coalesce onto a stale idempotency key at the DB layer.
+  useEffect(() => {
+    resetSwapIdempotencyKey();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromCurrency, toCurrency, fromAmount]);
 
   // Prefer the engine's real execution rate (single source of truth); fall back
   // to the catalog quote only for pairs the engine does not serve (e.g. USD).
@@ -68,7 +82,12 @@ export default function CustomerFxPage() {
     setSubmitting(true);
     setFormError(null);
 
-    const result = await executeFxSwap({ fromCurrency, toCurrency, fromAmount: parsedFromAmount });
+    const result = await executeFxSwap({
+      fromCurrency,
+      toCurrency,
+      fromAmount: parsedFromAmount,
+      idempotencyKey: getSwapIdempotencyKey(),
+    });
 
     setSubmitting(false);
     if (!result.success || !result.swap) {
@@ -76,6 +95,7 @@ export default function CustomerFxPage() {
       return;
     }
 
+    resetSwapIdempotencyKey();
     setSwapResult({
       from: formatMoney(result.swap.fromAmount, fromCurrency),
       to: formatMoney(result.swap.toAmount, toCurrency),

@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useMerchant } from "@/components/merchant/MerchantContext";
 import { merchantApiFetch } from "@/lib/merchant/merchantSession";
+import { useIdempotencyKey } from "@/lib/idempotency/useIdempotencyKey";
 import {
   Building2,
   ArrowUpRight,
@@ -41,6 +42,10 @@ export default function MerchantWalletPage() {
   const [payoutError, setPayoutError] = useState<string | null>(null);
 
   const [payoutHistory, setPayoutHistory] = useState<PayoutRequest[]>([]);
+  // Minted once per payout submit attempt, reused across retries of the
+  // SAME attempt; reset on success or when the requested amount changes.
+  const { getKey: getPayoutIdempotencyKey, reset: resetPayoutIdempotencyKey } =
+    useIdempotencyKey("payout");
 
   const [autoSweepEnabled, setAutoSweepEnabled] = useState(true);
   const [sweepFrequency, setSweepFrequency] = useState("DAILY_EOD");
@@ -105,13 +110,19 @@ export default function MerchantWalletPage() {
     setIsPayoutProcessing(true);
     setPayoutError(null);
     try {
+      // Stable per-attempt key: a manual retry after a perceived failure (or
+      // the rare double-click that beats the disabled-button state) reuses
+      // this key so the backend's idempotency dedup actually catches it,
+      // instead of every attempt minting a technically-valid-but-different
+      // key that sails past it.
       const res = await merchantApiFetch("/api/v1/merchant/wallet/payout", {
         method: "POST",
-        headers: { "Idempotency-Key": `payout-${Date.now()}-${Math.random().toString(36).slice(2, 10)}` },
+        headers: { "Idempotency-Key": getPayoutIdempotencyKey() },
         body: JSON.stringify({ amount: Number(payoutAmount) }),
       });
       const json = await res.json();
       if (res.ok && json.status === "success") {
+        resetPayoutIdempotencyKey();
         setPayoutSuccess({ amount: Number(payoutAmount) });
         await Promise.all([refreshAll(), loadPayoutHistory()]);
         setTimeout(() => {
@@ -302,7 +313,7 @@ export default function MerchantWalletPage() {
                       placeholder="e.g. 1,000,000"
                       max={merchant.availableBalance}
                       value={payoutAmount}
-                      onChange={(e) => setPayoutAmount(e.target.value)}
+                      onChange={(e) => { setPayoutAmount(e.target.value); resetPayoutIdempotencyKey(); }}
                       className="w-full pl-8 pr-3.5 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-white font-mono font-bold text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
                     />
                   </div>

@@ -67,6 +67,8 @@ interface CashInExecutionParams {
   customerBank: string;
   customerPhone?: string;
   amount: number;
+  /** Minted once per attempt by the caller (see `useIdempotencyKey`); reused across retries. */
+  idempotencyKey?: string;
 }
 
 interface CashOutExecutionParams {
@@ -75,6 +77,8 @@ interface CashOutExecutionParams {
   customerBank: string;
   customerPhone?: string;
   amount: number;
+  /** Minted once per attempt by the caller (see `useIdempotencyKey`); reused across retries. */
+  idempotencyKey?: string;
 }
 
 interface AgentContextType {
@@ -137,6 +141,7 @@ interface AgentContextType {
     recipientBank: string;
     recipientAccount: string;
     amount: number;
+    idempotencyKey?: string;
   }) => Promise<{
     success: boolean;
     transaction?: AgencyTransaction;
@@ -589,10 +594,15 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       return { success: false, error: "Insufficient wallet float balance. Please fund float." };
     }
 
+    // The key MUST come from the caller, minted once per attempt (see
+    // `useIdempotencyKey`) — generating one fresh in here on every call
+    // would defeat the backend's UNIQUE(agent_id, idempotency_key) dedup
+    // entirely. This inline fallback only protects legacy callers.
     const idempotencyKey =
-      typeof crypto !== "undefined" && "randomUUID" in crypto
+      params.idempotencyKey ||
+      (typeof crypto !== "undefined" && "randomUUID" in crypto
         ? crypto.randomUUID()
-        : `cashin-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        : `cashin-${Date.now()}-${Math.random().toString(36).slice(2)}`);
 
     try {
       const res = await agencyApiFetch("/api/v1/agency/cash-in", {
@@ -653,10 +663,12 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       };
     }
 
+    // Same caller-supplied-key rule as executeCashIn.
     const idempotencyKey =
-      typeof crypto !== "undefined" && "randomUUID" in crypto
+      params.idempotencyKey ||
+      (typeof crypto !== "undefined" && "randomUUID" in crypto
         ? crypto.randomUUID()
-        : `cashout-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        : `cashout-${Date.now()}-${Math.random().toString(36).slice(2)}`);
 
     try {
       const res = await agencyApiFetch("/api/v1/agency/cash-out", {
@@ -709,15 +721,19 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     recipientBank: string;
     recipientAccount: string;
     amount: number;
+    /** Minted once per attempt by the caller (see `useIdempotencyKey`); reused across retries. */
+    idempotencyKey?: string;
   }) => {
     if (isOffline) {
       return { success: false, error: "Network offline. Transaction blocked for safety." };
     }
 
+    // Same caller-supplied-key rule as executeCashIn/executeCashOut.
     const idempotencyKey =
-      typeof crypto !== "undefined" && "randomUUID" in crypto
+      params.idempotencyKey ||
+      (typeof crypto !== "undefined" && "randomUUID" in crypto
         ? crypto.randomUUID()
-        : `xfer-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        : `xfer-${Date.now()}-${Math.random().toString(36).slice(2)}`);
 
     try {
       const res = await agencyApiFetch("/api/v1/agency/transfer", {
