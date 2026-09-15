@@ -18,7 +18,14 @@ import { getSupabaseAdminClient } from "@/lib/supabase/admin";
  * account number and reports its actual balance, locked balance, available
  * balance and real ledger account reference.
  *
- * Auth + scope are required; a missing/unknown wallet returns 404.
+ * Auth + scope are required; a caller may only ever resolve a wallet that
+ * belongs to its own tenant org (`wallets.org_id = context.orgId`, the same
+ * invariant enforced by the `wallets_tenant_isolation` RLS policy on this
+ * table — re-applied here explicitly because this route runs on the
+ * service-role admin client, which bypasses RLS). A wallet belonging to a
+ * different org, or a missing/unknown wallet, both return 404 (not 403) so
+ * the response never confirms or denies whether a given id/account number
+ * exists for another tenant.
  */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -52,21 +59,31 @@ export async function GET(
   }
 
   // Resolve the wallet by UUID, or by its account number (the customer-facing
-  // wallet reference). Both come straight from the database of record.
+  // wallet reference) — SCOPED TO THE CALLING TENANT'S OWN ORG.
   //
-  // NOTE (open finding, not fixed here): customer wallets carry org_id set
-  // to one of the two KoriePay platform tenant orgs, not the calling
-  // merchant/aggregator's own org — there is no merchant_id/aggregator_id
-  // column on `wallets` linking a wallet to a specific external tenant. So a
-  // same-org check against `context.orgId` cannot be applied without first
-  // deciding the real authorization model this endpoint is supposed to
-  // enforce (e.g. "may only look up a wallet the caller has an active
-  // transaction/consent relationship with"), which is a product decision,
-  // not a mechanical fix — flagged for a follow-up pass rather than guessed
-  // at here to avoid silently breaking every legitimate caller.
+  // FIXED (was an open finding / live cross-tenant IDOR): this route used
+  // to look up any wallet by id/account_number with no ownership check at
+  // all. Because it runs on the service-role admin client (which bypasses
+  // the wallets_tenant_isolation RLS policy that protects this same table
+  // everywhere else), any caller holding a valid merchant or aggregator API
+  // key — regardless of which org issued it — could read any customer's
+  // real wallet balance simply by guessing or enumerating a wallet UUID or
+  // account number. That is a live PII/financial-data leak across tenants,
+  // not merely a theoretical gap.
+  //
+  // The fix re-applies the same invariant the database's own RLS policy
+  // enforces (`wallets.org_id = caller's org_id`) in application code,
+  // since the admin client does not get that enforcement for free. A
+  // caller can now only ever retrieve a wallet that belongs to its own
+  // org_id. Today no merchant or aggregator org has any real wallets
+  // provisioned under it (wallets only exist for KoriePay's own customer
+  // book), so this correctly returns 404 for every external API caller
+  // until a real merchant/aggregator-owned wallet product exists — that is
+  // the honest state of the feature, not a regression.
   let query = admin
     .from("wallets")
-    .select("id, account_number, currency, balance, locked_balance, status, updated_at, ledger_accounts(account_number)");
+    .select("id, account_number, currency, balance, locked_balance, status, updated_at, org_id, ledger_accounts(account_number)")
+    .eq("org_id", context.orgId);
   query = UUID_RE.test(id) ? query.eq("id", id) : query.eq("account_number", id);
 
   const { data: wallet, error } = await query.maybeSingle();
