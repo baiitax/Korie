@@ -100,7 +100,7 @@ export default function SystemHealthPage() {
                 lines={[
                   health.ledger.invariantPassed ? t('compliance.health.invariantPassed') : t('compliance.health.invariantFailed'),
                   t('compliance.health.journals', { count: health.ledger.totalJournalsCount }),
-                  t('compliance.health.delta', { amount: formatMoney(fromMinor(health.ledger.debitCreditDeltaMinor) ?? 0, 'NGN', { locale }) }),
+                  t('compliance.health.delta', { amount: formatMoney(health.ledger.debitCreditDelta ?? 0, 'NGN', { locale }) }),
                 ]}
               />
               <Tile

@@ -529,10 +529,14 @@ export interface HealthRow {
     probedRowCount?: number;
   };
   ledger: {
-    status: 'BALANCED' | 'IMBALANCE_DETECTED';
+    status: 'BALANCED' | 'IMBALANCED' | 'IMBALANCE_DETECTED' | 'EMPTY' | 'UNKNOWN';
     invariantPassed: boolean;
     totalJournalsCount: number;
-    debitCreditDeltaMinor: number;
+    totalEntriesCount?: number;
+    /** |Σ debits − Σ credits| per currency, summed — in MAJOR currency units. */
+    debitCreditDelta: number;
+    perCurrency?: Array<{ currency: string; consistent: boolean; debitVolume: number; creditVolume: number }>;
+    unit?: 'MAJOR';
     note?: string;
   };
   identityEngine: {

@@ -367,7 +367,7 @@ export function mapHealth(raw: Json): HealthRow {
       status: 'IMBALANCE_DETECTED',
       invariantPassed: false,
       totalJournalsCount: 0,
-      debitCreditDeltaMinor: 0,
+      debitCreditDelta: 0,
     },
     identityEngine: raw.identityEngine ?? {
       status: 'DEGRADED',

@@ -367,19 +367,19 @@ export default function ReportsPage() {
         rows={[
           {
             section: t('compliance.reports.title'),
-            source: 'GET /api/v1/regulatory/reports → RegulatoryReportingEngine snapshots',
+            source: 'GET /api/compliance/data/regulatory-reports → public.regulatory_reports (live table, read-only)',
             note: t('compliance.reports.sourceNoteReports'),
             mode: reports.resource.source === 'demo' ? 'demo' : 'live',
           },
           {
             section: t('compliance.reports.dueTitle'),
-            source: 'GET /api/v1/regulatory/obligations → obligation ledger',
+            source: 'GET /api/compliance/data/regulatory-obligations → public.regulatory_obligations (live table, read-only)',
             note: t('compliance.reports.sourceNoteObligations'),
             mode: 'live',
           },
           {
             section: t('compliance.reports.restatementTitle'),
-            source: 'GET /api/v1/regulatory/restatements → RestatementEngine.getRestatements()',
+            source: 'GET /api/compliance/data/regulatory-restatements → public.regulatory_restatements (live table, read-only)',
             note: t('compliance.reports.sourceNoteRestatements'),
             mode: 'live',
           },
