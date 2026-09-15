@@ -63,6 +63,26 @@ const nextConfig = {
           { key: "X-DNS-Prefetch-Control", value: "off" },
         ],
       },
+      {
+        // Every JSON API route serves either an authenticated caller's own
+        // financial/PII data or an auth/session-adjacent response. None of
+        // it may ever be cached by a shared cache (a CDN, a corporate proxy,
+        // a misconfigured browser disk cache) — a cached response for one
+        // caller served back to a different caller on the same path (e.g.
+        // GET /api/v1/wallets/:id/balance, GET /api/customer/360) would be a
+        // cross-tenant data leak indistinguishable from an IDOR. Next.js's
+        // App Router already treats routes that read cookies/headers/search
+        // params as dynamic (never statically cached at build time), but
+        // this header is the explicit, protocol-level guarantee that no
+        // downstream cache — one this app's own code doesn't control — ever
+        // stores or replays a response. Applied at the framework level
+        // (not per-route) so it can't be missed on any of the 180+ existing
+        // route handlers or forgotten on a future one.
+        source: "/api/:path*",
+        headers: [
+          { key: "Cache-Control", value: "private, no-store, no-cache, must-revalidate" },
+        ],
+      },
     ];
   },
 };
