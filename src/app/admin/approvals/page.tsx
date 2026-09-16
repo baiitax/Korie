@@ -9,14 +9,17 @@ import { adminApiFetch } from "@/lib/admin/adminSession";
  * Money-Movement Approvals — the four-eyes queue (assessment §43 remediation).
  * Every controlled movement that is waiting for a first or second distinct
  * approver: agent float top-ups above the dual-control threshold, merchant
- * payouts above the approval threshold, Adashi maker-checker payouts, and
- * agent cash-count breaks awaiting back-office resolution (§16).
+ * payouts above the approval threshold, Adashi maker-checker payouts, agent
+ * cash-count breaks awaiting back-office resolution (§16), and — since B8 /
+ * RISK-13 — settlement runs and agency-transaction reversals submitted by
+ * any maker surface (ops console, aggregator portal, merchant portal).
  * The RPCs enforce distinct approvers and refuse self-approval; this page is
- * the sanctioned surface for recording those decisions.
+ * the sanctioned surface for recording those decisions. Approving a
+ * settlement run or reversal executes it inside the approval transaction.
  */
 
 type QueueItem = {
-  type: "AGENT_FLOAT_TOPUP" | "MERCHANT_PAYOUT" | "ADASHI_PAYOUT" | "CASH_VARIANCE";
+  type: "AGENT_FLOAT_TOPUP" | "MERCHANT_PAYOUT" | "ADASHI_PAYOUT" | "CASH_VARIANCE" | "MONEY_MOVEMENT_REQUEST";
   id: string;
   title: string;
   subtitle: string;
@@ -34,6 +37,7 @@ const TYPE_LABEL: Record<QueueItem["type"], string> = {
   MERCHANT_PAYOUT: "Merchant payout",
   ADASHI_PAYOUT: "Adashi payout",
   CASH_VARIANCE: "Cash variance",
+  MONEY_MOVEMENT_REQUEST: "Settlement / reversal",
 };
 
 /** Resolution options per break status (migration 20260914000052). */
@@ -106,8 +110,10 @@ export default function ApprovalsPage() {
       setFlash(
         item.type === "CASH_VARIANCE"
           ? `${TYPE_LABEL[item.type]} · ${fmtMoney(item.amount, item.currency)} — resolved (${resolutions[item.id]}${result.status ? `, status: ${result.status}` : ""})`
-          : `${TYPE_LABEL[item.type]} · ${fmtMoney(item.amount, item.currency)} — ${decision === "APPROVE" ? "approved" : "rejected"}` +
-              (result.status ? ` (status: ${result.status})` : ""),
+          : item.type === "MONEY_MOVEMENT_REQUEST"
+            ? `${item.title} — ${decision === "APPROVE" ? "approved and executed" : "rejected"}${result.status ? ` (status: ${result.status})` : ""}`
+            : `${TYPE_LABEL[item.type]} · ${fmtMoney(item.amount, item.currency)} — ${decision === "APPROVE" ? "approved" : "rejected"}` +
+                (result.status ? ` (status: ${result.status})` : ""),
       );
       await load();
     } catch (e) {
@@ -122,7 +128,7 @@ export default function ApprovalsPage() {
       <PageHeader
         eyebrow="Finance"
         title="Money-Movement Approvals"
-        subtitle="Four-eyes queue: float top-ups and merchant payouts above the dual-control thresholds, Adashi maker-checker payouts, and agent cash-count breaks awaiting resolution. Approvals must come from distinct people; self-approval is refused by the database."
+        subtitle="Four-eyes queue: float top-ups and merchant payouts above the dual-control thresholds, Adashi maker-checker payouts, agent cash-count breaks, and settlement runs / transaction reversals (B8). Approvals must come from distinct people; self-approval is refused by the database. Approving a settlement or reversal executes it inside the approval transaction."
       />
 
       {flash && <div className="p-3 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 text-sm">{flash}</div>}
@@ -153,12 +159,33 @@ export default function ApprovalsPage() {
             <div className="flex flex-wrap items-center gap-2">
               <input
                 type="text"
-                placeholder="Decision note (optional)"
+                placeholder={
+                  item.type === "MONEY_MOVEMENT_REQUEST"
+                    ? "Decision note (required — min 10 characters)"
+                    : "Decision note (optional)"
+                }
                 value={notes[item.id] ?? ""}
                 onChange={(e) => setNotes((n) => ({ ...n, [item.id]: e.target.value }))}
                 className="flex-1 min-w-48 px-3 py-2 rounded-lg border bg-transparent text-sm"
               />
-              {item.type === "CASH_VARIANCE" ? (
+              {item.type === "MONEY_MOVEMENT_REQUEST" ? (
+                <>
+                  <button
+                    onClick={() => void decide(item, "APPROVE")}
+                    disabled={busyId === item.id || (notes[item.id] ?? "").trim().length < 10}
+                    className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold disabled:opacity-50"
+                  >
+                    {busyId === item.id ? "…" : "Approve & execute"}
+                  </button>
+                  <button
+                    onClick={() => void decide(item, "REJECT")}
+                    disabled={busyId === item.id || (notes[item.id] ?? "").trim().length < 10}
+                    className="px-4 py-2 rounded-xl bg-red-600 text-white text-xs font-bold disabled:opacity-50"
+                  >
+                    Reject
+                  </button>
+                </>
+              ) : item.type === "CASH_VARIANCE" ? (
                 <>
                   <select
                     value={resolutions[item.id] ?? ""}

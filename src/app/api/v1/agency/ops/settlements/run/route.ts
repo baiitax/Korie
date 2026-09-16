@@ -2,17 +2,23 @@ import { NextRequest } from 'next/server';
 import { authorizeOpsRequest } from '@/lib/security/opsAuth';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { createSuccessResponse, createErrorResponse } from '@/lib/security/apiResponse';
+import { submitMoneyMovement } from '@/lib/security/moneyMovement';
 
 /**
  * POST /api/v1/agency/ops/settlements/run
  *
- * Back-office endpoint (AGENCY_OPS_ADMIN / SUPER_ADMIN only) that triggers
- * public.run_daily_settlement() for one org+currency. Since this Supabase
- * project's plan does not have pg_cron enabled (verified at migration time),
- * this on-demand endpoint IS the settlement mechanism — it is expected to be
- * called once per business day (e.g. by an external scheduler hitting this
- * URL, or manually from the ops console). The function itself is idempotent
- * per (org, currency, date), so calling it more than once in a day is safe.
+ * Back-office endpoint (AGENCY_OPS_ADMIN / SUPER_ADMIN only) — the MAKER
+ * step of the checked settlement flow (B8 / RISK-13, migration
+ * 20260914000059). This route no longer runs the settlement directly: it
+ * submits an AGENCY_SETTLEMENT_RUN request into maker_checker_requests,
+ * and a DIFFERENT authorized officer must approve it before
+ * run_daily_settlement() executes inside the approval transaction.
+ * Self-approval is refused by the database.
+ *
+ * Since this Supabase project's plan does not have pg_cron enabled
+ * (verified at migration time), this on-demand endpoint IS the settlement
+ * trigger — it is expected to be called once per business day. The
+ * underlying function remains idempotent per (org, currency, date).
  */
 export async function POST(req: NextRequest) {
   const auth = await authorizeOpsRequest(req, ['SUPER_ADMIN', 'AGENCY_OPS_ADMIN']);
@@ -24,6 +30,8 @@ export async function POST(req: NextRequest) {
       httpStatus: auth.httpStatus || 403,
     });
   }
+
+  const actorEmail = (auth as { email?: string }).email ?? 'agency-ops';
 
   let body: any = {};
   try {
@@ -39,28 +47,41 @@ export async function POST(req: NextRequest) {
     return createErrorResponse({ code: 'MISSING_PARAMETERS', message: 'org_id and currency are required.', requestId: `KP-REQ-${Date.now()}`, httpStatus: 400 });
   }
 
-  const admin = getSupabaseAdminClient();
-  const { data, error } = await admin.rpc('run_daily_settlement', {
-    p_org_id: orgId,
-    p_currency: currency,
-    p_settlement_date: body.settlement_date || new Date().toISOString().slice(0, 10),
+  const submitted = await submitMoneyMovement({
+    actionType: 'AGENCY_SETTLEMENT_RUN',
+    payload: {
+      org_id: String(orgId),
+      currency: String(currency).toUpperCase(),
+      ...(body.settlement_date ? { settlement_date: String(body.settlement_date) } : {}),
+    },
+    makerId: auth.userId ?? null,
+    makerEmail: actorEmail,
+    makerRole: auth.roleName || 'AGENCY_OPS_ADMIN',
+    makerNotes: 'Settlement run requested from the ops console',
   });
 
-  if (error) {
-    return createErrorResponse({ code: 'SETTLEMENT_RUN_FAILED', message: error.message || 'Settlement run failed.', requestId: `KP-REQ-${Date.now()}`, httpStatus: 500 });
+  if (!submitted.ok) {
+    return createErrorResponse({
+      code: submitted.code,
+      message: submitted.message,
+      requestId: `KP-REQ-${Date.now()}`,
+      httpStatus: submitted.httpStatus,
+    });
   }
 
+  const rec = submitted.request;
   return createSuccessResponse(
     {
-      id: data.id,
-      batch_reference: data.batch_reference,
-      currency: data.currency,
-      settlement_date: data.settlement_date,
-      status: data.status,
-      total_commission_amount: Number(data.total_commission_amount),
-      total_agent_count: data.total_agent_count,
-      posted_at: data.posted_at,
+      request: {
+        id: rec?.id,
+        action_type: rec?.action_type,
+        status: rec?.status,
+        payload: rec?.payload,
+        submitted_by: rec?.maker_email,
+        submitted_at: rec?.created_at,
+      },
+      note: 'Settlement run submitted for checker approval. A DIFFERENT authorized officer must approve it in the approvals queue before the batch posts — self-approval is refused by the database.',
     },
-    { code: 'SETTLEMENT_RUN_COMPLETE', requestId: `KP-REQ-${Date.now()}`, environment: 'PRODUCTION' }
+    { code: 'SETTLEMENT_RUN_SUBMITTED_FOR_CHECKER_APPROVAL', requestId: `KP-REQ-${Date.now()}`, environment: 'PRODUCTION' }
   );
 }

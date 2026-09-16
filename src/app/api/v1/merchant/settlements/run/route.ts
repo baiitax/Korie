@@ -2,18 +2,23 @@ import { NextRequest } from 'next/server';
 import { authenticateMerchantRequest } from '@/lib/security/merchantAuth';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { createSuccessResponse, createErrorResponse } from '@/lib/security/apiResponse';
-import { dispatchMerchantWebhookEvent } from '@/lib/merchant/webhookDispatch';
+import { submitMoneyMovement } from '@/lib/security/moneyMovement';
 
 /**
  * POST /api/v1/merchant/settlements/run
  *
- * Triggers a real settlement batch via public.run_merchant_settlement() —
- * sweeps every SUCCESSFUL, not-yet-batched transaction for this merchant
- * into a new merchant_settlement_batches row computed from real
- * transaction sums (no invented gross/fee numbers). This is the automated
- * workflow counterpart to the honest manual pending-provider payout flow:
- * it groups what has actually been collected, it does not itself move
- * money to a bank (see /wallet/payout for the payout-intent step).
+ * The MAKER step of the checked settlement flow (B8 / RISK-13, migration
+ * 20260914000059) for merchants. This route no longer batches directly: it
+ * submits a MERCHANT_SETTLEMENT_RUN request scoped to this merchant's OWN
+ * profile (server-side identity — the merchant cannot be chosen by the
+ * caller), and a DIFFERENT authorized officer must approve it before
+ * run_merchant_settlement() executes inside the approval transaction.
+ *
+ * The eventual execution sweeps every SUCCESSFUL, not-yet-batched
+ * transaction for this merchant into a new merchant_settlement_batches row
+ * computed from real transaction sums (no invented gross/fee numbers), and
+ * the settlement.completed webhook is dispatched from the decision surface
+ * with the executed batch's real figures.
  */
 export async function POST(req: NextRequest) {
   const auth = await authenticateMerchantRequest(req);
@@ -28,50 +33,48 @@ export async function POST(req: NextRequest) {
   } catch {
     body = {};
   }
-  const currency = (body.currency || 'NGN').toUpperCase();
+  const currency = (body.currency || 'NGN').toString().toUpperCase();
 
-  const admin = getSupabaseAdminClient();
-
-  const { data: batch, error } = await admin.rpc('run_merchant_settlement', {
-    p_merchant_id: staff.merchantId,
-    p_currency: currency,
+  const submitted = await submitMoneyMovement({
+    actionType: 'MERCHANT_SETTLEMENT_RUN',
+    payload: {
+      merchant_id: staff.merchantId,
+      currency,
+    },
+    makerId: staff.staffId ?? null,
+    makerEmail: staff.email,
+    makerRole: 'MERCHANT_STAFF',
+    makerNotes: `Settlement run requested by merchant staff (${staff.email})`,
   });
 
-  if (error) {
-    if ((error.message || '').includes('NO_TRANSACTIONS_TO_SETTLE')) {
-      return createErrorResponse({ code: 'NO_TRANSACTIONS_TO_SETTLE', message: 'There are no newly settled transactions to batch right now.', requestId: staff.requestId, httpStatus: 409 });
-    }
-    return createErrorResponse({ code: 'SETTLEMENT_RUN_FAILED', message: 'Could not run settlement.', requestId: staff.requestId, httpStatus: 500 });
+  if (!submitted.ok) {
+    return createErrorResponse({ code: submitted.code, message: submitted.message, requestId: staff.requestId, httpStatus: submitted.httpStatus });
   }
 
+  const admin = getSupabaseAdminClient();
   await admin.from('merchant_audit_logs').insert({
     merchant_id: staff.merchantId,
     actor_staff_id: staff.staffId,
-    action: 'SETTLEMENT_RUN',
-    target_type: 'merchant_settlement_batches',
-    target_id: batch.id,
+    action: 'SETTLEMENT_RUN_SUBMITTED',
+    target_type: 'maker_checker_requests',
+    target_id: submitted.request?.id,
     result: 'SUCCESS',
-    reason: `Settlement batch created for ${currency}: ${batch.transaction_count} transactions.`,
+    reason: `Checked settlement run submitted for ${currency}.`,
   });
 
-  await dispatchMerchantWebhookEvent(admin, staff.merchantId, 'settlement.completed', {
-    batchReference: batch.batch_reference,
-    netAmount: Number(batch.net_amount),
-    currency: batch.currency,
-    transactionCount: batch.transaction_count,
-  });
-
+  const rec = submitted.request;
   return createSuccessResponse(
     {
-      id: batch.id,
-      batchReference: batch.batch_reference,
-      grossAmount: Number(batch.gross_amount),
-      totalFees: Number(batch.total_fees),
-      netAmount: Number(batch.net_amount),
-      currency: batch.currency,
-      status: batch.status,
-      transactionCount: batch.transaction_count,
+      request: {
+        id: rec?.id,
+        action_type: rec?.action_type,
+        status: rec?.status,
+        payload: rec?.payload,
+        submitted_by: rec?.maker_email,
+        submitted_at: rec?.created_at,
+      },
+      note: 'Settlement run submitted for checker approval. A different authorized officer must approve it before the batch posts.',
     },
-    { code: 'SETTLEMENT_RUN_COMPLETE', requestId: staff.requestId, environment: 'PRODUCTION' },
+    { code: 'SETTLEMENT_RUN_SUBMITTED_FOR_CHECKER_APPROVAL', requestId: staff.requestId, environment: 'PRODUCTION' },
   );
 }

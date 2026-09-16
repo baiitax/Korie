@@ -6,20 +6,28 @@ import { createSuccessResponse, createErrorResponse } from '@/lib/security/apiRe
 /**
  * POST /api/v1/agency/ops/transactions/:id/reverse
  *
- * Back-office endpoint (SUPER_ADMIN / AGENCY_OPS_ADMIN only) that reverses a
- * SUCCESSFUL agency transaction through `reverse_agency_transaction` — the
- * sanctioned path (migration 20260914000055).
+ * Back-office endpoint (SUPER_ADMIN / AGENCY_OPS_ADMIN only) — the MAKER step
+ * of the checked reversal flow (B8 / RISK-13, migration 20260914000059).
+ * This route no longer reverses anything directly: it submits an
+ * AGENCY_TRANSACTION_REVERSAL request into maker_checker_requests, and a
+ * DIFFERENT authorized officer (ops or admin) must approve it through the
+ * approvals surface before `reverse_agency_transaction` executes — inside
+ * the checker's approval transaction. Self-approval is refused by the
+ * database (MAKER_CHECKER_SELF_APPROVAL_FORBIDDEN).
  *
- * Inside a single DB transaction the RPC:
+ * The eventual execution (unchanged RPC, migration 20260914000055):
  *  - inverts the original journal on every leg (money, fee, commission);
  *  - claws back the agent's commission (EARNED/PENDING_SETTLEMENT: the
  *    accrued payable inverts; PAID: the settled amount is recovered from the
  *    agent's wallet float, fail-closed on insufficient float);
- *  - marks the transaction REVERSED and the commission CLAWED_BACK with
- *    attribution, and writes an audit event.
+ *  - marks the transaction REVERSED, links the reversal journal
+ *    (reversal_ledger_transaction_id), and writes an audit event.
  *
- * Idempotent: a transaction reverses exactly once. A meaningful reason
- * (min 20 chars) is required — the same standard as adjustment journals.
+ * A meaningful reason (min 20 chars) is required — the same standard as
+ * adjustment journals — and is validated at submission and again at
+ * execution. If the checker's approval fails (e.g. the transaction became
+ * non-reversible meanwhile), the request stays PENDING and is safe to retry
+ * or reject.
  */
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const auth = await authorizeOpsRequest(req, ['SUPER_ADMIN', 'AGENCY_OPS_ADMIN']);
@@ -60,48 +68,43 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   const admin = getSupabaseAdminClient();
-  const { data, error } = await admin.rpc('reverse_agency_transaction', {
-    p_transaction_id: transactionId,
-    p_reversed_by: actorEmail,
-    p_reason: reason,
+  const { data, error } = await admin.rpc('submit_money_movement_request', {
+    p_action_type: 'AGENCY_TRANSACTION_REVERSAL',
+    p_payload: { transaction_id: transactionId, reason },
+    p_maker_id: auth.userId ?? null,
+    p_maker_email: actorEmail,
+    p_maker_role: auth.roleName || 'AGENCY_OPS_ADMIN',
+    p_maker_notes: 'Reversal requested from the ops console',
   });
 
   if (error) {
     const message = error.message || '';
-    const conflict =
-      message.includes('AGENCY_TRANSACTION_ALREADY_REVERSED') ||
-      message.includes('AGENCY_TRANSACTION_NOT_REVERSIBLE') ||
-      message.includes('AGENT_FLOAT_INSUFFICIENT_FOR_CLAWBACK') ||
-      message.includes('JOURNAL_SHAPE_UNEXPECTED');
-    const notFound = message.includes('AGENCY_TRANSACTION_NOT_FOUND');
+    const notFound = message.includes('MAKER_CHECKER_INVALID_TRANSACTION');
     return createErrorResponse({
-      code: conflict
-        ? 'REVERSAL_CONFLICT'
-        : notFound
-          ? 'AGENCY_TRANSACTION_NOT_FOUND'
-          : message.includes('REVERSAL_REASON_REQUIRED')
-            ? 'REVERSAL_REASON_REQUIRED'
-            : 'REVERSAL_FAILED',
-      message: message || 'The reversal did not complete.',
+      code: notFound
+        ? 'AGENCY_TRANSACTION_NOT_FOUND'
+        : message.includes('REVERSAL_REASON_REQUIRED')
+          ? 'REVERSAL_REASON_REQUIRED'
+          : 'REVERSAL_REQUEST_FAILED',
+      message: message || 'The reversal request did not complete.',
       requestId: `KP-REQ-${Date.now()}`,
-      httpStatus: conflict ? 409 : notFound ? 404 : message.includes('REVERSAL_REASON_REQUIRED') ? 400 : 500,
+      httpStatus: notFound ? 404 : message.includes('REVERSAL_REASON_REQUIRED') ? 400 : 500,
     });
   }
 
-  const rec = data as Record<string, unknown>;
+  const rec = (data ?? {}) as Record<string, unknown>;
   return createSuccessResponse(
     {
-      transaction: {
+      request: {
         id: rec?.id,
-        reference: rec?.reference,
+        action_type: rec?.action_type,
         status: rec?.status,
-        amount: Number(rec?.amount ?? 0),
-        customer_fee: Number(rec?.customer_fee ?? 0),
-        agent_commission: Number(rec?.agent_commission ?? 0),
-        currency: rec?.currency,
+        payload: rec?.payload,
+        submitted_by: rec?.maker_email,
+        submitted_at: rec?.created_at,
       },
-      note: 'Journal inverted and commission clawed back. If the commission had been settled, it was recovered from the agent float.',
+      note: 'Reversal submitted for checker approval. A DIFFERENT authorized officer must approve it in the approvals queue before the journal is inverted — self-approval is refused by the database.',
     },
-    { code: 'AGENCY_TRANSACTION_REVERSED', requestId: `KP-REQ-${Date.now()}`, environment: 'PRODUCTION' },
+    { code: 'REVERSAL_SUBMITTED_FOR_CHECKER_APPROVAL', requestId: `KP-REQ-${Date.now()}`, environment: 'PRODUCTION' },
   );
 }

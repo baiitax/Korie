@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authorizeAdminRequest, ADMIN_READ_ROLES, ADMIN_ROLES } from "@/lib/security/adminAuth";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { decideMoneyMovement } from "@/lib/security/moneyMovement";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,14 @@ export const dynamic = "force-dynamic";
  *    The resolve action is the checker step (the agent who counted is the
  *    maker; the resolver here is back-office — SoD by construction).
  *    Statuses VARIANCE_JOURNALED / OVERAGE_PENDING_REVIEW → RESOLVED.
+ *  - MONEY_MOVEMENT_REQUEST: settlement runs and agency-transaction
+ *    reversals (B8 / RISK-13, migration 20260914000059). The maker surface
+ *    (ops console, aggregator portal, merchant portal) only submits; the
+ *    decision here executes run_daily_settlement / run_merchant_settlement
+ *    / reverse_agency_transaction INSIDE the approval transaction. The
+ *    database refuses self-approval (by id AND login email) and refuses a
+ *    second decision; a failed execution rolls the whole approval back and
+ *    the request stays PENDING.
  *
  * Every decision lands in control_approval_events (four-eyes audit trail)
  * and/or the movement's own event log. The RPCs enforce distinct approvers
@@ -35,7 +44,7 @@ export const dynamic = "force-dynamic";
  */
 
 type QueueItem = {
-  type: "AGENT_FLOAT_TOPUP" | "MERCHANT_PAYOUT" | "ADASHI_PAYOUT" | "CASH_VARIANCE";
+  type: "AGENT_FLOAT_TOPUP" | "MERCHANT_PAYOUT" | "ADASHI_PAYOUT" | "CASH_VARIANCE" | "MONEY_MOVEMENT_REQUEST";
   id: string;
   title: string;
   subtitle: string;
@@ -171,6 +180,74 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // 5. Money-movement requests awaiting the checker (settlement runs and
+    //    agency-transaction reversals — B8 / RISK-13).
+    const { data: movements, error: movementErr } = await admin
+      .from("maker_checker_requests")
+      .select("id, action_type, status, maker_email, maker_role, maker_notes, payload, execution_result, created_at")
+      .in("action_type", ["AGENCY_SETTLEMENT_RUN", "MERCHANT_SETTLEMENT_RUN", "AGENCY_TRANSACTION_REVERSAL"])
+      .eq("status", "PENDING")
+      .order("created_at", { ascending: true })
+      .limit(100);
+    if (movementErr) throw movementErr;
+    // Display context so the checker sees WHAT they are approving.
+    const mmOrgIds = new Set<string>();
+    const mmMerchantIds = new Set<string>();
+    const mmTxnIds = new Set<string>();
+    for (const m of movements ?? []) {
+      const p = (m.payload ?? {}) as Record<string, unknown>;
+      if (typeof p.org_id === "string") mmOrgIds.add(p.org_id);
+      if (typeof p.merchant_id === "string") mmMerchantIds.add(p.merchant_id);
+      if (typeof p.transaction_id === "string") mmTxnIds.add(p.transaction_id);
+    }
+    const [mmOrgs, mmMerchants, mmTxns] = await Promise.all([
+      mmOrgIds.size
+        ? admin.from("organizations").select("id, name").in("id", Array.from(mmOrgIds))
+        : Promise.resolve({ data: [] as any[] }),
+      mmMerchantIds.size
+        ? admin.from("merchant_profiles").select("id, business_name").in("id", Array.from(mmMerchantIds))
+        : Promise.resolve({ data: [] as any[] }),
+      mmTxnIds.size
+        ? admin.from("agency_transactions").select("id, reference, amount, currency, status, customer_name, created_at").in("id", Array.from(mmTxnIds))
+        : Promise.resolve({ data: [] as any[] }),
+    ]);
+    const mmOrgNames = new Map<string, string>((mmOrgs.data ?? []).map((o: any) => [o.id, o.name]));
+    const mmMerchantNames = new Map<string, string>((mmMerchants.data ?? []).map((m: any) => [m.id, m.business_name]));
+    const mmTxnMap = new Map<string, any>((mmTxns.data ?? []).map((t: any) => [t.id, t]));
+    for (const m of movements ?? []) {
+      const p = (m.payload ?? {}) as Record<string, unknown>;
+      const pOrgId = typeof p.org_id === "string" ? p.org_id : null;
+      const pMerchantId = typeof p.merchant_id === "string" ? p.merchant_id : null;
+      const pTxnId = typeof p.transaction_id === "string" ? p.transaction_id : null;
+      const txn = pTxnId ? mmTxnMap.get(pTxnId) : null;
+      const scope =
+        pOrgId && mmOrgNames.get(pOrgId)
+          ? `Org ${mmOrgNames.get(pOrgId)}`
+          : pMerchantId && mmMerchantNames.get(pMerchantId)
+            ? `Merchant ${mmMerchantNames.get(pMerchantId)}`
+            : txn
+              ? `Txn ${txn.reference}`
+              : "";
+      const titles: Record<string, string> = {
+        AGENCY_SETTLEMENT_RUN: `Agent-commission settlement run — ${scope}`,
+        MERCHANT_SETTLEMENT_RUN: `Merchant settlement run — ${scope}`,
+        AGENCY_TRANSACTION_REVERSAL: `Transaction reversal — ${txn ? `${txn.reference} · ${Number(txn.amount).toLocaleString()} ${txn.currency} (${txn.status})` : scope}`,
+      };
+      queue.push({
+        type: "MONEY_MOVEMENT_REQUEST",
+        id: m.id,
+        title: titles[m.action_type] ?? `${m.action_type} — ${scope}`,
+        subtitle: `Maker: ${m.maker_email} (${m.maker_role})${m.maker_notes ? ` · ${m.maker_notes}` : ""}${typeof p.reason === "string" ? ` · Reason: ${p.reason}` : ""}`,
+        amount: txn ? Number(txn.amount) : 0,
+        currency: (p.currency as string) ?? (txn?.currency as string) ?? "",
+        status: m.status,
+        requested_at: m.created_at,
+        approvals: 0,
+        required: 2, // maker (done) + this checker — the DB refuses the maker as checker
+        detail: JSON.stringify(m.payload),
+      });
+    }
+
     // Approval counts for every queued item (distinct approvers so far).
     const ids = queue.map((q) => q.id);
     if (ids.length > 0) {
@@ -233,8 +310,8 @@ export async function POST(request: NextRequest) {
   }
 
   const { type, id, decision, notes, resolution } = body as typeof body & { resolution?: string };
-  if (![`AGENT_FLOAT_TOPUP`, `MERCHANT_PAYOUT`, `ADASHI_PAYOUT`, `CASH_VARIANCE`].includes(type ?? ``)) {
-    return NextResponse.json({ status: "error", error: { code: "INVALID_TYPE", message: "type must be AGENT_FLOAT_TOPUP, MERCHANT_PAYOUT, ADASHI_PAYOUT or CASH_VARIANCE." } }, { status: 400 });
+  if (![`AGENT_FLOAT_TOPUP`, `MERCHANT_PAYOUT`, `ADASHI_PAYOUT`, `CASH_VARIANCE`, `MONEY_MOVEMENT_REQUEST`].includes(type ?? ``)) {
+    return NextResponse.json({ status: "error", error: { code: "INVALID_TYPE", message: "type must be AGENT_FLOAT_TOPUP, MERCHANT_PAYOUT, ADASHI_PAYOUT, CASH_VARIANCE or MONEY_MOVEMENT_REQUEST." } }, { status: 400 });
   }
   const CASH_VARIANCE_RESOLUTIONS = [
     `RECOVERED_TO_TILL`, `WRITTEN_OFF`, `DOCUMENTED_AS_MISSED_TRANSACTION`, `RETURNED_TO_SENDER`, `FORFEITED_TO_INCOME`,
@@ -242,6 +319,16 @@ export async function POST(request: NextRequest) {
   if (type === `CASH_VARIANCE`) {
     if (!CASH_VARIANCE_RESOLUTIONS.includes(resolution ?? ``)) {
       return NextResponse.json({ status: "error", error: { code: "INVALID_RESOLUTION", message: `resolution must be one of ${CASH_VARIANCE_RESOLUTIONS.join(", ")}.` } }, { status: 400 });
+    }
+  } else if (type === `MONEY_MOVEMENT_REQUEST`) {
+    if (![`APPROVE`, `REJECT`].includes(decision ?? ``)) {
+      return NextResponse.json({ status: "error", error: { code: "INVALID_DECISION", message: "decision must be APPROVE or REJECT." } }, { status: 400 });
+    }
+    if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      return NextResponse.json({ status: "error", error: { code: "INVALID_ID", message: "A valid money-movement request id is required." } }, { status: 400 });
+    }
+    if ((notes ?? ``).trim().length < 10) {
+      return NextResponse.json({ status: "error", error: { code: "DECISION_NOTES_REQUIRED", message: "A meaningful note (at least 10 characters) is required for the audit trail." } }, { status: 400 });
     }
   } else if (![`APPROVE`, `REJECT`].includes(decision ?? ``)) {
     return NextResponse.json({ status: "error", error: { code: "INVALID_DECISION", message: "decision must be APPROVE or REJECT." } }, { status: 400 });
@@ -256,7 +343,31 @@ export async function POST(request: NextRequest) {
   try {
     let result: Record<string, unknown> | null = null;
 
-    if (type === "AGENT_FLOAT_TOPUP") {
+    if (type === "MONEY_MOVEMENT_REQUEST") {
+      // The checker step for settlement runs and agency-transaction
+      // reversals. APPROVE executes the underlying run/reversal inside the
+      // approval transaction (the shared module dispatches the merchant
+      // settlement.completed webhook after a successful execution). The
+      // database refuses self-approval (id AND login email) and a second
+      // decision — those surface as 409s below.
+      const decided = await decideMoneyMovement({
+        requestId: id as string,
+        checkerId: actorId || null,
+        checkerEmail: actorEmail,
+        decision: decision as "APPROVE" | "REJECT",
+        notes: (notes ?? ``).trim() || undefined,
+      });
+      if (!decided.ok) {
+        const conflict =
+          decided.code === "SELF_APPROVAL_FORBIDDEN" ||
+          decided.code === "ALREADY_DECIDED";
+        return NextResponse.json(
+          { status: "error", error: { code: conflict ? "DECISION_CONFLICT" : "DECISION_FAILED", message: decided.message } },
+          { status: conflict ? 409 : decided.httpStatus },
+        );
+      }
+      result = decided.result as unknown as Record<string, unknown>;
+    } else if (type === "AGENT_FLOAT_TOPUP") {
       if (decision === "APPROVE") {
         const { data, error } = await admin.rpc("approve_agent_float_topup", {
           p_request_id: id,
