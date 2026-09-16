@@ -41,9 +41,31 @@ type CloseRow = {
   created_at: string;
 };
 
+type MonthEndItem = {
+  id: string;
+  item_key: string;
+  status: string;
+  result: Record<string, unknown> | null;
+  performed_by: string | null;
+  notes: string | null;
+};
+
+type MonthEndChecklist = {
+  id: string;
+  period_year: number;
+  period_month: number;
+  is_drill: boolean;
+  status: string;
+  prepared_by: string | null;
+  reviewed_by: string | null;
+  review_notes: string | null;
+  prepare_summary: Record<string, unknown> | null;
+  items?: MonthEndItem[];
+};
+
 export default function LedgerPage() {
   const { openDrawer } = useAdmin();
-  const [tab, setTab] = useState<"accounts" | "journals" | "lines" | "trial" | "closes">("accounts");
+  const [tab, setTab] = useState<"accounts" | "journals" | "lines" | "trial" | "closes" | "month-end">("accounts");
 
   const accountCols: ResourceColumn[] = [
     { key: "account_number", label: "Account", render: (r) => <span className="font-bold text-[var(--foreground)]">{r.account_number}</span> },
@@ -86,6 +108,7 @@ export default function LedgerPage() {
     { id: "lines", label: "Journal lines" },
     { id: "trial", label: "Trial balance" },
     { id: "closes", label: "Daily close" },
+    { id: "month-end", label: "Month-end close" },
   ];
 
   return (
@@ -149,6 +172,7 @@ export default function LedgerPage() {
       )}
       {tab === "trial" && <TrialBalanceView />}
       {tab === "closes" && <CloseView />}
+      {tab === "month-end" && <MonthEndCloseView />}
     </div>
   );
 }
@@ -346,6 +370,205 @@ function CloseView() {
             <pre className="overflow-x-auto rounded-lg bg-[var(--surface)] p-3 font-mono text-[11px] leading-relaxed">
               {JSON.stringify(c.metrics, null, 2)}
             </pre>
+          </div>
+        </details>
+      ))}
+    </div>
+  );
+}
+
+/** Month-end close checklist: the five reconciliations, four-eyes prepare/review. */
+function MonthEndCloseView() {
+  const [checklists, setChecklists] = useState<MonthEndChecklist[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [flash, setFlash] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const now = new Date();
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [drill, setDrill] = useState(true);
+  const [notes, setNotes] = useState("");
+
+  const load = useCallback(async () => {
+    setError(null);
+    try {
+      const res = await adminApiFetch("/api/admin/accounting?view=month-end-close");
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error?.message ?? "The month-end close list failed to load.");
+      setChecklists(json.checklists ?? []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "The month-end close list failed to load.");
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const act = async (step: "run-item" | "prepare" | "review", extra: Record<string, unknown> = {}) => {
+    setBusy(true);
+    setError(null);
+    setFlash(null);
+    try {
+      const res = await adminApiFetch("/api/admin/accounting", {
+        method: "POST",
+        body: JSON.stringify({ action: "month-end-close", step, year, month, drill, notes: notes || null, ...extra }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error?.message ?? "The action did not complete.");
+      const r = json.result ?? {};
+      setFlash(
+        step === "run-item"
+          ? `${r.item_key}: ${r.status}`
+          : step === "prepare"
+            ? `Checklist ${r.status} — prepared by ${r.summary ? "maker" : "maker"}`
+            : `Checklist ${r.status} (${r.decision})`,
+      );
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "The action did not complete.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const current = (checklists ?? []).find((c) => c.period_year === year && c.period_month === month && c.is_drill === drill);
+  const ITEM_KEYS = ["BANK_REC", "LIABILITY_REC", "REVENUE_REC", "COMMISSION_REC", "SUSPENSE_REVIEW"] as const;
+
+  return (
+    <div className="space-y-4">
+      <div className="p-4 rounded-xl border bg-[var(--surface)] flex flex-wrap items-end gap-3">
+        <div>
+          <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-muted)]">Period</div>
+          <div className="flex gap-2 mt-1">
+            <input
+              type="number"
+              value={year}
+              min={2020}
+              max={2100}
+              onChange={(e) => setYear(Number(e.target.value))}
+              className="w-24 px-3 py-2 rounded-lg border bg-transparent text-sm"
+            />
+            <select
+              value={month}
+              onChange={(e) => setMonth(Number(e.target.value))}
+              className="px-3 py-2 rounded-lg border bg-transparent text-sm"
+              aria-label="Month"
+            >
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                <option key={m} value={m}>
+                  {new Date(year, m - 1, 1).toLocaleString("en", { month: "long" })}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={drill} onChange={(e) => setDrill(e.target.checked)} />
+          Drill (mid-month exercise — a real close refuses before the month ends)
+        </label>
+        <input
+          type="text"
+          placeholder="Notes (required for prepare/review — min 20 chars)"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          className="flex-1 min-w-64 px-3 py-2 rounded-lg border bg-transparent text-sm"
+        />
+      </div>
+
+      <div className="p-4 rounded-xl border bg-[var(--surface)] flex flex-wrap items-center gap-2">
+        <span className="text-xs font-bold uppercase tracking-wider text-[var(--foreground-muted)] mr-2">Reconciliations:</span>
+        {ITEM_KEYS.map((k) => (
+          <button
+            key={k}
+            onClick={() => void act("run-item", { item_key: k })}
+            disabled={busy || current?.status === "CLOSED"}
+            className="px-3 py-2 rounded-xl bg-[var(--brand-soft)] text-[var(--brand-primary)] border border-[var(--brand-primary)]/20 text-xs font-bold disabled:opacity-50"
+          >
+            {k.replaceAll("_", " ")}
+            {current?.items?.find((i) => i.item_key === k)?.status === "PERFORMED" ? " ✓" : ""}
+          </button>
+        ))}
+        <span className="flex-1" />
+        <button
+          onClick={() => void act("prepare")}
+          disabled={busy || !current || current.status !== "OPEN" || notes.trim().length < 20}
+          className="px-4 py-2 rounded-xl bg-amber-600 text-white text-xs font-bold disabled:opacity-50"
+        >
+          {busy ? "Working…" : "Prepare (maker)"}
+        </button>
+        <button
+          onClick={() => void act("review", { decision: "APPROVE" })}
+          disabled={busy || !current || current.status !== "PREPARED" || notes.trim().length < 20}
+          className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold disabled:opacity-50"
+        >
+          Approve close (checker)
+        </button>
+        <button
+          onClick={() => void act("review", { decision: "REJECT" })}
+          disabled={busy || !current || current.status !== "PREPARED" || notes.trim().length < 20}
+          className="px-4 py-2 rounded-xl bg-red-600 text-white text-xs font-bold disabled:opacity-50"
+        >
+          Reject
+        </button>
+      </div>
+
+      <p className="text-xs text-[var(--foreground-muted)] max-w-3xl">
+        Each reconciliation is computed from the production ledger (never hand-entered). Prepare requires all five performed,
+        a daily close for every day with journal activity, and a consistent trial balance. Review is four-eyes: a DIFFERENT
+        person than the preparer must approve — self-review is refused by the database. Bank rec prepares the internal side;
+        external statements are B4-blocked and the result says so.
+      </p>
+
+      {flash && <div className="p-3 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 text-sm">{flash}</div>}
+      {error && <div className="p-3 rounded-xl border border-red-300 bg-red-50 text-red-700 text-sm">{error}</div>}
+      {checklists === null && !error && <div className="p-4 text-sm text-[var(--foreground-muted)]">Loading month-end closes…</div>}
+      {checklists !== null && checklists.length === 0 && (
+        <div className="p-4 rounded-xl border text-sm text-[var(--foreground-muted)]">
+          No month-end checklist exists yet — run the five reconciliations above to open one for the selected period.
+        </div>
+      )}
+
+      {checklists?.map((c) => (
+        <details key={c.id} className="rounded-xl border overflow-hidden">
+          <summary className="px-4 py-3 cursor-pointer flex flex-wrap items-center gap-3 bg-[var(--surface)]">
+            <span className="font-bold">
+              {c.period_year}-{String(c.period_month).padStart(2, "0")}
+            </span>
+            {c.is_drill && (
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-100 text-amber-800">DRILL</span>
+            )}
+            <StatusChip value={c.status} />
+            <span className="text-xs text-[var(--foreground-muted)]">
+              prepared by {c.prepared_by ?? "—"}
+              {c.reviewed_by ? ` · reviewed by ${c.reviewed_by}` : ""}
+            </span>
+            <span className="ml-auto text-xs text-[var(--foreground-muted)]">{c.items?.filter((i) => i.status === "PERFORMED").length ?? 0}/5 performed</span>
+          </summary>
+          <div className="px-4 py-3 space-y-2 text-xs">
+            {(c.items ?? []).map((i) => (
+              <details key={i.id} className="rounded-lg border">
+                <summary className="px-3 py-2 cursor-pointer flex flex-wrap items-center gap-2">
+                  <span className="font-bold">{i.item_key}</span>
+                  <StatusChip value={i.status} />
+                  <span className="text-[var(--foreground-muted)]">
+                    {i.performed_by ? `by ${i.performed_by}` : "not run yet"}
+                  </span>
+                </summary>
+                <pre className="overflow-x-auto rounded-lg bg-[var(--surface)] p-3 font-mono text-[11px] leading-relaxed">
+                  {JSON.stringify(i.result, null, 2)}
+                </pre>
+              </details>
+            ))}
+            {c.prepare_summary && (
+              <div>
+                <div className="font-bold mt-2">Prepare summary</div>
+                <pre className="overflow-x-auto rounded-lg bg-[var(--surface)] p-3 font-mono text-[11px] leading-relaxed">
+                  {JSON.stringify(c.prepare_summary, null, 2)}
+                </pre>
+              </div>
+            )}
+            {c.review_notes && <div className="text-[var(--foreground-muted)]">Review notes: {c.review_notes}</div>}
           </div>
         </details>
       ))}
