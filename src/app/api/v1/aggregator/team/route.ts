@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { authenticateAggregatorRequest } from '@/lib/security/aggregatorAuth';
+import { requireAggregatorPermission } from '@/lib/security/aggregatorPermissions';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { createSuccessResponse, createErrorResponse } from '@/lib/security/apiResponse';
 
@@ -58,9 +59,8 @@ export async function POST(req: NextRequest) {
   }
   const { staff } = auth;
 
-  if (staff.role !== 'AGGREGATOR_OWNER' && staff.role !== 'AGGREGATOR_ADMIN') {
-    return createErrorResponse({ code: 'FORBIDDEN_ROLE', message: 'Only owners/admins can invite team members.', requestId: staff.requestId, httpStatus: 403 });
-  }
+  const permCheck = requireAggregatorPermission(staff, 'aggregator.team.manage');
+  if (!permCheck.ok) return permCheck.response;
 
   let body: any;
   try {

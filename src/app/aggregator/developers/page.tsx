@@ -14,7 +14,8 @@ import {
 } from "lucide-react";
 
 export default function AggregatorDevelopersPage() {
-  const { aggregator, apiKeys, issueApiKey, revokeApiKey, formatDate, t } = useAggregator();
+  const { aggregator, apiKeys, issueApiKey, revokeApiKey, hasPermission, formatDate, t } = useAggregator();
+  const canManageKeys = hasPermission("aggregator.keys.manage");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [isIssuing, setIsIssuing] = useState(false);
   const [issueError, setIssueError] = useState<string | null>(null);
@@ -30,6 +31,7 @@ export default function AggregatorDevelopersPage() {
   };
 
   const handleIssue = async () => {
+    if (!canManageKeys) return;
     setIsIssuing(true);
     setIssueError(null);
     const result = await issueApiKey({ keyName: newKeyName.trim() || undefined, environment: newKeyEnv });
@@ -43,6 +45,7 @@ export default function AggregatorDevelopersPage() {
   };
 
   const handleRevoke = async (id: string) => {
+    if (!canManageKeys) return;
     setRevokingId(id);
     await revokeApiKey(id);
     setRevokingId(null);
@@ -130,18 +133,27 @@ export default function AggregatorDevelopersPage() {
           </div>
         </div>
 
+        {!canManageKeys && (
+          <div className="flex items-start gap-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-600 dark:text-amber-400">
+            <ShieldAlert className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+            <span>Only Owner/Admin can issue or revoke API keys — a production key can move money via the public API.</span>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <input
             type="text"
             placeholder="Key name (optional)"
             value={newKeyName}
             onChange={(e) => setNewKeyName(e.target.value)}
-            className="sm:col-span-1 px-3 py-2 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] text-[var(--foreground)] text-xs focus:outline-none focus:ring-1 focus:ring-teal-500"
+            disabled={!canManageKeys}
+            className="sm:col-span-1 px-3 py-2 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] text-[var(--foreground)] text-xs focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-50"
           />
           <select
             value={newKeyEnv}
             onChange={(e) => setNewKeyEnv(e.target.value as "SANDBOX" | "PRODUCTION")}
-            className="px-3 py-2 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] text-[var(--foreground)] text-xs focus:outline-none focus:ring-1 focus:ring-teal-500"
+            disabled={!canManageKeys}
+            className="px-3 py-2 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] text-[var(--foreground)] text-xs focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-50"
           >
             <option value="SANDBOX">SANDBOX</option>
             <option value="PRODUCTION" disabled={aggregator.status !== "ACTIVE"}>
@@ -150,7 +162,8 @@ export default function AggregatorDevelopersPage() {
           </select>
           <button
             onClick={handleIssue}
-            disabled={isIssuing}
+            disabled={isIssuing || !canManageKeys}
+            title={!canManageKeys ? "Only Owner/Admin can issue API keys." : undefined}
             className="px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold flex items-center justify-center gap-2 disabled:opacity-50"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
@@ -205,7 +218,7 @@ export default function AggregatorDevelopersPage() {
                     Created {formatDate(k.createdAt)} {k.lastUsedAt ? `• Last used ${formatDate(k.lastUsedAt)}` : "• Never used"}
                   </div>
                 </div>
-                {k.status === "ACTIVE" && (
+                {k.status === "ACTIVE" && canManageKeys && (
                   <button
                     onClick={() => handleRevoke(k.id)}
                     disabled={revokingId === k.id}

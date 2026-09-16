@@ -13,7 +13,8 @@ import {
 } from "lucide-react";
 
 export default function AggregatorRiskPage() {
-  const { riskAlerts, acknowledgeRiskAlert, t } = useAggregator();
+  const { riskAlerts, acknowledgeRiskAlert, hasPermission, t } = useAggregator();
+  const canAckRisk = hasPermission("aggregator.risk.acknowledge");
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
@@ -55,13 +56,20 @@ export default function AggregatorRiskPage() {
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                   <span>Acknowledged</span>
                 </span>
-              ) : (
+              ) : canAckRisk ? (
                 <button
                   onClick={() => acknowledgeRiskAlert(ra.id)}
                   className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs"
                 >
                   Acknowledge Alert
                 </button>
+              ) : (
+                <span
+                  title="Your role does not include risk acknowledgement."
+                  className="px-4 py-2 rounded-xl bg-[var(--surface-2)] text-[var(--foreground-muted)] text-xs font-bold cursor-not-allowed opacity-70"
+                >
+                  Acknowledge Alert
+                </span>
               )}
             </div>
           </div>

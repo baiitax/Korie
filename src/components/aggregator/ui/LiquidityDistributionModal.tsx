@@ -19,7 +19,16 @@ export const LiquidityDistributionModal: React.FC = () => {
     aggregator,
     executeFloatRebalance,
     formatCurrency,
+    hasPermission,
   } = useAggregator();
+
+  // Single choke point: every "Dispatch Float" entry point across the
+  // portal (agents list/detail, exceptions, liquidity page, operations,
+  // wallet) opens this same modal — gating it here means the permission
+  // check can never be missed by adding a new launch button elsewhere.
+  // The server independently enforces this via requireAggregatorPermission
+  // on POST /api/v1/aggregator/liquidity/dispatch either way.
+  const canDispatchFloat = hasPermission("aggregator.liquidity.dispatch");
 
   const [selectedAgentId, setSelectedAgentId] = useState<string>(
     selectedAgentForLiquidity ? selectedAgentForLiquidity.id : agents[0]?.id || ""
@@ -38,6 +47,11 @@ export const LiquidityDistributionModal: React.FC = () => {
   const handleRebalance = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
+
+    if (!canDispatchFloat) {
+      setErrorMessage("Your role does not include float dispatch. Ask your aggregator owner/admin, operations manager, or finance manager.");
+      return;
+    }
 
     if (!currentAgent) {
       setErrorMessage("No agent selected. Onboard an agent before dispatching float.");
@@ -118,6 +132,13 @@ export const LiquidityDistributionModal: React.FC = () => {
           </div>
         ) : (
           <form onSubmit={handleRebalance} className="p-5 space-y-4 overflow-y-auto">
+            {!canDispatchFloat && (
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>Your role does not include float dispatch. Ask your aggregator owner/admin, operations manager, or finance manager.</span>
+              </div>
+            )}
+
             {errorMessage && (
               <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-300 text-xs flex items-center gap-2 font-mono">
                 <AlertCircle className="w-4 h-4 shrink-0" />
@@ -220,7 +241,8 @@ export const LiquidityDistributionModal: React.FC = () => {
               </button>
               <button
                 type="submit"
-                disabled={isSubmitting || agents.length === 0}
+                disabled={isSubmitting || agents.length === 0 || !canDispatchFloat}
+                title={!canDispatchFloat ? "Your role does not include float dispatch." : undefined}
                 className="px-5 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-white font-bold text-xs shadow-lg transition-all flex items-center gap-2 disabled:opacity-50"
               >
                 <Zap className="w-4 h-4 fill-current" />

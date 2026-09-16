@@ -11,7 +11,8 @@ import {
 } from "lucide-react";
 
 export default function AggregatorCompliancePage() {
-  const { complianceRecords, decideComplianceRecord, t } = useAggregator();
+  const { complianceRecords, decideComplianceRecord, hasPermission, t } = useAggregator();
+  const canDecide = hasPermission("aggregator.compliance.decide");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -142,7 +143,11 @@ export default function AggregatorCompliancePage() {
                     )}
                   </td>
                   <td className="px-4 py-3.5 text-right">
-                    {c.status === "PENDING_REVIEW" || c.status === "NEEDS_MORE_INFO" ? (
+                    {(c.status === "PENDING_REVIEW" || c.status === "NEEDS_MORE_INFO") && !canDecide ? (
+                      <span className="text-[10px] text-[var(--foreground-muted)]" title="Only Owner/Admin/Compliance Officer can decide.">
+                        Awaiting Compliance Review
+                      </span>
+                    ) : c.status === "PENDING_REVIEW" || c.status === "NEEDS_MORE_INFO" ? (
                       rejectingId === c.id ? (
                         <div className="flex flex-col items-end gap-1.5 min-w-[220px]">
                           <textarea

@@ -60,7 +60,7 @@ main target.
 
 ## 2. Implementation roadmap
 
-### Phase A — Aggregator role enforcement (F1, F2, F9) — **highest priority**
+### Phase A — Aggregator role enforcement (F1, F2, F9) — **highest priority** — ✅ IMPLEMENTED
 
 **Why first:** this is the only finding in the set with a plausible path to
 real financial/operational harm today (an `AUDITOR` or `ANALYST` role account
@@ -120,6 +120,55 @@ additive, and low-risk to ship.
 FORBIDDEN_ROLE` for a role not in its permission's allowlist, verified by an
 automated test; UI buttons are conditionally rendered/disabled by role;
 `AUDITOR`/`ANALYST` accounts can view everything and mutate nothing.
+
+**Implementation status (shipped this session):**
+- `src/lib/aggregator/permissions.ts` — client-safe permission matrix
+  (`AGGREGATOR_PERMISSIONS`, `aggregatorRoleHasPermission`), importable from
+  both API routes and React components.
+- `src/lib/security/aggregatorPermissions.ts` — server-side
+  `requireAggregatorPermission(staff, permission)` gate built on the same
+  matrix, returning a ready-to-return 403 `FORBIDDEN_PERMISSION` response.
+- Wired into all 12 relevant routes: `liquidity/dispatch`, `settlements/run`,
+  `reconciliation` (POST), `agents` (POST), `territories` (POST), `targets`
+  (POST), `keys` (POST + DELETE `[id]`), `team` (POST, migrated from its
+  previous inline role check), `compliance/[id]/decision` (migrated from
+  its previous inline `REVIEW_ROLES` check), `exceptions/[id]/resolve`,
+  `risk/[id]/ack`.
+- Final role→permission mapping: OWNER/ADMIN hold everything; OPERATIONS_MANAGER
+  can dispatch float, onboard agents, and manage territories/targets;
+  FINANCE_MANAGER can dispatch float, run settlements/reconciliation;
+  COMPLIANCE_OFFICER decides compliance documents; RISK_OFFICER acknowledges
+  risk alerts; all five of those plus OWNER/ADMIN can resolve exceptions;
+  API-key issuance/revocation and team invites stay OWNER/ADMIN-only by
+  design (the two categories judged too sensitive to delegate further).
+  AUDITOR/ANALYST/FIELD_OFFICER hold none of the privileged permissions.
+- UI-level gating added (defense-in-depth, not the security boundary) via a
+  new `hasPermission()` helper on `AggregatorContext`, fed by a `staffRole`
+  field now threaded through `/api/v1/aggregator/me` → context: buttons for
+  float dispatch (gated once at the shared `LiquidityDistributionModal`,
+  the single choke point every "Dispatch Float" entry point across the
+  portal opens), settlement run, reconciliation run, agent onboarding,
+  team invite, API key issuance/revocation, compliance decisions, risk
+  acknowledgement, and exception resolution now hide/disable themselves
+  with an explanatory tooltip/notice for a role that would be rejected
+  server-side anyway.
+- Regression test added: `tests/aggregatorPermissions.test.ts` (16 tests) —
+  asserts OWNER/ADMIN hold every permission, AUDITOR/ANALYST/FIELD_OFFICER
+  hold none of them, each permission's exact allowed-role set, and that
+  `requireAggregatorPermission` returns the correct 403 for a denied role.
+  Full suite (`npx vitest run`) passes: 6 files, 45 tests + 1
+  correctly-skipped (the DB-perimeter RLS check, which needs live
+  credentials only available in CI). `tsc --noEmit` and `eslint` both clean
+  across every touched file.
+- **Not yet done from this phase:** `createTerritory`/`createTarget` context
+  actions exist and are now permission-gated at the API layer, but no
+  frontend form currently calls them (`/aggregator/territories` and
+  `/aggregator/targets` are read-only display pages) — this was already a
+  pre-existing dead-end in the UI, not something this phase introduced, but
+  it means the new `aggregator.territories.manage` / `aggregator.targets.manage`
+  permissions have no UI surface to visibly test against yet. Worth a small
+  follow-up ticket to either build the missing "Create Territory"/"Create
+  Target" forms or confirm they're intentionally deferred.
 
 ### Phase B — Aggregator account security parity (F4)
 

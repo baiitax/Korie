@@ -14,7 +14,8 @@ import {
 } from "lucide-react";
 
 export default function AggregatorTeamPage() {
-  const { team, inviteTeamMember, t } = useAggregator();
+  const { team, inviteTeamMember, hasPermission, t } = useAggregator();
+  const canInvite = hasPermission("aggregator.team.manage");
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [inviteName, setInviteName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
@@ -63,13 +64,23 @@ export default function AggregatorTeamPage() {
             Granular access controls for Aggregator Owners, Operations Leads, Finance Managers, Risk Officers, and Field Leads
           </p>
         </div>
-        <button
-          onClick={() => setIsInviteOpen(true)}
-          className="px-4 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold flex items-center gap-2 shadow-lg shadow-teal-500/20 transition-all self-start sm:self-auto"
-        >
-          <UserPlus className="w-4 h-4 stroke-[2.5]" />
-          <span>Invite Team Member</span>
-        </button>
+        {canInvite ? (
+          <button
+            onClick={() => setIsInviteOpen(true)}
+            className="px-4 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold flex items-center gap-2 shadow-lg shadow-teal-500/20 transition-all self-start sm:self-auto"
+          >
+            <UserPlus className="w-4 h-4 stroke-[2.5]" />
+            <span>Invite Team Member</span>
+          </button>
+        ) : (
+          <span
+            title="Only owners/admins can invite team members."
+            className="px-4 py-2.5 rounded-xl bg-[var(--surface-2)] text-[var(--foreground-muted)] text-xs font-bold flex items-center gap-2 self-start sm:self-auto cursor-not-allowed opacity-60"
+          >
+            <UserPlus className="w-4 h-4 stroke-[2.5]" />
+            <span>Invite Team Member</span>
+          </span>
+        )}
       </div>
 
       {/* Team Table */}

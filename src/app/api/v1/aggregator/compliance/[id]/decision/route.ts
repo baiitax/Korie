@@ -1,9 +1,8 @@
 import { NextRequest } from 'next/server';
 import { authenticateAggregatorRequest } from '@/lib/security/aggregatorAuth';
+import { requireAggregatorPermission } from '@/lib/security/aggregatorPermissions';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { createSuccessResponse, createErrorResponse } from '@/lib/security/apiResponse';
-
-const REVIEW_ROLES = ['AGGREGATOR_OWNER', 'AGGREGATOR_ADMIN', 'COMPLIANCE_OFFICER'];
 
 /**
  * POST /api/v1/aggregator/compliance/:id/decision
@@ -35,14 +34,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
   const { staff } = auth;
 
-  if (!REVIEW_ROLES.includes(staff.role)) {
-    return createErrorResponse({
-      code: 'FORBIDDEN_ROLE',
-      message: 'Your role is not authorized to decide compliance documents. Only Owner, Admin, or Compliance Officer roles may approve/reject.',
-      requestId: staff.requestId,
-      httpStatus: 403,
-    });
-  }
+  const permCheck = requireAggregatorPermission(staff, 'aggregator.compliance.decide');
+  if (!permCheck.ok) return permCheck.response;
 
   let body: any;
   try {

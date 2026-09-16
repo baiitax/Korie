@@ -24,6 +24,7 @@ import {
 import { SupportedLanguage } from "@/types/customer";
 import { translateAggregator } from "@/locales/aggregator";
 import { aggregatorApiFetch, getAggregatorAccessToken } from "@/lib/aggregator/aggregatorSession";
+import { aggregatorRoleHasPermission, type AggregatorPermission } from "@/lib/aggregator/permissions";
 
 export interface AggregatorNotification {
   id: string;
@@ -285,6 +286,13 @@ interface AggregatorContextType {
 
   isOffline: boolean;
   notificationsCount: number;
+
+  /** UX-only check against the signed-in staff member's role — the server
+   *  independently enforces the same matrix via requireAggregatorPermission()
+   *  on every privileged route, so this never needs to be treated as a
+   *  security boundary by itself; it just lets pages hide/disable an
+   *  action the request would be rejected for anyway. */
+  hasPermission: (permission: AggregatorPermission) => boolean;
 }
 
 const AggregatorContext = createContext<AggregatorContextType | undefined>(undefined);
@@ -435,6 +443,7 @@ export function AggregatorProvider({ children }: { children: React.ReactNode }) 
           providerNodeNG: d.country === "NG" ? "Providus Bank Nigeria (Connected)" : prev.providerNodeNG,
           providerNodeNE: d.country === "NE" ? "Coris Bank Niger Republic (Connected)" : prev.providerNodeNE,
           createdAt: d.createdAt,
+          staffRole: d.staffRole,
         }));
       }
     } catch {
@@ -1075,6 +1084,7 @@ export function AggregatorProvider({ children }: { children: React.ReactNode }) 
         updateNotificationPreferences,
         isOffline,
         notificationsCount,
+        hasPermission: (permission: AggregatorPermission) => aggregatorRoleHasPermission(aggregator.staffRole, permission),
       }}
     >
       {children}

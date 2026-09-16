@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { authenticateAggregatorRequest } from '@/lib/security/aggregatorAuth';
+import { requireAggregatorPermission } from '@/lib/security/aggregatorPermissions';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { createSuccessResponse, createErrorResponse } from '@/lib/security/apiResponse';
 
@@ -10,7 +11,9 @@ import { createSuccessResponse, createErrorResponse } from '@/lib/security/apiRe
  * to a supervised agent's WALLET_FLOAT ledger account, via the
  * aggregator_dispatch_float() RPC (double-entry, balance-checked,
  * transactional — mirrors transfer_agent_float()). Requires an ACTIVE
- * aggregator organization.
+ * aggregator organization AND the aggregator.liquidity.dispatch permission
+ * (Owner/Admin/Operations/Finance only — never a blanket "any staff
+ * member" action; segregation of duties for a real funds-movement action).
  */
 export async function POST(req: NextRequest) {
   const auth = await authenticateAggregatorRequest(req);
@@ -18,6 +21,9 @@ export async function POST(req: NextRequest) {
     return createErrorResponse({ code: auth.errorCode || 'UNAUTHORIZED', message: auth.errorMessage || 'Unauthorized', requestId: `KP-REQ-${Date.now()}`, httpStatus: auth.httpStatus || 401 });
   }
   const { staff } = auth;
+
+  const permCheck = requireAggregatorPermission(staff, 'aggregator.liquidity.dispatch');
+  if (!permCheck.ok) return permCheck.response;
 
   let body: any;
   try {

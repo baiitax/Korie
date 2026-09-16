@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { authenticateAggregatorRequest } from '@/lib/security/aggregatorAuth';
+import { requireAggregatorPermission } from '@/lib/security/aggregatorPermissions';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { createSuccessResponse, createErrorResponse } from '@/lib/security/apiResponse';
 
@@ -8,7 +9,8 @@ import { createSuccessResponse, createErrorResponse } from '@/lib/security/apiRe
  *
  * Triggers a real daily settlement run for this aggregator's own org via
  * the same run_daily_settlement() RPC agency-ops uses — idempotent per
- * (org, currency, date). Requires an ACTIVE aggregator organization.
+ * (org, currency, date). Requires an ACTIVE aggregator organization AND
+ * the aggregator.settlements.run permission (Owner/Admin/Finance only).
  */
 export async function POST(req: NextRequest) {
   const auth = await authenticateAggregatorRequest(req);
@@ -16,6 +18,9 @@ export async function POST(req: NextRequest) {
     return createErrorResponse({ code: auth.errorCode || 'UNAUTHORIZED', message: auth.errorMessage || 'Unauthorized', requestId: `KP-REQ-${Date.now()}`, httpStatus: auth.httpStatus || 401 });
   }
   const { staff } = auth;
+
+  const permCheck = requireAggregatorPermission(staff, 'aggregator.settlements.run');
+  if (!permCheck.ok) return permCheck.response;
 
   let body: any = {};
   try {

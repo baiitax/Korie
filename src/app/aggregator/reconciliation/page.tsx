@@ -13,12 +13,14 @@ import {
 } from "lucide-react";
 
 export default function AggregatorReconciliationPage() {
-  const { reconciliations, aggregator, formatCurrency, formatDate, t, runReconciliation } = useAggregator();
+  const { reconciliations, aggregator, formatCurrency, formatDate, t, runReconciliation, hasPermission } = useAggregator();
+  const canRunReconciliation = hasPermission("aggregator.reconciliation.run");
   const [isMatching, setIsMatching] = useState(false);
   const [matchedSuccess, setMatchedSuccess] = useState(false);
   const [matchError, setMatchError] = useState<string | null>(null);
 
   const handleRunReconciliation = async () => {
+    if (!canRunReconciliation) return;
     setIsMatching(true);
     setMatchError(null);
     setMatchedSuccess(false);
@@ -49,7 +51,8 @@ export default function AggregatorReconciliationPage() {
         </div>
         <button
           onClick={handleRunReconciliation}
-          disabled={isMatching}
+          disabled={isMatching || !canRunReconciliation}
+          title={!canRunReconciliation ? "Only Owner/Admin/Finance can run reconciliation." : undefined}
           className="px-4 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold flex items-center gap-2 shadow-lg shadow-teal-500/20 transition-all self-start sm:self-auto disabled:opacity-50"
         >
           <RefreshCw className={`w-4 h-4 ${isMatching ? "animate-spin" : ""}`} />

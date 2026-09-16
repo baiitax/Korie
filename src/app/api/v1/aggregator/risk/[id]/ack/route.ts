@@ -1,12 +1,14 @@
 import { NextRequest } from 'next/server';
 import { authenticateAggregatorRequest } from '@/lib/security/aggregatorAuth';
+import { requireAggregatorPermission } from '@/lib/security/aggregatorPermissions';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { createSuccessResponse, createErrorResponse } from '@/lib/security/apiResponse';
 
 /**
  * POST /api/v1/aggregator/risk/:id/ack — acknowledges a risk alert
  * (real, permanent status transition), scoped to alerts belonging to the
- * caller's own aggregator.
+ * caller's own aggregator. Gated by aggregator.risk.acknowledge
+ * (Owner/Admin/Risk Officer only).
  */
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const auth = await authenticateAggregatorRequest(req);
@@ -14,6 +16,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return createErrorResponse({ code: auth.errorCode || 'UNAUTHORIZED', message: auth.errorMessage || 'Unauthorized', requestId: `KP-REQ-${Date.now()}`, httpStatus: auth.httpStatus || 401 });
   }
   const { staff } = auth;
+
+  const permCheck = requireAggregatorPermission(staff, 'aggregator.risk.acknowledge');
+  if (!permCheck.ok) return permCheck.response;
+
   const admin = getSupabaseAdminClient();
 
   const { data: existing } = await admin.from('aggregator_risk_alerts').select('id').eq('id', params.id).eq('aggregator_id', staff.aggregatorId).maybeSingle();

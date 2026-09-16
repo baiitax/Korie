@@ -14,7 +14,8 @@ import {
 } from "lucide-react";
 
 export default function AggregatorExceptionsPage() {
-  const { exceptions, resolveException, openLiquidityModal, t } = useAggregator();
+  const { exceptions, resolveException, openLiquidityModal, hasPermission, t } = useAggregator();
+  const canResolveExceptions = hasPermission("aggregator.exceptions.resolve");
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredExceptions = exceptions.filter(
@@ -82,13 +83,20 @@ export default function AggregatorExceptionsPage() {
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   <span>Resolved</span>
                 </span>
-              ) : (
+              ) : canResolveExceptions ? (
                 <button
                   onClick={() => resolveException(exc.id, "Manually verified & rebalanced float")}
                   className="w-full sm:w-auto px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs"
                 >
                   Mark Resolved
                 </button>
+              ) : (
+                <span
+                  title="Your role does not include exception resolution."
+                  className="w-full sm:w-auto px-4 py-2 rounded-xl bg-[var(--surface-2)] text-[var(--foreground-muted)] text-xs font-bold text-center cursor-not-allowed opacity-70"
+                >
+                  Mark Resolved
+                </span>
               )}
             </div>
           </div>

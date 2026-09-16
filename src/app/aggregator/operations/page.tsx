@@ -28,8 +28,12 @@ export default function AggregatorOperationsPage() {
     openTransactionInvestigation,
     acknowledgeRiskAlert,
     resolveException,
+    hasPermission,
     t,
   } = useAggregator();
+
+  const canResolveExceptions = hasPermission("aggregator.exceptions.resolve");
+  const canAckRisk = hasPermission("aggregator.risk.acknowledge");
 
   const [activeTab, setActiveTab] = useState<"stream" | "failed" | "exceptions" | "risk">("stream");
   const [filterSearch, setFilterSearch] = useState("");
@@ -175,13 +179,20 @@ export default function AggregatorOperationsPage() {
                     <span className="px-3 py-1 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-xs font-mono font-bold">
                       RESOLVED
                     </span>
-                  ) : (
+                  ) : canResolveExceptions ? (
                     <button
                       onClick={() => resolveException(exc.id, "Manually verified & rebalanced float")}
                       className="px-3 py-1.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs"
                     >
                       Resolve Exception
                     </button>
+                  ) : (
+                    <span
+                      title="Your role does not include exception resolution."
+                      className="px-3 py-1.5 rounded-xl bg-[var(--surface-2)] text-[var(--foreground-muted)] font-bold text-xs cursor-not-allowed opacity-70"
+                    >
+                      Resolve Exception
+                    </span>
                   )}
                 </div>
               </div>
@@ -213,13 +224,20 @@ export default function AggregatorOperationsPage() {
                     <span className="px-3 py-1 rounded-xl bg-[var(--surface-2)] text-[var(--foreground-muted)] font-mono text-xs">
                       Acknowledged
                     </span>
-                  ) : (
+                  ) : canAckRisk ? (
                     <button
                       onClick={() => acknowledgeRiskAlert(ra.id)}
                       className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs"
                     >
                       Acknowledge
                     </button>
+                  ) : (
+                    <span
+                      title="Your role does not include risk acknowledgement."
+                      className="px-3 py-1.5 rounded-xl bg-[var(--surface-2)] text-[var(--foreground-muted)] font-bold text-xs cursor-not-allowed opacity-70"
+                    >
+                      Acknowledge
+                    </span>
                   )}
                 </div>
               </div>

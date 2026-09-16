@@ -10,7 +10,8 @@ import {
 } from "lucide-react";
 
 export default function AgentOnboardingPage() {
-  const { territories, onboardAgent } = useAggregator();
+  const { territories, onboardAgent, hasPermission } = useAggregator();
+  const canOnboard = hasPermission("aggregator.agents.onboard");
 
   const [fullName, setFullName] = useState("");
   const [businessName, setBusinessName] = useState("");
@@ -26,7 +27,7 @@ export default function AgentOnboardingPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName || !phone) return;
+    if (!fullName || !phone || !canOnboard) return;
 
     setIsSubmitting(true);
     setError(null);
@@ -70,6 +71,13 @@ export default function AgentOnboardingPage() {
           Enroll a new agency cash point into your network. New agents start PENDING until KYC is verified.
         </p>
       </div>
+
+      {!canOnboard && (
+        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-semibold flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>Your role does not include agent onboarding. Ask your aggregator owner/admin or operations manager to enroll this agent.</span>
+        </div>
+      )}
 
       {success ? (
         <div className="p-8 rounded-3xl bg-[var(--surface)] border border-[var(--border)] space-y-6 text-center shadow-[var(--shadow-card)]">
@@ -244,7 +252,8 @@ export default function AgentOnboardingPage() {
             </Link>
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || !canOnboard}
+              title={!canOnboard ? "Your role does not include agent onboarding." : undefined}
               className="px-6 py-2.5 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-on-primary)] font-bold text-xs shadow-lg transition-all disabled:opacity-50"
             >
               {isSubmitting ? "Enrolling..." : "Complete Agent Onboarding"}

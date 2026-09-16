@@ -22,12 +22,16 @@ export default function AggregatorWalletPage() {
     openLiquidityModal,
     isBalanceHidden,
     runSettlement,
+    hasPermission,
     t,
   } = useAggregator();
 
   const [payoutSuccess, setPayoutSuccess] = useState<{ batchReference?: string } | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [payoutError, setPayoutError] = useState<string | null>(null);
+
+  const canDispatchFloat = hasPermission("aggregator.liquidity.dispatch");
+  const canRunSettlement = hasPermission("aggregator.settlements.run");
 
   const mask = (val: string) => (isBalanceHidden ? "••••••••" : val);
 
@@ -38,6 +42,7 @@ export default function AggregatorWalletPage() {
   // determines the payable total from actual earned commissions, never a
   // client-entered figure.
   const handleRunSettlement = async () => {
+    if (!canRunSettlement) return;
     setIsProcessing(true);
     setPayoutError(null);
     setPayoutSuccess(null);
@@ -112,8 +117,10 @@ export default function AggregatorWalletPage() {
               <p className="text-xs text-[var(--foreground-muted)]">Inject liquidity directly into any underfunded agency cash point.</p>
             </div>
             <button
-              onClick={() => openLiquidityModal()}
-              className="px-5 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs shadow-md shadow-teal-500/20 whitespace-nowrap"
+              onClick={() => canDispatchFloat && openLiquidityModal()}
+              disabled={!canDispatchFloat}
+              title={!canDispatchFloat ? "Your role does not include float dispatch." : undefined}
+              className="px-5 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs shadow-md shadow-teal-500/20 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Dispatch Agent Float
             </button>
@@ -179,9 +186,16 @@ export default function AggregatorWalletPage() {
                 </div>
               )}
 
+              {!canRunSettlement && (
+                <div className="flex items-start gap-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-600 dark:text-amber-400">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  <span>Only Owner/Admin/Finance can trigger a settlement run.</span>
+                </div>
+              )}
               <button
                 onClick={handleRunSettlement}
-                disabled={isProcessing}
+                disabled={isProcessing || !canRunSettlement}
+                title={!canRunSettlement ? "Your role does not include settlement runs." : undefined}
                 className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 <ArrowUpRight className="w-4 h-4 stroke-[2.5]" />

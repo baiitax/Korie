@@ -89,6 +89,12 @@ export interface AggregatorOrganization {
   providerNodeNG: "Providus Bank Nigeria (Connected)" | "Providus Bank (Degraded)" | "Awaiting Provider";
   providerNodeNE: "Coris Bank Niger Republic (Connected)" | "Coris Bank (Degraded)" | "Awaiting Provider";
   createdAt: string;
+  /** The signed-in staff member's own role — drives which privileged
+   *  actions (float dispatch, key issuance, settlement runs, etc.) the UI
+   *  offers. The server independently enforces this via
+   *  requireAggregatorPermission(); this is purely for UX (hide/disable a
+   *  button the request would be rejected for anyway). */
+  staffRole?: string;
 }
 
 export interface AggregatedAgent {

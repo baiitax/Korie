@@ -1,12 +1,13 @@
 import { NextRequest } from 'next/server';
 import { authenticateAggregatorRequest } from '@/lib/security/aggregatorAuth';
+import { requireAggregatorPermission } from '@/lib/security/aggregatorPermissions';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { createSuccessResponse, createErrorResponse } from '@/lib/security/apiResponse';
 
 /**
  * DELETE /api/v1/aggregator/keys/:id — revokes an API key (real, permanent
  * status transition to REVOKED; keys are never hard-deleted for audit
- * purposes).
+ * purposes). Gated by aggregator.keys.manage, same as issuance.
  */
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   const auth = await authenticateAggregatorRequest(req, { requireActiveStatus: false });
@@ -14,6 +15,10 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     return createErrorResponse({ code: auth.errorCode || 'UNAUTHORIZED', message: auth.errorMessage || 'Unauthorized', requestId: `KP-REQ-${Date.now()}`, httpStatus: auth.httpStatus || 401 });
   }
   const { staff } = auth;
+
+  const permCheck = requireAggregatorPermission(staff, 'aggregator.keys.manage');
+  if (!permCheck.ok) return permCheck.response;
+
   const admin = getSupabaseAdminClient();
 
   const { data: existing } = await admin.from('aggregator_api_keys').select('id').eq('id', params.id).eq('aggregator_id', staff.aggregatorId).maybeSingle();

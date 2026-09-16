@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { authenticateAggregatorRequest } from '@/lib/security/aggregatorAuth';
+import { requireAggregatorPermission } from '@/lib/security/aggregatorPermissions';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { createSuccessResponse, createErrorResponse } from '@/lib/security/apiResponse';
 
@@ -83,6 +84,9 @@ export async function POST(req: NextRequest) {
     return createErrorResponse({ code: auth.errorCode || 'UNAUTHORIZED', message: auth.errorMessage || 'Unauthorized', requestId: `KP-REQ-${Date.now()}`, httpStatus: auth.httpStatus || 401 });
   }
   const { staff } = auth;
+
+  const permCheck = requireAggregatorPermission(staff, 'aggregator.targets.manage');
+  if (!permCheck.ok) return permCheck.response;
 
   let body: any;
   try {

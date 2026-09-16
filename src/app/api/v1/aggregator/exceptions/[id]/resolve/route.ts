@@ -1,12 +1,16 @@
 import { NextRequest } from 'next/server';
 import { authenticateAggregatorRequest } from '@/lib/security/aggregatorAuth';
+import { requireAggregatorPermission } from '@/lib/security/aggregatorPermissions';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { createSuccessResponse, createErrorResponse } from '@/lib/security/apiResponse';
 
 /**
  * POST /api/v1/aggregator/exceptions/:id/resolve — records a real,
  * permanent resolution decision (resolution_notes/resolved_at), scoped to
- * exceptions belonging to the caller's own aggregator.
+ * exceptions belonging to the caller's own aggregator. Gated by
+ * aggregator.exceptions.resolve — every role whose job includes owning an
+ * exception category (Operations/Finance/Compliance/Risk, plus
+ * Owner/Admin) can resolve; Auditor/Analyst/Field Officer cannot.
  */
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const auth = await authenticateAggregatorRequest(req);
@@ -14,6 +18,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return createErrorResponse({ code: auth.errorCode || 'UNAUTHORIZED', message: auth.errorMessage || 'Unauthorized', requestId: `KP-REQ-${Date.now()}`, httpStatus: auth.httpStatus || 401 });
   }
   const { staff } = auth;
+
+  const permCheck = requireAggregatorPermission(staff, 'aggregator.exceptions.resolve');
+  if (!permCheck.ok) return permCheck.response;
 
   let body: any;
   try {

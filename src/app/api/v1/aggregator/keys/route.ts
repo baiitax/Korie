@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { createHash, randomBytes } from 'crypto';
 import { authenticateAggregatorRequest } from '@/lib/security/aggregatorAuth';
+import { requireAggregatorPermission } from '@/lib/security/aggregatorPermissions';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { createSuccessResponse, createErrorResponse } from '@/lib/security/apiResponse';
 
@@ -10,7 +11,10 @@ import { createSuccessResponse, createErrorResponse } from '@/lib/security/apiRe
  * /api/v1/merchant/keys exactly.
  *
  * POST /api/v1/aggregator/keys — issues a new key. PRODUCTION keys require
- * the aggregator org to be ACTIVE (KYB verified).
+ * the aggregator org to be ACTIVE (KYB verified) AND the
+ * aggregator.keys.manage permission (Owner/Admin only) — a production key
+ * can move money via the public API, so issuance carries the same
+ * segregation-of-duties weight as a direct float dispatch.
  */
 export async function GET(req: NextRequest) {
   const auth = await authenticateAggregatorRequest(req, { requireActiveStatus: false });
@@ -50,6 +54,9 @@ export async function POST(req: NextRequest) {
     return createErrorResponse({ code: auth.errorCode || 'UNAUTHORIZED', message: auth.errorMessage || 'Unauthorized', requestId: `KP-REQ-${Date.now()}`, httpStatus: auth.httpStatus || 401 });
   }
   const { staff } = auth;
+
+  const permCheck = requireAggregatorPermission(staff, 'aggregator.keys.manage');
+  if (!permCheck.ok) return permCheck.response;
 
   let body: any;
   try {
