@@ -121,6 +121,24 @@ export async function authenticateApiRequest(
       .maybeSingle(),
   ]);
 
+  // Every issued merchant/aggregator API key currently holds this exact
+  // fixed scope set — there is no `scopes` column on merchant_api_keys /
+  // aggregator_api_keys, and neither POST /api/v1/merchant/keys nor
+  // POST /api/v1/aggregator/keys (nor any UI in front of them) offers a
+  // scope-selection step at key creation. That is a deliberate "all keys
+  // are full-scope" design for the current API surface, not an
+  // enforcement bug: the `requiredScopes` loop below is real code and
+  // will correctly reject a request if a scope it needs is ever absent
+  // from this list, but today it can never actually fire, because every
+  // key already has every scope in it. Per-key scope restriction would
+  // need a schema change (a `scopes` column) plus a UI to set it at
+  // issuance — flagged as a product/security enhancement for later, not
+  // fixed here, since the real, load-bearing tenant-isolation boundary
+  // for this route (a caller can only ever read its own org's data) is
+  // enforced independently at the query level in the route handler
+  // itself (see /api/v1/wallets/[id]/balance's `org_id` filter), so this
+  // is a completeness gap rather than a live cross-tenant/privilege-
+  // escalation vulnerability.
   const grantedScopes = [
     'payments:read',
     'payments:write',
