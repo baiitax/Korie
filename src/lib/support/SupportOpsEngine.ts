@@ -73,6 +73,7 @@ import {
   nextDisputeNumber,
   disputeRowToDispute,
   postDisputeResolution,
+  submitDisputeDecisionRequest,
   recordDisputeNonFinancialDecision,
   type DisputeRow,
   listEscalationRows,
@@ -817,12 +818,19 @@ export class SupportOpsEngine {
    *
    * REJECTED / UNDER_INVESTIGATION (no money movement) go through the
    * companion public.record_dispute_non_financial_decision() function.
+   *
+   * FINANCIAL decisions (REFUND_APPROVED / REVERSAL_APPROVED / PARTIAL_REFUND)
+   * are the MAKER step of the checked flow (migration 20260914000062): this
+   * submits a DISPUTE_FINANCIAL_DECISION request and returns
+   * PENDING_CHECKER_APPROVAL — nothing posts until a DIFFERENT officer
+   * approves it (public.decide_dispute_decision executes the posting inside
+   * the approval transaction). Self-approval is refused by the database.
    */
   async decideDispute(
     disputeId: string,
     params: { type: DisputeDecisionType; reason: string; partialAmount?: number },
     actor: SupportActor,
-  ): Promise<EngineResult<SupportDispute & { recoveryCaseReference?: string }>> {
+  ): Promise<EngineResult<SupportDispute & { recoveryCaseReference?: string; pendingApproval?: { requestId: string; status: string } }>> {
     if (!hasCapability(actor.role, "decide_dispute")) {
       return { ok: false, code: "FORBIDDEN", error: "Your role cannot record dispute decisions." };
     }
@@ -844,26 +852,37 @@ export class SupportOpsEngine {
       if (params.type === "PARTIAL_REFUND" && (!params.partialAmount || params.partialAmount <= 0)) {
         return { ok: false, code: "PARTIAL_AMOUNT_REQUIRED", error: "A positive partial refund amount is required." };
       }
+      // MAKER step only (migration 20260914000062): the wallet-crediting
+      // journal posts when a DIFFERENT eligible officer approves the request
+      // — decide_dispute_decision executes post_dispute_resolution inside
+      // the approval transaction. Self-approval is refused by the database.
       try {
-        const posting = await postDisputeResolution({
+        const request = await submitDisputeDecisionRequest({
           disputeId: row.id,
           decisionType: params.type as "REFUND_APPROVED" | "REVERSAL_APPROVED" | "PARTIAL_REFUND",
-          officerId: actor.officerId,
           reason: params.reason,
           partialAmount: params.type === "PARTIAL_REFUND" ? params.partialAmount : null,
+          officerId: actor.officerId,
         });
-        recoveryCaseReference = posting.recovery_reference;
+        const refreshed = await disputeRowToDispute(row);
+        return {
+          ok: true,
+          code: "PENDING_CHECKER_APPROVAL",
+          data: { ...refreshed, pendingApproval: { requestId: request.id, status: request.status } },
+        };
       } catch (e) {
-        return { ok: false, code: "LEDGER_POSTING_FAILED", error: `The ledger could not post this decision: ${e instanceof Error ? e.message : "unknown error"}. No balance was touched — retry or escalate.` };
+        const message = e instanceof Error ? e.message : "unknown error";
+        const conflict =
+          message.includes("DISPUTE_REQUEST_ALREADY_PENDING") ||
+          message.includes("DISPUTE_TRANSACTION_ALREADY_RESOLVED") ||
+          message.includes("DISPUTE_ALREADY_DECIDED") ||
+          message.includes("DISPUTE_TRANSACTION_ALREADY_REVERSED");
+        return {
+          ok: false,
+          code: conflict ? "DISPUTE_DECISION_CONFLICT" : "DISPUTE_DECISION_SUBMIT_FAILED",
+          error: message,
+        };
       }
-      // The RPC already wrote decision_type/status/recovery_case_reference/decided_at.
-      // Append the timeline entry separately since the SQL function doesn't touch it.
-      const refreshed = await getDisputeRow(row.id);
-      if (!refreshed) return { ok: false, code: "DISPUTE_NOT_FOUND", error: "Dispute vanished after posting." };
-      const timeline = ((refreshed.timeline as SupportDispute["timeline"]) || []).concat([
-        { label: `Decision: ${params.type} (recovery case ${recoveryCaseReference})`, detail: params.reason, by: actor.name, at: now },
-      ]);
-      updatedRow = await updateDisputeRow(row.id, { timeline });
     } else {
       try {
         await recordDisputeNonFinancialDecision({

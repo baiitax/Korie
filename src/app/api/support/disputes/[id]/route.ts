@@ -4,6 +4,7 @@ import { getSupportOpsEngine } from "@/lib/support/SupportOpsEngine";
 import { createSuccessResponse, createErrorResponse } from "@/lib/security/apiResponse";
 import { DisputeStatus, DisputeDecisionType } from "@/types/supportOps";
 import { getDisputeRow, disputeRowToDispute, getTicketRow, ticketRowToTicket } from "@/lib/support/supportDb";
+import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,32 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   const d = await disputeRowToDispute(row);
   const ticketRow = d.ticketId ? await getTicketRow(d.ticketId) : null;
   const ticket = ticketRow ? await ticketRowToTicket(ticketRow) : undefined;
-  return createSuccessResponse({ dispute: d, ticket }, { requestId: access.ctx.requestId });
+
+  // PS-2: if a financial decision on this dispute is waiting for a checker,
+  // surface it so every officer viewing the dispute knows nothing has posted.
+  const admin = getSupabaseAdminClient();
+  const { data: pendingReq } = await admin
+    .from("maker_checker_requests")
+    .select("id, status, maker_email, maker_role, payload, created_at")
+    .eq("action_type", "DISPUTE_FINANCIAL_DECISION")
+    .eq("status", "PENDING")
+    .contains("payload", { dispute_id: row.id })
+    .maybeSingle();
+  const pendingApproval = pendingReq
+    ? {
+        requestId: pendingReq.id as string,
+        status: String(pendingReq.status ?? "PENDING"),
+        decisionType: String((pendingReq.payload as Record<string, unknown> | null)?.decision_type ?? ""),
+        makerEmail: String(pendingReq.maker_email ?? ""),
+        makerRole: String(pendingReq.maker_role ?? ""),
+        createdAt: String(pendingReq.created_at ?? ""),
+      }
+    : undefined;
+
+  return createSuccessResponse(
+    { dispute: { ...d, pendingApproval }, ticket },
+    { requestId: access.ctx.requestId },
+  );
 }
 
 /**
@@ -67,11 +93,20 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (!result.ok) {
       return operationalError(result.code ?? "DECISION_FAILED", result.error ?? "Decision not recorded.",
         result.code === "FORBIDDEN" || result.code === "FORBIDDEN_DECISION_OWNER" ? 403
-          : result.code === "DISPUTE_ALREADY_DECIDED" ? 409
+          : result.code === "DISPUTE_ALREADY_DECIDED" || result.code === "DISPUTE_DECISION_CONFLICT" ? 409
           : result.code === "LEDGER_POSTING_FAILED" ? 502
           : result.code === "PARTIAL_AMOUNT_REQUIRED" ? 422
           : 404,
         access.ctx.requestId);
+    }
+    // Financial decisions are now the MAKER step of the checked flow — the
+    // response tells the officer a different person must approve before the
+    // wallet-crediting journal posts (migration 20260914000062).
+    if (result.code === "PENDING_CHECKER_APPROVAL") {
+      return createSuccessResponse(
+        { dispute: result.data },
+        { requestId: access.ctx.requestId, code: "DISPUTE_DECISION_SUBMITTED_FOR_CHECKER_APPROVAL" },
+      );
     }
     return createSuccessResponse({ dispute: result.data }, { requestId: access.ctx.requestId, code: "DISPUTE_DECIDED" });
   }

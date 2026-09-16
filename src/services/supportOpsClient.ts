@@ -285,6 +285,14 @@ export interface DisputeDto {
   createdAt: string;
   updatedAt: string;
   resolutionNote?: string;
+  pendingApproval?: {
+    requestId: string;
+    status?: string;
+    decisionType?: string;
+    makerEmail?: string;
+    makerRole?: string;
+    createdAt?: string;
+  };
   decision?: {
     type: string;
     reason: string;
@@ -475,7 +483,7 @@ export const supportOps = {
     ),
 
   decideDispute: (id: string, decision: { type: string; reason: string; partialAmount?: number }) =>
-    supportFetch<{ dispute: DisputeDto }>(
+    supportFetch<{ dispute: DisputeDto; pendingApproval?: { requestId: string; status: string } }>(
       `/api/support/disputes/${encodeURIComponent(id)}`,
       { method: "PATCH", body: JSON.stringify({ decision }) },
     ),
@@ -485,6 +493,31 @@ export const supportOps = {
       `/api/support/disputes/${encodeURIComponent(id)}`,
       { method: "PATCH", body: JSON.stringify({ status, detail }) },
     ),
+
+  disputeApprovals: () =>
+    supportFetch<{
+      requests: {
+        id: string; status: string; maker_email: string; maker_role: string; maker_notes: string | null;
+        payload: Record<string, unknown>; checker_email: string | null; checker_notes: string | null;
+        execution_result: Record<string, unknown> | null; created_at: string; decided_at: string | null;
+        dispute: {
+          dispute_number: string; category: string; status: string; priority: string;
+          transaction_reference: string; customer_name: string; jurisdiction: string;
+          claim: string | null; claim_amount: number; currency: string;
+          decision_type: string | null; recovery_case_reference: string | null;
+        } | null;
+      }[];
+      pending_count: number; can_check_as: string; can_check: boolean;
+    }>("/api/support/approvals", { method: "GET" }),
+
+  decideDisputeApproval: (requestId: string, decision: "APPROVE" | "REJECT", notes: string) =>
+    supportFetch<{
+      request_id: string; status: string;
+      execution_result: Record<string, unknown> | null; decided_by: string;
+    }>("/api/support/approvals", {
+      method: "POST",
+      body: JSON.stringify({ request_id: requestId, decision, notes }),
+    }),
 
   refunds: () =>
     supportFetch<{

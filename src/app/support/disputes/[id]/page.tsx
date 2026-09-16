@@ -31,6 +31,14 @@ import { supportOps, isSupportApiError, supportErrorCode, supportErrorMessage, D
 interface DisputeDetail {
   dispute: DisputeDto;
   ticket?: TicketDto;
+  pendingApproval?: {
+    requestId: string;
+    status?: string;
+    decisionType?: string;
+    makerEmail?: string;
+    makerRole?: string;
+    createdAt?: string;
+  };
 }
 
 const DECISIONS = [
@@ -135,6 +143,20 @@ export default function DisputeDetailPage() {
               </div>
             </div>
           </SectionCard>
+
+          {d.pendingApproval && (
+            <div className="rounded-[var(--support-radius-card)] border border-[var(--state-warning)] bg-[var(--state-warning-soft)] p-4">
+              <p className="text-[13px] font-extrabold text-[var(--state-warning)]">
+                {t("supportOps.disputes.pendingApprovalTitle")}
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-[var(--foreground-muted)]">
+                {t("supportOps.disputes.pendingApprovalBody", {
+                  decision: t(`supportOps.disputes.decisionLabels.${d.pendingApproval.decisionType ?? ""}`) ?? d.pendingApproval.decisionType ?? "",
+                  maker: d.pendingApproval.makerEmail ?? "",
+                })}
+              </p>
+            </div>
+          )}
 
           {d.decision && (
             <SectionCard title={t("supportOps.disputes.decision")}>
@@ -246,7 +268,11 @@ function DecisionModal({
       );
       return;
     }
-    toast(t("supportOps.toasts.disputeDecided"));
+    toast(
+      res.dispute?.pendingApproval
+        ? t("supportOps.toasts.disputeSubmittedForChecker")
+        : t("supportOps.toasts.disputeDecided"),
+    );
     await onDecided();
   };
 

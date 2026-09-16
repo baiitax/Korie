@@ -572,6 +572,61 @@ export async function postDisputeResolution(params: {
 }
 
 /**
+ * MAKER step of the checked dispute-decision flow (migration
+ * 20260914000062): an eligible officer SUBMITS the financial decision; a
+ * different officer must approve it before post_dispute_resolution runs.
+ * Nothing posts here.
+ */
+export async function submitDisputeDecisionRequest(params: {
+  disputeId: string;
+  decisionType: "REFUND_APPROVED" | "REVERSAL_APPROVED" | "PARTIAL_REFUND";
+  reason: string;
+  partialAmount?: number | null;
+  officerId: string;
+  officerEmail?: string | null;
+  notes?: string | null;
+}): Promise<{ id: string; status: string }> {
+  const admin = getSupabaseAdminClient();
+  const { data, error } = await admin.rpc("submit_dispute_decision", {
+    p_dispute_id: params.disputeId,
+    p_decision_type: params.decisionType,
+    p_reason: params.reason,
+    p_partial_amount: params.partialAmount ?? null,
+    p_maker_officer_id: params.officerId,
+    p_maker_email: params.officerEmail ?? null,
+    p_maker_notes: params.notes ?? null,
+  });
+  if (error) throw new Error(error.message);
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) throw new Error("DISPUTE_DECISION_SUBMIT_FAILED: no row returned");
+  return { id: row.id as string, status: row.status as string };
+}
+
+/**
+ * CHECKER step: a DIFFERENT officer approves (executes
+ * post_dispute_resolution inside the approval transaction) or rejects.
+ */
+export async function decideDisputeDecisionRequest(params: {
+  requestId: string;
+  checkerOfficerId: string;
+  checkerEmail: string;
+  decision: "APPROVE" | "REJECT";
+  notes: string;
+}): Promise<Record<string, unknown>> {
+  const admin = getSupabaseAdminClient();
+  const { data, error } = await admin.rpc("decide_dispute_decision", {
+    p_request_id: params.requestId,
+    p_checker_officer_id: params.checkerOfficerId,
+    p_checker_email: params.checkerEmail,
+    p_decision: params.decision,
+    p_checker_notes: params.notes,
+  });
+  if (error) throw new Error(error.message);
+  const row = Array.isArray(data) ? data[0] : data;
+  return (row ?? {}) as Record<string, unknown>;
+}
+
+/**
  * REAL status-update path for REJECTED / UNDER_INVESTIGATION decisions
  * (no money movement). Companion to postDisputeResolution.
  */
