@@ -32,8 +32,67 @@ jobs:
 
       - name: Unit tests (money paths + i18n)
         run: npm test
+        env:
+          # POSTGRES_URL is deliberately NOT set for this step — the RLS
+          # perimeter check runs against a real database in the dedicated
+          # "Database perimeter (RLS guard)" job below, using the actual
+          # Supabase-managed auth schema/roles the policies are written
+          # against. Leaving it unset here just means tests/rls-guard.test.ts
+          # skips its DB-dependent case (as designed) while still running
+          # every non-DB unit test in this fast, dependency-light job.
+          CI: true
 
       - name: Production build
         run: npm run build
         env:
           NEXT_TELEMETRY_DISABLED: 1
+
+  db-perimeter:
+    name: Database perimeter (RLS guard)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v3
+        with:
+          version: latest
+
+      - name: Init local Supabase project (config.toml only — migrations/seed already tracked)
+        run: supabase init --workdir . --with-vscode-settings=false
+
+      - name: Start local Supabase stack and replay every tracked migration
+        # This is the real perimeter check: it stands up the actual
+        # Supabase-managed Postgres (the same image/bootstrap that provisions
+        # the `auth` schema, `auth.uid()/jwt()/role()`, and the
+        # anon/authenticated/service_role roles the RLS policies in
+        # supabase/migrations/*.sql are written against — a vanilla
+        # `postgres:xx` service container does NOT have these and would
+        # make this check meaningless), then applies every migration in
+        # order exactly like a real deploy does. Only the Postgres + Auth
+        # (GoTrue) containers are needed for verify-rls.mjs, so every other
+        # service (Realtime, Storage, Studio, Kong, imgproxy, edge-runtime,
+        # logging, connection pooling, mail) is excluded to keep this job
+        # fast — none of them affect what tables/roles/functions exist.
+        run: |
+          supabase start \
+            -x realtime,storage-api,imgproxy,studio,edge-runtime,logflare,vector,mailpit,supavisor,kong \
+            --ignore-health-check
+
+      - name: Verify RLS perimeter (no unprotected tables, no anon writes, no public EXECUTE for anon/authenticated)
+        env:
+          POSTGRES_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+        run: npm run verify:rls
+
+      - name: Tear down local Supabase stack
+        if: always()
+        run: supabase stop --no-backup || true
