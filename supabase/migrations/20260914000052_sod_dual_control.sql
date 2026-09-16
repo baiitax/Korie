@@ -1,5 +1,5 @@
 -- =============================================================================
--- 20260914000051_sod_dual_control.sql
+-- 20260914000052_sod_dual_control.sql
 --
 -- Segregation-of-duties remediation for the money paths (assessment §43:
 -- "SoD is degenerate — approval as a control step does not exist on money

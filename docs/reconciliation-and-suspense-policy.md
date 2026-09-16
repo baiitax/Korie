@@ -2,7 +2,7 @@
 
 **Scope:** agent end-of-day cash reconciliation, break management, and the
 operational suspense account (assessment §16 remediation; migration
-`20260914000052_reconciliation_suspense.sql`).
+`20260914000054_reconciliation_suspense.sql`).
 
 **Related:** [accounting-policies.md](accounting-policies.md) ·
 [accounting-rules.md](accounting-rules.md) ·

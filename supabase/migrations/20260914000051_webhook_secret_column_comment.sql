@@ -1,6 +1,6 @@
 -- ==============================================================================
 -- KORIEPAY — DOCUMENT THE ENCRYPTED-NOT-HASHED MERCHANT WEBHOOK SECRET COLUMN
--- Migration: 20260914000050_webhook_secret_column_comment.sql
+-- Migration: 20260914000051_webhook_secret_column_comment.sql
 -- ==============================================================================
 --
 -- Fixes a real defect (Task I / Phase 0-1): public.merchant_webhook_endpoints

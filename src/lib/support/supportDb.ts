@@ -542,7 +542,7 @@ export interface DisputeResolutionPosting {
 /**
  * REAL double-entry posting for REFUND_APPROVED / REVERSAL_APPROVED /
  * PARTIAL_REFUND dispute decisions (migration
- * 20260914000052_dispute_resolution_real_posting.sql). Re-derives the
+ * 20260914000053_dispute_resolution_real_posting.sql). Re-derives the
  * amount/currency/wallet from the real customer_transactions row (never
  * trusts support_disputes.claim_amount), posts a balanced ledger entry
  * crediting the customer's wallet from the org's clearing/suspense

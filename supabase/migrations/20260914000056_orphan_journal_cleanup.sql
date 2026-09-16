@@ -1,5 +1,5 @@
 -- =============================================================================
--- 20260914000054_orphan_journal_cleanup.sql
+-- 20260914000056_orphan_journal_cleanup.sql
 --
 -- Orphan-journal cleanup (assessment open item: "linkage/write-off of the
 -- 15 orphan journals") + orphan-DETECTION repair.

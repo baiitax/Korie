@@ -17,7 +17,7 @@ Simulates foreign exchange currency shocks ($\pm 1\%$, $\pm 5\%$, $\pm 10\%$, $\
 
 ## 9. Reference-Rate Administration (implemented)
 
-Implemented in migration `20260914000053_fx_rate_admin.sql` (see also
+Implemented in migration `20260914000055_fx_rate_admin.sql` (see also
 `docs/reconciliation-and-suspense-policy.md` for the control pattern):
 
 - **Sanctioned path:** `update_fx_rate_pair(source, destination, rate, actor, rate_source, notes)` — the only supported way to re-rate. It sets the forward rate and **auto-derives the reverse as 1/rate**, so pairs are reciprocal by construction and no unbooked spread can be introduced through the rate table (assessment F18).
