@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { runAmlMonitoringSweep } from "@/lib/aml/monitoringSweep";
+import { constantTimeStringEqual } from "@/lib/security/constantTimeCompare";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,10 @@ export const dynamic = "force-dynamic";
  * header). Also reachable manually by an operator holding CRON_SECRET.
  *
  * Auth: the `x-cron-secret` header (or Authorization: Bearer CRON_SECRET)
- * must match the CRON_SECRET environment variable. Without the variable
+ * must match the CRON_SECRET environment variable, compared in constant
+ * time (constantTimeStringEqual) — same standard as the webhook HMAC and
+ * agency PIN checks elsewhere in this codebase — so a byte-by-byte timing
+ * side channel can't be used to guess the secret. Without the variable
  * configured the endpoint refuses to run — it never opens unauthenticated.
  */
 export async function GET(request: NextRequest) {
@@ -26,7 +30,7 @@ export async function GET(request: NextRequest) {
   const provided =
     request.headers.get("x-cron-secret") ??
     request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  if (provided !== secret) {
+  if (!provided || !constantTimeStringEqual(provided, secret)) {
     return NextResponse.json(
       { status: "error", error: { code: "UNAUTHORIZED", message: "Invalid cron secret." } },
       { status: 401 },

@@ -20,10 +20,23 @@ const nextConfig = {
         : false,
   },
 
-  // Serve brand imagery in modern formats where supported.
+  // Image formats served by the built-in Image Optimization API.
+  //
+  // AVIF is deliberately NOT enabled here (Phase 4 security finding). This
+  // app is pinned to next@14.2.35, which has no patched release for
+  // GHSA-2xp9-vwfh-vxw4 — a critical (CVSS 9.5), unauthenticated RCE in the
+  // Image Optimization API reached via a heap buffer overflow in the
+  // upstream libheif library (consumed through `sharp`) when decoding an
+  // attacker-supplied AVIF file. The fix only lands in next@15.5.24+ /
+  // 16.3.3+. Vercel's own patched releases mitigate this by disabling AVIF
+  // optimization outright until a corrected libheif build propagates —
+  // this config does the same as an interim measure. Restore
+  // "image/avif" once the app is upgraded to a patched Next.js major
+  // version (see the Phase 4 report for the full upgrade tradeoffs).
   images: {
-    formats: ["image/avif", "image/webp"],
+    formats: ["image/webp"],
   },
+
 
   // Only import the used icons rather than the whole lucide-react barrel
   // (and keep framer/other optionals out of the bundle when not used).
