@@ -141,6 +141,28 @@ export async function authenticateAggregatorRequest(
     };
   }
 
+  // Phase B (F4) — optional, opt-in per-aggregator IP allowlist. Every
+  // authenticated Aggregator Portal API request is checked here (the one
+  // choke point every route already passes through), not just sign-in, so
+  // a stolen session token is also useless from outside the allowed range.
+  // is_ip_allowed_for_aggregator() itself returns TRUE (allowed) whenever
+  // the aggregator has zero allowlist rows configured — the control never
+  // silently locks anyone out by mere absence of configuration.
+  const forwardedFor = request.headers.get('x-forwarded-for');
+  const callerIp = forwardedFor?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || null;
+  const { data: ipAllowed, error: ipCheckError } = await admin.rpc('is_ip_allowed_for_aggregator', {
+    p_aggregator_id: staffRow.aggregator_id,
+    p_ip: callerIp,
+  });
+  if (!ipCheckError && ipAllowed === false) {
+    return {
+      isAuthenticated: false,
+      errorCode: 'IP_NOT_ALLOWLISTED',
+      errorMessage: 'This request originates from an IP address that is not on your organization\'s allowlist. Contact your aggregator owner/admin to add it.',
+      httpStatus: 403,
+    };
+  }
+
   return {
     isAuthenticated: true,
     staff: {

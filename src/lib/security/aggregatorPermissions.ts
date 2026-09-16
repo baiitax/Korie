@@ -1,5 +1,7 @@
 import { createErrorResponse } from '@/lib/security/apiResponse';
 import type { AuthenticatedAggregatorStaffContext } from '@/lib/security/aggregatorAuth';
+import { requireAggregatorMfaIfEnforced } from '@/lib/security/aggregatorMfa';
+import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import {
   AGGREGATOR_PERMISSIONS,
   aggregatorRoleHasPermission,
@@ -49,4 +51,29 @@ export function requireAggregatorPermission(
       httpStatus: 403,
     }),
   };
+}
+
+/**
+ * Combined gate for privileged aggregator actions: checks the role-based
+ * permission (requireAggregatorPermission) AND, if this organization has
+ * opted into org-wide MFA enforcement (aggregators.mfa_required — Phase B
+ * / F4), that the calling staff member actually has a verified TOTP
+ * factor. Every one of the 12 privileged aggregator routes that already
+ * call requireAggregatorPermission should use this combined check instead
+ * so MFA enforcement, once an org turns it on, applies uniformly across
+ * every money-moving/state-changing action rather than needing to be
+ * re-wired route by route.
+ */
+export async function requireAggregatorAuthorization(
+  staff: AuthenticatedAggregatorStaffContext,
+  permission: AggregatorPermission,
+): Promise<{ ok: true } | { ok: false; response: ReturnType<typeof createErrorResponse> }> {
+  const permCheck = requireAggregatorPermission(staff, permission);
+  if (!permCheck.ok) return permCheck;
+
+  const admin = getSupabaseAdminClient();
+  const mfaCheck = await requireAggregatorMfaIfEnforced(admin, staff);
+  if (!mfaCheck.ok) return mfaCheck;
+
+  return { ok: true };
 }

@@ -3,6 +3,14 @@
     {
       "path": "/api/cron/financial-close",
       "schedule": "0 22 * * *"
+    },
+    {
+      "path": "/api/cron/settlement",
+      "schedule": "55 23 * * *"
+    },
+    {
+      "path": "/api/cron/aml-monitoring",
+      "schedule": "0 * * * *"
     }
   ]
 }

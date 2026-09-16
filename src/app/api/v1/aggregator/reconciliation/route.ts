@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { authenticateAggregatorRequest } from '@/lib/security/aggregatorAuth';
-import { requireAggregatorPermission } from '@/lib/security/aggregatorPermissions';
+import { requireAggregatorAuthorization } from '@/lib/security/aggregatorPermissions';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { createSuccessResponse, createErrorResponse } from '@/lib/security/apiResponse';
 
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
   }
   const { staff } = auth;
 
-  const permCheck = requireAggregatorPermission(staff, 'aggregator.reconciliation.run');
+  const permCheck = await requireAggregatorAuthorization(staff, 'aggregator.reconciliation.run');
   if (!permCheck.ok) return permCheck.response;
   const admin = getSupabaseAdminClient();
 

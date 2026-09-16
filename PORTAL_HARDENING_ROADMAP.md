@@ -170,7 +170,7 @@ automated test; UI buttons are conditionally rendered/disabled by role;
   follow-up ticket to either build the missing "Create Territory"/"Create
   Target" forms or confirm they're intentionally deferred.
 
-### Phase B — Aggregator account security parity (F4)
+### Phase B — Aggregator account security parity (F4) — ✅ IMPLEMENTED
 
 1. Implement TOTP-based MFA for aggregator staff logins — this portal holds
    the most money-moving privilege of the three and currently has the
@@ -189,6 +189,60 @@ automated test; UI buttons are conditionally rendered/disabled by role;
 enforced on next login; an org owner can optionally configure an IP
 allowlist and see logins from outside it rejected; no fake/inert toggle
 remains on the security page.
+
+**Implementation notes:**
+- MFA built entirely on Supabase Auth's own native TOTP factor primitive
+  (`auth.mfa.enroll/challenge/verify`) rather than a bespoke secret store —
+  a staff member's `verified` factor list on `auth.users` is the single
+  source of truth. Migration `20260916000058_aggregator_mfa_and_ip_allowlist.sql`
+  adds exactly one column, `aggregators.mfa_required` (org-level opt-in
+  switch, default `FALSE`), plus the `aggregator_ip_allowlist` table and a
+  `is_ip_allowed_for_aggregator(aggregator_id, ip)` SQL function (native
+  `<<=` CIDR containment, fail-open when no rows exist for that org,
+  fail-closed on an unparseable/missing IP once at least one rule exists).
+  Applied and live-smoke-tested against the production Supabase database
+  this session (idempotent re-apply verified; containment/fail-open/
+  fail-closed behavior verified against real rows).
+- `src/lib/security/aggregatorMfa.ts` — `checkAggregatorMfa()` /
+  `requireAggregatorMfaIfEnforced()`: evaluates the caller's live factor
+  list fresh on every request (never cached), so removing a factor revokes
+  the privilege immediately rather than at next login.
+- `src/lib/security/aggregatorPermissions.ts` — new
+  `requireAggregatorAuthorization(staff, permission)` combines the existing
+  role-permission check with the MFA gate (permission failure short-circuits
+  before any MFA lookup is attempted, confirmed by test). All 12 privileged
+  aggregator routes (float dispatch, settlement run, reconciliation run,
+  agent onboarding, territory/target management, API key issuance/
+  revocation, team invite, compliance decision, exception resolution, risk
+  acknowledgement) now call this combined gate instead of the
+  permission-only check.
+- `src/app/api/v1/aggregator/security/route.ts` (GET/PATCH) and
+  `.../security/ip-allowlist/route.ts` (POST/DELETE) — real endpoints
+  backing the security posture UI; PATCH requires the calling Owner/Admin to
+  already have their own verified factor before they can turn on org-wide
+  enforcement (prevents a self-lockout at the org level); POST refuses to
+  add the very first allowlist entry unless it covers the caller's own
+  current request IP (IPv4-only best-effort guard via a bitmask
+  `ipv4InCidr` helper; IPv6 callers skip this extra guard, but the
+  database-side `is_ip_allowed_for_aggregator` check still enforces on
+  every real request regardless).
+- `src/app/aggregator/security/page.tsx` — fully rewritten: real TOTP
+  enrollment flow (QR code + 6-digit verify), org-wide "require MFA for all
+  staff" toggle (Owner/Admin only), and IP allowlist add/list/remove UI. The
+  former "Planned Controls" honesty placeholder is gone.
+- Tests: `tests/aggregatorMfaAndIpAllowlist.test.ts` (11 tests) — org-opt-in
+  MFA enforcement semantics, the combined authorization gate's
+  short-circuit ordering, CIDR normalization, and CIDR containment. Full
+  suite: `npx vitest run` → 8 files, 65 passed / 1 correctly-skipped.
+  `tsc --noEmit` and `eslint` clean across every touched/added file.
+- **Not yet done:** no login-time `aal2` step-up/redirect flow — MFA
+  enforcement today is checked at the point of each privileged API call
+  (`requireAggregatorAuthorization`), not at session establishment, so a
+  staff member without a verified factor is blocked from *acting* the
+  moment their org requires MFA but is not forced through a step-up
+  challenge at login itself. This satisfies the roadmap's practical intent
+  (privileged actions are genuinely gated) but a dedicated login-time
+  `aal2` redirect would be a cleaner UX and is worth a small follow-up.
 
 ### Phase C — Regional contact-info correctness (F3)
 
@@ -209,7 +263,7 @@ actual operating region for at least 2 distinct regions in manual QA (e.g. a
 Lagos-registered agent and a Niger Republic-registered agent see different,
 correct contact info).
 
-### Phase D — Settlement automation (F5, F6)
+### Phase D — Settlement automation (F5, F6) — ✅ IMPLEMENTED
 
 This is the most requested kind of gap ("seamless automation is highly
 needed") and the most mechanically simple to close, since the underlying
@@ -242,6 +296,37 @@ today — the only missing piece is *who calls it and when*.
 active org/currency with no manual trigger required; a re-run for the same
 date is a safe no-op; ops receives a notification of each day's result
 (success or failure) without having to poll the portal.
+
+**Implementation notes:**
+- New `GET /api/cron/settlement` route (`src/app/api/cron/settlement/`),
+  `CRON_SECRET`-gated exactly like `/api/cron/financial-close` (constant-time
+  compare, 401 on mismatch). Loops over every ACTIVE org/currency pair
+  (queried live, not hardcoded) and calls `run_daily_settlement` for each —
+  closing the exact gap the dormant two-org-ID `pg_cron` block had.
+- Added to `vercel.json`'s `crons` array alongside `/api/cron/aml-monitoring`
+  (bundled into the same edit as a Phase F fast-win, user-approved).
+- Idempotency verified both by a new automated test
+  (`tests/settlementCron.test.ts`, 8 tests — double-fire for the same date
+  asserts no duplicate settlement batch/ledger rows) and by a live
+  double-run against the production Supabase database this session.
+- The dormant `pg_cron` block in
+  `20260906000029_agency_transfers_settlement_kyc_realtime.sql` is retired
+  via new migration `20260916000057_retire_dormant_settlement_pgcron.sql`,
+  clearly commented, so there is exactly one source of truth for how
+  settlement actually gets triggered.
+- Completion notification wired to the aggregator-admin audience once each
+  day's batch closes (success or failure).
+- `tsc --noEmit`, `eslint`, and the full `vitest` suite all clean; live cron
+  endpoint smoke-tested end-to-end against the real database.
+- **Known residual risk (not blocking, flagged for follow-up):** the
+  `settlement_batches` table's uniqueness is defined three separate ways
+  across different migrations over the project's history (a broad
+  historical constraint, a narrower one from a later migration, and the
+  application-level idempotency check in `run_daily_settlement` itself). All
+  three currently agree in practice, but a fresh database replay from
+  scratch (rather than this incrementally-migrated one) could theoretically
+  expose an ordering conflict between them. Worth a small follow-up ticket
+  to consolidate into a single authoritative constraint.
 
 ### Phase E — SLA breach alerting (F7)
 

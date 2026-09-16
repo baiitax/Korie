@@ -31,6 +31,12 @@ export const AGGREGATOR_PERMISSIONS = [
   // Staff administration (inviting new staff into the organization).
   'aggregator.team.manage',
 
+  // Organization-wide security controls — requiring MFA for all staff and
+  // configuring the IP allowlist. Same trust tier as keys/team: only the
+  // org's own accountable principals should be able to change how the
+  // whole organization authenticates.
+  'aggregator.security.manage',
+
   // Review/decision actions on findings raised by the platform itself.
   'aggregator.compliance.decide',
   'aggregator.risk.acknowledge',
