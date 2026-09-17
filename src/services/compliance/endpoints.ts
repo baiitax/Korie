@@ -74,6 +74,7 @@ export const LIVE_SOURCES: Partial<Record<ComplianceResourceKey, LiveSource>> = 
   /* Computed server-side from real tables; the old in-memory engines are not
      consulted because they asserted states nobody had configured. */
   posture: { path: '/api/compliance/posture' },
+  analytics: { path: '/api/compliance/analytics' },
   systemHealth: { path: '/api/compliance/health' },
 };
 
@@ -109,6 +110,7 @@ export const WIRING: Record<ComplianceResourceKey, ComplianceWiring> = {
   restatements: 'live',
   scenarios: 'live',
   posture: 'live',
+  analytics: 'live',
   network: 'live',
   policies: 'live',
   calendar: 'live',

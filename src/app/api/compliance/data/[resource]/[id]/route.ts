@@ -6,6 +6,8 @@ import {
   COMPLIANCE_READABLE_RESOURCES,
   COMPLIANCE_MUTABLE_RESOURCES,
 } from "@/lib/admin/resourceApi";
+import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { maskIdentityPersons, canUnmaskPii } from "@/lib/security/piiMasking";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +44,17 @@ export async function GET(
     );
   }
 
+  // PS-11 (roadmap 2.5): the identity record leaves this API with PII
+  // masked unless a privileged officer explicitly unmasks — audited when
+  // they do, exactly like the support console's Customer 360 (spec §55).
+  const wantsUnmask = params.resource === "identity-persons" && request.nextUrl.searchParams.get("unmask") === "1";
+  if (wantsUnmask && !canUnmaskPii([auth.roleName ?? ""])) {
+    return NextResponse.json(
+      { status: "error", error: { code: "FORBIDDEN_UNMASK", message: "Your role cannot unmask customer PII." } },
+      { status: 403 },
+    );
+  }
+
   const result = await getResource(params.resource, params.id);
   if ("error" in result) {
     if (result.error.kind === "backend-unconfigured") return NextResponse.json(UNCONFIGURED, { status: 503 });
@@ -51,7 +64,31 @@ export async function GET(
       { status },
     );
   }
-  return NextResponse.json({ status: "ok", resource: params.resource, record: result.record });
+  const record =
+    params.resource === "identity-persons" && !wantsUnmask
+      ? maskIdentityPersons([result.record])[0]
+      : result.record;
+
+  if (wantsUnmask) {
+    try {
+      const admin = getSupabaseAdminClient();
+      await admin.from("audit_events").insert({
+        actor_id: auth.profileId ?? auth.userId ?? "00000000-0000-0000-0000-000000000000",
+        actor_email: auth.email ?? "unknown",
+        actor_role: auth.roleName ?? "UNKNOWN",
+        action: "PII_UNMASKED",
+        resource_type: "compliance:identity-persons",
+        resource_id: params.id,
+        details: { scope: "record" },
+        ip_address: request.headers.get("x-forwarded-for") ?? "unrecorded",
+        request_id: request.headers.get("x-kp-request-id") ?? `api-${Date.now().toString(36)}`,
+      });
+    } catch {
+      // See the list route: never block the read on the audit write.
+    }
+  }
+
+  return NextResponse.json({ status: "ok", resource: params.resource, record });
 }
 
 export async function PATCH(

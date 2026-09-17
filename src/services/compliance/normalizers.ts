@@ -389,6 +389,43 @@ export function mapHealth(raw: Json): HealthRow {
  * path or the file hash (§83), so this mapper has nothing to hide and nothing
  * to invent: whatever the route returns is what the officer sees.
  */
+export function mapAnalytics(payload: Json): import('./types').AnalyticsRow {
+  const kpis = Array.isArray(payload.kpis)
+    ? payload.kpis.map((k: Json) => ({
+        key: String(k.key ?? ''),
+        value: typeof k.value === 'number' ? k.value : null,
+        unit: (['percent', 'hours', 'count', 'runs'] as const).includes(k.unit as never)
+          ? (k.unit as 'percent' | 'hours' | 'count' | 'runs')
+          : 'count',
+        assessed: k.assessed === true,
+        numerator: typeof k.numerator === 'number' ? k.numerator : undefined,
+        denominator: typeof k.denominator === 'number' ? k.denominator : undefined,
+        details: String(k.details ?? ''),
+      }))
+    : [];
+  return {
+    id: 'analytics',
+    evaluatedAt: String(payload.evaluatedAt ?? ''),
+    windowDays: typeof payload.windowDays === 'number' ? payload.windowDays : 0,
+    kpis,
+    jurisdictionExposure: Array.isArray(payload.jurisdictionExposure)
+      ? payload.jurisdictionExposure.map((j: Json) => ({
+          jurisdiction: String(j.jurisdiction ?? ''),
+          openCases: Number(j.openCases ?? 0),
+          totalCases: Number(j.totalCases ?? 0),
+          exposureAmount: Number(j.exposureAmount ?? 0),
+          currency: String(j.currency ?? 'NGN'),
+        }))
+      : [],
+    alertSeverity: Array.isArray(payload.alertSeverity)
+      ? payload.alertSeverity.map((a: Json) => ({ severity: String(a.severity ?? ''), count: Number(a.count ?? 0) }))
+      : [],
+    alertStatus: Array.isArray(payload.alertStatus)
+      ? payload.alertStatus.map((a: Json) => ({ status: String(a.status ?? ''), count: Number(a.count ?? 0) }))
+      : [],
+  };
+}
+
 export function mapPosture(payload: Json): import('./types').SecurityPostureRow {
   const dimensions = Array.isArray(payload.dimensions)
     ? payload.dimensions.map((d: Json) => ({

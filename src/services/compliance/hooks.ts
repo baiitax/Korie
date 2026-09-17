@@ -12,7 +12,6 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { loadComplianceResource, type LoadOptions } from './service';
-import { getDemoVersion, subscribeDemo } from './demo/store';
 import { getJurisdiction, subscribeJurisdiction } from './jurisdiction';
 import type {
   ComplianceMutationResult,
@@ -20,7 +19,7 @@ import type {
   ComplianceResourceKey,
   ComplianceResourceMap,
 } from './types';
-import { runLiveAction, runDemoAction, type LiveActionKey } from './mutations';
+import { runLiveAction, type LiveActionKey } from './mutations';
 
 function emptyEnvelope<K extends ComplianceResourceKey>(): ComplianceResource<ComplianceResourceMap[K]> {
   return {
@@ -49,7 +48,6 @@ export function useComplianceResource<K extends ComplianceResourceKey>(
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [nonce, setNonce] = useState(0);
-  const demoVersion = useSyncExternalStore(subscribeDemo, getDemoVersion, getDemoVersion);
   // A jurisdiction change must refetch, not just re-filter locally cached rows.
   const jurisdiction = useSyncExternalStore(subscribeJurisdiction, getJurisdiction, () => 'ALL' as const);
   const controllerRef = useRef<AbortController | null>(null);
@@ -92,7 +90,7 @@ export function useComplianceResource<K extends ComplianceResourceKey>(
       controller.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [signature, nonce, demoVersion, jurisdiction]);
+  }, [signature, nonce, jurisdiction]);
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
   return { resource, isLoading, isRefreshing, reload };
@@ -163,7 +161,7 @@ export function useComplianceAction(): UseComplianceActionResult {
   return { status, showPending, result, run, runLive, reset };
 }
 
-export { runDemoAction, runLiveAction };
+export { runLiveAction };
 export type { ComplianceMutationResult };
 
 /**

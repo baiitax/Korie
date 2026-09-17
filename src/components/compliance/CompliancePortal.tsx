@@ -15,7 +15,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useLanguage } from '@/components/ui/LanguageContext';
 import { useComplianceResource } from '@/services/compliance/hooks';
-import { complianceMode, demoAllowed } from '@/services/compliance/service';
 import {
   getJurisdiction,
   initJurisdiction,
@@ -130,8 +129,8 @@ export const CompliancePortalProvider: React.FC<{ children: React.ReactNode }> =
       locale: language,
       jurisdiction: hydrated ? jurisdiction : 'ALL',
       setJurisdiction: (next) => setJurisdictionScope(next),
-      mode: complianceMode(),
-      demoEnabled: demoAllowed(),
+      mode: 'live',
+      demoEnabled: false,
       summary: dashboardResource.data[0] ?? null,
       summaryProvenance: {
         source: dashboardResource.source,

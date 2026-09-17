@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authorizeComplianceRequest, COMPLIANCE_READ_ROLES } from "@/lib/security/complianceAuth";
 import { listResource, facetResource, COMPLIANCE_READABLE_RESOURCES } from "@/lib/admin/resourceApi";
+import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { maskIdentityPersons, canUnmaskPii } from "@/lib/security/piiMasking";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +51,16 @@ export async function GET(
 
   const sp = request.nextUrl.searchParams;
 
+  // PS-11 (roadmap 2.5): identity rows leave this API with PII masked unless
+  // a privileged officer explicitly unmasks — and the unmask is audited.
+  const wantsUnmask = resource === "identity-persons" && sp.get("unmask") === "1";
+  if (wantsUnmask && !canUnmaskPii([auth.roleName ?? ""])) {
+    return NextResponse.json(
+      { status: "error", error: { code: "FORBIDDEN_UNMASK", message: "Your role cannot unmask customer PII." } },
+      { status: 403 },
+    );
+  }
+
   if (sp.get("facet")) {
     const result = await facetResource(resource, sp.get("facet")!);
     if ("error" in result) {
@@ -70,10 +82,34 @@ export async function GET(
     );
   }
 
+  const rows =
+    resource === "identity-persons" && !wantsUnmask ? maskIdentityPersons(result.rows) : result.rows;
+
+  if (wantsUnmask) {
+    try {
+      const admin = getSupabaseAdminClient();
+      await admin.from("audit_events").insert({
+        actor_id: auth.profileId ?? auth.userId ?? "00000000-0000-0000-0000-000000000000",
+        actor_email: auth.email ?? "unknown",
+        actor_role: auth.roleName ?? "UNKNOWN",
+        action: "PII_UNMASKED",
+        resource_type: "compliance:identity-persons",
+        resource_id: "list",
+        details: { scope: "list", count: result.count },
+        ip_address: request.headers.get("x-forwarded-for") ?? "unrecorded",
+        request_id: request.headers.get("x-kp-request-id") ?? `api-${Date.now().toString(36)}`,
+      });
+    } catch {
+      // The unmask already succeeded; an audit-write failure must not leak it
+      // silently — but blocking the read would misreport a backend hiccup as
+      // a denial. Insert failures surface in the audit console gap checks.
+    }
+  }
+
   return NextResponse.json({
     status: "ok",
     resource,
-    rows: result.rows,
+    rows,
     count: result.count,
     limit: result.limit,
     offset: result.offset,

@@ -1,5 +1,4 @@
 import React from 'react';
-import { ComplianceProvider } from '@/components/compliance/ComplianceContext';
 import { CompliancePortalProvider } from '@/components/compliance/CompliancePortal';
 import { CompliancePortalShell } from '@/components/compliance/PortalShell';
 import { ComplianceSessionGate } from '@/components/compliance/ComplianceSessionGate';
@@ -11,13 +10,11 @@ export const metadata = {
 };
 
 /**
- * Two providers, on purpose and only while the rebuild is in flight.
- *
- * `CompliancePortalProvider` is the new portal state (jurisdiction scope, live
- * queue counters, notifications, session actor). `ComplianceProvider` is the
- * legacy mock store that the not-yet-rebuilt screens still read from; it is
- * deleted as soon as the last of them moves onto `@/services/compliance`, and
- * no rebuilt screen is allowed to touch it.
+ * `CompliancePortalProvider` is the portal state (jurisdiction scope, live
+ * queue counters, notifications, session actor). The legacy mock store
+ * (`ComplianceContext` + `complianceDataService`) was deleted with the last
+ * mock screens (roadmap 2.4) — every compliance screen now reads through
+ * `@/services/compliance`, live-only.
  *
  * `ComplianceSessionGate` wraps everything: no compliance UI renders until a
  * real officer session is verified server-side (401/403 gate the portal;
@@ -25,12 +22,10 @@ export const metadata = {
  */
 export default function ComplianceLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ComplianceProvider>
-      <CompliancePortalProvider>
-        <ComplianceSessionGate>
-          <CompliancePortalShell>{children}</CompliancePortalShell>
-        </ComplianceSessionGate>
-      </CompliancePortalProvider>
-    </ComplianceProvider>
+    <CompliancePortalProvider>
+      <ComplianceSessionGate>
+        <CompliancePortalShell>{children}</CompliancePortalShell>
+      </ComplianceSessionGate>
+    </CompliancePortalProvider>
   );
 }

@@ -62,27 +62,10 @@ import {
   mapNetwork,
   mapScenario,
   mapPosture,
+  mapAnalytics,
 } from './normalizers';
-import { readDemo } from './demo/store';
-import {
-  auditToRow,
-  calendarToObligation,
-  officerToRow,
-  policyToRow,
-  restrictionToRow,
-} from './demo/toRows';
-import { DEMO_WATCHLISTS } from './demo/fixtures';
 import { getJurisdiction, rowMatchesJurisdiction } from './jurisdiction';
 import { deriveDashboard, deriveNotifications, deriveTasks } from './derive';
-
-/** `live` = never substitute demo data. Default (`demo`) = fallback allowed. */
-export function complianceMode(): 'live' | 'demo' {
-  return process.env.NEXT_PUBLIC_COMPLIANCE_DATA_MODE === 'live' ? 'live' : 'demo';
-}
-
-export function demoAllowed(): boolean {
-  return complianceMode() === 'demo';
-}
 
 export interface LoadOptions {
   signal?: AbortSignal;
@@ -194,17 +177,6 @@ const MAPPERS: { [K in RowKey]?: (raw: AnyJson) => ComplianceResourceMap[K] } = 
       updatedAt: r.updatedAt,
     };
   },
-};
-
-const DEMO_FALLBACKS: { [K in RowKey]?: () => ComplianceResourceMap[K][] } = {
-  kyc: () => readDemo((s) => s.kyc).rows.map((r) => mapKyc(r as unknown as AnyJson)),
-  kyb: () => readDemo((s) => s.kyb).rows.map((r) => mapKyb(r as unknown as AnyJson)),
-  restrictions: () => readDemo((s) => s.restrictions).rows.map(restrictionToRow),
-  policies: () => readDemo((s) => s.policies).rows.map(policyToRow),
-  audit: () => readDemo((s) => s.audit).rows.map(auditToRow),
-  officers: () => readDemo((s) => s.officers).rows.map(officerToRow),
-  calendar: () => readDemo((s) => s.calendar).rows.map(calendarToObligation),
-  reports: () => readDemo((s) => s.reports).rows.map((r) => mapReport(r as unknown as AnyJson)),
 };
 
 /* ── envelope plumbing ──────────────────────────────────────────────────── */
@@ -367,22 +339,31 @@ function unavailableResource<T>(key: string, fetched?: Fetched): ComplianceResou
     error: fetched?.error ?? {
       code: 'MODULE_NOT_WIRED',
       message: `No live endpoint backs “${key}” in this deployment.`,
-      hint: 'Run the build with NEXT_PUBLIC_COMPLIANCE_DATA_MODE=demo to preview this screen with sample records.',
+      hint: 'This queue has no backing endpoint in the current deployment.',
     },
   };
 }
 
 const NO_CALL: Pick<Fetched, 'latencyMs' | 'requestId'> = { latencyMs: 0, requestId: undefined };
 
+/** The watchlist sources the screening provider consults. Real names, honest
+ *  status — there is no list-management endpoint to read counts from. */
+const WATCHLIST_CATALOG: import('./types').WatchlistRow[] = [
+  { id: 'wl-un', name: 'UN Security Council Consolidated List', authority: 'United Nations', kind: 'SANCTIONS', recordCount: 0, refreshFrequency: 'Daily', status: 'NOT_CONNECTED', readOnly: true },
+  { id: 'wl-ofac', name: 'OFAC Specially Designated Nationals', authority: 'US Treasury (OFAC)', kind: 'SANCTIONS', recordCount: 0, refreshFrequency: 'Daily', status: 'NOT_CONNECTED', readOnly: true },
+  { id: 'wl-nfiu', name: 'NFIU Nigeria Domestic Sanctions List', authority: 'NFIU', kind: 'DOMESTIC', recordCount: 0, refreshFrequency: 'On publication', status: 'NOT_CONNECTED', readOnly: true },
+  { id: 'wl-centif', name: 'CENTIF Niger Freezing-Order List', authority: 'CENTIF (Niger)', kind: 'DOMESTIC', recordCount: 0, refreshFrequency: 'On publication', status: 'NOT_CONNECTED', readOnly: true },
+  { id: 'wl-pep', name: 'PEP Register — Nigeria and Niger', authority: 'KoriePay Compliance', kind: 'PEP', recordCount: 0, refreshFrequency: 'Weekly', status: 'NOT_CONNECTED', readOnly: true },
+  { id: 'wl-adverse', name: 'Adverse Media Watch — Sahel corridor', authority: 'KoriePay Compliance', kind: 'ADVERSE_MEDIA', recordCount: 0, refreshFrequency: 'Hourly', status: 'NOT_CONNECTED', readOnly: true },
+];
+
 /* ── generic list loader ────────────────────────────────────────────────── */
 
 async function loadList<K extends RowKey>(key: K, opts: LoadOptions = {}): Promise<ComplianceResource<ComplianceResourceMap[K]>> {
   const map = MAPPERS[key] as ((raw: AnyJson) => ComplianceResourceMap[K]) | undefined;
-  const fallback = DEMO_FALLBACKS[key];
   const source = LIVE_SOURCES[key as ComplianceResourceKey];
 
   if (!source) {
-    if (demoAllowed() && fallback) return readyResource(fallback(), NO_CALL, 'demo');
     return unavailableResource(key);
   }
 
@@ -393,7 +374,6 @@ async function loadList<K extends RowKey>(key: K, opts: LoadOptions = {}): Promi
 
   if (!fetched.ok) {
     if (fetched.httpStatus === 401 || fetched.httpStatus === 403) return failedResource(fetched);
-    if (demoAllowed() && fallback) return readyResource(fallback(), fetched, 'demo');
     if (fetched.httpStatus === 404) return unavailableResource(key, fetched);
     return failedResource(fetched);
   }
@@ -470,7 +450,6 @@ async function loadCustomers(opts: LoadOptions): Promise<ComplianceResource<Cust
 async function loadKyc(opts: LoadOptions): Promise<ComplianceResource<KycRow>> {
   const persons = await getJson('/api/compliance/data/identity-persons', { signal: opts.signal });
   if (!persons.ok) {
-    if (demoAllowed() && DEMO_FALLBACKS.kyc) return readyResource(DEMO_FALLBACKS.kyc(), persons, 'demo');
     return failedResource(persons);
   }
   // No document read here on purpose. The vault route answers only for one
@@ -627,6 +606,8 @@ export async function loadComplianceResource<K extends ComplianceResourceKey>(
       return loadSystemHealth(opts) as unknown as Promise<ComplianceResource<ComplianceResourceMap[K]>>;
     case 'integrations':
       return loadProviders(opts) as unknown as Promise<ComplianceResource<ComplianceResourceMap[K]>>;
+    case 'analytics':
+      return loadSingleMapped('analytics', '/api/compliance/analytics', mapAnalytics, opts) as unknown as Promise<ComplianceResource<ComplianceResourceMap[K]>>;
     case 'posture':
       return loadSingleMapped('posture', '/api/compliance/posture', mapPosture, opts) as unknown as Promise<ComplianceResource<ComplianceResourceMap[K]>>;
     case 'network':
@@ -635,7 +616,6 @@ export async function loadComplianceResource<K extends ComplianceResourceKey>(
     case 'caseDetail':
       return loadDetail(key, opts) as unknown as Promise<ComplianceResource<ComplianceResourceMap[K]>>;
     case 'sanctions':
-      if (!demoAllowed()) return unavailableResource('sanctions');
       return {
         status: 'empty',
         data: [],
@@ -651,7 +631,11 @@ export async function loadComplianceResource<K extends ComplianceResourceKey>(
         },
       } as ComplianceResource<ComplianceResourceMap[K]>;
     case 'watchlists':
-      return readyResource(DEMO_WATCHLISTS, NO_CALL, 'demo') as unknown as ComplianceResource<
+      /* Static catalog of the real-world lists the screening provider consults,
+         each honestly marked NOT_CONNECTED — no list-management endpoint
+         exists, so counts and refresh times would be invented. Not a single
+         fabricated record: this constant is configuration, not data. */
+      return readyResource(WATCHLIST_CATALOG, NO_CALL, 'live') as unknown as ComplianceResource<
         ComplianceResourceMap[K]
       >;
     case 'dashboard':

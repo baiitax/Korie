@@ -22,6 +22,8 @@ import { runKycTierReview } from '@/services/compliance/mutations';
 import { formatDate, formatMoney, humanizeEnum, maskIdentifier } from '@/services/compliance/format';
 import type { AlertRow, ApprovalRow, CustomerRow, DocumentRow, EscalationRow, KybRow, MonitoringRow, ObligationRow } from '@/services/compliance/types';
 import { useCompliancePortal } from '@/components/compliance/CompliancePortal';
+import { complianceFetch } from '@/lib/compliancePortalClient';
+import { canUnmaskPii } from '@/lib/security/piiMasking';
 import {
   Button,
   Chip,
@@ -145,7 +147,7 @@ interface CaseLike {
 }
 
 export default function CustomerFilePage() {
-  const { t, locale } = useCompliancePortal();
+  const { t, locale, session } = useCompliancePortal();
   const params = useParams();
   const personId = (params?.id as string | undefined) ?? '';
   const [tab, setTab] = useHashTab([...TABS], 'overview');
@@ -161,6 +163,35 @@ export default function CustomerFilePage() {
   const obligations = useComplianceResource('calendar');
 
   const person: CustomerRow | undefined = customers.resource.data.find((row) => row.id === personId || row.identityReference === personId);
+
+  /* PS-11 (roadmap 2.5): PII arrives masked from the API. A privileged
+     officer can reveal it — one record, one audited request; the server
+     writes a PII_UNMASKED audit row and refuses anyone without the role. */
+  const [revealed, setRevealed] = useState<Record<string, unknown> | null>(null);
+  const [revealError, setRevealError] = useState<string | null>(null);
+  const [revealing, setRevealing] = useState(false);
+  const mayUnmask = canUnmaskPii(session?.roles);
+  const revealedEmail = (revealed?.email as string | undefined) ?? undefined;
+  const revealedPhone = (revealed?.phone as string | undefined) ?? undefined;
+  const revealedDob = (revealed?.date_of_birth as string | undefined) ?? (revealed?.dateOfBirth as string | undefined) ?? undefined;
+  const reveal = async () => {
+    if (!personId || revealing) return;
+    setRevealing(true);
+    setRevealError(null);
+    try {
+      const res = await complianceFetch(`/api/compliance/data/identity-persons/${encodeURIComponent(personId)}?unmask=1`);
+      const payload = (await res.json()) as { status?: string; record?: Record<string, unknown>; error?: { message?: string } };
+      if (!res.ok || payload.status !== 'ok' || !payload.record) {
+        setRevealError(payload.error?.message ?? 'The identity record could not be read.');
+      } else {
+        setRevealed(payload.record);
+      }
+    } catch {
+      setRevealError('The identity record could not be read.');
+    } finally {
+      setRevealing(false);
+    }
+  };
   const scoped = <T extends { subjectId?: string; customerId?: string; subjectName?: string }>(rows: T[]) =>
     person ? rows.filter((row) => row.subjectId === person.id || row.customerId === person.id || row.subjectName === person.fullName) : [];
 
@@ -309,14 +340,35 @@ export default function CustomerFilePage() {
                 <KeyList
                   items={[
                     { term: t('compliance.customer.fullName'), value: person.fullName },
-                    { term: t('compliance.customer.dateOfBirth'), value: person.dateOfBirth ? formatDate(person.dateOfBirth, 'date', { locale }) : t('compliance.shell.notReported') },
+                    { term: t('compliance.customer.dateOfBirth'), value: revealedDob ?? (person.dateOfBirth ? person.dateOfBirth : t('compliance.shell.notReported')) },
                     { term: t('compliance.customer.nationality'), value: person.nationality ?? t('compliance.shell.notReported') },
                     { term: t('compliance.customer.gender'), value: person.gender ? humanizeEnum(person.gender) : t('compliance.shell.notReported') },
-                    { term: t('compliance.customer.phone'), value: maskIdentifier(person.phone) },
-                    { term: t('compliance.customer.email'), value: person.email || t('compliance.shell.notReported') },
+                    { term: t('compliance.customer.phone'), value: revealedPhone ?? maskIdentifier(person.phone) },
+                    { term: t('compliance.customer.email'), value: revealedEmail ?? person.email ?? t('compliance.shell.notReported') },
                     { term: t('compliance.customer.registered'), value: person.createdAt ? formatDate(person.createdAt, 'full', { locale }) : t('compliance.shell.notReported') },
                   ]}
                 />
+                {mayUnmask && !revealed ? (
+                  <div className="mt-3">
+                    <Button onClick={() => void reveal()} pending={revealing}>
+                      {revealing ? t('compliance.customer.revealing') : t('compliance.customer.revealPii')}
+                    </Button>
+                    <p className="cmp-cell-muted mt-1 text-[11px]">{t('compliance.customer.revealPiiNote')}</p>
+                  </div>
+                ) : null}
+                {revealed ? (
+                  <div className="mt-3">
+                    <InlineNotice tone="warning">
+                      {t('compliance.customer.piiUnmaskedNotice')}{' '}
+                      <span className="cmp-ref">{session?.email ?? ''}</span>
+                    </InlineNotice>
+                  </div>
+                ) : null}
+                {revealError ? (
+                  <div className="mt-3">
+                    <InlineNotice tone="danger">{revealError}</InlineNotice>
+                  </div>
+                ) : null}
                 {personEntities.length ? (
                   <div className="mt-3 border-t border-[var(--border)] pt-3">
                     <h3 className="mb-2 text-[11.5px] font-bold uppercase tracking-[0.08em] text-[var(--foreground-muted)]">

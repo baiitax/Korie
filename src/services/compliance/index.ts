@@ -10,13 +10,10 @@
 export * from './types';
 export {
   loadComplianceResource,
-  complianceMode,
-  demoAllowed,
   type LoadOptions,
 } from './service';
 export {
   runLiveAction,
-  runDemoAction,
   runScreening,
   type LiveActionKey,
 } from './mutations';
@@ -28,4 +25,3 @@ export {
   type UseComplianceActionResult,
 } from './hooks';
 export { LIVE_SOURCES, WIRING, type ComplianceWiring } from './endpoints';
-export { DEMO_FIXTURE_NOTICE } from './demo/fixtures';

@@ -11,8 +11,7 @@
 
 import { complianceFetch } from '@/lib/compliancePortalClient';
 import { LIVE_ACTIONS } from './endpoints';
-import { clearComplianceCache, demoAllowed } from './service';
-import { applyDemoMutation } from './demo/store';
+import { clearComplianceCache } from './service';
 import type { ComplianceMutationResult } from './types';
 import { camelRow, mapAlert, mapApproval, mapCase, mapDecision, mapEscalation } from './normalizers';
 import type { MonitoringRow } from './types';
@@ -149,42 +148,6 @@ export async function runLiveAction<K extends LiveActionKey>(
   const record = res.payload?.record ?? res.payload?.case ?? res.payload?.note ?? res.payload?.alert ?? res.payload?.data ?? res.payload;
   const value = key === 'aml.sweep' ? camelRow(res.payload?.sweep ?? {}) : key.startsWith('alerts') ? mapAlert(camelRow(record ?? {})) : mapCase(camelRow(record ?? {}));
   return { ok: true, recorded: true, source: 'live', value, error: undefined };
-}
-
-/**
- * Demo-mode workflow: update the in-memory store so the queue visibly changes,
- * and report it as unrecorded. `recorded: false` is the whole point — the UI
- * must not be able to mistake this for a write that reached a system.
- */
-export function runDemoAction(input: {
-  action: string;
-  entityType: string;
-  entityId: string;
-  officerName: string;
-  details: string;
-  mutate: (s: import('./demo/store').DemoState) => unknown;
-}): ComplianceMutationResult {
-  if (!demoAllowed()) {
-    return {
-      ok: false,
-      recorded: false,
-      source: 'live',
-      error: {
-        code: 'ACTION_NOT_WIRED',
-        message: 'This action has no compliance endpoint, so it cannot be performed.',
-        hint: 'It is intentionally unavailable rather than simulated: a decision that no system recorded is worse than no decision.',
-      },
-    };
-  }
-  const { value } = applyDemoMutation({
-    mutate: input.mutate,
-    action: input.action,
-    entityType: input.entityType,
-    entityId: input.entityId,
-    officerName: input.officerName,
-    details: `${input.details} (demo action — not recorded)`,
-  });
-  return { ok: true, recorded: false, source: 'demo', value };
 }
 
 /**

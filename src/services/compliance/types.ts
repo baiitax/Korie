@@ -44,6 +44,7 @@ export type ComplianceResourceKey =
   | 'restatements'
   | 'scenarios'
   | 'posture'
+  | 'analytics'
   | 'network'
   | 'policies'
   | 'calendar'
@@ -365,6 +366,32 @@ export interface PostureDimension {
   details?: string;
 }
 
+export interface AnalyticsKpi {
+  key: string;
+  value: number | null;
+  unit: 'percent' | 'hours' | 'count' | 'runs';
+  assessed: boolean;
+  numerator?: number;
+  denominator?: number;
+  details: string;
+}
+
+export interface AnalyticsRow {
+  id: string;
+  evaluatedAt: string;
+  windowDays: number;
+  kpis: AnalyticsKpi[];
+  jurisdictionExposure: {
+    jurisdiction: string;
+    openCases: number;
+    totalCases: number;
+    exposureAmount: number;
+    currency: string;
+  }[];
+  alertSeverity: { severity: string; count: number }[];
+  alertStatus: { status: string; count: number }[];
+}
+
 export interface SecurityPostureRow {
   id: string;
   compositeScore: number;
@@ -636,6 +663,7 @@ export interface ComplianceResourceMap {
   restatements: RestatementRow;
   scenarios: ScenarioRow;
   posture: SecurityPostureRow;
+  analytics: AnalyticsRow;
   network: NetworkRow;
   calendar: ObligationRow;
   audit: AuditRow;
