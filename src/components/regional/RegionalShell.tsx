@@ -11,8 +11,7 @@ import { useTheme } from "@/components/ui/ThemeContext";
 import {
   LayoutDashboard, Building2, Users, UserCircle, Store, ArrowRightLeft, Wallet,
   BarChart3, Coins, FileCheck2, ShieldAlert, LifeBuoy, FileSpreadsheet, Bell, Settings,
-  LogOut, Menu, X, Globe, Sun, Moon, Search, Home, MoreHorizontal, ChevronRight,
-} from "lucide-react";
+  LogOut, Menu, X, Globe, Sun, Moon, Search, Home, MoreHorizontal, ChevronRight, Percent } from "lucide-react";
 
 interface NavItem { href: string; key: string; icon: React.ElementType; exact?: boolean }
 const NAV_GROUPS: { key: string; items: NavItem[] }[] = [
@@ -32,6 +31,7 @@ const NAV_GROUPS: { key: string; items: NavItem[] }[] = [
       { href: "/regional/transactions", key: "nav.transactions", icon: ArrowRightLeft },
       { href: "/regional/liquidity", key: "nav.liquidity", icon: Wallet },
       { href: "/regional/commissions", key: "nav.commissions", icon: Coins },
+      { href: "/regional/commission-sets", key: "nav.commissionSets", icon: Percent },
     ],
   },
   {

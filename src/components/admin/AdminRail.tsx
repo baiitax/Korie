@@ -92,6 +92,7 @@ export const AdminRailSections: RailSection[] = [
       { label: "BDC / FX Desks", href: "/admin/bdc" },
       { label: "Corporate Business", href: "/admin/businesses" },
       { label: "Aggregators", href: "/admin/aggregators" },
+      { label: "Commission Sets", href: "/admin/commissions" },
     ],
   },
   {

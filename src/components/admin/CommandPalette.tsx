@@ -30,6 +30,7 @@ const DESTINATIONS: PaletteEntry[] = [
   { label: "Agents & POS", hint: "Agency", href: "/admin/agents" },
   { label: "Merchants", hint: "Agency", href: "/admin/merchants" },
   { label: "BDC / FX Desks", hint: "Agency", href: "/admin/bdc" },
+  { label: "Commission Sets", hint: "Agency", href: "/admin/commissions" },
   { label: "Adashi / Ajo (ROSCA)", hint: "Customers", href: "/admin/adashi" },
   { label: "Wallets Control", hint: "Finance", href: "/admin/wallets" },
   { label: "Immutable Ledger", hint: "Finance", href: "/admin/ledger" },

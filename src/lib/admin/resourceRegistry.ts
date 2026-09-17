@@ -166,6 +166,28 @@ export const RESOURCES: Record<string, ResourceDef> = {
     orderBy: "earned_at",
     filters: { status: { column: "status", op: "eq" }, agent_id: { column: "agent_id", op: "eq" } },
   },
+  /*
+   * Commission sets — the platform-wide fee/commission schedule the agency
+   * engine reads when pricing any transaction (lib/agency/commissionPricing:
+   * highest min_amount <= amount wins the band, amount must fit max_amount).
+   * Read-only here: rate changes are money-adjacent configuration and need
+   * their own audited mutation path (rate history exists for it).
+   */
+  "agent-commission-rates": {
+    table: "agent_commission_rates",
+    orderBy: "transaction_type",
+    search: ["transaction_type", "currency"],
+    filters: {
+      transaction_type: { column: "transaction_type", op: "eq" },
+      currency: { column: "currency", op: "eq" },
+      is_active: { column: "is_active", op: "eq", boolean: true },
+    },
+  },
+  "agent-commission-rate-history": {
+    table: "agent_commission_rate_history",
+    orderBy: "changed_at",
+    filters: {},
+  },
   "agent-locations": {
     table: "agent_locations",
     orderBy: "created_at",
