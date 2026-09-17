@@ -1017,6 +1017,82 @@ export async function unreadNotificationCount(officerId: string): Promise<number
   return items.filter((n) => !n.read).length;
 }
 
+/**
+ * PS-9 (roadmap 3.2): dispute outcomes reach the customer's portal bell.
+ * A real row in customer_notifications — the bell only ever shows what
+ * actually happened (decision type, references, posted amounts), never the
+ * officers' internal reasoning.
+ */
+export async function insertCustomerNotificationRow(params: {
+  customerId: string;
+  category: string;
+  severity: string;
+  title: string;
+  body: string;
+  relatedTransactionId?: string | null;
+}): Promise<void> {
+  const admin = getSupabaseAdminClient();
+  const { error } = await admin.from("customer_notifications").insert({
+    customer_id: params.customerId,
+    category: params.category,
+    severity: params.severity,
+    title: params.title,
+    body: params.body,
+    related_transaction_id: params.relatedTransactionId ?? null,
+    is_read: false,
+  });
+  if (error) throw new Error(`CUSTOMER_NOTIFICATION_INSERT_FAILED: ${error.message}`);
+}
+
+/** Customer-facing wording for each dispute outcome. Pure — unit-tested. */
+export function buildDisputeOutcomeNotification(params: {
+  disputeNumber: string;
+  transactionReference?: string | null;
+  decisionType: string;
+  currency?: string | null;
+  approvedAmount?: number | null;
+  recoveryCaseReference?: string | null;
+}): { severity: "INFO" | "WARNING"; title: string; body: string } {
+  const onTx = params.transactionReference ? ` about transaction ${params.transactionReference}` : "";
+  const amount =
+    params.approvedAmount != null && params.currency
+      ? `${params.currency} ${params.approvedAmount.toLocaleString("en-US")}`
+      : null;
+  switch (params.decisionType) {
+    case "REFUND_APPROVED":
+    case "REVERSAL_APPROVED":
+    case "PARTIAL_REFUND": {
+      const what = params.decisionType === "REVERSAL_APPROVED" ? "reversal" : params.decisionType === "PARTIAL_REFUND" ? "partial refund" : "refund";
+      return {
+        severity: "INFO",
+        title: `Dispute ${params.disputeNumber}: ${what} approved`,
+        body:
+          `Your dispute ${params.disputeNumber}${onTx} has been approved.` +
+          (amount ? ` ${amount} has been credited to your wallet.` : "") +
+          (params.recoveryCaseReference ? ` Reference: ${params.recoveryCaseReference}.` : ""),
+      };
+    }
+    case "REJECTED":
+      return {
+        severity: "WARNING",
+        title: `Dispute ${params.disputeNumber}: claim reviewed`,
+        body: `After reviewing your dispute ${params.disputeNumber}${onTx}, we were unable to uphold the claim. If you have additional evidence, reply on your ticket and we will look again.`,
+      };
+    case "UNDER_INVESTIGATION":
+      return {
+        severity: "INFO",
+        title: `Dispute ${params.disputeNumber}: under investigation`,
+        body: `Your dispute ${params.disputeNumber}${onTx} is with our specialist team. We will notify you here as soon as there is an outcome.`,
+      };
+    default:
+      return {
+        severity: "INFO",
+        title: `Dispute ${params.disputeNumber}: status update`,
+        body: `There is an update on your dispute ${params.disputeNumber}${onTx}. Open your ticket for details.`,
+      };
+  }
+}
+
 export async function insertNotificationRow(row: Record<string, unknown>): Promise<NotificationRow> {
   const admin = getSupabaseAdminClient();
   const { data, error } = await admin.from("support_notifications").insert(row).select("*").single();

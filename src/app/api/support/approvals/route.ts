@@ -1,7 +1,11 @@
 import { NextRequest } from "next/server";
 import { requireSupportAccess, operationalError } from "@/lib/support/supportApi";
 import { hasCapability } from "@/lib/support/SupportPermissions";
-import { decideDisputeDecisionRequest } from "@/lib/support/supportDb";
+import {
+  decideDisputeDecisionRequest,
+  insertCustomerNotificationRow,
+  buildDisputeOutcomeNotification,
+} from "@/lib/support/supportDb";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSuccessResponse } from "@/lib/security/apiResponse";
 
@@ -140,12 +144,62 @@ export async function POST(req: NextRequest) {
       decision,
       notes,
     });
+
+    /*
+     * PS-9 (roadmap 3.2): when the checker APPROVES, the wallet credit has
+     * posted inside the approval transaction — that is the moment the
+     * customer's bell is told the outcome. A checker REJECT returns the
+     * dispute to undecided (the maker may resubmit), so the customer is not
+     * told anything. A notification failure must not misreport an executed
+     * approval — the response says whether the customer was reached.
+     */
+    let customerNotified = false;
+    if (result.status === "EXECUTED") {
+      try {
+        /*
+         * The RPC returns the maker payload (customer, dispute number) and
+         * the execution result, whose posted_amount/posted_currency are what
+         * the ledger actually credited (post_dispute_resolution re-derives
+         * them from the transaction — the claim amount is never trusted).
+         */
+        const payload = (result.payload ?? {}) as Record<string, unknown>;
+        const posted = (result.execution_result ?? {}) as Record<string, unknown>;
+        const customerId = String(payload.customer_id ?? "");
+        const disputeNumber = String(posted.dispute_number ?? payload.dispute_number ?? "");
+        if (customerId && disputeNumber) {
+          const postedAmount = Number(posted.posted_amount);
+          const note = buildDisputeOutcomeNotification({
+            disputeNumber,
+            transactionReference: (posted.transaction_reference ?? payload.transaction_reference) as string | null,
+            decisionType: String(posted.decision_type ?? payload.decision_type ?? ""),
+            currency: (posted.posted_currency ?? null) as string | null,
+            approvedAmount: Number.isFinite(postedAmount) ? postedAmount : null,
+            recoveryCaseReference: (posted.recovery_reference ?? null) as string | null,
+          });
+          await insertCustomerNotificationRow({
+            customerId,
+            // The customer_notifications category enum is closed
+          // (TRANSACTION/VERIFICATION/SECURITY/SYSTEM/SUPPORT) — dispute
+          // outcomes are support-domain notifications.
+          category: "SUPPORT",
+            severity: note.severity,
+            title: note.title,
+            body: note.body,
+          });
+          customerNotified = true;
+        }
+      } catch {
+        customerNotified = false;
+      }
+    }
+
     return createSuccessResponse(
       {
         request_id: result.request_id,
         status: result.status,
         execution_result: result.execution_result ?? null,
         decided_by: access.ctx.officer.email,
+        customer_notified: customerNotified,
       },
       {
         requestId: access.ctx.requestId,

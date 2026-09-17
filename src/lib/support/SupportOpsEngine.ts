@@ -97,6 +97,8 @@ import {
   insertAuditRow,
   idempotencyHit,
   idempotencyStore,
+  insertCustomerNotificationRow,
+  buildDisputeOutcomeNotification,
 } from "./supportDb";
 
 /* ------------------------------------------------------------ actor */
@@ -909,13 +911,44 @@ export class SupportOpsEngine {
     const updated = updatedRow;
     if (!updated) return { ok: false, code: "DISPUTE_NOT_FOUND", error: "Dispute vanished." };
 
+    /*
+     * PS-9 (roadmap 3.2): the customer's bell learns the outcome of their
+     * dispute at the moment it is decided (non-financial here; financial
+     * outcomes notify on checker approval — see the approvals route). A
+     * notification failure must not unwind a decision that is already
+     * recorded; the event payload records whether the customer was reached.
+     */
+    let customerNotified = false;
+    if (row.customer_id) {
+      try {
+        const note = buildDisputeOutcomeNotification({
+          disputeNumber: row.dispute_number,
+          transactionReference: row.transaction_reference,
+          decisionType: params.type,
+        });
+        await insertCustomerNotificationRow({
+          customerId: row.customer_id,
+          // The customer_notifications category enum is closed
+          // (TRANSACTION/VERIFICATION/SECURITY/SYSTEM/SUPPORT) — dispute
+          // outcomes are support-domain notifications.
+          category: "SUPPORT",
+          severity: note.severity,
+          title: note.title,
+          body: note.body,
+        });
+        customerNotified = true;
+      } catch {
+        customerNotified = false;
+      }
+    }
+
     await insertEventRow({
       ticket_id: row.ticket_id,
       event_type: params.type === "REFUND_APPROVED" || params.type === "PARTIAL_REFUND" ? "REFUND_REQUESTED" : "DISPUTE_LINKED",
       actor_id: actor.officerId,
       actor_name: actor.name,
       actor_role: actor.role,
-      payload: { disputeId: row.id, decision: params.type, recoveryCaseReference },
+      payload: { disputeId: row.id, decision: params.type, recoveryCaseReference, customerNotified },
     });
     await insertAuditRow({
       officer_id: actor.officerId,
@@ -933,6 +966,7 @@ export class SupportOpsEngine {
       body: `${params.type} — ${params.reason}`,
       href: `/support/disputes/${row.id}`,
     });
+
     const dispute = await disputeRowToDispute(updated);
     return { ok: true, data: { ...dispute, recoveryCaseReference } };
   }
