@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { authorizeAdminRequest, ADMIN_ROLES } from "@/lib/security/adminAuth";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { RESOURCES } from "@/lib/admin/resourceRegistry";
+import { requiresOrgScoping } from "@/lib/security/orgScope";
+import { requireAdminMfaForMutation } from "@/lib/security/adminMfa";
 
 export const dynamic = "force-dynamic";
 
@@ -54,10 +56,18 @@ export async function GET(
     );
   }
 
-  const { data, error } = await tableFor(admin, def.table)
-    .select(def.select ?? "*")
-    .eq("id", params.id)
-    .maybeSingle();
+  if (requiresOrgScoping(auth.roleName) && (!def.orgScopeColumn || !auth.orgId)) {
+    return NextResponse.json(
+      { status: "error", error: { code: "ORG_SCOPE_REQUIRED", message: "This resource cannot be scoped to your organization and is not available to your role." } },
+      { status: 403 },
+    );
+  }
+
+  let query = tableFor(admin, def.table).select(def.select ?? "*").eq("id", params.id);
+  if (requiresOrgScoping(auth.roleName) && def.orgScopeColumn) {
+    query = query.eq(def.orgScopeColumn, auth.orgId);
+  }
+  const { data, error } = await query.maybeSingle();
 
   if (error) {
     return NextResponse.json(
@@ -65,6 +75,8 @@ export async function GET(
       { status: 400 },
     );
   }
+  // A row owned by another tenant must 404 exactly like a missing row —
+  // never distinguishably reveal that another org's record exists.
   if (!data) {
     return NextResponse.json(
       { status: "error", error: { code: "NOT_FOUND", message: `Record ${params.id} not found in ${params.resource}.` } },
@@ -110,6 +122,19 @@ export async function PATCH(
     );
   }
 
+  if (requiresOrgScoping(auth.roleName) && (!def.orgScopeColumn || !auth.orgId)) {
+    return NextResponse.json(
+      { status: "error", error: { code: "ORG_SCOPE_REQUIRED", message: "This resource cannot be scoped to your organization and is not available to your role." } },
+      { status: 403 },
+    );
+  }
+
+  // MFA/AAL enforcement (ADMIN_PORTAL_REVIEW.md finding #2): every admin
+  // mutation requires a verified TOTP factor, unconditionally, unless this
+  // account predates the enforcement cutoff (soft launch — see adminMfa.ts).
+  const mfaCheck = await requireAdminMfaForMutation(admin, auth);
+  if (!mfaCheck.ok) return mfaCheck.response;
+
   let body: Record<string, unknown>;
   try {
     body = await request.json();
@@ -146,11 +171,13 @@ export async function PATCH(
   }
 
   const table = tableFor(admin, def.table);
+  const scoped = requiresOrgScoping(auth.roleName) && def.orgScopeColumn;
 
-  const { data: before, error: fetchErr } = await table
-    .select(def.select ?? "*")
-    .eq("id", params.id)
-    .maybeSingle();
+  let beforeQuery = table.select(def.select ?? "*").eq("id", params.id);
+  if (scoped) beforeQuery = beforeQuery.eq(def.orgScopeColumn as string, auth.orgId);
+  const { data: before, error: fetchErr } = await beforeQuery.maybeSingle();
+  // Same tenant-boundary rule as GET: a row owned by another org must
+  // 404 for a scoped caller, not surface as a different kind of error.
   if (fetchErr || !before) {
     return NextResponse.json(
       { status: "error", error: { code: "NOT_FOUND", message: `Record ${params.id} not found in ${params.resource}.` } },
@@ -182,9 +209,9 @@ export async function PATCH(
     }
   }
 
-  const { data: updated, error: updateErr } = await table
-    .update(patch)
-    .eq("id", params.id)
+  let updateQuery = table.update(patch).eq("id", params.id);
+  if (scoped) updateQuery = updateQuery.eq(def.orgScopeColumn as string, auth.orgId);
+  const { data: updated, error: updateErr } = await updateQuery
     // Must use the SAME projection as GET/before-fetch (def.select ?? "*"),
     // not the bare .select() this previously called. A bare .select()
     // returns every column of the updated row regardless of the

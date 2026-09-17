@@ -48,24 +48,25 @@ export async function GET(
   }
 
   const sp = request.nextUrl.searchParams;
+  const scope = { orgId: auth.orgId, roleName: auth.roleName };
 
   if (sp.get("facet")) {
-    const result = await facetResource(resource, sp.get("facet")!);
+    const result = await facetResource(resource, sp.get("facet")!, scope);
     if ("error" in result) {
-      const status = result.error.kind === "backend-unconfigured" ? 503 : 400;
-      return NextResponse.json({ status: "error", error: { code: "FACET_FAILED", message: result.error.kind === "backend-unconfigured" ? UNCONFIGURED.error.message : ("message" in result.error ? result.error.message : result.error.kind) } }, { status: status });
+      const status = result.error.kind === "backend-unconfigured" ? 503 : result.error.kind === "org-scope-required" ? 403 : 400;
+      return NextResponse.json({ status: "error", error: { code: result.error.kind === "org-scope-required" ? "ORG_SCOPE_REQUIRED" : "FACET_FAILED", message: result.error.kind === "backend-unconfigured" ? UNCONFIGURED.error.message : ("message" in result.error ? result.error.message : result.error.kind) } }, { status: status });
     }
     return NextResponse.json({ status: "ok", resource, facet: sp.get("facet"), values: result.values });
   }
 
-  const result = await listResource(resource, sp);
+  const result = await listResource(resource, sp, scope);
   if ("error" in result) {
     if (result.error.kind === "backend-unconfigured") {
       return NextResponse.json(UNCONFIGURED, { status: 503 });
     }
-    const status = result.error.kind === "unknown-resource" ? 404 : 400;
+    const status = result.error.kind === "unknown-resource" ? 404 : result.error.kind === "org-scope-required" ? 403 : 400;
     return NextResponse.json(
-      { status: "error", error: { code: "RESOURCE_QUERY_FAILED", message: result.error.kind === "unknown-resource" ? `Resource "${resource}" is not registered.` : ("message" in result.error ? result.error.message : result.error.kind) } },
+      { status: "error", error: { code: result.error.kind === "org-scope-required" ? "ORG_SCOPE_REQUIRED" : "RESOURCE_QUERY_FAILED", message: result.error.kind === "unknown-resource" ? `Resource "${resource}" is not registered.` : ("message" in result.error ? result.error.message : result.error.kind) } },
       { status },
     );
   }

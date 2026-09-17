@@ -1,5 +1,6 @@
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { RESOURCES, sanitizeSearchTerm, ResourceDef } from "@/lib/admin/resourceRegistry";
+import { requiresOrgScoping } from "@/lib/security/orgScope";
 
 /**
  * Shared resource query engine — the single implementation behind both the
@@ -27,7 +28,39 @@ export type ResourceApiError =
   | { kind: "query-failed"; message: string }
   | { kind: "mutation-not-allowed" }
   | { kind: "invalid-body"; message: string }
-  | { kind: "self-approval-blocked"; message: string };
+  | { kind: "self-approval-blocked"; message: string }
+  | { kind: "org-scope-required"; message: string };
+
+/**
+ * Caller identity relevant to tenant scoping (ADMIN_PORTAL_REVIEW.md
+ * finding #1). ORGANIZATION_OWNER/ORGANIZATION_ADMIN callers are confined
+ * to their own org_id on every resource that declares an orgScopeColumn;
+ * resources with no orgScopeColumn are refused outright for those roles
+ * rather than served unscoped. SUPER_ADMIN and KoriePay-internal operating
+ * roles (COMPLIANCE_OFFICER, AGENCY_OPS_ADMIN, FINANCE_OFFICER,
+ * AGENCY_COMPLIANCE) are unaffected — see orgScope.ts.
+ */
+export interface ResourceScope {
+  orgId?: string;
+  roleName?: string;
+}
+
+function applyOrgScope<T extends { eq: (col: string, val: unknown) => T }>(
+  query: T,
+  def: ResourceDef,
+  scope?: ResourceScope,
+): { query: T } | { error: ResourceApiError } {
+  if (!scope || !requiresOrgScoping(scope.roleName)) return { query };
+  if (!def.orgScopeColumn || !scope.orgId) {
+    return {
+      error: {
+        kind: "org-scope-required",
+        message: "This resource cannot be scoped to your organization and is not available to your role.",
+      },
+    };
+  }
+  return { query: query.eq(def.orgScopeColumn, scope.orgId) };
+}
 
 function getAdmin() {
   try {
@@ -53,6 +86,7 @@ function resourceDef(resource: string): ResourceDef | null {
 export async function facetResource(
   resource: string,
   facetKey: string,
+  scope?: ResourceScope,
 ): Promise<{ values: string[] } | { error: ResourceApiError }> {
   const { admin } = getAdmin();
   if (!admin) return { error: { kind: "backend-unconfigured" } };
@@ -60,10 +94,15 @@ export async function facetResource(
   const filter = def?.filters?.[facetKey];
   if (!def || !filter) return { error: { kind: "query-failed", message: `No filter "${facetKey}" on resource "${resource}".` } };
 
-  const { data, error } = await tableFor(admin, def.table)
+  let query = tableFor(admin, def.table)
     .select(filter.column)
     .order(def.orderBy, { ascending: def.asc ?? false })
     .limit(2000);
+  const scoped = applyOrgScope(query, def, scope);
+  if ("error" in scoped) return { error: scoped.error };
+  query = scoped.query;
+
+  const { data, error } = await query;
   if (error) return { error: { kind: "query-failed", message: error.message } };
   const distinct = Array.from(
     new Set<string>(
@@ -77,6 +116,7 @@ export async function facetResource(
 export async function listResource(
   resource: string,
   sp: URLSearchParams,
+  scope?: ResourceScope,
 ): Promise<{ rows: unknown[]; count: number; limit: number; offset: number } | { error: ResourceApiError }> {
   const { admin } = getAdmin();
   if (!admin) return { error: { kind: "backend-unconfigured" } };
@@ -91,6 +131,10 @@ export async function listResource(
       .select(def.select ?? "*", { count: "exact" })
       .order(def.orderBy, { ascending: def.asc ?? false })
       .range(offset, offset + limit - 1);
+
+    const scoped = applyOrgScope(query, def, scope);
+    if ("error" in scoped) return { error: scoped.error };
+    query = scoped.query;
 
     for (const [key, filter] of Object.entries(def.filters ?? {})) {
       const raw = sp.get(key);
@@ -120,17 +164,23 @@ export async function listResource(
 export async function getResource(
   resource: string,
   id: string,
+  scope?: ResourceScope,
 ): Promise<{ record: Record<string, unknown> } | { error: ResourceApiError }> {
   const { admin } = getAdmin();
   if (!admin) return { error: { kind: "backend-unconfigured" } };
   const def = resourceDef(resource);
   if (!def) return { error: { kind: "unknown-resource" } };
 
-  const { data, error } = await tableFor(admin, def.table)
-    .select(def.select ?? "*")
-    .eq("id", id)
-    .maybeSingle();
+  let query = tableFor(admin, def.table).select(def.select ?? "*").eq("id", id);
+  const scoped = applyOrgScope(query, def, scope);
+  if ("error" in scoped) return { error: scoped.error };
+  query = scoped.query;
+
+  const { data, error } = await query.maybeSingle();
   if (error) return { error: { kind: "query-failed", message: error.message } };
+  // A row that exists but belongs to a different tenant must look identical
+  // to a row that doesn't exist — otherwise the endpoint becomes an
+  // existence oracle for other tenants' record ids.
   if (!data) return { error: { kind: "not-found" } };
   return { record: data as Record<string, unknown> };
 }
@@ -150,6 +200,10 @@ export async function patchResource(
   const def = resourceDef(resource);
   if (!def) return { error: { kind: "unknown-resource" } };
   if (!def.mutations) return { error: { kind: "mutation-not-allowed" } };
+
+  const scope: ResourceScope = { orgId: actor.orgId, roleName: actor.roleName };
+  const scopeCheck = applyOrgScope(tableFor(admin, def.table).select("id").eq("id", id), def, scope);
+  if ("error" in scopeCheck) return { error: scopeCheck.error };
 
   const patch: Record<string, unknown> = {};
   for (const key of def.mutations.columns) {
@@ -187,10 +241,14 @@ export async function patchResource(
 
   const table = tableFor(admin, def.table);
 
-  const { data: before, error: fetchErr } = await table
-    .select(def.select ?? "*")
-    .eq("id", id)
-    .maybeSingle();
+  let beforeQuery = table.select(def.select ?? "*").eq("id", id);
+  const beforeScoped = applyOrgScope(beforeQuery, def, scope);
+  if ("error" in beforeScoped) return { error: beforeScoped.error };
+  beforeQuery = beforeScoped.query;
+
+  const { data: before, error: fetchErr } = await beforeQuery.maybeSingle();
+  // Same tenant-boundary rule as getResource: a row owned by another
+  // tenant must 404, not leak a distinguishable error, to a scoped caller.
   if (fetchErr || !before) return { error: { kind: "not-found" } };
 
   // Segregation-of-duties: block the maker from also being the checker.
@@ -212,7 +270,12 @@ export async function patchResource(
     }
   }
 
-  const { data: updated, error: updateErr } = await table.update(patch).eq("id", id).select().single();
+  let updateQuery = table.update(patch).eq("id", id);
+  const updateScoped = applyOrgScope(updateQuery, def, scope);
+  if ("error" in updateScoped) return { error: updateScoped.error };
+  updateQuery = updateScoped.query;
+
+  const { data: updated, error: updateErr } = await updateQuery.select().single();
   if (updateErr || !updated) return { error: { kind: "query-failed", message: updateErr?.message ?? "Update failed." } };
 
   // audit_events carries NOT NULL ip/request/correlation columns: a synthetic

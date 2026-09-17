@@ -51,6 +51,19 @@ export interface ResourceDef {
   filters?: Record<string, ResourceFilterDef>;
   defaultLimit?: number;
   mutations?: ResourceMutationDef;
+  /**
+   * Tenant scoping (ADMIN_PORTAL_REVIEW.md finding #1). When this table
+   * carries a direct org_id (or equivalent tenant-owner) column, name it
+   * here so orgScope.ts can force a `.eq(orgScopeColumn, callerOrgId)` for
+   * ORGANIZATION_OWNER/ORGANIZATION_ADMIN callers — SUPER_ADMIN and the
+   * KoriePay-internal operating roles are never scoped. Resources with no
+   * orgScopeColumn have no direct tenant column in the database (either
+   * they're linked transitively via customer_id/agent_id/merchant_id, or
+   * they're genuinely platform-global reference/ops data); those are
+   * intentionally denied to tenant-scoped roles rather than left unscoped
+   * — see orgScope.ts's module comment for the full rationale.
+   */
+  orgScopeColumn?: string;
 }
 
 export const RESOURCES: Record<string, ResourceDef> = {
@@ -65,6 +78,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
       kyc_tier: { column: "kyc_tier", op: "eq" },
     },
     mutations: { columns: ["status"] },
+    orgScopeColumn: "org_id",
   },
   /* customers mutations: real, audited status changes (support/ops actions) */
   "customer-accounts": {
@@ -99,6 +113,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
       currency: { column: "currency", op: "eq" },
       customer_id: { column: "customer_id", op: "eq" },
     },
+    orgScopeColumn: "org_id",
   },
   "kyc-documents": {
     table: "customer_kyc_documents",
@@ -143,6 +158,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
       aggregator_id: { column: "aggregator_id", op: "eq" },
     },
     mutations: { columns: ["status"] },
+    orgScopeColumn: "org_id",
   },
   "agent-applications": {
     table: "agent_onboarding_applications",
@@ -155,6 +171,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
     mutations: {
       columns: ["status", "reviewed_by", "rejection_reason"],
     },
+    orgScopeColumn: "org_id",
   },
   "agent-kyc-documents": {
     table: "agent_kyc_documents",
@@ -200,6 +217,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
       country: { column: "country", op: "eq" },
       kyb_status: { column: "kyb_status", op: "eq" },
     },
+    orgScopeColumn: "org_id",
   },
 
   /* ── Merchants / partners / businesses ───────────────────────────── */
@@ -273,6 +291,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
     search: ["url"],
     filters: { status: { column: "status", op: "eq" }, environment: { column: "environment", op: "eq" } },
     mutations: { columns: ["status"] },
+    orgScopeColumn: "org_id",
   },
   "api-clients": {
     table: "api_clients",
@@ -316,6 +335,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
     select: "id,org_id,event_name,aggregate_type,aggregate_id,status,retry_count,max_retries,last_error,created_at,published_at",
     orderBy: "created_at",
     filters: { status: { column: "status", op: "eq" } },
+    orgScopeColumn: "org_id",
   },
   "dead-letter-jobs": {
     table: "dead_letter_jobs",
@@ -344,6 +364,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
     orderBy: "account_number",
     search: ["account_number", "name"],
     filters: { type: { column: "type", op: "eq" }, currency: { column: "currency", op: "eq" }, status: { column: "status", op: "eq" } },
+    orgScopeColumn: "org_id",
   },
   "ledger-transactions": {
     table: "ledger_transactions",
@@ -353,6 +374,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
       status: { column: "status", op: "eq" },
       currency: { column: "currency", op: "eq" },
     },
+    orgScopeColumn: "org_id",
   },
   "ledger-entries": {
     table: "ledger_entries",
@@ -416,6 +438,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
       settlement_node: { column: "settlement_node", op: "eq" },
       currency: { column: "currency", op: "eq" },
     },
+    orgScopeColumn: "org_id",
   },
   "settlement-lines": {
     table: "settlement_batch_lines",
@@ -657,6 +680,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
       resource_type: { column: "resource_type", op: "eq" },
       created_after: { column: "created_at", op: "gte" },
     },
+    orgScopeColumn: "org_id",
   },
   "security-incidents": {
     table: "security_incidents",
@@ -728,6 +752,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
     orderBy: "full_name",
     search: ["officer_code", "full_name", "email"],
     filters: { status: { column: "status", op: "eq" }, tier: { column: "tier", op: "eq" }, jurisdiction: { column: "jurisdiction", op: "eq" } },
+    orgScopeColumn: "org_id",
   },
   "support-escalations": {
     table: "support_escalations",

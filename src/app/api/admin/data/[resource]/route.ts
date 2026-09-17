@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authorizeAdminRequest, ADMIN_READ_ROLES } from "@/lib/security/adminAuth";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { RESOURCES, sanitizeSearchTerm, ResourceDef } from "@/lib/admin/resourceRegistry";
+import { requiresOrgScoping } from "@/lib/security/orgScope";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +63,27 @@ export async function GET(
     );
   }
 
+  // Tenant scoping (ADMIN_PORTAL_REVIEW.md finding #1): ORGANIZATION_OWNER/
+  // ORGANIZATION_ADMIN callers only ever see their own org's rows. A
+  // resource with no orgScopeColumn has no direct tenant column in the
+  // database at all, so it's refused for those roles rather than served
+  // unscoped — see src/lib/security/orgScope.ts.
+  if (requiresOrgScoping(auth.roleName)) {
+    if (!def.orgScopeColumn || !auth.orgId) {
+      return NextResponse.json(
+        {
+          status: "error",
+          error: {
+            code: "ORG_SCOPE_REQUIRED",
+            message: "This resource cannot be scoped to your organization and is not available to your role.",
+          },
+        },
+        { status: 403 },
+      );
+    }
+  }
+  const orgScope = requiresOrgScoping(auth.roleName) && def.orgScopeColumn ? { column: def.orgScopeColumn, value: auth.orgId as string } : null;
+
   const sp = request.nextUrl.searchParams;
 
   // ?facet=<filterKey> — distinct values for a whitelisted filter column,
@@ -76,10 +98,12 @@ export async function GET(
         { status: 400 },
       );
     }
-    const { data, error: facetErr } = await tableFor(admin, def)
+    let facetQuery = tableFor(admin, def)
       .select(filter.column)
       .order(def.orderBy, { ascending: def.asc ?? false })
       .limit(2000);
+    if (orgScope) facetQuery = facetQuery.eq(orgScope.column, orgScope.value);
+    const { data, error: facetErr } = await facetQuery;
     if (facetErr) {
       return NextResponse.json(
         { status: "error", error: { code: "RESOURCE_QUERY_FAILED", message: facetErr.message } },
@@ -102,6 +126,8 @@ export async function GET(
       .select(def.select ?? "*", { count: "exact" })
       .order(def.orderBy, { ascending: def.asc ?? false })
       .range(offset, offset + limit - 1);
+
+    if (orgScope) query = query.eq(orgScope.column, orgScope.value);
 
     // Whitelisted filters only — never raw user input into the query.
     for (const [key, filter] of Object.entries(def.filters ?? {})) {

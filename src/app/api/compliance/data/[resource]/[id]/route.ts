@@ -42,12 +42,13 @@ export async function GET(
     );
   }
 
-  const result = await getResource(params.resource, params.id);
+  const result = await getResource(params.resource, params.id, { orgId: auth.orgId, roleName: auth.roleName });
   if ("error" in result) {
     if (result.error.kind === "backend-unconfigured") return NextResponse.json(UNCONFIGURED, { status: 503 });
-    const status = result.error.kind === "not-found" ? 404 : 400;
+    const status = result.error.kind === "not-found" ? 404 : result.error.kind === "org-scope-required" ? 403 : 400;
+    const code = result.error.kind === "not-found" ? "NOT_FOUND" : result.error.kind === "org-scope-required" ? "ORG_SCOPE_REQUIRED" : "RESOURCE_QUERY_FAILED";
     return NextResponse.json(
-      { status: "error", error: { code: result.error.kind === "not-found" ? "NOT_FOUND" : "RESOURCE_QUERY_FAILED", message: "message" in result.error ? result.error.message : result.error.kind } },
+      { status: "error", error: { code, message: "message" in result.error ? result.error.message : result.error.kind } },
       { status },
     );
   }
@@ -99,11 +100,13 @@ export async function PATCH(
     const status =
       result.error.kind === "not-found" ? 404 :
       result.error.kind === "mutation-not-allowed" ? 403 :
+      result.error.kind === "org-scope-required" ? 403 :
       result.error.kind === "self-approval-blocked" ? 409 :
       result.error.kind === "invalid-body" ? 400 : 400;
     const code =
       result.error.kind === "not-found" ? "NOT_FOUND" :
       result.error.kind === "mutation-not-allowed" ? "MUTATION_NOT_ALLOWED" :
+      result.error.kind === "org-scope-required" ? "ORG_SCOPE_REQUIRED" :
       result.error.kind === "self-approval-blocked" ? "SELF_APPROVAL_BLOCKED" :
       result.error.kind === "invalid-body" ? "INVALID_BODY" : "MUTATION_FAILED";
     const message = "message" in result.error ? result.error.message : result.error.kind;

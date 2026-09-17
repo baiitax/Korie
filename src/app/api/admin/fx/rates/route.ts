@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authorizeAdminRequest, ADMIN_READ_ROLES, ADMIN_ROLES } from "@/lib/security/adminAuth";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { requireAdminMfaForMutation } from "@/lib/security/adminMfa";
 
 export const dynamic = "force-dynamic";
 
@@ -109,6 +110,13 @@ export async function POST(request: NextRequest) {
       { status: 503 },
     );
   }
+
+  // MFA/AAL enforcement (ADMIN_PORTAL_REVIEW.md finding #2): re-rating a
+  // currency pair moves the platform's FX exposure — a verified TOTP
+  // factor is required unconditionally, unless this account predates the
+  // enforcement cutoff (soft launch — see adminMfa.ts).
+  const mfaCheck = await requireAdminMfaForMutation(admin, auth);
+  if (!mfaCheck.ok) return mfaCheck.response;
 
   let body: { source_currency?: string; destination_currency?: string; new_rate?: number; rate_source?: string; notes?: string };
   try {

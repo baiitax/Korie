@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authorizeAdminRequest, ADMIN_READ_ROLES, ADMIN_ROLES } from "@/lib/security/adminAuth";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { requireAdminMfaForMutation } from "@/lib/security/adminMfa";
 
 export const dynamic = "force-dynamic";
 
@@ -221,6 +222,14 @@ export async function POST(request: NextRequest) {
       { status: 503 },
     );
   }
+
+  // MFA/AAL enforcement (ADMIN_PORTAL_REVIEW.md finding #2): this endpoint
+  // moves real money (float top-ups, merchant payouts, adashi payouts, cash
+  // variance write-offs) — a verified TOTP factor is required
+  // unconditionally, unless this account predates the enforcement cutoff
+  // (soft launch — see adminMfa.ts).
+  const mfaCheck = await requireAdminMfaForMutation(admin, auth);
+  if (!mfaCheck.ok) return mfaCheck.response;
 
   let body: { type?: string; id?: string; decision?: string; notes?: string };
   try {

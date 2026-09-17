@@ -7,6 +7,12 @@ export interface AdminAuthResult {
   orgId?: string;
   roleName?: string;
   email?: string;
+  /**
+   * user_profiles.created_at for the caller — used only to evaluate the
+   * MFA-enforcement grandfather cutoff (see adminMfa.ts). Not an identity
+   * claim; never used for authorization decisions on its own.
+   */
+  profileCreatedAt?: string | null;
   errorCode?: string;
   errorMessage?: string;
   httpStatus?: number;
@@ -70,7 +76,7 @@ export async function authorizeAdminRequest(
 
   const { data: profile } = await admin
     .from('user_profiles')
-    .select('id')
+    .select('id, created_at')
     .eq('auth_user_id', userData.user.id)
     .maybeSingle();
 
@@ -96,5 +102,6 @@ export async function authorizeAdminRequest(
     orgId: (match as any).org_id,
     roleName: (match as any).roles?.name,
     email: userData.user.email ?? undefined,
+    profileCreatedAt: (profile as { created_at?: string } | null)?.created_at ?? null,
   };
 }

@@ -4,6 +4,7 @@ import React from "react";
 import { PageHeader, TextCell } from "@/components/admin/AdminPageUI";
 import ResourceTable, { StatusChip, ResourceColumn } from "@/components/admin/ResourceTable";
 import { useAdminResource } from "@/lib/admin/useAdminResource";
+import AdminMfaCard from "./AdminMfaCard";
 
 /**
  * Platform settings — the old page was a fake form: every "Save" just set a
@@ -30,6 +31,8 @@ export default function SettingsPage() {
         title="Platform Settings"
         subtitle="Organization profile and API gateway configuration read live from the database. Operational toggles that require the runtime engine are not simulated here."
       />
+
+      <AdminMfaCard />
 
       <section className="space-y-3">
         <h2 className="text-xs font-mono font-bold uppercase tracking-wider text-[var(--foreground-muted)]">Organizations</h2>

@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { authorizeAdminRequest, ADMIN_ROLES } from "@/lib/security/adminAuth";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSuccessResponse, createErrorResponse } from "@/lib/security/apiResponse";
+import { requireAdminMfaForMutation } from "@/lib/security/adminMfa";
 
 /**
  * POST /api/admin/adashi/payouts/[payoutId]/authorize
@@ -34,6 +35,20 @@ export async function POST(req: NextRequest, { params }: { params: { payoutId: s
   }
 
   const admin = getSupabaseAdminClient();
+
+  // MFA/AAL enforcement (ADMIN_PORTAL_REVIEW.md finding #2): this is the
+  // checker side of a real money-movement gate — a verified TOTP factor is
+  // required unconditionally, unless this account predates the enforcement
+  // cutoff (soft launch — see adminMfa.ts).
+  const mfaCheck = await requireAdminMfaForMutation(admin, auth);
+  if (!mfaCheck.ok) {
+    return createErrorResponse({
+      code: "MFA_REQUIRED",
+      message: "Multi-factor authentication is required to approve or reject a payout. Enroll a TOTP authenticator from Settings before continuing.",
+      requestId: `KP-REQ-${Date.now()}`,
+      httpStatus: 403,
+    });
+  }
 
   const { data, error } = await admin.rpc("authorize_adashi_payout", {
     p_payout_id: params.payoutId,
