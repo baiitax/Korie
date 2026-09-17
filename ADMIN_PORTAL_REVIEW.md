@@ -1,3 +1,17 @@
+> **Status update (2026-09-17): all 5 findings below have been remediated.**
+> See `git log` for the commits: org_id tenant scoping + MFA enforcement
+> (Findings #1–#2), SUPER_ADMIN dual-control on security-incident closure
+> reusing the existing money-movement dual-control primitive (Finding #3),
+> server-audited CSV export (Finding #4), and per-actor rate limiting on
+> every `/api/admin/*` route (Finding #5). Every fix was unit-tested (tsc
+> clean) and live-verified end-to-end against the real dev server and
+> Supabase project — including firing 1,210 real concurrent requests at
+> `/api/admin/session` to confirm the rate limiter actually returns 429s at
+> the documented threshold, and a live two-distinct-admin dual-control
+> vote/apply cycle against a real (temporary, cleaned-up) security incident
+> row. The original findings are preserved unedited below as the record of
+> what was found and why each fix looks the way it does.
+
 # KoriePay Admin Portal — Security, Compliance & Accounting Review
 
 **Scope:** `/admin/*` (36 pages), `/api/admin/*` (8 route files, backing 90+

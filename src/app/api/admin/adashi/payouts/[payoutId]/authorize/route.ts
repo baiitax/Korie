@@ -3,6 +3,7 @@ import { authorizeAdminRequest, ADMIN_ROLES } from "@/lib/security/adminAuth";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSuccessResponse, createErrorResponse } from "@/lib/security/apiResponse";
 import { requireAdminMfaForMutation } from "@/lib/security/adminMfa";
+import { enforceAdminRateLimit } from "@/lib/security/adminRateLimit";
 
 /**
  * POST /api/admin/adashi/payouts/[payoutId]/authorize
@@ -20,6 +21,9 @@ export async function POST(req: NextRequest, { params }: { params: { payoutId: s
   if (!auth.isAuthorized || !auth.userId) {
     return createErrorResponse({ code: auth.errorCode || "UNAUTHORIZED", message: auth.errorMessage || "Unauthorized", requestId: `KP-REQ-${Date.now()}`, httpStatus: auth.httpStatus || 401 });
   }
+
+  const rl = enforceAdminRateLimit(auth.userId, "admin", "FINANCIAL");
+  if (!rl.ok) return rl.response!;
 
   let body: any;
   try {

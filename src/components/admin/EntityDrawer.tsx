@@ -54,7 +54,7 @@ function StatusAction({
   field?: string;
 }) {
   const [busy, setBusy] = useState<string | null>(null);
-  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [result, setResult] = useState<{ ok: boolean | "pending"; message: string } | null>(null);
   const cur = currentStatus ? String(currentStatus) : "";
 
   const run = async (next: string) => {
@@ -62,8 +62,17 @@ function StatusAction({
     setBusy(next);
     const res = await mutateAdminRecord(resource, recordId, { [field]: next });
     setBusy(null);
-    setResult(res.ok ? { ok: true, message: `Status set to ${next} (audited).` } : { ok: false, message: res.message });
-    if (res.ok) onDone();
+    if (res.ok === true) {
+      setResult({ ok: true, message: `Status set to ${next} (audited).` });
+      onDone();
+    } else if (res.ok === "pending") {
+      // Dual-control (ADMIN_PORTAL_REVIEW.md finding #3): the vote landed
+      // but the change was not applied — a different admin still needs to
+      // submit it. Not an error, so don't refresh as if it succeeded.
+      setResult({ ok: "pending", message: res.message });
+    } else {
+      setResult({ ok: false, message: res.message });
+    }
   };
 
   return (
@@ -82,7 +91,11 @@ function StatusAction({
           </button>
         ))}
       {result && (
-        <span className={`text-[11px] font-mono ${result.ok ? "text-emerald-400" : "text-rose-400"}`}>{result.message}</span>
+        <span
+          className={`text-[11px] font-mono ${result.ok === true ? "text-emerald-400" : result.ok === "pending" ? "text-amber-400" : "text-rose-400"}`}
+        >
+          {result.message}
+        </span>
       )}
     </div>
   );

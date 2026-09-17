@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { authorizeAdminRequest, ADMIN_ROLES } from "@/lib/security/adminAuth";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { buildAdminOverview } from "@/lib/admin/overviewData";
+import { enforceAdminRateLimit } from "@/lib/security/adminRateLimit";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,9 @@ export async function GET(req: NextRequest) {
       { status: auth.httpStatus ?? 401 },
     );
   }
+
+  const rl = enforceAdminRateLimit(auth.userId, "admin", "READ");
+  if (!rl.ok) return rl.response!;
 
   let admin;
   try {

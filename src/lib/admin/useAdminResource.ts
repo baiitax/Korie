@@ -182,13 +182,24 @@ export async function mutateAdminRecord(
   resource: string,
   id: string,
   patch: Record<string, unknown>,
-): Promise<{ ok: true; record: Record<string, unknown> } | { ok: false; message: string }> {
+): Promise<
+  | { ok: true; record: Record<string, unknown> }
+  // Dual-control (ADMIN_PORTAL_REVIEW.md finding #3): the vote was recorded
+  // but the change was NOT applied yet — a different admin still needs to
+  // submit the same change. Distinct from `ok: false` because nothing
+  // failed; the caller should show this as a status, not an error.
+  | { ok: "pending"; message: string; approvals: number; required: number }
+  | { ok: false; message: string }
+> {
   try {
     const res = await adminApiFetch(`/api/admin/data/${resource}/${id}`, {
       method: "PATCH",
       body: JSON.stringify(patch),
     });
     const body = await res.json().catch(() => null);
+    if (res.status === 202 && body?.error?.code === "DUAL_CONTROL_PENDING") {
+      return { ok: "pending", message: body.error.message, approvals: body.approvals, required: body.required };
+    }
     if (!res.ok) {
       return { ok: false, message: body?.error?.message ?? `Update failed (${res.status}).` };
     }

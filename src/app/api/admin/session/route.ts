@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { authorizeAdminRequest, ADMIN_ROLES } from "@/lib/security/adminAuth";
+import { enforceAdminRateLimit } from "@/lib/security/adminRateLimit";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,11 @@ export async function GET(req: NextRequest) {
       { status: auth.httpStatus ?? 401 },
     );
   }
+
+  // Rate limiting (ADMIN_PORTAL_REVIEW.md finding #5): keyed per actor, not
+  // IP — see adminRateLimit.ts.
+  const rl = enforceAdminRateLimit(auth.userId, "admin", "READ");
+  if (!rl.ok) return rl.response!;
 
   return Response.json({
     status: "success",

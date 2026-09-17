@@ -37,6 +37,20 @@ export interface ResourceMutationDef {
     requesterColumn: string;
     approvalStatuses: string[];
   };
+  /**
+   * SUPER_ADMIN dual-control (ADMIN_PORTAL_REVIEW.md finding #3): when a
+   * PATCH sets `column` to one of `triggerValues`, the mutation is not
+   * applied to the database until `requiredApprovals` DISTINCT admins have
+   * each submitted the same PATCH — the first (and any subsequent, non-
+   * distinct) submission only records a vote and reports how many more
+   * distinct approvers are needed. See src/lib/security/dualControl.ts.
+   */
+  dualControlGuard?: {
+    column: string;
+    triggerValues: string[];
+    requiredApprovals: number;
+    approvalType: string;
+  };
 }
 
 export interface ResourceDef {
@@ -692,6 +706,19 @@ export const RESOURCES: Record<string, ResourceDef> = {
     },
     mutations: {
       columns: ["status", "containment_state", "incident_commander"],
+      // SUPER_ADMIN dual-control (ADMIN_PORTAL_REVIEW.md finding #3): this
+      // is the review's own named example of a unilateral action the
+      // role's seed description ("dual-control authorization requirements")
+      // promised but never enforced. Closing an incident is a one-way,
+      // consequential action (it stops the incident-response clock) — two
+      // distinct admins must each submit the CLOSED transition before it
+      // actually lands.
+      dualControlGuard: {
+        column: "status",
+        triggerValues: ["CLOSED"],
+        requiredApprovals: 2,
+        approvalType: "SECURITY_INCIDENT_CLOSE",
+      },
     },
   },
   "security-alerts": {

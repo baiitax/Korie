@@ -4,6 +4,8 @@ import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { RESOURCES } from "@/lib/admin/resourceRegistry";
 import { requiresOrgScoping } from "@/lib/security/orgScope";
 import { requireAdminMfaForMutation } from "@/lib/security/adminMfa";
+import { checkDualControl, dualControlTriggered } from "@/lib/security/dualControl";
+import { enforceAdminRateLimit } from "@/lib/security/adminRateLimit";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +36,9 @@ export async function GET(
       { status: auth.httpStatus ?? 401 },
     );
   }
+
+  const rl = enforceAdminRateLimit(auth.userId, "admin", "READ");
+  if (!rl.ok) return rl.response!;
 
   let admin;
   try {
@@ -97,6 +102,9 @@ export async function PATCH(
       { status: auth.httpStatus ?? 401 },
     );
   }
+
+  const rl = enforceAdminRateLimit(auth.userId, "admin", "DEFAULT");
+  if (!rl.ok) return rl.response!;
 
   let admin;
   try {
@@ -205,6 +213,57 @@ export async function PATCH(
           },
         },
         { status: 409 },
+      );
+    }
+  }
+
+  // SUPER_ADMIN dual-control (ADMIN_PORTAL_REVIEW.md finding #3): a
+  // resource with `mutations.dualControlGuard` requires a second, DISTINCT
+  // admin to submit the same guarded transition before it is actually
+  // applied — this admin's submission is recorded as one vote, and the
+  // database is left untouched until enough distinct votes exist.
+  const dualGuard = def.mutations.dualControlGuard;
+  if (dualGuard && dualControlTriggered(dualGuard, patch)) {
+    const outcome = await checkDualControl(
+      admin,
+      dualGuard,
+      params.id,
+      patch,
+      auth.userId ?? auth.email ?? "unknown",
+      auth.roleName,
+      auth.orgId,
+    );
+    if (!outcome.applied) {
+      // Record the vote itself in the audit trail even though the
+      // underlying row was not changed — a rejected/pending dual-control
+      // attempt is still an admin action worth being able to see later.
+      const voteRequestId = `admin-dc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+      await admin.from("audit_events").insert({
+        org_id: auth.orgId ?? null,
+        actor_id: auth.userId ?? "00000000-0000-0000-0000-000000000000",
+        actor_email: auth.email ?? "unknown",
+        actor_role: auth.roleName ?? "UNKNOWN",
+        action: "ADMIN_DUAL_CONTROL_VOTE",
+        resource_type: `admin:${params.resource}`,
+        resource_id: params.id,
+        details: { fields: Object.keys(patch), approvals: outcome.approvals, required: outcome.required },
+        before_state: before,
+        after_state: null,
+        ip_address: request.headers.get("x-forwarded-for") ?? "unrecorded",
+        request_id: voteRequestId,
+        correlation_id: voteRequestId,
+      });
+      return NextResponse.json(
+        {
+          status: "pending",
+          error: {
+            code: "DUAL_CONTROL_PENDING",
+            message: `This action requires ${outcome.required} distinct admin approvals (dual control). ${outcome.approvals} of ${outcome.required} recorded so far — a different admin must submit this same change to apply it.`,
+          },
+          approvals: outcome.approvals,
+          required: outcome.required,
+        },
+        { status: 202 },
       );
     }
   }

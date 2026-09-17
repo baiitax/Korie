@@ -144,7 +144,7 @@ describe("mutateAdminRecord", () => {
     );
     const res = await mutateAdminRecord("kyc-documents", "d1", { status: "APPROVED" });
     expect(res.ok).toBe(true);
-    if (res.ok) expect(res.record.status).toBe("APPROVED");
+    if (res.ok === true) expect(res.record.status).toBe("APPROVED");
     expect(mockFetch.mock.calls[0][1]?.method).toBe("PATCH");
   });
 
@@ -155,5 +155,21 @@ describe("mutateAdminRecord", () => {
     const res = await mutateAdminRecord("audit-events", "x", { status: "HACKED" });
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.message).toContain("read-only");
+  });
+
+  it("surfaces a dual-control pending outcome distinctly from success/failure (ADMIN_PORTAL_REVIEW.md finding #3)", async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse(
+        { status: "pending", error: { code: "DUAL_CONTROL_PENDING", message: "1 of 2 recorded so far" }, approvals: 1, required: 2 },
+        202,
+      ),
+    );
+    const res = await mutateAdminRecord("security-incidents", "inc-1", { status: "CLOSED" });
+    expect(res.ok).toBe("pending");
+    if (res.ok === "pending") {
+      expect(res.approvals).toBe(1);
+      expect(res.required).toBe(2);
+      expect(res.message).toContain("1 of 2");
+    }
   });
 });

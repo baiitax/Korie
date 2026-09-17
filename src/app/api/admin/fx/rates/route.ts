@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authorizeAdminRequest, ADMIN_READ_ROLES, ADMIN_ROLES } from "@/lib/security/adminAuth";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { requireAdminMfaForMutation } from "@/lib/security/adminMfa";
+import { enforceAdminRateLimit } from "@/lib/security/adminRateLimit";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,9 @@ export async function GET(request: NextRequest) {
       { status: auth.httpStatus ?? 401 },
     );
   }
+
+  const rl = enforceAdminRateLimit(auth.userId, "admin", "READ");
+  if (!rl.ok) return rl.response!;
 
   let admin;
   try {
@@ -94,6 +98,10 @@ export async function POST(request: NextRequest) {
       { status: auth.httpStatus ?? 401 },
     );
   }
+
+  const rl = enforceAdminRateLimit(auth.userId, "admin", "FINANCIAL");
+  if (!rl.ok) return rl.response!;
+
   if (!auth.userId) {
     return NextResponse.json(
       { status: "error", error: { code: "FX_RATE_ACTOR_UNKNOWN", message: "Cannot attribute this change — no admin user identity on the session." } },

@@ -121,8 +121,33 @@ export function ResourceTable<T extends Record<string, any>>({
 
   const visible = onRowClick;
 
-  const handleExport = () => {
-    if (!rows.length) return;
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    if (!rows.length || exporting) return;
+    setExporting(true);
+    // Audit trail (ADMIN_PORTAL_REVIEW.md finding #4): bulk export of
+    // customer/agent/financial PII previously left no server-side record
+    // at all — this fires BEFORE the download so an export attempt is
+    // recorded even if the download itself is somehow interrupted
+    // afterward. Best-effort: a failed audit write does not block the
+    // download (the data is already in the admin's browser either way),
+    // but it is always attempted first, never skipped.
+    try {
+      await adminApiFetch(`/api/admin/data/${resource}`, {
+        method: "POST",
+        body: JSON.stringify({
+          rowCount: rows.length,
+          columns: columns.map((c) => c.key),
+          filters: allFilters,
+          q: debouncedQ || undefined,
+        }),
+      });
+    } catch {
+      // Network failure recording the export must not block the admin's
+      // already-loaded data from being downloaded — see comment above.
+    }
+
     const headers = columns.map((c) => c.label);
     const lines = rows.map((row) =>
       columns
@@ -140,6 +165,7 @@ export function ResourceTable<T extends Record<string, any>>({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    setExporting(false);
   };
 
   React.useEffect(() => {
@@ -198,11 +224,11 @@ export function ResourceTable<T extends Record<string, any>>({
             {exportName && (
               <button
                 onClick={handleExport}
-                disabled={!rows.length}
+                disabled={!rows.length || exporting}
                 className="px-3 py-2 rounded-xl bg-[var(--background)] border border-[var(--border)] hover:border-[var(--brand-primary)] disabled:opacity-40 text-[var(--foreground-muted)] flex items-center gap-1.5 transition-colors"
-                title="Export the loaded page as CSV"
+                title="Export the loaded page as CSV (audited)"
               >
-                <Download className="w-3.5 h-3.5" />
+                <Download className={`w-3.5 h-3.5 ${exporting ? "animate-pulse" : ""}`} />
                 <span>CSV</span>
               </button>
             )}

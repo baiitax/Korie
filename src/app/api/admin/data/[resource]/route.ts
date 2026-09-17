@@ -3,6 +3,7 @@ import { authorizeAdminRequest, ADMIN_READ_ROLES } from "@/lib/security/adminAut
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { RESOURCES, sanitizeSearchTerm, ResourceDef } from "@/lib/admin/resourceRegistry";
 import { requiresOrgScoping } from "@/lib/security/orgScope";
+import { enforceAdminRateLimit } from "@/lib/security/adminRateLimit";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,99 @@ function tableFor(admin: any, def: ResourceDef) {
   return admin.from(table);
 }
 
+/**
+ * POST /api/admin/data/[resource] — records an audit_events row for a
+ * bulk CSV export (ADMIN_PORTAL_REVIEW.md finding #4). The export itself
+ * happens entirely client-side in ResourceTable.tsx (it only has the rows
+ * already loaded in the browser — there is no server round-trip for the
+ * CSV content), so this is the one server call in that flow: it exists
+ * purely so "who exported which rows, from where, and when" has the same
+ * kind of trail every mutation in this portal already has. Read-only
+ * roles may call this (matches who can trigger an export at all).
+ */
+export async function POST(
+  request: NextRequest,
+  { params }: { params: { resource: string } },
+) {
+  const auth = await authorizeAdminRequest(request, ADMIN_READ_ROLES);
+  if (!auth.isAuthorized) {
+    return NextResponse.json(
+      { status: "error", error: { code: auth.errorCode, message: auth.errorMessage } },
+      { status: auth.httpStatus ?? 401 },
+    );
+  }
+
+  const rl = enforceAdminRateLimit(auth.userId, "admin", "DEFAULT");
+  if (!rl.ok) return rl.response!;
+
+  const def = RESOURCES[params.resource];
+  if (!def) {
+    return NextResponse.json(
+      { status: "error", error: { code: "UNKNOWN_RESOURCE", message: `Resource "${params.resource}" is not registered.` } },
+      { status: 404 },
+    );
+  }
+
+  let admin;
+  try {
+    admin = getSupabaseAdminClient();
+  } catch {
+    return NextResponse.json(
+      { status: "error", error: { code: "ADMIN_BACKEND_NOT_CONFIGURED", message: "The admin backend is not configured on this deployment (missing Supabase credentials)." } },
+      { status: 503 },
+    );
+  }
+
+  let body: { rowCount?: number; columns?: string[]; filters?: Record<string, string>; q?: string } = {};
+  try {
+    body = await request.json();
+  } catch {
+    // Body is optional context only — an export is still worth recording
+    // even if the client failed to send row/filter details.
+  }
+
+  const rowCount = typeof body.rowCount === "number" && Number.isFinite(body.rowCount) ? Math.max(0, Math.trunc(body.rowCount)) : null;
+  const requestId =
+    request.headers.get("x-kp-request-id") ??
+    request.headers.get("x-request-id") ??
+    `admin-export-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+  const { error: auditError } = await admin.from("audit_events").insert({
+    org_id: auth.orgId ?? null,
+    actor_id: auth.userId ?? "00000000-0000-0000-0000-000000000000",
+    actor_email: auth.email ?? "unknown",
+    actor_role: auth.roleName ?? "UNKNOWN",
+    action: "ADMIN_CSV_EXPORT",
+    resource_type: `admin:${params.resource}`,
+    resource_id: "bulk",
+    details: {
+      row_count: rowCount,
+      columns: Array.isArray(body.columns) ? body.columns.slice(0, 50) : undefined,
+      filters: body.filters && typeof body.filters === "object" ? body.filters : undefined,
+      search: typeof body.q === "string" && body.q ? body.q : undefined,
+    },
+    before_state: null,
+    after_state: null,
+    ip_address: request.headers.get("x-forwarded-for") ?? "unrecorded",
+    request_id: requestId,
+    correlation_id: requestId,
+  });
+
+  if (auditError) {
+    // Surface honestly rather than silently swallowing — but a failed
+    // audit write does not itself move or destroy data, so the client is
+    // free to proceed with the (already browser-side) download regardless.
+    // What matters is this endpoint always attempted the write and never
+    // pretends success it didn't achieve.
+    return NextResponse.json(
+      { status: "error", error: { code: "EXPORT_AUDIT_FAILED", message: auditError.message } },
+      { status: 500 },
+    );
+  }
+
+  return NextResponse.json({ status: "ok", resource: params.resource, audited: true });
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { resource: string } },
@@ -38,6 +132,12 @@ export async function GET(
       { status: auth.httpStatus ?? 401 },
     );
   }
+
+  // Rate limiting (ADMIN_PORTAL_REVIEW.md finding #5): keyed per actor, not
+  // IP — an authenticated session (or a leaked token) could otherwise page
+  // through every resource in the registry unthrottled. See adminRateLimit.ts.
+  const rl = enforceAdminRateLimit(auth.userId, "admin", "READ");
+  if (!rl.ok) return rl.response!;
 
   let admin;
   try {
