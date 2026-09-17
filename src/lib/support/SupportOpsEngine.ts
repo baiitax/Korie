@@ -266,14 +266,17 @@ export class SupportOpsEngine {
     }
   }
 
-  /** Idempotent sweep: auto-close tickets resolved more than 72h ago. */
-  async sweepAutoClose(): Promise<void> {
+  /** Idempotent sweep: auto-close tickets resolved more than 72h ago.
+   *  Returns how many tickets it closed. */
+  async sweepAutoClose(): Promise<number> {
     const now = Date.now();
     const { rows } = await listTicketRows({ status: "RESOLVED", limit: 500 });
+    let closed = 0;
     for (const t of rows) {
       if (t.resolved_at && now - new Date(t.resolved_at).getTime() > AUTO_CLOSE_MS && !t.closed_at) {
         const closedAt = new Date().toISOString();
         await updateTicketRow(t.id, { status: "CLOSED", closed_at: closedAt });
+        closed += 1;
         await insertEventRow({
           ticket_id: t.id,
           event_type: "TICKET_CLOSED",
@@ -286,6 +289,34 @@ export class SupportOpsEngine {
         });
       }
     }
+    return closed;
+  }
+
+  /**
+   * SLA sweep for EVERY open ticket (roadmap 3.4): warning/breach events
+   * were previously fired only when a ticket happened to be read or
+   * transitioned — "by chance". The cron calls this so every open ticket's
+   * SLA state is evaluated every run. Idempotent per ticket per event type
+   * (sweepSlaEvents checks support_events via hasEventFired).
+   */
+  async sweepOpenTicketSlas(): Promise<number> {
+    const { rows } = await listTicketRows({ openOnly: true, limit: 500 });
+    let swept = 0;
+    for (const row of rows) {
+      try {
+        const ticket = await ticketRowToTicket(row);
+        const snapshot = this.computeSla(
+          ticket,
+          Number(row.resolution_paused_ms ?? 0),
+          row.resolution_paused_since ?? undefined,
+        );
+        await this.sweepSlaEvents(ticket, snapshot);
+        swept += 1;
+      } catch {
+        // One un-sweepable ticket must not stop the rest of the queue.
+      }
+    }
+    return swept;
   }
 
   /* ========================================================= lifecycle */
