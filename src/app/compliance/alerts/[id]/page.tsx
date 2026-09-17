@@ -141,6 +141,12 @@ export default function AlertDetailPage() {
                   <div className="mt-3 text-[11.5px] text-[var(--foreground-muted)]">
                     <span className="cmp-ref">{alert.scenarioCode ?? 'scenario not reported'}</span>
                   </div>
+                  {alert.sourceReference ? (
+                    <div className="mt-2 text-[11.5px] text-[var(--foreground-muted)]">
+                      {t('compliance.alertDetail.referralSource')}{' '}
+                      <span className="cmp-ref">{alert.sourceReference}</span>
+                    </div>
+                  ) : null}
                 </Panel>
               </div>
             </div>

@@ -8,7 +8,7 @@
  * had called), and it is the behaviour this layer exists to prevent.
  */
 
-import type { DocumentRow, AlertRow, CaseRow, CustomerRow, HealthRow, KybRow, KycRow, MonitoringRow, ProviderRow, EscalationRow, ObligationRow, ReportRow } from './types';
+import type { DocumentRow, AlertRow, CaseRow, CustomerRow, HealthRow, KybRow, KycRow, MonitoringRow, ProviderRow, EscalationRow, ObligationRow, ReportRow, SupportReferralRow } from './types';
 
 type Json = Record<string, any>;
 
@@ -84,6 +84,24 @@ export function mapAlert(raw: Json): AlertRow {
     slaBreached: Boolean(raw.isSlaBreached) || isPast(raw.slaDueAt),
     triggeredAt: String(raw.createdAt ?? ''),
     caseId: raw.caseId,
+    sourceReference: raw.sourceReference,
+  };
+}
+
+/** Roadmap 3.1: support_escalations rows seen as compliance referrals. */
+export function mapSupportReferral(raw: Json): SupportReferralRow {
+  return {
+    id: String(raw.id ?? ''),
+    escalationNumber: String(raw.escalationNumber ?? ''),
+    ticketId: String(raw.ticketId ?? ''),
+    reason: String(raw.reason ?? ''),
+    priority: String(raw.priority ?? 'NORMAL'),
+    destination: String(raw.destination ?? ''),
+    status: String(raw.status ?? 'PENDING'),
+    externalRef: raw.externalRef ? String(raw.externalRef) : undefined,
+    slaDueAt: raw.slaDueAt ? String(raw.slaDueAt) : undefined,
+    createdAt: String(raw.createdAt ?? ''),
+    resolvedAt: raw.resolvedAt ? String(raw.resolvedAt) : undefined,
   };
 }
 

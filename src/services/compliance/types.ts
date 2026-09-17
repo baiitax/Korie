@@ -52,6 +52,7 @@ export type ComplianceResourceKey =
   | 'officers'
   | 'approvals'
   | 'escalations'
+  | 'referrals'
   | 'integrations'
   | 'systemHealth'
   | 'tasks'
@@ -187,6 +188,8 @@ export interface AlertRow {
   slaBreached: boolean;
   triggeredAt: string;
   caseId?: string;
+  /** Support escalation number when this alert is an officer referral (roadmap 3.1). */
+  sourceReference?: string;
 }
 
 export interface AmlProfileRow {
@@ -315,6 +318,27 @@ export interface ApprovalRow {
   ticket?: string;
   /** Minutes of elevation granted — from the request, not assumed. */
   durationMinutes?: number;
+}
+
+/**
+ * A support → compliance referral (roadmap 3.1): a support_escalations row for
+ * a COMPLIANCE / FRAUD_RISK destination, bridged to a real aml_alerts row
+ * (externalRef = alert_reference; the alert's source_reference is the
+ * escalation number). Derived from live rows — never invented.
+ */
+export interface SupportReferralRow {
+  id: string;
+  escalationNumber: string;
+  ticketId: string;
+  reason: string;
+  priority: string;
+  destination: string;
+  status: string;
+  /** The bridged aml_alerts reference; undefined while the bridge has not run. */
+  externalRef?: string;
+  slaDueAt?: string;
+  createdAt: string;
+  resolvedAt?: string;
 }
 
 export interface EscalationRow {
@@ -671,6 +695,7 @@ export interface ComplianceResourceMap {
   policies: PolicyRow;
   approvals: ApprovalRow;
   escalations: EscalationRow;
+  referrals: SupportReferralRow;
   integrations: ProviderRow;
   systemHealth: HealthRow;
   tasks: TaskRow;

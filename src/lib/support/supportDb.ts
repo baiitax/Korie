@@ -654,6 +654,7 @@ export async function recordDisputeNonFinancialDecision(params: {
 export interface EscalationRow {
   id: string;
   escalation_number: string;
+  external_ref: string | null;
   ticket_id: string;
   reason: string;
   priority: TicketPriority;
@@ -674,6 +675,7 @@ export async function escalationRowToEscalation(e: EscalationRow): Promise<Suppo
   return {
     id: e.id,
     escalationNumber: e.escalation_number,
+    externalRef: e.external_ref ?? undefined,
     ticketId: e.ticket_id,
     customerName: ticket?.customer_name ?? "",
     reason: e.reason,

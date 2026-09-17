@@ -245,6 +245,7 @@ export const COMPLIANCE_READABLE_RESOURCES = new Set([
   "agents",
   "merchant-profiles",
   "complaints",
+  "support-escalations",
   "regulatory-reports",
   "regulatory-obligations",
   "regulatory-restatements",

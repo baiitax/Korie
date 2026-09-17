@@ -80,7 +80,9 @@ export type SupportEventType =
   | "CSAT_SUBMITTED"
   | "CUSTOMER_360_VIEWED"
   | "PII_UNMASKED"
-  | "PROVIDER_TRACE_VIEWED";
+  | "PROVIDER_TRACE_VIEWED"
+  | "ESCALATION_BRIDGED"
+  | "ESCALATION_BRIDGE_FAILED";
 
 export interface SupportEvent {
   id: string;
@@ -184,6 +186,8 @@ export type EscalationStatus = "PENDING" | "IN_REVIEW" | "ACTIONED" | "RESOLVED"
 export interface SupportEscalation {
   id: string;
   escalationNumber: string;
+  /** Compliance-side linkage (roadmap 3.1): the aml_alerts reference the escalation bridge created. */
+  externalRef?: string;
   ticketId: string;
   customerName: string;
   reason: string;

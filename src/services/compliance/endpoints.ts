@@ -64,6 +64,11 @@ export const LIVE_SOURCES: Partial<Record<ComplianceResourceKey, LiveSource>> = 
   calendar: { path: `${DATA}/regulatory-obligations`, listKey: 'rows', totalKey: 'count' },
   approvals: { path: `${DATA}/pam-requests`, listKey: 'rows', totalKey: 'count' },
   escalations: { path: `${DATA}/complaints`, listKey: 'rows', totalKey: 'count' },
+  /* Roadmap 3.1: support → compliance referrals (support_escalations rows
+     linked to aml_alerts via the escalation bridge). The derive layer keeps
+     only COMPLIANCE / FRAUD_RISK destinations for the bell; the resource
+     itself is unfiltered so linkage state is visible for every escalation. */
+  referrals: { path: `${DATA}/support-escalations`, listKey: 'rows', totalKey: 'count' },
   policies: { path: `${DATA}/risk-rules`, listKey: 'rows', totalKey: 'count' },
   audit: { path: `${DATA}/audit-events`, listKey: 'rows', totalKey: 'count' },
   officers: { path: `${DATA}/workforce-identities`, listKey: 'rows', totalKey: 'count' },
@@ -119,6 +124,7 @@ export const WIRING: Record<ComplianceResourceKey, ComplianceWiring> = {
   tasks: 'derived',
   approvals: 'live',
   escalations: 'live',
+  referrals: 'live',
   integrations: 'live',
   systemHealth: 'live',
   notifications: 'derived',

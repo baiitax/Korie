@@ -2014,6 +2014,7 @@ export const fr = {
         openCase: "Ouvrir le dossier lié",
         openCustomerFile: "Ouvrir la fiche client",
         provenance: "Provenance",
+        referralSource: "Référence d'un agent du support",
         provenanceDetail: "Lu dans le moteur d'alertes pour cette session ; rien n'est dérivé ni simulé.",
         reference: "Référence",
         relatedActivity: "Activité liée",
@@ -3455,6 +3456,7 @@ export const fr = {
         SETTLEMENT: "Règlement",
 },
       fromTicket: "Depuis le ticket {ticket}",
+      linkedAlert: "Alerte conformité liée",
       markResolved: "Marquer comme résolue",
     },
     tasks: {

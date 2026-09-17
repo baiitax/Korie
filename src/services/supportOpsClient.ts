@@ -312,6 +312,8 @@ export interface EscalationDto {
   reason: string;
   destination: string;
   destinationLabel: string;
+  /** Roadmap 3.1: the aml_alerts reference the escalation bridge created (COMPLIANCE/FRAUD_RISK only). */
+  externalRef?: string;
   assignedToName?: string;
   status: string;
   createdAt: string;

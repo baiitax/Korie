@@ -2001,6 +2001,7 @@ export const en = {
         openCase: "Open the linked case",
         openCustomerFile: "Open customer file",
         provenance: "Provenance",
+        referralSource: "Officer referral from support escalation",
         provenanceDetail: "Read from the alert engine for this session; nothing on this page is derived or simulated.",
         reference: "Reference",
         relatedActivity: "Related activity",
@@ -3442,6 +3443,7 @@ export const en = {
         SETTLEMENT: "Settlement",
 },
       fromTicket: "From ticket {ticket}",
+      linkedAlert: "Bridged compliance alert",
       markResolved: "Mark resolved",
     },
     tasks: {

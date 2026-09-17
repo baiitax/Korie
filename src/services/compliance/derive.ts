@@ -14,6 +14,7 @@ import type {
   DashboardSummary,
   NotificationRow,
   ObligationRow,
+  SupportReferralRow,
   TaskRow,
 } from './types';
 
@@ -46,6 +47,8 @@ export interface DerivedInputs {
   kyc?: { status: string; riskLevel: string }[];
   kyb?: { kybStatus: string; riskLevel: string }[];
   health?: { platformStatus?: string; providers?: { status: string }[] } | null;
+  /** Support → compliance referrals (roadmap 3.1); optional so older callers/tests still type-check. */
+  referrals?: SupportReferralRow[];
 }
 
 export function deriveDashboard(i: DerivedInputs): DashboardSummary {
@@ -261,6 +264,28 @@ export function deriveNotifications(i: DerivedInputs): NotificationRow[] {
         href: `/compliance/alerts/${encodeURIComponent(a.id)}`,
         at: a.triggeredAt,
         sourceLabel: 'AML alert engine',
+      });
+    });
+
+  /*
+   * Support referrals (roadmap 3.1): every OPEN/QUEUED escalation to
+   * COMPLIANCE or FRAUD_RISK is a real queue item an officer must see —
+   * bridged ones point at the aml_alerts row, un-bridged ones say so.
+   */
+  (i.referrals ?? [])
+    .filter((r) => (r.destination === 'COMPLIANCE' || r.destination === 'FRAUD_RISK') && r.status !== 'RESOLVED')
+    .slice(0, 5)
+    .forEach((r) => {
+      out.push({
+        id: `n-referral-${r.id}`,
+        kind: r.status === 'PENDING' ? 'ATTENTION' : 'INFORMATIONAL',
+        title: r.externalRef
+          ? `Support referral ${r.escalationNumber} → alert ${r.externalRef}`
+          : `Support referral ${r.escalationNumber} is not bridged yet`,
+        body: `${r.destination} · ${r.reason}${r.externalRef ? ` · linked alert ${r.externalRef}` : ' · no compliance alert linked (bridge pending or failed)'}`,
+        href: `/compliance/alerts?ref=${encodeURIComponent(r.externalRef ?? r.escalationNumber)}`,
+        at: r.createdAt,
+        sourceLabel: 'Support escalation bridge',
       });
     });
 

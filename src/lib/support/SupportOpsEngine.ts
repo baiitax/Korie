@@ -47,6 +47,7 @@ import {
   ArticleLanguage,
 } from "@/types/supportOps";
 import { hasCapability, allowedEscalationDestinations, roleRank } from "./SupportPermissions";
+import { bridgeEscalationToCompliance } from "@/lib/compliance/escalationBridge";
 import {
   listOfficers,
   getOfficerRow,
@@ -984,6 +985,55 @@ export class SupportOpsEngine {
       ticket_id: ticketRow.id,
       href: `/support/escalations/${saved.id}`,
     });
+
+    /*
+     * Escalation bridge (roadmap 3.1, PS-6): COMPLIANCE / FRAUD_RISK
+     * escalations create a real aml_alerts referral row linked both ways.
+     * The escalation itself has already succeeded — a bridge failure must
+     * not roll it back, so failures are recorded on the ticket timeline
+     * (ESCALATION_BRIDGE_FAILED) and the hourly support sweep retries.
+     */
+    const bridge = await bridgeEscalationToCompliance(
+      {
+        id: saved.id,
+        escalationNumber: saved.escalationNumber,
+        ticketId: ticketRow.id,
+        destination: params.destination,
+        reason: params.reason,
+        priority,
+        slaDueAt: saved.slaDueAt,
+        externalRef: saved.externalRef ?? null,
+      },
+      {
+        id: ticketRow.id,
+        ticketNumber: ticketRow.ticket_number,
+        subject: ticketRow.subject,
+        customerId: ticketRow.customer_id ?? null,
+        customerName: ticketRow.customer_name ?? null,
+        customerEmail: ticketRow.customer_email ?? null,
+        jurisdiction: ticketRow.jurisdiction ?? null,
+        relatedTransactionReference: ticketRow.related_transaction_reference ?? null,
+      },
+    );
+    if (bridge.status === "skipped" && bridge.reason === "no-customer") {
+      await insertEventRow({
+        ticket_id: ticketRow.id,
+        event_type: "ESCALATION_BRIDGE_FAILED",
+        actor_id: "ESCALATION-BRIDGE",
+        actor_name: "Escalation bridge",
+        actor_role: "SYSTEM",
+        payload: { reason: "no-customer", note: "Ticket has no linked customer; no compliance alert was created." },
+      });
+    } else if (bridge.status === "error") {
+      await insertEventRow({
+        ticket_id: ticketRow.id,
+        event_type: "ESCALATION_BRIDGE_FAILED",
+        actor_id: "ESCALATION-BRIDGE",
+        actor_name: "Escalation bridge",
+        actor_role: "SYSTEM",
+        payload: { reason: "error", error: bridge.error },
+      });
+    }
     return { ok: true, data: saved };
   }
 

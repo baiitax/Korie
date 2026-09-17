@@ -38,6 +38,7 @@ import type {
   ObligationRow,
   ProviderRow,
   ReportRow,
+  SupportReferralRow,
 } from './types';
 import {
   camelRow,
@@ -49,6 +50,7 @@ import {
   mapCustomer,
   mapDecision,
   mapEscalation,
+  mapSupportReferral,
   mapHealth,
   mapKyc,
   mapKyb,
@@ -128,6 +130,7 @@ const MAPPERS: { [K in RowKey]?: (raw: AnyJson) => ComplianceResourceMap[K] } = 
   calendar: (raw) => mapObligation(camelRow(raw)),
   approvals: (raw) => mapApproval(camelRow(raw)),
   escalations: (raw) => mapEscalation(camelRow(raw)),
+  referrals: (raw) => mapSupportReferral(camelRow(raw)),
   integrations: (raw) => mapProvider(camelRow(raw)),
   policies: (raw) => mapPolicy(camelRow(raw)),
   audit: (raw) => mapAuditEvent(camelRow(raw)),
@@ -513,7 +516,7 @@ async function loadDerived(
   key: 'dashboard' | 'tasks' | 'notifications',
   opts: LoadOptions,
 ) {
-  const [alertsRes, casesRes, decisionsRes, obligationsRes, approvalsRes, kycRes, kybRes, healthRes] =
+  const [alertsRes, casesRes, decisionsRes, obligationsRes, approvalsRes, kycRes, kybRes, healthRes, referralsRes] =
     await Promise.all([
       loadList('alerts', opts),
       loadList('cases', opts),
@@ -523,6 +526,7 @@ async function loadDerived(
       loadKyc(opts),
       loadList('kyb', opts),
       loadSystemHealth(opts),
+      loadList('referrals', opts),
     ]);
 
   const inputs = [alertsRes, casesRes, decisionsRes, obligationsRes, approvalsRes, kycRes, kybRes];
@@ -562,6 +566,9 @@ async function loadDerived(
     kyc: kycRes.data,
     kyb: kybRes.data,
     health: healthRes.data[0] ?? null,
+    // Roadmap 3.1: support referrals feed the bell; a failed read just means
+    // no referral notifications this cycle (it is not core queue state).
+    referrals: referralsRes.status === 'ready' ? (referralsRes.data as SupportReferralRow[]) : [],
   };
 
   if (key === 'dashboard') {

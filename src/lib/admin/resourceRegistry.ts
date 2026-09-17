@@ -593,7 +593,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
   },
   "aml-alerts": {
     table: "aml_alerts",
-    select: "id,alert_reference,scenario_code,scenario_version,customer_id,account_id,transaction_id,transaction_reference,severity,status,disputed_or_triggered_amount,currency,why_suspicious,assigned_to,sla_due_at,is_sla_breached,case_id,created_at,updated_at",
+    select: "id,alert_reference,scenario_code,scenario_version,customer_id,account_id,transaction_id,transaction_reference,severity,status,disputed_or_triggered_amount,currency,what_happened,why_suspicious,who_involved,how_pattern_detected,source_reference,assigned_to,sla_due_at,is_sla_breached,case_id,created_at,updated_at",
     orderBy: "created_at",
     search: ["alert_reference", "transaction_reference"],
     filters: {
@@ -742,9 +742,10 @@ export const RESOURCES: Record<string, ResourceDef> = {
   "support-escalations": {
     table: "support_escalations",
     orderBy: "created_at",
-    search: ["escalation_number", "reason"],
+    search: ["escalation_number", "reason", "external_ref"],
     filters: {
       status: { column: "status", op: "eq" },
+      destination: { column: "destination", op: "eq" },
     },
     mutations: { columns: ["status", "resolution_note"] },
   },

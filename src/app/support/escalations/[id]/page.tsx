@@ -66,6 +66,11 @@ export default function EscalationDetailPage() {
               {t("supportOps.escalations.fromTicket", { ticket: e.ticketNumber ?? e.ticketId })} · {t(`supportOps.escalations.destinationLabels.${e.destination}`)}
               {e.assignedToName ? ` · ${e.assignedToName}` : ""}
             </p>
+            {e.externalRef ? (
+              <p className="mt-1 text-[11.5px] text-[var(--muted)]">
+                {t("supportOps.escalations.linkedAlert")}: <span className="font-bold">{e.externalRef}</span>
+              </p>
+            ) : null}
           </div>
           {e.status !== "RESOLVED" && (
             <button

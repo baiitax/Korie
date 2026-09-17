@@ -2096,6 +2096,7 @@ export const ha = {
         sameSubject: "Sauran mutane a jeri",
         actionsNote: "Hukuncin yana rubutu a na'urar gargaɗi. Duk sauran shafin karantawa ne, domin ba aikin wannan shafin ba ne canza su.",
         provenance: "Tushen bayani",
+        referralSource: "Bayani daga jami'in tallafi",
         provenanceDetail: "An karanta daga na'urar gargaɗi a wannan zaman; babu abin da aka ƙirƙira.",
         sourceNote: "Wuraren bayani ana adana su a gargaɗi da tsarin bincike, ba wannan shafin ba.",
         sourceNoteCustomer: "Ana amfani da lambar mutumin da ke kan gargaɗi don nemo shi a tsarin asali na shaida.",
@@ -3440,6 +3441,7 @@ export const ha = {
         SETTLEMENT: "Kammalawar biya",
 },
       fromTicket: "Daga tiketi {ticket}",
+      linkedAlert: "Faɗakar da bin ka'idojin da aka haɗa",
       markResolved: "Sanya shi cikin an warware",
     },
     tasks: {
